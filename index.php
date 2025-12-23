@@ -1,0 +1,2378 @@
+<?php
+// Prevent caching
+header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+header("Cache-Control: post-check=0, pre-check=0", false);
+header("Pragma: no-cache");
+
+/**
+ * Unified Workflow v3.0 - Clean Rebuild
+ * =====================================
+ * 
+ * Timeline-First approach with clean, maintainable code
+ * Built from scratch following design system principles
+ * 
+ * @version 3.0.0
+ * @date 2025-12-23
+ * @author BGL Team
+ */
+
+// Load dependencies
+require_once __DIR__ . '/app/Support/autoload.php';
+
+use App\Support\Database;
+use App\Repositories\GuaranteeRepository;
+use App\Repositories\GuaranteeDecisionRepository;
+use App\Services\LearningService;
+use App\Repositories\SupplierLearningRepository;
+use App\Repositories\SupplierRepository;
+
+header('Content-Type: text/html; charset=utf-8');
+
+// Connect to database
+$db = Database::connect();
+$guaranteeRepo = new GuaranteeRepository($db);
+$decisionRepo = new GuaranteeDecisionRepository($db);
+
+$learningRepo = new SupplierLearningRepository($db);
+$supplierRepo = new SupplierRepository();
+$learningService = new LearningService($learningRepo, $supplierRepo);
+
+// Get real data from database
+$requestedId = isset($_GET['id']) ? (int)$_GET['id'] : null;
+$currentRecord = null;
+
+if ($requestedId) {
+    // Find the guarantee by ID directly
+    $currentRecord = $guaranteeRepo->find($requestedId);
+}
+
+// If not found or no ID specified, get first record
+if (!$currentRecord) {
+    $allGuarantees = $guaranteeRepo->getAll([], 1, 0); // Get just 1 record
+    $currentRecord = $allGuarantees[0] ?? null;
+}
+
+// Get total count for progress
+$totalRecords = $guaranteeRepo->count();
+
+// If we have a record, prepare it
+if ($currentRecord) {
+    $raw = $currentRecord->rawData;
+    
+    $mockRecord = [
+        'id' => $currentRecord->id,
+        'session_id' => $raw['session_id'] ?? 0,
+        'guarantee_number' => $currentRecord->guaranteeNumber ?? 'N/A',
+        'supplier_name' => htmlspecialchars($raw['supplier'] ?? '', ENT_QUOTES),
+        'bank_name' => htmlspecialchars($raw['bank'] ?? '', ENT_QUOTES),
+        'amount' => is_numeric($raw['amount'] ?? 0) ? floatval($raw['amount']) : 0,
+        'expiry_date' => $raw['expiry_date'] ?? date('Y-m-d'),
+        'issue_date' => $raw['issue_date'] ?? date('Y-m-d'),
+        'contract_number' => htmlspecialchars($raw['contract_number'] ?? '', ENT_QUOTES),
+        'type' => htmlspecialchars($raw['type'] ?? 'ابتدائي', ENT_QUOTES),
+        'status' => 'pending'
+    ];
+    
+    // Get decision if exists
+    $decision = $decisionRepo->findByGuarantee($currentRecord->id);
+    if ($decision) {
+        $mockRecord['status'] = $decision->status;
+    }
+    
+    // Load timeline/history for this guarantee
+    $mockTimeline = [];
+    if ($currentRecord) {
+        try {
+            // Load from guarantee_history table
+            $stmt = $db->prepare('
+                SELECT * FROM guarantee_history 
+                WHERE guarantee_id = ? 
+                ORDER BY created_at DESC
+            ');
+            $stmt->execute([$currentRecord->id]);
+            $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            foreach ($history as $event) {
+                $mockTimeline[] = [
+                    'id' => $event['id'],
+                    'type' => $event['action'],
+                    'date' => $event['created_at'],
+                    'description' => $event['change_reason'] ?? '',
+                    'user' => $event['created_by'] ?? 'النظام',
+                    'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true)
+                ];
+            }
+        } catch (\Exception $e) {
+            // If error, keep empty array
+        }
+        
+        // Always add import event if no actions found
+        if (empty($mockTimeline)) {
+            $mockTimeline[] = [
+                'id' => 1,
+                'type' => 'import',
+                'date' => $currentRecord->importedAt,
+                'description' => 'استيراد من ' . $currentRecord->importSource,
+                'user' => htmlspecialchars($currentRecord->importedBy ?? 'النظام', ENT_QUOTES),
+                'changes' => []
+            ];
+        }
+    }
+    
+    // Load notes and attachments for this guarantee
+    $mockNotes = [];
+    $mockAttachments = [];
+    
+    if ($currentRecord) {
+        try {
+            // Load notes
+            $stmt = $db->prepare('SELECT * FROM guarantee_notes WHERE guarantee_id = ? ORDER BY created_at DESC');
+            $stmt->execute([$currentRecord->id]);
+            $mockNotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Load attachments
+            $stmt = $db->prepare('SELECT * FROM guarantee_attachments WHERE guarantee_id = ? ORDER BY created_at DESC');
+            $stmt->execute([$currentRecord->id]);
+            $mockAttachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            // If error, keep empty arrays
+        }
+    }
+} else {
+    // No data in database - use empty state
+    $mockRecord = [
+        'id' => 0,
+        'session_id' => 0,
+        'guarantee_number' => 'لا توجد بيانات',
+        'supplier_name' => 'قم باستيراد ملف Excel',
+        'bank_name' => '',
+        'amount' => 0,
+        'expiry_date' => date('Y-m-d'),
+        'issue_date' => date('Y-m-d'),
+        'contract_number' => '',
+        'type' => 'ابتدائي',
+        'status' => 'pending'
+    ];
+    
+    $mockTimeline = [];
+}
+
+// Get initial suggestions for the current record
+$initialSupplierSuggestions = [];
+if ($mockRecord['supplier_name']) {
+    $initialSupplierSuggestions = $learningService->getSuggestions($mockRecord['supplier_name']);
+}
+
+// Map suggestions to frontend format
+$formattedSuppliers = array_map(function($s) {
+    return [
+        'id' => $s['id'],
+        'name' => $s['official_name'],
+        'score' => $s['score'],
+        // 'source' => $s['source'] === 'alias' ? 'learned' : 'search', // Matches frontend 'learned' string if needed
+        'usage_count' => 0 
+    ];
+}, $initialSupplierSuggestions);
+
+$mockCandidates = [
+    'suppliers' => $formattedSuppliers,
+    'banks' => [
+        [
+            'id' => 1,
+            'name' => $mockRecord['bank_name'],
+            'short_code' => 'SNB',
+            'confidence' => 95,
+            'usage_count' => 42,
+            'source' => 'learned'
+        ]
+    ]
+];
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Unified Workflow v3.0 - BGL</title>
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           DESIGN SYSTEM - CSS VARIABLES
+           ═══════════════════════════════════════════════════════════════ */
+        :root {
+            /* Colors */
+            --bg-body: #f1f5f9;
+            --bg-card: #ffffff;
+            --bg-secondary: #f8fafc;
+            --bg-neutral: #fafbfc;
+            --bg-hover: #f8fafc;
+            
+            --border-primary: #e2e8f0;
+            --border-light: #f1f5f9;
+            --border-neutral: #cbd5e1;
+            --border-focus: #3b82f6;
+            
+            --text-primary: #1e293b;
+            --text-secondary: #475569;
+            --text-muted: #64748b;
+            --text-light: #94a3b8;
+            
+            --accent-primary: #3b82f6;
+            --accent-primary-hover: #2563eb;
+            --accent-success: #16a34a;
+            --accent-warning: #d97706;
+            --accent-danger: #dc2626;
+            
+            /* Spacing */
+            --space-xs: 4px;
+            --space-sm: 8px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+            
+            --gap-card: 20px;
+            --gap-section: 16px;
+            --gap-small: 6px;
+            
+            /* Typography */
+            --font-family: 'Tajawal', sans-serif;
+            --font-size-xs: 10px;
+            --font-size-sm: 11px;
+            --font-size-base: 13px;
+            --font-size-lg: 15px;
+            --font-size-xl: 18px;
+            
+            --font-weight-normal: 400;
+            --font-weight-medium: 500;
+            --font-weight-semibold: 600;
+            --font-weight-bold: 700;
+            --font-weight-black: 800;
+            
+            /* Dimensions */
+            --width-sidebar: 290px;
+            --width-timeline: 360px;
+            --height-top-bar: 56px;
+            --height-record-header: 48px;
+            --height-action-bar: 72px;
+            
+            /* Border Radius */
+            --radius-sm: 6px;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --radius-full: 50px;
+            
+            /* Shadows */
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 4px 20px rgba(0, 0, 0, 0.1);
+            --shadow-focus: 0 0 0 3px rgba(59, 130, 246, 0.1);
+            
+            /* Transitions */
+            --transition-fast: 0.15s ease;
+            --transition-base: 0.2s ease;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           RESET & BASE
+           ═══════════════════════════════════════════════════════════════ */
+        *, *::before, *::after {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        
+        html, body {
+            font-family: var(--font-family);
+            height: 100%;
+            -webkit-font-smoothing: antialiased;
+        }
+        
+        
+        body {
+            background: var(--bg-body);
+            color: var(--text-primary);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           CUSTOM SCROLLBAR - Modern & Clean
+           ═══════════════════════════════════════════════════════════════ */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+            border: 2px solid transparent;
+            background-clip: padding-box;
+        }
+        
+        /* Firefox Scrollbar */
+        * {
+            scrollbar-width: thin;
+            scrollbar-color: #cbd5e1 transparent;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           TOP BAR (Global)
+           ═══════════════════════════════════════════════════════════════ */
+        .top-bar {
+            height: var(--height-top-bar);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-lg);
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: var(--font-weight-black);
+            font-size: var(--font-size-xl);
+            color: var(--text-primary);
+        }
+        
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+        
+        .global-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        
+        .btn-global {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            font-family: inherit;
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all var(--transition-base);
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .btn-global:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-neutral);
+            color: var(--text-primary);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           MAIN CONTAINER
+           ═══════════════════════════════════════════════════════════════ */
+        .app-container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           SIDEBAR (Left)
+           ═══════════════════════════════════════════════════════════════ */
+        .sidebar {
+            width: var(--width-sidebar);
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .progress-container {
+            height: 48px;
+            background: var(--bg-card);
+            padding: 0 var(--space-md);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: var(--gap-small);
+            border-bottom: 1px solid var(--border-primary);
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: var(--border-primary);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--accent-primary), #8b5cf6);
+            border-radius: 3px;
+            transition: width 0.3s ease;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: var(--font-size-sm);
+            color: var(--text-muted);
+        }
+        
+        .progress-percent {
+            font-weight: var(--font-weight-bold);
+            color: var(--accent-primary);
+        }
+        
+        .sidebar-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-md);
+            background: var(--bg-secondary);
+        }
+        
+        .sidebar-section {
+            margin-bottom: var(--space-md);
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: var(--space-md);
+        }
+        
+        /* Input Toolbar */
+        .input-toolbar {
+            padding: 16px;
+            border-bottom: 1px solid var(--border-primary);
+            background: #ffffff;
+        }
+        .toolbar-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            letter-spacing: 0.5px;
+        }
+        .toolbar-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+        .btn-input {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            background: #f8fafc;
+            border: 1px solid var(--border-primary);
+            border-radius: 8px;
+            padding: 10px 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--text-secondary);
+        }
+        .btn-input:hover {
+            background: #eff6ff;
+            border-color: var(--accent-primary);
+            color: var(--accent-primary);
+            transform: translateY(-1px);
+        }
+        .btn-input span:first-child {
+            font-size: 18px;
+        }
+        .btn-input span:last-child {
+            font-size: 11px;
+            font-weight: 500;
+        }
+        
+        .sidebar-section:last-child {
+            margin-bottom: 0;
+        }
+        
+        .sidebar-section-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-muted);
+            margin-bottom: var(--space-md);
+            padding-bottom: var(--space-sm);
+            border-bottom: 1px solid var(--border-light);
+            display: flex;
+            align-items: center;
+            gap: var(--gap-small);
+        }
+        
+        /* Attachments */
+        .attachment-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            padding: var(--space-sm);
+            background: var(--bg-neutral);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-bottom: var(--gap-small);
+        }
+        
+        .attachment-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .attachment-item:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-neutral);
+        }
+        
+        .attachment-icon {
+            width: 32px;
+            height: 32px;
+            background: var(--bg-secondary);
+            border-radius: var(--radius-sm);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+        }
+        
+        .attachment-info {
+            flex: 1;
+            min-width: 0;
+        }
+        
+        .attachment-name {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+            margin-bottom: 2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .attachment-meta {
+            font-size: var(--font-size-xs);
+            color: var(--text-light);
+        }
+        
+        /* Notes */
+        .note-item {
+            padding: 10px;
+            background: var(--bg-neutral);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            border-right: 2px solid var(--border-neutral);
+            margin-bottom: var(--gap-small);
+        }
+        
+        .note-item:last-child {
+            margin-bottom: 0;
+        }
+        
+        .note-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: var(--gap-small);
+        }
+        
+        .note-author {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-secondary);
+        }
+        
+        .note-time {
+            font-size: var(--font-size-xs);
+            color: var(--text-light);
+        }
+        
+        .note-content {
+            font-size: var(--font-size-sm);
+            color: var(--text-muted);
+            line-height: 1.5;
+        }
+        
+        .add-note-btn {
+            width: 100%;
+            padding: var(--space-sm);
+            background: var(--bg-card);
+            border: 1px dashed var(--border-neutral);
+            border-radius: var(--radius-sm);
+            color: var(--text-muted);
+            font-family: inherit;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+            margin-top: var(--gap-small);
+        }
+        
+        .add-note-btn:hover {
+            border-color: var(--text-light);
+            color: var(--text-secondary);
+            background: var(--bg-neutral);
+        }
+        
+        /* Note Input Box */
+        .note-input-box {
+            margin-top: var(--gap-small);
+            background: white;
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            padding: 12px;
+            box-shadow: var(--shadow-md);
+        }
+
+        /* Dropdown Menu */
+        .dropdown { position: relative; display: inline-block; }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            left: 0;
+            min-width: 160px;
+            z-index: 100;
+            background: white;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+            border-radius: 4px;
+            top: 100%;
+            border: 1px solid var(--border-neutral);
+        }
+        .dropdown-content a {
+            color: var(--text-primary);
+            padding: 10px 16px;
+            text-decoration: none;
+            display: block;
+            font-size: 14px;
+            text-align: right;
+        }
+        .dropdown-content a:hover { background-color: var(--bg-neutral); }
+        .show { display: block; }
+        
+        .note-input-box textarea {
+            width: 100%;
+            min-height: 80px;
+            padding: 8px;
+            font-family: inherit;
+            font-size: var(--font-size-sm);
+            color: var(--text-primary);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-sm);
+            resize: vertical;
+            transition: all var(--transition-base);
+        }
+        
+        .note-input-box textarea:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: var(--shadow-focus);
+        }
+        
+        .note-input-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 8px;
+            justify-content: flex-end;
+        }
+        
+        .note-input-actions button {
+            padding: 6px 12px;
+            font-family: inherit;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            transition: all var(--transition-fast);
+        }
+        
+        .note-save-btn {
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+        }
+        
+        .note-save-btn:hover {
+            background: var(--accent-primary-hover);
+        }
+        
+        .note-cancel-btn {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .note-cancel-btn:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           CENTER SECTION
+           ═══════════════════════════════════════════════════════════════ */
+        .center-section {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        /* Record Header */
+        .record-header {
+            height: var(--height-record-header);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-lg);
+            flex-shrink: 0;
+        }
+        
+        .record-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .record-title h1 {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-primary);
+        }
+        
+        /* History Banner */
+        .history-banner {
+            background: #fffbeb;
+            border-bottom: 1px solid #fcd34d;
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 13px;
+            color: #92400e;
+            animation: slideDown 0.3s ease-out;
+        }
+        .history-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .history-icon {
+            font-size: 16px;
+        }
+        .history-label {
+            font-weight: 700;
+        }
+        .history-date {
+            font-family: monospace;
+            font-weight: 600;
+            margin: 0 4px;
+            background: rgba(0,0,0,0.05);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        .btn-return {
+            background: #ffffff;
+            border: 1px solid #f59e0b;
+            color: #d97706;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-return:hover {
+            background: #fef3c7;
+            transform: translateY(-1px);
+        }
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .badge {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 3px 10px;
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-bold);
+            border-radius: var(--radius-full);
+            border: 1px solid;
+        }
+        
+        .badge-pending {
+            background: #fef3c7;
+            color: #d97706;
+            border-color: #fde68a;
+        }
+        
+        .record-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        
+        /* Content Wrapper */
+        .content-wrapper {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           TIMELINE PANEL
+           ═══════════════════════════════════════════════════════════════ */
+        .timeline-panel {
+            width: var(--width-timeline);
+            background: var(--bg-card);
+            border-right: 1px solid var(--border-primary);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        
+        .timeline-header {
+            height: var(--height-record-header);
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            border-left: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-md);
+        }
+        
+        .timeline-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-secondary);
+        }
+        
+        .timeline-count {
+            font-size: var(--font-size-xs);
+            color: var(--text-light);
+        }
+        
+        .timeline-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+        }
+        
+        .timeline-list {
+            position: relative;
+            padding-right: 20px;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            right: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: #e2e8f0;
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            right: -17px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 3px solid #f8fafc;
+            background: #94a3b8;
+            box-shadow: 0 0 0 1px #e2e8f0;
+            transition: all var(--transition-fast);
+        }
+        
+        .timeline-dot.active {
+            background: #3b82f6;
+            box-shadow: 0 0 0 1px #3b82f6, 0 0 0 4px rgba(59, 130, 246, 0.2);
+            transform: scale(1.1);
+        }
+        
+        /* Event Card Styling */
+        .event-card {
+            background: #ffffff;
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid var(--border-light);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+            transition: all 0.2s ease;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .event-card:hover {
+            border-color: var(--accent-primary);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);
+            transform: translateY(-1px);
+        }
+        
+        .event-card.current {
+            background: #f0f9ff;
+            border-color: var(--accent-primary);
+            box-shadow: 0 0 0 1px var(--accent-primary);
+        }
+
+        .event-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 6px;
+        }
+
+        .event-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1.4;
+        }
+
+        .event-desc {
+            font-size: 12px;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+            line-height: 1.5;
+        }
+
+        /* Badge Styling */
+        .event-badge {
+            display: inline-block;
+            font-size: 10px;
+            font-weight: 700;
+            padding: 2px 8px;
+            border-radius: 12px;
+            background: var(--accent-primary);
+            color: white;
+            margin-bottom: 8px;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.2);
+        }
+
+        /* Meta Data (Date & User) */
+        .event-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding-top: 8px;
+            border-top: 1px solid rgba(0,0,0,0.04);
+            font-size: 11px;
+            color: var(--text-light);
+        }
+        
+        /* Diff View Styling */
+        .diff-view {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            background: #f8fafc;
+            padding: 6px 8px;
+            border-radius: 6px;
+            margin-bottom: 8px;
+            border: 1px dashed var(--border-neutral);
+        }
+        
+        .diff-old {
+            color: var(--text-muted);
+            text-decoration: line-through;
+            font-size: 11px;
+        }
+        
+        .diff-arrow {
+            color: var(--text-light);
+            font-size: 10px;
+        }
+        
+        .diff-new {
+            color: var(--accent-success);
+            font-weight: 600;
+            font-size: 11px;
+            background: rgba(22, 163, 74, 0.1);
+            padding: 1px 4px;
+            border-radius: 4px;
+        }
+
+        
+        /* ═══════════════════════════════════════════════════════════════
+           MAIN CONTENT
+           ═══════════════════════════════════════════════════════════════ */
+        .main-content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding: var(--space-lg);
+            background: var(--bg-body);
+            min-height: 0;
+        }
+        
+        .main-content > * {
+            flex-shrink: 0;
+        }
+        
+        /* Decision Card */
+        .decision-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+        
+        .card-header {
+            height: 44px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-md);
+        }
+        
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-secondary);
+        }
+        
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+        }
+        
+        .card-body {
+            padding: var(--space-lg);
+            display: flex;
+            flex-direction: column;
+            gap: var(--gap-card);
+        }
+        
+        /* Field Group */
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-sm);
+        }
+        
+        .field-row {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            gap: var(--space-md);
+        }
+        
+        .field-label {
+            font-size: var(--font-size-base);
+            font-weight: 600;
+            color: var(--text-primary);
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        
+        .field-input {
+            flex: 1;
+            padding: 10px 12px;
+            font-family: inherit;
+            font-size: var(--font-size-base);
+            color: var(--text-primary);
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+            transition: all var(--transition-base);
+        }
+        
+        .field-input:hover {
+            border-color: #93c5fd;
+        }
+        
+        .field-input:focus {
+            outline: none;
+            border-color: var(--border-focus);
+            box-shadow: var(--shadow-focus);
+        }
+        
+        /* Chips */
+        .chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--gap-small);
+            margin-top: var(--space-xs);
+            margin-right: calc(80px + var(--space-md));
+        }
+        
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: 5px 10px;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            border-radius: var(--radius-full);
+            border: 1px solid;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            background: transparent;
+            font-family: inherit;
+        }
+        
+        .chip-selected {
+            background: #dcfce7;
+            color: var(--accent-success);
+            border-color: #86efac;
+        }
+        
+        .chip-candidate {
+            background: var(--bg-secondary);
+            color: var(--text-muted);
+            border-color: var(--border-primary);
+        }
+        
+        .chip-candidate:hover {
+            background: #eff6ff;
+            border-color: #93c5fd;
+            color: var(--accent-primary);
+        }
+        
+        .chip-source {
+            font-size: var(--font-size-xs);
+            opacity: 0.8;
+        }
+        
+        .field-hint {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+            margin-top: var(--gap-small);
+            margin-right: calc(80px + var(--space-md));
+            font-size: var(--font-size-xs);
+            color: var(--text-light);
+        }
+        
+        .hint-group {
+            display: flex;
+            align-items: center;
+            gap: var(--gap-small);
+        }
+        
+        .hint-label {
+            color: var(--text-muted);
+        }
+        
+        .hint-value {
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+        
+        .hint-score {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            color: var(--accent-success); /* تم التصحيح لاستخدام المتغير الصحيح */
+            font-weight: 600;
+        }
+
+        .hint-divider {
+            color: var(--border-neutral);
+        }
+
+        .hint-dot {
+            width: 6px;
+            height: 6px;
+            background: var(--accent-success);
+            border-radius: 50%;
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+            padding: var(--space-md);
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-md);
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+            gap: var(--space-xs);
+        }
+        
+        .info-label {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+        }
+        
+        .info-value {
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-semibold);
+            color: var(--text-primary);
+        }
+        
+        .info-value.highlight {
+            color: var(--accent-success);
+            font-size: var(--font-size-lg);
+        }
+        
+        .card-footer {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border-primary);
+            padding: 14px var(--space-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: var(--space-sm);
+            padding: 10px 18px;
+            font-family: inherit;
+            font-size: var(--font-size-base);
+            font-weight: var(--font-weight-bold);
+            border-radius: var(--radius-md);
+            border: none;
+            cursor: pointer;
+            transition: all var(--transition-base);
+            white-space: nowrap;
+        }
+        
+        .btn-sm {
+            padding: 6px 14px;
+            font-size: var(--font-size-sm);
+        }
+        
+        .btn-primary {
+            background: var(--accent-primary);
+            color: white;
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-primary:hover {
+            background: var(--accent-primary-hover);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-secondary {
+            background: var(--bg-card);
+            color: var(--text-muted);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .btn-secondary:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-neutral);
+            color: var(--text-primary);
+        }
+        
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-muted);
+            border: 1px solid var(--border-primary);
+        }
+        
+        .btn-ghost:hover {
+            background: var(--bg-hover);
+            border-color: var(--border-neutral);
+        }
+        
+        /* Preview Section */
+        .preview-section {
+            margin-top: var(--space-lg);
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+        }
+        
+        .preview-header {
+            height: 36px;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 14px;
+        }
+        
+        .preview-title {
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-bold);
+            color: var(--text-muted);
+        }
+        
+        .preview-print {
+            font-size: var(--font-size-sm);
+            color: var(--accent-primary);
+            font-weight: var(--font-weight-semibold);
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: var(--radius-sm);
+            transition: background var(--transition-fast);
+        }
+        
+        .preview-print:hover {
+            background: var(--bg-hover);
+        }
+        
+        .preview-body {
+            padding: var(--space-lg);
+            background: var(--bg-secondary);
+            display: flex;
+            justify-content: center;
+        }
+        
+        .letter-paper {
+            background: white;
+            width: 100%;
+            max-width: 480px;
+            padding: 32px;
+            box-shadow: var(--shadow-lg);
+            font-size: var(--font-size-base);
+            line-height: 1.8;
+            color: #374151;
+            border-radius: var(--radius-sm);
+        }
+        
+        .letter-header {
+            text-align: center;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border-primary);
+        }
+        
+        .letter-to {
+            font-weight: var(--font-weight-bold);
+            font-size: var(--font-size-lg);
+            color: var(--text-primary);
+            margin-bottom: var(--space-sm);
+        }
+        
+        .letter-greeting {
+            color: var(--text-muted);
+            font-size: var(--font-size-base);
+        }
+        
+        .letter-body {
+            margin: var(--space-lg) 0;
+        }
+        
+        .letter-body p {
+            margin-bottom: var(--space-md);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           ACTION BAR (Bottom)
+           ═══════════════════════════════════════════════════════════════ */
+        .action-bar {
+            height: var(--height-action-bar);
+            background: var(--bg-card);
+            border-top: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-lg);
+            box-shadow: 0 -1px 3px rgba(0, 0, 0, 0.05);
+            flex-shrink: 0;
+        }
+        
+        .primary-actions {
+            display: flex;
+            gap: 12px;
+        }
+        
+        /* Alpine.js Cloak */
+        [x-cloak] {
+            display: none !important;
+        }
+    </style>
+</head>
+<body x-data="unifiedWorkflow()">
+    
+    <!-- Top Bar (Global) -->
+    <header class="top-bar">
+        <div class="brand">
+            <div class="brand-icon">&#x1F4CB;</div>
+            <span>نظام إدارة الضمانات</span>
+        </div>
+        <nav class="global-actions">
+            <a href="views/import.php" class="btn-global">&#x1F4E5; استيراد</a>
+            <a href="views/statistics.php" class="btn-global">&#x1F4CA; إحصائيات</a>
+            <a href="#" class="btn-global">&#x2699; إعدادات</a>
+        </nav>
+    </header>
+
+    <!-- Main Container -->
+    <div class="app-container">
+        
+        <!-- Center Section -->
+        <div class="center-section">
+            
+            <!-- Record Header -->
+            <header class="record-header">
+                <div class="record-title">
+                    <h1>ضمان رقم <span x-text="record.guarantee_number"></span></h1>
+                    <span class="badge badge-pending">يحتاج قرار</span>
+                </div>
+                <div class="record-actions" x-data="{ showPrint: false }">
+                    <button class="btn btn-secondary btn-sm" @click="saveAndNext()">&#x1F4BE; حفظ</button>
+                    
+                    <div class="dropdown">
+                        <button class="btn btn-secondary btn-sm" @click="showPrint = !showPrint" @click.away="showPrint = false">
+                            &#x1F5A8; طباعة &#x25BC;
+                        </button>
+                        <div class="dropdown-content" :class="{ 'show': showPrint }">
+                            <a href="#" @click.prevent="print('extension'); showPrint = false">تمديد ضمان</a>
+                            <a href="#" @click.prevent="print('release'); showPrint = false">إفراج ضمان</a>
+                        </div>
+                    </div>
+
+                    <button class="btn btn-secondary btn-sm" @click="extend()">&#x1F504; تمديد</button>
+                    <button class="btn btn-secondary btn-sm" @click="reduce()">&#x1F4C9; تخفيض</button>
+                    <button class="btn btn-secondary btn-sm" @click="release()">&#x1F4E4; إفراج</button>
+                </div>
+            </header>
+
+            <!-- Content Wrapper -->
+            <div class="content-wrapper">
+                
+                <!-- Timeline Panel -->
+                <aside class="timeline-panel">
+                    <header class="timeline-header mb-2 relative">
+                        <div class="timeline-title">
+                            <span>⏲️</span>
+                            <span>Timeline</span>
+                        </div>
+                        <span class="timeline-count cursor-help" :title="timelineEvents.length + ' أحداث'">
+                            <span x-text="timelineEvents.length"></span> حدث
+                        </span>
+                    </header>
+                    <div class="timeline-body h-full overflow-y-auto">
+                        <div class="timeline-list">
+                            <div class="timeline-line"></div>
+                            
+                            <template x-for="(event, index) in timelineEvents" :key="event.id">
+                                <div class="timeline-item" @click="selectEvent(event)" style="cursor: pointer;">
+                                    <div class="timeline-dot" :class="{ 'active': activeEventId === event.id }"></div>
+                                    <div class="event-card" :class="{ 'current': activeEventId === event.id }">
+                                        <div class="flex justify-between items-start">
+                                            <div class="event-header">
+                                                <span class="event-title" x-text="event.description"></span>
+                                            </div>
+                                            <!-- Print History Button -->
+                                            <template x-if="event.history_id">
+                                                <button @click.stop="printHistory(event.history_id)" 
+                                                        class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 ml-2"
+                                                        title="طباعة نسخة هذا التاريخ">
+                                                   🖨️
+                                                </button>
+                                            </template>
+                                        </div>
+                                        <template x-if="event.details">
+                                            <div class="event-desc" x-text="event.details"></div>
+                                        </template>
+                                        <div class="event-meta">
+                                            <span class="event-date" x-text="event.date.substring(0, 16)"></span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </template>
+                        </div>
+                    </div>
+                </aside>
+
+                <!-- Main Content -->
+                <main class="main-content">
+                    <!-- Decision Card -->
+                    <div class="decision-card">
+                        
+                        <!-- History View Warning Banner -->
+                        <div class="history-banner" x-show="activeEventId !== timelineEvents[0].id" x-transition x-cloak>
+                            <div class="history-info">
+                                <span class="history-icon">&#x23EA;</span>
+                                <div>
+                                    <span class="history-label">وضع الأرشيف:</span>
+                                    <span>أنت تستعرض حالة البيانات كما كانت بتاريخ </span>
+                                    <span class="history-date" x-text="timelineEvents.find(e => e.id === activeEventId)?.date"></span>
+                                </div>
+                            </div>
+                            <button class="btn-return" @click="selectEvent(timelineEvents[0])">
+                                العودة للوضع الحالي
+                            </button>
+                        </div>
+
+                        <header class="card-header">
+                            <div class="card-title">
+                                <span>&#x1F4CB;</span>
+                                <span>بيانات الضمان</span>
+                            </div>
+                            <button class="btn btn-ghost btn-sm" @click="togglePreview">
+                                <span x-text="showPreview ? '&#x1F53C;' : '&#x1F441;'"></span>
+                                <span x-text="showPreview ? 'إخفاء المعاينة' : 'معاينة الخطاب'"></span>
+                            </button>
+                            <div class="flex gap-1 border-r border-gray-200 pr-2 mr-2">
+                                <button class="btn btn-ghost btn-sm" @click="openAttachmentsModal()">
+                                    <span>📎</span>
+                                    <span>المرفقات</span>
+                                    <span class="badge badge-sm badge-ghost" x-show="attachments.length > 0" x-text="attachments.length"></span>
+                                </button>
+                                <button class="btn btn-ghost btn-sm" @click="openNotesModal()">
+                                    <span>📝</span>
+                                    <span>الملاحظات</span>
+                                    <span class="badge badge-sm badge-ghost" x-show="notes.length > 0" x-text="notes.length"></span>
+                                </button>
+                            </div>
+                        </header>
+                        <div class="card-body">
+                            <!-- Supplier Field -->
+                            <div class="field-group">
+                                <div class="field-row">
+                                    <label class="field-label">المورد</label>
+                                    <input type="text" class="field-input" 
+                                           x-model="record.supplier_name">
+                                </div>
+                                <div class="chips-row">
+                                    <template x-for="(supplier, idx) in candidates.suppliers" :key="idx">
+                                        <button class="chip" 
+                                                :class="isSupplierSelected(supplier) ? 'chip-selected' : 'chip-candidate'"
+                                                @click="selectSupplier(supplier)">
+                                            <span x-show="supplier.score > 90">⭐ </span>
+                                            <span x-text="supplier.name"></span>
+                                            <span x-show="supplier.score < 100" class="chip-source" x-text="`${supplier.score}%`"></span>
+                                        </button>
+                                    </template>
+                                    <div x-show="candidates.suppliers.length === 0" style="font-size: 11px; color: #94a3b8; padding: 4px;">لا توجد اقتراحات</div>
+                                </div>
+                                <div class="field-hint">
+                                    <div class="hint-group">
+                                        <span class="hint-label">Excel:</span>
+                                        <span class="hint-value" x-text="record.excel_supplier"></span>
+                                    </div>
+                                    <div class="hint-divider" x-show="candidates.suppliers.length > 0">|</div>
+                                    <div class="hint-score" x-show="candidates.suppliers.length > 0">
+                                        <div class="hint-dot"></div>
+                                        <span x-text="`أفضل تطابق ${candidates.suppliers[0]?.score || 0}%`"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Bank Field -->
+                            <div class="field-group">
+                                <div class="field-row">
+                                    <label class="field-label">البنك</label>
+                                    <input type="text" class="field-input" 
+                                           x-model="record.bank_name">
+                                </div>
+                                <div class="chips-row">
+                                    <template x-for="(bank, idx) in candidates.banks" :key="idx">
+                                        <button class="chip chip-selected">
+                                            <span>⭐ </span>
+                                            <span x-text="bank.name"></span>
+                                        </button>
+                                    </template>
+                                </div>
+                                <div class="field-hint">
+                                    <div class="hint-group">
+                                        <span class="hint-label">Excel:</span>
+                                        <span class="hint-value" x-text="record.bank_name"></span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Info Grid -->
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="info-label">المبلغ</div>
+                                    <div class="info-value highlight"><span x-text="Number(record.amount).toLocaleString('en-US')"></span> ر.س</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">تاريخ الانتهاء</div>
+                                    <div class="info-value" x-text="record.expiry_date"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">رقم العقد</div>
+                                    <div class="info-value" x-text="record.contract_number"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">تاريخ الإصدار</div>
+                                    <div class="info-value" x-text="record.issue_date"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">النوع</div>
+                                    <div class="info-value" x-text="record.type"></div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="info-label">الحالة</div>
+                                    <div class="info-value">نشط</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Preview Section (togglable) -->
+                    <div class="preview-section" x-show="showPreview" x-cloak x-transition>
+                        <header class="preview-header">
+                            <span class="preview-title">&#x1F4C4; معاينة خطاب التمديد</span>
+                            <button class="preview-print">&#x1F5A8; طباعة</button>
+                        </header>
+                        <div class="preview-body">
+                            <div class="letter-paper">
+                                <div class="letter-header">
+                                    <div class="letter-to">إلى: <span x-text="record.bank_name"></span></div>
+                                    <div class="letter-greeting">السلام عليكم ورحمة الله وبركاته</div>
+                                </div>
+                                <div class="letter-body">
+                                    <p><strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم <span x-text="record.guarantee_number"></span></p>
+                                    
+                                    <p>نشير إلى الضمان البنكي <span x-text="record.type"></span> المشار إليه أعلاه والصادر لصالحنا من قبلكم بتاريخ <span x-text="record.issue_date"></span> بمبلغ وقدره <strong><span x-text="Number(record.amount).toLocaleString('en-US')"></span> ريال سعودي</strong> لصالح المورد <strong><span x-text="record.supplier_name"></span></strong> بموجب العقد رقم <span x-text="record.contract_number"></span>.</p>
+                                    
+                                    <p>نرجو التكرم بتمديد صلاحية الضمان المذكور أعلاه لمدة إضافية حتى تاريخ <strong><span x-text="record.expiry_date"></span></strong>.</p>
+                                    
+                                    <p>شاكرين لكم حسن تعاونكم،،،</p>
+                                </div>
+                                <div style="margin-top: 40px; text-align: left;">
+                                    <p><strong>مستشفى الملك فيصل التخصصي</strong></p>
+                                    <p>قسم الشؤون المالية</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </main>
+
+            </div>
+        </div>
+
+        <!-- Sidebar (Left) -->
+        <aside class="sidebar">
+            
+            <!-- Input Actions (New Proposal) -->
+            <div class="input-toolbar">
+                <div class="toolbar-label">إدخال جديد</div>
+                <div class="toolbar-actions">
+                    <button class="btn-input" title="إدخال يدوي" @click="showManualInput = true">
+                        <span>&#x270D;</span>
+                        <span>يدوي</span>
+                    </button>
+                    <button class="btn-input" title="رفع ملف Excel" @click="showImportModal = true">
+                        <span>&#x1F4CA;</span>
+                        <span>ملف</span>
+                    </button>
+                    <button class="btn-input" title="لصق بيانات" @click="showPasteModal = true">
+                        <span>&#x1F4CB;</span>
+                        <span>لصق</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Progress -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-fill" :style="`width: ${progress}%`"></div>
+                </div>
+                <div class="progress-text">
+                    <span>سجل <span x-text="currentIndex"></span> من <span x-text="totalRecords"></span></span>
+                    <span class="progress-percent" x-text="`${progress}%`"></span>
+                </div>
+            </div>
+            
+            <!-- Sidebar Body -->
+            <div class="sidebar-body">
+                <!-- Notes Section -->
+                <div class="sidebar-section" x-data="{ showNoteInput: false, newNote: '' }">
+                    <div class="sidebar-section-title">
+                        📝 الملاحظات
+                    </div>
+                    
+                    <!-- Notes List -->
+                    <template x-if="notes.length === 0 && !showNoteInput">
+                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
+                            لا توجد ملاحظات
+                        </div>
+                    </template>
+                    
+                    <template x-for="note in notes" :key="note.id">
+                        <div class="note-item">
+                            <div class="note-header">
+                                <span class="note-author" x-text="note.created_by"></span>
+                                <span class="note-time" x-text="note.created_at?.substring(0,16)"></span>
+                            </div>
+                            <div class="note-content" x-text="note.content"></div>
+                        </div>
+                    </template>
+                    
+                    <!-- Note Input Box -->
+                    <div x-show="showNoteInput" class="note-input-box" x-transition>
+                        <textarea x-model="newNote" 
+                                  placeholder="أضف ملاحظة..."
+                                  x-ref="noteTextarea"
+                                  @keydown.escape="showNoteInput = false; newNote = ''"></textarea>
+                        <div class="note-input-actions">
+                            <button @click="showNoteInput = false; newNote = ''" class="note-cancel-btn">
+                                إلغاء
+                            </button>
+                            <button @click="async () => {
+                                if (!newNote.trim()) return;
+                                try {
+                                    const res = await fetch('/V3/api/save-note.php', {
+                                        method: 'POST',
+                                        headers: {'Content-Type': 'application/json'},
+                                        body: JSON.stringify({
+                                            guarantee_id: record.id,
+                                            content: newNote.trim()
+                                        })
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                        notes.unshift(data.note);
+                                        newNote = '';
+                                        showNoteInput = false;
+                                    } else {
+                                        alert('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'));
+                                    }
+                                } catch(e) { 
+                                    console.error('Error saving note:', e);
+                                    alert('حدث خطأ أثناء حفظ الملاحظة');
+                                }
+                            }" class="note-save-btn">
+                                حفظ
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Add Note Button -->
+                    <button @click="showNoteInput = true; $nextTick(() => $refs.noteTextarea?.focus())" 
+                            x-show="!showNoteInput"
+                            class="add-note-btn">
+                        + إضافة ملاحظة
+                    </button>
+                </div>
+                
+                <!-- Attachments Section -->
+                <div class="sidebar-section" style="margin-top: 24px;">
+                    <div class="sidebar-section-title">
+                        📎 المرفقات
+                    </div>
+                    
+                    <!-- Upload Button -->
+                    <label class="add-note-btn" style="cursor: pointer; display: inline-block; width: 100%; text-align: center;">
+                        <input type="file" 
+                               style="display: none;" 
+                               @change="async (e) => {
+                                   const file = e.target.files[0];
+                                   if (!file) return;
+                                   
+                                   const formData = new FormData();
+                                   formData.append('file', file);
+                                   formData.append('guarantee_id', record.id);
+                                   
+                                   try {
+                                       const res = await fetch('/V3/api/upload-attachment.php', {
+                                           method: 'POST',
+                                           body: formData
+                                       });
+                                       const data = await res.json();
+                                       if (data.success) {
+                                           // Add to attachments list
+                                           attachments.unshift({
+                                               id: data.file.id,
+                                               file_name: data.file.name,
+                                               file_path: data.file.path,
+                                               created_at: new Date().toISOString()
+                                           });
+                                           e.target.value = ''; // Reset input
+                                       } else {
+                                           alert('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'));
+                                       }
+                                   } catch(err) {
+                                       console.error('Error uploading file:', err);
+                                       alert('حدث خطأ أثناء رفع الملف');
+                                   }
+                               }">
+                        + رفع ملف
+                    </label>
+                    
+                    <!-- Attachments List -->
+                    <template x-if="attachments.length === 0">
+                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
+                            لا توجد مرفقات
+                        </div>
+                    </template>
+                    
+                    <template x-for="file in attachments" :key="file.id">
+                        <div class="note-item" style="display: flex; align-items: center; gap: 12px;">
+                            <div style="font-size: 24px;">📄</div>
+                            <div style="flex: 1; min-width: 0;">
+                                <div class="note-content" style="margin: 0; font-weight: 500;" x-text="file.file_name"></div>
+                                <div class="note-time" x-text="file.created_at?.substring(0,10)"></div>
+                            </div>
+                            <a :href="'/V3/storage/' + file.file_path" 
+                               target="_blank" 
+                               style="color: var(--text-light); text-decoration: none; font-size: 18px; padding: 4px;"
+                               title="تحميل">
+                                ⬇️
+                            </a>
+                        </div>
+                    </template>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+    <!-- Import Modal -->
+    <div x-show="showImportModal" 
+         x-cloak
+         @click.self="showImportModal = false"
+         style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
+        <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
+            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1e293b;">استيراد ملف Excel</h3>
+            
+            <div style="margin-bottom: 16px;">
+                <label style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;">
+                    اختر ملف Excel
+                </label>
+                <input type="file" 
+                       x-ref="fileInput"
+                       @change="handleFileSelect($event)"
+                       accept=".xlsx,.xls"
+                       style="display: block; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
+            </div>
+            
+            <div x-show="uploading" style="text-align: center; padding: 12px; color: #3b82f6;">
+                جاري الرفع...
+            </div>
+            
+            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
+                <button @click="showImportModal = false" 
+                        style="padding: 8px 16px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    إلغاء
+                </button>
+                <button @click="$refs.fileInput.files.length && handleFileSelect({target: $refs.fileInput})" 
+                        :disabled="uploading"
+                        style="padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                    استيراد
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attachments Modal -->
+    <div x-show="showAttachmentsModal" 
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+         x-transition.opacity>
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showAttachmentsModal = false">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">📂 المستندات المرفقة</h3>
+                <button @click="showAttachmentsModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block w-full border-2 border-dashed border-gray-300 rounded p-4 text-center hover:bg-gray-50 cursor-pointer transition">
+                    <input type="file" class="hidden" @change="uploadAttachment($event)">
+                    <span class="text-2xl block mb-1">📂</span>
+                    <span class="text-sm text-gray-600" x-text="uploading ? 'جاري الرفع...' : 'اضغط لرفع ملف'"></span>
+                </label>
+            </div>
+            
+            <div class="space-y-2 max-h-60 overflow-y-auto">
+                <template x-if="attachments.length === 0">
+                    <div class="text-center text-gray-400 text-sm py-4">لا توجد مرفقات</div>
+                </template>
+                <template x-for="file in attachments" :key="file.id">
+                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-sm">
+                        <div class="text-blue-500 text-lg">📄</div>
+                        <div class="flex-1 min-w-0">
+                            <div class="truncate font-medium text-gray-700" x-text="file.file_name"></div>
+                            <div class="text-xs text-gray-400" x-text="file.created_at?.substring(0,10)"></div>
+                        </div>
+                        <a :href="'V3/storage/' + file.file_path" target="_blank" class="text-gray-400 hover:text-blue-600 p-1">⬇️</a>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <!-- Notes Modal -->
+    <div x-show="showNotesModal" 
+         x-cloak
+         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+         x-transition.opacity>
+        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showNotesModal = false">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-bold">📝 الملاحظات</h3>
+                <button @click="showNotesModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            
+            <div class="mb-4">
+                <textarea class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
+                          rows="3" 
+                          placeholder="أضف ملاحظة..." 
+                          x-model="noteText"></textarea>
+                <button class="mt-2 w-full bg-blue-600 text-white py-1.5 rounded text-sm hover:bg-blue-700 transition font-medium"
+                        @click="saveNote()"
+                        :disabled="!noteText.trim()">
+                    حفظ الملاحظة
+                </button>
+            </div>
+            
+            <div class="space-y-3 max-h-60 overflow-y-auto">
+                <template x-if="notes.length === 0">
+                    <div class="text-center text-gray-400 text-sm py-4">لا توجد ملاحظات</div>
+                </template>
+                <template x-for="note in notes" :key="note.id">
+                    <div class="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm relative">
+                        <div class="text-gray-800 whitespace-pre-wrap" x-text="note.content"></div>
+                        <div class="text-xs text-gray-500 mt-2 flex justify-between">
+                            <span x-text="note.created_by"></span>
+                            <span x-text="note.created_at"></span>
+                        </div>
+                    </div>
+                </template>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    function unifiedWorkflow() {
+        return {
+            // State
+            currentIndex: 1,
+            totalRecords: <?= $totalRecords ?? 0 ?>,
+            showPreview: false,
+            activeEventId: null, // Initialized to null, will be set by API
+            showImportModal: false,
+            showManualInput: false,
+            showPasteModal: false,
+            showNoteInput: false,
+            // History & Extras
+            showHistoryModal: false,
+            showAttachmentsModal: false,
+            showNotesModal: false,
+            apiHistory: <?= json_encode($mockTimeline ?? []) ?>,
+            attachments: <?= json_encode($mockAttachments ?? []) ?>, 
+            notes: <?= json_encode($mockNotes ?? []) ?>,
+            uploading: false,
+            noteText: '',
+            
+            // Candidates (Smart Chips)
+            candidates: {
+                suppliers: [],
+                banks: []
+            },
+            
+            // Data
+            record: {
+                id: <?= $mockRecord['id'] ?? 0 ?>,
+                guarantee_number: '<?= $mockRecord['guarantee_number'] ?>',
+                issue_date: '<?= $mockRecord['issue_date'] ?>',
+                amount: <?= $mockRecord['amount'] ?>,
+                supplier_name: '<?= $mockRecord['supplier_name'] ?>',
+                excel_supplier: '<?= $mockRecord['supplier_name'] ?>', // Init with same value
+                bank_name: '<?= $mockRecord['bank_name'] ?>',
+                contract_number: '<?= $mockRecord['contract_number'] ?? '' ?>',
+                expiry_date: '<?= $mockRecord['expiry_date'] ?>',
+                type: '<?= $mockRecord['type'] ?>',
+                supplier_id: null
+            },
+            
+            // Timeline Data - Initialize from PHP
+            timelineEvents: <?= json_encode($mockTimeline) ?>,
+            
+            // Computed
+            get progress() {
+                return Math.round((this.currentIndex / this.totalRecords) * 100);
+            },
+            
+            // Methods
+            togglePreview() {
+                this.showPreview = !this.showPreview;
+            },
+            
+            // ... (keep selectEvent and other methods) ...
+            
+            async fetchSuggestions(rawName) {
+                if (!rawName) {
+                    this.candidates.suppliers = [];
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`/V3/api/suggestions.php?raw=${encodeURIComponent(rawName)}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.candidates.suppliers = data.suggestions;
+                        
+                        // Auto-select if high confidence (>95%)
+                        if (this.candidates.suppliers.length > 0) {
+                            const top = this.candidates.suppliers[0];
+                            if (top.score > 90) {
+                                // Only auto-select if user hasn't typed something else
+                                // For now, we just suggest it
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Failed to fetch suggestions:', error);
+                }
+            },
+            
+            selectSupplier(supplier) {
+                this.record.supplier_name = supplier.name;
+                this.record.supplier_id = supplier.id;
+                this.record.confidence_score = supplier.score;
+                this.record.was_top_suggestion = (this.candidates.suppliers[0].id === supplier.id);
+            },
+            
+            isSupplierSelected(supplier) {
+                return this.record.supplier_name === supplier.name;
+            },
+
+            selectEvent(event) {
+                this.activeEventId = event.id;
+                // ... (rest of selectEvent logic)
+            },
+            
+            previousRecord() {
+                if (this.currentIndex > 1) {
+                    this.currentIndex--;
+                    this.loadRecord(this.currentIndex);
+                }
+            },
+            
+            async saveAndNext() {
+                try {
+                    // Send decision
+                    const payload = {
+                        guarantee_id: this.record.id,
+                        supplier_id: this.record.supplier_id,
+                        supplier_name: this.record.supplier_name,
+                        bank_name: this.record.bank_name,
+                        confidence_score: this.record.confidence_score,
+                        was_top_suggestion: this.record.was_top_suggestion,
+                        decision_source: this.record.supplier_id ? 'chip' : 'manual',
+                        current_index: this.currentIndex
+                    };
+                    
+                    const response = await fetch('/V3/api/save.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await response.json();
+
+                    if (json.success) {
+                        if (json.completed) {
+                            alert(json.message || 'تم الانتهاء من جميع السجلات');
+                            return;
+                        }
+                        
+                        // Update with next record data from API
+                        this.record = json.record;
+                        this.record.excel_supplier = json.record.raw_supplier_name || json.record.supplier_name;
+                        this.timelineEvents = json.timeline || [];
+                        this.attachments = json.attachments || [];
+                        this.notes = json.notes || [];
+                        this.currentIndex = json.index;
+                        this.totalRecords = json.total;
+                        
+                        // Reset selection state
+                        this.record.supplier_id = null;
+                        this.record.confidence_score = null;
+                        this.record.was_top_suggestion = null;
+                        
+                        // Fetch suggestions for the new record
+                        this.fetchSuggestions(this.record.excel_supplier);
+                        
+                        // Set active event to first timeline item
+                        if (this.timelineEvents.length > 0) {
+                            this.activeEventId = this.timelineEvents[0].id;
+                        }
+                    } else {
+                        alert('خطأ: ' + (json.error || 'فشل الحفظ'));
+                    }
+                } catch (error) {
+                    console.error('Save error:', error);
+                    alert('فشل الحفظ');
+                }
+            },
+            
+            async loadRecord(index) {
+                try {
+                    const response = await fetch(`/V3/api/get-record.php?index=${index}`);
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.record = data.record;
+                        this.record.excel_supplier = data.record.raw_supplier_name || data.record.supplier_name;
+                        this.timelineEvents = data.timeline || [];
+                        this.attachments = data.attachments || [];
+                        this.notes = data.notes || [];
+                        this.currentIndex = data.index;
+                        this.totalRecords = data.total;
+                        
+                        // Reset selection state
+                        this.record.supplier_id = null;
+                        this.record.confidence_score = null;
+                        this.record.was_top_suggestion = null;
+                        
+                        // Fetch suggestions for the new record
+                        this.fetchSuggestions(this.record.excel_supplier);
+                        
+                        // Set active event to first timeline item
+                        if (this.timelineEvents.length > 0) {
+                            this.activeEventId = this.timelineEvents[0].id;
+                        }
+                    }
+                } catch (error) {
+                    console.error('Load error:', error);
+                }
+            },
+            
+            // ... (keep import, extend, release, notes methods) ...
+            
+            // Import Excel
+            async handleFileSelect(event) {
+                // ... (keep existing implementation) ...
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                this.uploading = true;
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    const response = await fetch('/V3/api/import.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        this.showImportModal = false;
+                        window.location.reload();
+                    } else {
+                        alert('خطأ: ' + (data.message || 'خطأ غير معروف'));
+                    }
+                } catch (error) {
+                    console.error('Import error:', error);
+                } finally {
+                    this.uploading = false;
+                }
+            },
+            
+            // ... (keep extend, release, notes) ...
+            
+             // Actions
+            async extend() {
+                if (!confirm('هل تريد تمديد هذا الضمان لمدة سنة؟')) return;
+                try {
+                    const response = await fetch('/V3/api/extend.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ guarantee_id: this.record.id })
+                    });
+                    await response.json();
+                    window.location.reload();
+                } catch (e) { alert('خطأ'); }
+            },
+            
+            async release() {
+                 if (!confirm('هل تريد الإفراج عن هذا الضمان؟')) return;
+                try {
+                    const response = await fetch('/V3/api/release.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ guarantee_id: this.record.id })
+                    });
+                    await response.json();
+                    window.location.reload();
+                } catch (e) { alert('خطأ'); }
+            },
+            
+            // Notes
+            saveNote() {
+                if (this.noteText.trim()) {
+                    alert('تم حفظ الملاحظة!');
+                    this.noteText = '';
+                    this.showNoteInput = false;
+                }
+            },
+            
+            cancelNote() {
+                this.noteText = '';
+                this.showNoteInput = false;
+            },
+
+            print(type) {
+                if (!this.record.id) {
+                    alert('لا يوجد سجل للطباعة');
+                    return;
+                }
+                const url = `views/print.php?id=${this.record.id}&action=${type}`;
+                window.open(url, '_blank', 'width=1000,height=1200');
+            },
+            
+            async openHistoryModal() {
+                if (!this.record.id) return;
+                this.showHistoryModal = true;
+                this.apiHistory = []; // Clear
+                try {
+                    const res = await fetch(`api/history.php?guarantee_id=${this.record.id}`);
+                    const json = await res.json();
+                    if(json.success) {
+                        this.apiHistory = json.data;
+                    }
+                } catch(e) { console.error(e); }
+            },
+
+            printHistory(historyId) {
+                const url = `views/print.php?history_id=${historyId}`;
+                window.open(url, '_blank', 'width=1000,height=1200');
+            },
+
+            async uploadAttachment(event) {
+                const file = event.target.files[0];
+                if (!file || !this.record.id) return;
+                
+                this.uploading = true;
+                const formData = new FormData();
+                formData.append('file', file);
+                formData.append('guarantee_id', this.record.id);
+
+                try {
+                    const res = await fetch('api/upload-attachment.php', {
+                        method: 'POST',
+                        body: formData
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        // Refresh record to get updated lists
+                        this.fetchRecord(this.currentIndex);
+                        this.uploading = false;
+                        event.target.value = ''; // Reset input
+                    } else {
+                        alert('فشل الرفع: ' + json.error);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    alert('خطأ في الرفع');
+                } finally {
+                    this.uploading = false;
+                }
+            },
+
+            async saveNote() {
+                if (!this.noteText.trim() || !this.record.id) return;
+                
+                try {
+                    const res = await fetch('api/save-note.php', {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            guarantee_id: this.record.id,
+                            content: this.noteText
+                        })
+                    });
+                    const json = await res.json();
+                    if (json.success) {
+                        this.fetchRecord(this.currentIndex);
+                        this.noteText = '';
+                    }
+                } catch(e) { console.error(e); }
+            },
+
+            openAttachmentsModal() {
+                this.showAttachmentsModal = true;
+            },
+            
+            openNotesModal() {
+                this.showNotesModal = true;
+            },
+            
+            // Fetch/Reload Record
+            fetchRecord(index) {
+                // Reload the page to get fresh data
+                window.location.reload();
+            },
+
+            // Lifecycle
+            init() {
+                // Set initial active event
+                if (this.timelineEvents.length > 0) {
+                    this.activeEventId = this.timelineEvents[0].id;
+                }
+                
+                // Initial fetch suggestions
+                if (this.record.excel_supplier) {
+                    this.fetchSuggestions(this.record.excel_supplier);
+                }
+            }
+        }
+    }
+    </script>
+</body>
+</html>
