@@ -1,6 +1,7 @@
 <?php
 /**
  * V3 API - Get Smart Suggestions
+ * Returns HTML fragment (for index.php) or JSON (for import.php)
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
@@ -10,52 +11,51 @@ use App\Services\LearningService;
 use App\Repositories\SupplierLearningRepository;
 use App\Repositories\SupplierRepository;
 
-header('Content-Type: application/json; charset=utf-8');
+// Detect format: check for 'format=json' parameter or Accept header
+$format = $_GET['format'] ?? 'html';
+if (isset($_SERVER['HTTP_ACCEPT']) && strpos($_SERVER['HTTP_ACCEPT'], 'application/json') !== false) {
+    $format = 'json';
+}
+
 ini_set('display_errors', 1);
 error_reporting(E_ALL);
 
 try {
-    $raw = $_GET['raw'] ?? ''; // Raw supplier name from Excel/Input
+    $raw = $_GET['raw'] ?? '';
 
     if (empty($raw)) {
-        echo json_encode(['suggestions' => []]);
-        exit;
+        $suggestions = [];
+    } else {
+        $db = Database::connect();
+        $learningRepo = new SupplierLearningRepository($db);
+        $supplierRepo = new SupplierRepository();
+        $service = new LearningService($learningRepo, $supplierRepo);
+        $suggestions = $service->getSuggestions($raw);
     }
 
-    // Init Logic
-    $db = Database::connect();
-    $learningRepo = new SupplierLearningRepository($db);
-    $supplierRepo = new SupplierRepository(); // Use default constructor (uses Database::connect internally)
-    
-    // Note: SupplierRepository constructor signature might differ. 
-    // Usually standard Repos take PDO. Let's check previously created Repo.
-    // Checking previous steps... SupplierRepository in V3 needs check.
-    
-    $service = new LearningService($learningRepo, $supplierRepo);
-    
-    $suggestions = $service->getSuggestions($raw);
-    
-    // Format for frontend
-    $formatted = array_map(function($s) {
-        return [
-            'id' => $s['id'],
-            'name' => $s['official_name'],
-            'score' => $s['score'],
-            'source' => $s['source'] === 'alias' ? 'تعلم سابق' : 'بحث',
-            'type' => $s['score'] > 90 ? 'match' : 'candidate'
-        ];
-    }, $suggestions);
+    // Return format based on caller
+    if ($format === 'json') {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode([
+            'success' => true,
+            'suggestions' => $suggestions
+        ]);
+    } else {
+        // Return HTML fragment for server-driven UI
+        header('Content-Type: text/html; charset=utf-8');
+        include __DIR__ . '/../partials/supplier-suggestions.php';
+    }
 
-    echo json_encode([
-        'success' => true,
-        'query' => $raw,
-        'suggestions' => $formatted
-    ]);
-
-} catch (\Throwable $e) {
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'message' => $e->getMessage()
-    ]);
+} catch (Exception $e) {
+    if ($format === 'json') {
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(500);
+        echo json_encode([
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    } else {
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<div id="supplier-suggestions"><p>خطأ: ' . htmlspecialchars($e->getMessage()) . '</p></div>';
+    }
 }

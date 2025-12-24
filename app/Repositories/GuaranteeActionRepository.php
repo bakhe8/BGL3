@@ -96,4 +96,18 @@ class GuaranteeActionRepository
         ");
         $stmt->execute([$status, $status, $id]);
     }
+
+    /**
+     * Void all issued releases for a guarantee
+     * Used when re-activating a guarantee
+     */
+    public function voidReleases(int $guaranteeId): void
+    {
+        $stmt = $this->db->prepare("
+            UPDATE guarantee_actions
+            SET action_status = 'void'
+            WHERE guarantee_id = ? AND action_type = 'release' AND action_status = 'issued'
+        ");
+        $stmt->execute([$guaranteeId]);
+    }
 }

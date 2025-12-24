@@ -74,6 +74,27 @@ class GuaranteeRepository
         
         $guarantee->id = (int)$this->db->lastInsertId();
         
+        // Log import event in guarantee_history
+        $historyStmt = $this->db->prepare("
+            INSERT INTO guarantee_history (
+                guarantee_id,
+                action,
+                change_reason,
+                snapshot_data,
+                created_at,
+                created_by
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        ");
+        
+        $historyStmt->execute([
+            $guarantee->id,
+            'imported',
+            'تم استيراد الضمان من ' . $guarantee->importSource,
+            json_encode($guarantee->rawData),
+            $guarantee->importedAt ?? date('Y-m-d H:i:s'),
+            $guarantee->importedBy
+        ]);
+        
         return $guarantee;
     }
     

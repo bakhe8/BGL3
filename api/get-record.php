@@ -1,18 +1,15 @@
 <?php
 /**
- * V3 API - Get Record by Index  
- * With Timeline Support
+ * V3 API - Get Record by Index (Server-Driven Partial HTML)
+ * Returns HTML fragment for record form section
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
-use App\Repositories\GuaranteeHistoryRepository;
-use App\Repositories\AttachmentRepository;
-use App\Repositories\NoteRepository;
 
-header('Content-Type: application/json');
+header('Content-Type: text/html; charset=utf-8');
 
 try {
     $index = isset($_GET['index']) ? intval($_GET['index']) : 1;
@@ -23,12 +20,8 @@ try {
     
     $db = Database::connect();
     $guaranteeRepo = new GuaranteeRepository($db);
-    $historyRepo = new GuaranteeHistoryRepository();
-    $attachRepo = new AttachmentRepository($db);
-    $noteRepo = new NoteRepository($db);
     
-    // Get all guarantees (could be optimized with pagination, but for now 100 limit is fine)
-    // Actually, getting all IDs first is better for index navigation
+    // Get all guarantees IDs
     $stmt = $db->query('SELECT id FROM guarantees ORDER BY imported_at DESC LIMIT 100');
     $ids = $stmt->fetchAll(PDO::FETCH_COLUMN);
     $total = count($ids);
@@ -46,78 +39,194 @@ try {
 
     $raw = $guarantee->rawData;
 
-    // Fetch History for Timeline
-    $history = $historyRepo->getHistory($guaranteeId);
-    $timeline = [];
-
-    // Add initial event
-    $timeline[] = [
-        'id' => 'init_' . $guaranteeId,
-        'description' => 'تم الاستيراد',
-        'date' => $guarantee->importedAt ?? date('Y-m-d H:i:s'),
-        'details' => 'استيراد أولي للنظام',
-        'history_id' => null
-    ];
-
-    // Add history events
-    foreach ($history as $h) {
-        $timeline[] = [
-            'id' => 'hist_' . $h['id'],
-            'description' => $h['action'] === 'decision_update' ? 'قرار جديد' : $h['action'],
-            'date' => $h['created_at'],
-            'details' => $h['change_reason'] ?? $h['created_by'],
-            'history_id' => $h['id'],
-            'snapshot' => null // Don't send full snapshot to list to save bandwidth, unless needed
-        ];
-    }
-    
-    // Sort timeline desc
-    usort($timeline, function($a, $b) {
-        return strtotime($b['date']) - strtotime($a['date']);
-    });
-
-    // Fetch Attachments & Notes
-    $attachments = $attachRepo->getByGuaranteeId($guaranteeId);
-    $notes = $noteRepo->getByGuaranteeId($guaranteeId);
-    
     // Prepare record data
     $record = [
         'id' => $guarantee->id,
         'guarantee_number' => $guarantee->guaranteeNumber,
-        'supplier_name' => $raw['supplier'] ?? '', // This might be overridden by approved suppplier if implemented
+        'supplier_name' => $raw['supplier'] ?? '',
         'bank_name' => $raw['bank'] ?? '',
+        'bank_id' => null, // Will be set from decision if exists
         'amount' => $raw['amount'] ?? 0,
         'expiry_date' => $raw['expiry_date'] ?? '',
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
         'type' => $raw['type'] ?? 'Initial',
-        'status' => 'pending' // Should fetch real status from decision
+        'status' => 'pending'
     ];
     
-    // Check for latest decision for status
+    // Check for latest decision
     $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
     $stmtDec->execute([$guaranteeId]);
     $lastDecision = $stmtDec->fetch(PDO::FETCH_ASSOC);
     
     if ($lastDecision) {
         $record['status'] = $lastDecision['status'];
-        // Ideally fetch supplier name if ID exists... but raw is fine for now
+        $record['bank_id'] = $lastDecision['bank_id'];
+        $record['supplier_id'] = $lastDecision['supplier_id']; // Ensure ID is set
+
+        // Resolve Supplier Name from ID
+        if ($record['supplier_id']) {
+            $sStmt = $db->prepare('SELECT official_name FROM suppliers WHERE id = ?');
+            $sStmt->execute([$record['supplier_id']]);
+            $sName = $sStmt->fetchColumn();
+            if ($sName) {
+                $record['supplier_name'] = $sName;
+            }
+        }
+        
+        // Resolve Bank Name from ID
+        if ($record['bank_id']) {
+            $bStmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+            $bStmt->execute([$record['bank_id']]);
+            $bName = $bStmt->fetchColumn();
+            if ($bName) {
+                $record['bank_name'] = $bName;
+            }
+        }
     }
     
-    echo json_encode([
-        'success' => true,
-        'record' => $record,
-        'timeline' => $timeline,
-        'attachments' => $attachments,
-        'notes' => $notes,
-        'index' => $index,
-        'total' => $total
-    ]);
+    
+    // Get timeline/history for this guarantee (optional - may not exist)
+    $timeline = [];
+    try {
+        $stmtHistory = $db->prepare('
+            SELECT action, change_reason, created_at, created_by 
+            FROM guarantee_history 
+            WHERE guarantee_id = ? 
+            ORDER BY created_at DESC 
+            LIMIT 20
+        ');
+        $stmtHistory->execute([$guaranteeId]);
+        $timeline = $stmtHistory->fetchAll(PDO::FETCH_ASSOC);
+        
+        // Add icons based on action type
+        foreach ($timeline as &$event) {
+            $event['icon'] = match($event['action']) {
+                'imported' => '📥',
+                'extended' => '🔄',
+                'reduced' => '📉',
+                'released' => '📤',
+                'approved' => '✅',
+                'rejected' => '❌',
+                'update'   => '✏️',
+                'auto_matched' => '🤖',
+                'manual_match' => '🔗',
+                default => '📋'
+            };
+            $event['user'] = $event['created_by'] ?? 'System';
+        }
+    } catch (\PDOException $e) {
+        // History table doesn't exist or query failed - timeline will be empty
+        $timeline = [];
+    }
+    
+    // Get banks for dropdown
+    $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
+    $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
+
+    // --- SMART LEARNING INTEGRATION ---
+    
+    // 1. Supplier Matching
+    $supplierMatch = ['score' => 0, 'id' => null, 'name' => '', 'suggestions' => []];
+    try {
+        $learningRepo = new \App\Repositories\SupplierLearningRepository($db);
+        $supplierRepo = new \App\Repositories\SupplierRepository();
+        $learningService = new \App\Services\LearningService($learningRepo, $supplierRepo);
+        
+        if (!empty($record['supplier_name'])) {
+            $suggestions = $learningService->getSuggestions($record['supplier_name']);
+            if (!empty($suggestions)) {
+                $top = $suggestions[0];
+                $supplierMatch = [
+                    'score' => $top['score'],
+                    'id' => $top['id'],
+                    'name' => $top['official_name'],
+                    'suggestions' => $suggestions // Pass all suggestions for chips
+                ];
+                
+                // Auto-fill if confidence is high and no decision yet
+                if ($record['status'] === 'pending' && $top['score'] >= 90) {
+                    $record['supplier_name'] = $top['official_name'];
+                    $record['supplier_id'] = $top['id'];
+                    
+                    // --- LOG AUTO-MATCH EVENT ---
+                    // Only log if we haven't logged this specific auto-match before
+                    try {
+                        $checkStmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND action = 'auto_matched' AND snapshot_data LIKE ?");
+                        $matchData = json_encode(['field' => 'supplier', 'to' => $top['official_name']]);
+                        $checkStmt->execute([$guaranteeId, "%$matchData%"]);
+                        
+                        if (!$checkStmt->fetch()) {
+                            $histStmt = $db->prepare("
+                                INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
+                                VALUES (?, 'auto_matched', ?, ?, NOW(), 'System AI')
+                            ");
+                            $histStmt->execute([
+                                $guaranteeId,
+                                "مطابقة تلقائية للمورد: {$guarantee->rawData['supplier']} -> {$top['official_name']} ({$top['score']}%)",
+                                $matchData
+                            ]);
+                        }
+                    } catch (\Throwable $e) { /* Ignore log error */ }
+                }
+            }
+        }
+    } catch (\Throwable $e) { /* Ignore learning errors */ }
+
+    // 2. Bank Matching
+    $bankMatch = ['score' => 0, 'id' => null, 'name' => ''];
+    try {
+        $bankRepo = new \App\Repositories\BankLearningRepository($db);
+        if (!empty($record['bank_name'])) {
+            $suggestions = $bankRepo->findSuggestions($record['bank_name'], 1);
+            if (!empty($suggestions)) {
+                $top = $suggestions[0];
+                $bankMatch = [
+                    'score' => $top['score'],
+                    'id' => $top['id'],
+                    'name' => $top['official_name']
+                ];
+                
+                // Auto-select bank if confidence is high and no decision yet
+                if ($record['status'] === 'pending' && $top['score'] >= 80) {
+                    $record['bank_id'] = $top['id'];
+                    
+                     // --- LOG AUTO-MATCH EVENT FOR BANK ---
+                    try {
+                        $checkStmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND action = 'auto_matched' AND snapshot_data LIKE ?");
+                        $matchData = json_encode(['field' => 'bank', 'to' => $top['official_name']]);
+                        $checkStmt->execute([$guaranteeId, "%$matchData%"]);
+                        
+                        if (!$checkStmt->fetch()) {
+                            $histStmt = $db->prepare("
+                                INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
+                                VALUES (?, 'auto_matched', ?, ?, NOW(), 'System AI')
+                            ");
+                            $histStmt->execute([
+                                $guaranteeId,
+                                "مطابقة تلقائية للبنك: {$guarantee->rawData['bank']} -> {$top['official_name']} ({$top['score']}%)",
+                                $matchData
+                            ]);
+                        }
+                    } catch (\Throwable $e) { /* Ignore log error */ }
+                }
+            }
+        }
+    } catch (\Throwable $e) { /* Ignore learning errors */ }
+    
+    // Include only record form (timeline is separate in sidebar)
+    ob_start();
+    include __DIR__ . '/../partials/record-form.php';
+    $html = ob_get_clean();
+    
+    // Wrap in container div
+    echo '<div id="record-form-section" class="decision-card">';
+    echo $html;
+    echo '</div>';
     
 } catch (\Throwable $e) {
     http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => $e->getMessage()
-    ]);
+    echo '<div id="record-form-section" class="card">';
+    echo '<div class="card-body" style="color: red;">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
+    echo '</div>';
 }

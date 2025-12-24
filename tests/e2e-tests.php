@@ -7,13 +7,13 @@
 
 class V3EndToEndTests
 {
-    private $baseUrl = 'http://localhost:8000/V3';
+    private $baseUrl = 'http://localhost:8000';
     private $db;
     private $results = [];
     
     public function __construct()
     {
-        $this->db = new PDO('sqlite:V3/storage/database/app.sqlite');
+        $this->db = new PDO('sqlite:storage/database/app.sqlite');
         $this->db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     }
     
@@ -178,7 +178,7 @@ class V3EndToEndTests
         
         try {
             // Test import API endpoint exists
-            if (file_exists('V3/api/import.php')) {
+            if (file_exists('api/import.php')) {
                 $this->pass("Import API exists");
             } else {
                 $this->fail("Import API missing");

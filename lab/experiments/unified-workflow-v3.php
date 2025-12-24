@@ -1,9 +1,4 @@
 <?php
-// Prevent caching
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
-
 /**
  * Unified Workflow v3.0 - Clean Rebuild
  * =====================================
@@ -17,14 +12,11 @@ header("Pragma: no-cache");
  */
 
 // Load dependencies
-require_once __DIR__ . '/app/Support/autoload.php';
+require_once __DIR__ . '/../../app/Support/autoload.php';
 
 use App\Support\Database;
-use App\Repositories\GuaranteeRepository;
-use App\Repositories\GuaranteeDecisionRepository;
-use App\Services\LearningService;
-use App\Repositories\SupplierLearningRepository;
-use App\Repositories\SupplierRepository;
+use App\Repositories\V3\GuaranteeRepository;
+use App\Repositories\V3\GuaranteeDecisionRepository;
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -33,43 +25,23 @@ $db = Database::connect();
 $guaranteeRepo = new GuaranteeRepository($db);
 $decisionRepo = new GuaranteeDecisionRepository($db);
 
-$learningRepo = new SupplierLearningRepository($db);
-$supplierRepo = new SupplierRepository();
-$learningService = new LearningService($learningRepo, $supplierRepo);
-
 // Get real data from database
-$requestedId = isset($_GET['id']) ? (int)$_GET['id'] : null;
-$currentRecord = null;
-
-if ($requestedId) {
-    // Find the guarantee by ID directly
-    $currentRecord = $guaranteeRepo->find($requestedId);
-}
-
-// If not found or no ID specified, get first record
-if (!$currentRecord) {
-    $allGuarantees = $guaranteeRepo->getAll([], 1, 0); // Get just 1 record
-    $currentRecord = $allGuarantees[0] ?? null;
-}
-
-// Get total count for progress
-$totalRecords = $guaranteeRepo->count();
+$guarantees = $guaranteeRepo->getAll([], 1, 0);
+$currentRecord = $guarantees[0] ?? null;
 
 // If we have a record, prepare it
 if ($currentRecord) {
-    $raw = $currentRecord->rawData;
-    
-    $mockRecord = [
+   $mockRecord = [
         'id' => $currentRecord->id,
-        'session_id' => $raw['session_id'] ?? 0,
+        'session_id' => $currentRecord->rawData['session_id'] ?? 0,
         'guarantee_number' => $currentRecord->guaranteeNumber ?? 'N/A',
-        'supplier_name' => htmlspecialchars($raw['supplier'] ?? '', ENT_QUOTES),
-        'bank_name' => htmlspecialchars($raw['bank'] ?? '', ENT_QUOTES),
-        'amount' => is_numeric($raw['amount'] ?? 0) ? floatval($raw['amount']) : 0,
-        'expiry_date' => $raw['expiry_date'] ?? date('Y-m-d'),
-        'issue_date' => $raw['issue_date'] ?? date('Y-m-d'),
-        'contract_number' => htmlspecialchars($raw['contract_number'] ?? '', ENT_QUOTES),
-        'type' => htmlspecialchars($raw['type'] ?? 'ابتدائي', ENT_QUOTES),
+        'supplier_name' => $currentRecord->rawData['supplier'] ?? '',
+        'bank_name' => $currentRecord->rawData['bank'] ?? '',
+        'amount' => $currentRecord->rawData['amount'] ?? 0,
+        'expiry_date' => $currentRecord->rawData['expiry_date'] ?? '',
+        'issue_date' => $currentRecord->rawData['issue_date'] ?? '',
+        'contract_number' => $currentRecord->rawData['contract_number'] ?? '',
+        'type' => $currentRecord->rawData['type'] ?? 'ابتدائي',
         'status' => 'pending'
     ];
     
@@ -79,65 +51,16 @@ if ($currentRecord) {
         $mockRecord['status'] = $decision->status;
     }
     
-    // Load timeline/history for this guarantee
-    $mockTimeline = [];
-    if ($currentRecord) {
-        try {
-            // Load from guarantee_history table
-            $stmt = $db->prepare('
-                SELECT * FROM guarantee_history 
-                WHERE guarantee_id = ? 
-                ORDER BY created_at DESC
-            ');
-            $stmt->execute([$currentRecord->id]);
-            $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($history as $event) {
-                $mockTimeline[] = [
-                    'id' => $event['id'],
-                    'type' => $event['action'],
-                    'date' => $event['created_at'],
-                    'description' => $event['change_reason'] ?? '',
-                    'user' => $event['created_by'] ?? 'النظام',
-                    'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true)
-                ];
-            }
-        } catch (\Exception $e) {
-            // If error, keep empty array
-        }
-        
-        // Always add import event if no actions found
-        if (empty($mockTimeline)) {
-            $mockTimeline[] = [
-                'id' => 1,
-                'type' => 'import',
-                'date' => $currentRecord->importedAt,
-                'description' => 'استيراد من ' . $currentRecord->importSource,
-                'user' => htmlspecialchars($currentRecord->importedBy ?? 'النظام', ENT_QUOTES),
-                'changes' => []
-            ];
-        }
-    }
-    
-    // Load notes and attachments for this guarantee
-    $mockNotes = [];
-    $mockAttachments = [];
-    
-    if ($currentRecord) {
-        try {
-            // Load notes
-            $stmt = $db->prepare('SELECT * FROM guarantee_notes WHERE guarantee_id = ? ORDER BY created_at DESC');
-            $stmt->execute([$currentRecord->id]);
-            $mockNotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Load attachments
-            $stmt = $db->prepare('SELECT * FROM guarantee_attachments WHERE guarantee_id = ? ORDER BY created_at DESC');
-            $stmt->execute([$currentRecord->id]);
-            $mockAttachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (\Exception $e) {
-            // If error, keep empty arrays
-        }
-    }
+    // Timeline from database
+    $mockTimeline = [
+        [
+            'id' => 1,
+            'type' => 'import',
+            'date' => $currentRecord->importedAt,
+            'description' => 'استيراد من ' . $currentRecord->importSource,
+            'user' => $currentRecord->importedBy ?? 'النظام'
+        ]
+    ];
 } else {
     // No data in database - use empty state
     $mockRecord = [
@@ -157,25 +80,17 @@ if ($currentRecord) {
     $mockTimeline = [];
 }
 
-// Get initial suggestions for the current record
-$initialSupplierSuggestions = [];
-if ($mockRecord['supplier_name']) {
-    $initialSupplierSuggestions = $learningService->getSuggestions($mockRecord['supplier_name']);
-}
-
-// Map suggestions to frontend format
-$formattedSuppliers = array_map(function($s) {
-    return [
-        'id' => $s['id'],
-        'name' => $s['official_name'],
-        'score' => $s['score'],
-        // 'source' => $s['source'] === 'alias' ? 'learned' : 'search', // Matches frontend 'learned' string if needed
-        'usage_count' => 0 
-    ];
-}, $initialSupplierSuggestions);
-
+// Mock candidates (TODO: integrate with LearningService)
 $mockCandidates = [
-    'suppliers' => $formattedSuppliers,
+    'suppliers' => [
+        [
+            'id' => 1,
+            'name' => $mockRecord['supplier_name'],
+            'confidence' => 95,
+            'usage_count' => 15,
+            'source' => 'learned'
+        ]
+    ],
     'banks' => [
         [
             'id' => 1,
@@ -198,7 +113,7 @@ $mockCandidates = [
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Alpine.js - TODO: Convert to server-side rendering -->
+    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <style>
@@ -656,31 +571,6 @@ $mockCandidates = [
             padding: 12px;
             box-shadow: var(--shadow-md);
         }
-
-        /* Dropdown Menu */
-        .dropdown { position: relative; display: inline-block; }
-        .dropdown-content {
-            display: none;
-            position: absolute;
-            left: 0;
-            min-width: 160px;
-            z-index: 100;
-            background: white;
-            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-            border-radius: 4px;
-            top: 100%;
-            border: 1px solid var(--border-neutral);
-        }
-        .dropdown-content a {
-            color: var(--text-primary);
-            padding: 10px 16px;
-            text-decoration: none;
-            display: block;
-            font-size: 14px;
-            text-align: right;
-        }
-        .dropdown-content a:hover { background-color: var(--bg-neutral); }
-        .show { display: block; }
         
         .note-input-box textarea {
             width: 100%;
@@ -1457,9 +1347,9 @@ $mockCandidates = [
             <span>نظام إدارة الضمانات</span>
         </div>
         <nav class="global-actions">
-            <a href="views/import.php" class="btn-global">&#x1F4E5; استيراد</a>
-            <a href="views/statistics.php" class="btn-global">&#x1F4CA; إحصائيات</a>
-            <a href="#" class="btn-global">&#x2699; إعدادات</a>
+            <a href="/settings.php" class="btn-global">&#x2699; إعدادات</a>
+            <a href="/stats" class="btn-global">&#x1F4CA; إحصائيات</a>
+            <a href="/lab" class="btn-global">&#x1F9EA; المختبر</a>
         </nav>
     </header>
 
@@ -1472,25 +1362,14 @@ $mockCandidates = [
             <!-- Record Header -->
             <header class="record-header">
                 <div class="record-title">
-                    <h1>ضمان رقم <span x-text="record.guarantee_number"></span></h1>
+                    <h1>ضمان رقم <?= $mockRecord['guarantee_number'] ?></h1>
                     <span class="badge badge-pending">يحتاج قرار</span>
                 </div>
-                <div class="record-actions" x-data="{ showPrint: false }">
-                    <button class="btn btn-secondary btn-sm" @click="saveAndNext()">&#x1F4BE; حفظ</button>
-                    
-                    <div class="dropdown">
-                        <button class="btn btn-secondary btn-sm" @click="showPrint = !showPrint" @click.away="showPrint = false">
-                            &#x1F5A8; طباعة &#x25BC;
-                        </button>
-                        <div class="dropdown-content" :class="{ 'show': showPrint }">
-                            <a href="#" @click.prevent="print('extension'); showPrint = false">تمديد ضمان</a>
-                            <a href="#" @click.prevent="print('release'); showPrint = false">إفراج ضمان</a>
-                        </div>
-                    </div>
-
-                    <button class="btn btn-secondary btn-sm" @click="extend()">&#x1F504; تمديد</button>
-                    <button class="btn btn-secondary btn-sm" @click="reduce()">&#x1F4C9; تخفيض</button>
-                    <button class="btn btn-secondary btn-sm" @click="release()">&#x1F4E4; إفراج</button>
+                <div class="record-actions">
+                    <button class="btn btn-secondary btn-sm">&#x1F4BE; حفظ</button>
+                    <button class="btn btn-secondary btn-sm">&#x1F504; تمديد</button>
+                    <button class="btn btn-secondary btn-sm">&#x1F4C9; تخفيض</button>
+                    <button class="btn btn-secondary btn-sm">&#x1F4E4; إفراج</button>
                 </div>
             </header>
 
@@ -1499,16 +1378,14 @@ $mockCandidates = [
                 
                 <!-- Timeline Panel -->
                 <aside class="timeline-panel">
-                    <header class="timeline-header mb-2 relative">
+                    <header class="timeline-header">
                         <div class="timeline-title">
-                            <span>⏲️</span>
-                            <span>Timeline</span>
+                            <span></span>
+                            <span>السجل</span>
                         </div>
-                        <span class="timeline-count cursor-help" :title="timelineEvents.length + ' أحداث'">
-                            <span x-text="timelineEvents.length"></span> حدث
-                        </span>
+                        <span class="timeline-count"><?= count($mockTimeline) ?> أحداث</span>
                     </header>
-                    <div class="timeline-body h-full overflow-y-auto">
+                    <div class="timeline-body">
                         <div class="timeline-list">
                             <div class="timeline-line"></div>
                             
@@ -1516,24 +1393,34 @@ $mockCandidates = [
                                 <div class="timeline-item" @click="selectEvent(event)" style="cursor: pointer;">
                                     <div class="timeline-dot" :class="{ 'active': activeEventId === event.id }"></div>
                                     <div class="event-card" :class="{ 'current': activeEventId === event.id }">
-                                        <div class="flex justify-between items-start">
-                                            <div class="event-header">
-                                                <span class="event-title" x-text="event.description"></span>
-                                            </div>
-                                            <!-- Print History Button -->
-                                            <template x-if="event.history_id">
-                                                <button @click.stop="printHistory(event.history_id)" 
-                                                        class="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded hover:bg-blue-100 ml-2"
-                                                        title="طباعة نسخة هذا التاريخ">
-                                                   🖨️
-                                                </button>
-                                            </template>
+                                        <!-- Badge for current item (optional logic) -->
+                                        <template x-if="index === 0">
+                                            <span class="event-badge">الآن</span>
+                                        </template>
+
+                                        <div class="event-header">
+                                            <span class="event-title" x-text="event.description"></span>
                                         </div>
+                                        
+                                        <!-- Show Details if available -->
                                         <template x-if="event.details">
                                             <div class="event-desc" x-text="event.details"></div>
                                         </template>
+                                        
+                                        <!-- Show Change Diff if available -->
+                                        <template x-if="event.old_value">
+                                            <div class="diff-view">
+                                                <span class="diff-old" x-text="event.old_value"></span>
+                                                <span class="diff-arrow">←</span>
+                                                <span class="diff-new" x-text="event.new_value"></span>
+                                            </div>
+                                        </template>
+                                        
                                         <div class="event-meta">
-                                            <span class="event-date" x-text="event.date.substring(0, 16)"></span>
+                                            <div class="meta-row">
+                                                <!-- Other meta info if needed -->
+                                            </div>
+                                            <span class="event-date" x-text="event.date"></span>
                                         </div>
                                     </div>
                                 </div>
@@ -1571,18 +1458,6 @@ $mockCandidates = [
                                 <span x-text="showPreview ? '&#x1F53C;' : '&#x1F441;'"></span>
                                 <span x-text="showPreview ? 'إخفاء المعاينة' : 'معاينة الخطاب'"></span>
                             </button>
-                            <div class="flex gap-1 border-r border-gray-200 pr-2 mr-2">
-                                <button class="btn btn-ghost btn-sm" @click="openAttachmentsModal()">
-                                    <span>📎</span>
-                                    <span>المرفقات</span>
-                                    <span class="badge badge-sm badge-ghost" x-show="attachments.length > 0" x-text="attachments.length"></span>
-                                </button>
-                                <button class="btn btn-ghost btn-sm" @click="openNotesModal()">
-                                    <span>📝</span>
-                                    <span>الملاحظات</span>
-                                    <span class="badge badge-sm badge-ghost" x-show="notes.length > 0" x-text="notes.length"></span>
-                                </button>
-                            </div>
                         </header>
                         <div class="card-body">
                             <!-- Supplier Field -->
@@ -1593,26 +1468,26 @@ $mockCandidates = [
                                            x-model="record.supplier_name">
                                 </div>
                                 <div class="chips-row">
-                                    <template x-for="(supplier, idx) in candidates.suppliers" :key="idx">
-                                        <button class="chip" 
-                                                :class="isSupplierSelected(supplier) ? 'chip-selected' : 'chip-candidate'"
-                                                @click="selectSupplier(supplier)">
-                                            <span x-show="supplier.score > 90">⭐ </span>
-                                            <span x-text="supplier.name"></span>
-                                            <span x-show="supplier.score < 100" class="chip-source" x-text="`${supplier.score}%`"></span>
-                                        </button>
-                                    </template>
-                                    <div x-show="candidates.suppliers.length === 0" style="font-size: 11px; color: #94a3b8; padding: 4px;">لا توجد اقتراحات</div>
+                                    <?php foreach ($mockCandidates['suppliers'] as $idx => $supplier): ?>
+                                    <button class="chip <?= $idx === 0 ? 'chip-selected' : 'chip-candidate' ?>">
+                                        <?= $idx === 0 ? '&#x2B50;&#x2B50;&#x2B50; ' : '' ?><?= $supplier['name'] ?>
+                                        <?php if ($supplier['source'] !== 'learned'): ?>
+                                        <span class="chip-source">
+                                            <?= "{$supplier['confidence']}%" ?>
+                                        </span>
+                                        <?php endif; ?>
+                                    </button>
+                                    <?php endforeach; ?>
                                 </div>
                                 <div class="field-hint">
                                     <div class="hint-group">
                                         <span class="hint-label">Excel:</span>
-                                        <span class="hint-value" x-text="record.excel_supplier"></span>
+                                        <span class="hint-value">شركة الاختبار التجريبية</span>
                                     </div>
-                                    <div class="hint-divider" x-show="candidates.suppliers.length > 0">|</div>
-                                    <div class="hint-score" x-show="candidates.suppliers.length > 0">
+                                    <div class="hint-divider">|</div>
+                                    <div class="hint-score">
                                         <div class="hint-dot"></div>
-                                        <span x-text="`أفضل تطابق ${candidates.suppliers[0]?.score || 0}%`"></span>
+                                        <span>تطابق 95%</span>
                                     </div>
                                 </div>
                             </div>
@@ -1625,17 +1500,21 @@ $mockCandidates = [
                                            x-model="record.bank_name">
                                 </div>
                                 <div class="chips-row">
-                                    <template x-for="(bank, idx) in candidates.banks" :key="idx">
-                                        <button class="chip chip-selected">
-                                            <span>⭐ </span>
-                                            <span x-text="bank.name"></span>
-                                        </button>
-                                    </template>
+                                    <?php foreach ($mockCandidates['banks'] as $idx => $bank): ?>
+                                    <button class="chip chip-selected">
+                                        &#x2B50;&#x2B50;&#x2B50; <?= $bank['name'] ?>
+                                    </button>
+                                    <?php endforeach; ?>
                                 </div>
                                 <div class="field-hint">
                                     <div class="hint-group">
                                         <span class="hint-label">Excel:</span>
-                                        <span class="hint-value" x-text="record.bank_name"></span>
+                                        <span class="hint-value">SNB</span>
+                                    </div>
+                                    <div class="hint-divider">|</div>
+                                    <div class="hint-score">
+                                        <div class="hint-dot"></div>
+                                        <span>تطابق 100%</span>
                                     </div>
                                 </div>
                             </div>
@@ -1648,19 +1527,19 @@ $mockCandidates = [
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">تاريخ الانتهاء</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['expiry_date'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.expiry_date"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">رقم العقد</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['contract_number'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.contract_number"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">تاريخ الإصدار</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['issue_date'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.issue_date"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">النوع</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['type'] ?? 'ابتدائي') ?></div>
+                                    <div class="info-value" x-text="record.type"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">الحالة</div>
@@ -1679,15 +1558,15 @@ $mockCandidates = [
                         <div class="preview-body">
                             <div class="letter-paper">
                                 <div class="letter-header">
-                                    <div class="letter-to">إلى: <span><?= htmlspecialchars($record['bank_name'] ?? '') ?></span></div>
+                                    <div class="letter-to">إلى: <span x-text="record.bank_name"></span></div>
                                     <div class="letter-greeting">السلام عليكم ورحمة الله وبركاته</div>
                                 </div>
                                 <div class="letter-body">
-                                    <p><strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم <span><?= htmlspecialchars($record['guarantee_number'] ?? '') ?></span></p>
+                                    <p><strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم <span x-text="record.guarantee_number"></span></p>
                                     
-                                    <p>نشير إلى الضمان البنكي <span><?= htmlspecialchars($record['type'] ?? '') ?></span> المشار إليه أعلاه والصادر لصالحنا من قبلكم بتاريخ <span><?= htmlspecialchars($record['issue_date'] ?? '') ?></span> بمبلغ وقدره <strong><span><?= number_format($record['amount'] ?? 0, 0, '.', ',') ?></span> ريال سعودي</strong> لصالح المورد <strong><span><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span></strong> بموجب العقد رقم <span><?= htmlspecialchars($record['contract_number'] ?? '') ?></span>.</p>
+                                    <p>نشير إلى الضمان البنكي <span x-text="record.type"></span> المشار إليه أعلاه والصادر لصالحنا من قبلكم بتاريخ <span x-text="record.issue_date"></span> بمبلغ وقدره <strong><span x-text="Number(record.amount).toLocaleString('en-US')"></span> ريال سعودي</strong> لصالح المورد <strong><span x-text="record.supplier_name"></span></strong> بموجب العقد رقم <span x-text="record.contract_number"></span>.</p>
                                     
-                                    <p>نرجو التكرم بتمديد صلاحية الضمان المذكور أعلاه لمدة إضافية حتى تاريخ <strong><span><?= htmlspecialchars($record['expiry_date'] ?? '') ?></span></strong>.</p>
+                                    <p>نرجو التكرم بتمديد صلاحية الضمان المذكور أعلاه لمدة إضافية حتى تاريخ <strong><span x-text="record.expiry_date"></span></strong>.</p>
                                     
                                     <p>شاكرين لكم حسن تعاونكم،،،</p>
                                 </div>
@@ -1738,143 +1617,85 @@ $mockCandidates = [
             
             <!-- Sidebar Body -->
             <div class="sidebar-body">
-                <!-- Notes Section -->
-                <div class="sidebar-section" x-data="{ showNoteInput: false, newNote: '' }">
-                    <div class="sidebar-section-title">
-                        📝 الملاحظات
-                    </div>
-                    
-                    <!-- Notes List -->
-                    <template x-if="notes.length === 0 && !showNoteInput">
-                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
-                            لا توجد ملاحظات
+                <!-- Attachments -->
+                <section class="sidebar-section">
+                    <h3 class="sidebar-section-title">&#x1F4CE; المستندات المرفقة</h3>
+                    <div class="attachments-list">
+                        <div class="attachment-item">
+                            <div class="attachment-icon">📄</div>
+                            <div class="attachment-info">
+                                <div class="attachment-name">original_request.pdf</div>
+                                <div class="attachment-meta">2.3 MB • قبل 5 أيام</div>
+                            </div>
                         </div>
-                    </template>
-                    
-                    <template x-for="note in notes" :key="note.id">
+                        <div class="attachment-item">
+                            <div class="attachment-icon">📊</div>
+                            <div class="attachment-info">
+                                <div class="attachment-name">contract_details.xlsx</div>
+                                <div class="attachment-meta">856 KB • قبل أسبوع</div>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="add-note-btn" style="margin-top: 12px;">
+                        📎 إضافة مستند
+                    </button>
+                </section>
+                
+                <!-- Notes -->
+                <section class="sidebar-section">
+                    <h3 class="sidebar-section-title">📝 الملاحظات</h3>
+                    <div class="notes-list">
                         <div class="note-item">
                             <div class="note-header">
-                                <span class="note-author" x-text="note.created_by"></span>
-                                <span class="note-time" x-text="note.created_at?.substring(0,16)"></span>
+                                <span class="note-author">أحمد محمد</span>
+                                <span class="note-time">قبل ساعتين</span>
                             </div>
-                            <div class="note-content" x-text="note.content"></div>
+                            <div class="note-content">
+                                يرجى التحقق من المبلغ مع القسم المالي قبل إصدار خطاب التمديد
+                            </div>
                         </div>
-                    </template>
-                    
-                    <!-- Note Input Box -->
-                    <div x-show="showNoteInput" class="note-input-box" x-transition>
-                        <textarea x-model="newNote" 
-                                  placeholder="أضف ملاحظة..."
-                                  x-ref="noteTextarea"
-                                  @keydown.escape="showNoteInput = false; newNote = ''"></textarea>
-                        <div class="note-input-actions">
-                            <button @click="showNoteInput = false; newNote = ''" class="note-cancel-btn">
-                                إلغاء
-                            </button>
-                            <button @click="async () => {
-                                if (!newNote.trim()) return;
-                                try {
-                                    const res = await fetch('/V3/api/save-note.php', {
-                                        method: 'POST',
-                                        headers: {'Content-Type': 'application/json'},
-                                        body: JSON.stringify({
-                                            guarantee_id: record.id,
-                                            content: newNote.trim()
-                                        })
-                                    });
-                                    const data = await res.json();
-                                    if (data.success) {
-                                        notes.unshift(data.note);
-                                        newNote = '';
-                                        showNoteInput = false;
-                                    } else {
-                                        alert('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'));
-                                    }
-                                } catch(e) { 
-                                    console.error('Error saving note:', e);
-                                    alert('حدث خطأ أثناء حفظ الملاحظة');
-                                }
-                            }" class="note-save-btn">
-                                حفظ
-                            </button>
+                        <div class="note-item">
+                            <div class="note-header">
+                                <span class="note-author">سارة أحمد</span>
+                                <span class="note-time">أمس</span>
+                            </div>
+                            <div class="note-content">
+                                تم التأكد من صحة اسم المورد مع قسم المشتريات
+                            </div>
                         </div>
                     </div>
                     
-                    <!-- Add Note Button -->
-                    <button @click="showNoteInput = true; $nextTick(() => $refs.noteTextarea?.focus())" 
-                            x-show="!showNoteInput"
-                            class="add-note-btn">
-                        + إضافة ملاحظة
-                    </button>
-                </div>
-                
-                <!-- Attachments Section -->
-                <div class="sidebar-section" style="margin-top: 24px;">
-                    <div class="sidebar-section-title">
-                        📎 المرفقات
-                    </div>
-                    
-                    <!-- Upload Button -->
-                    <label class="add-note-btn" style="cursor: pointer; display: inline-block; width: 100%; text-align: center;">
-                        <input type="file" 
-                               style="display: none;" 
-                               @change="async (e) => {
-                                   const file = e.target.files[0];
-                                   if (!file) return;
-                                   
-                                   const formData = new FormData();
-                                   formData.append('file', file);
-                                   formData.append('guarantee_id', record.id);
-                                   
-                                   try {
-                                       const res = await fetch('/V3/api/upload-attachment.php', {
-                                           method: 'POST',
-                                           body: formData
-                                       });
-                                       const data = await res.json();
-                                       if (data.success) {
-                                           // Add to attachments list
-                                           attachments.unshift({
-                                               id: data.file.id,
-                                               file_name: data.file.name,
-                                               file_path: data.file.path,
-                                               created_at: new Date().toISOString()
-                                           });
-                                           e.target.value = ''; // Reset input
-                                       } else {
-                                           alert('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'));
-                                       }
-                                   } catch(err) {
-                                       console.error('Error uploading file:', err);
-                                       alert('حدث خطأ أثناء رفع الملف');
-                                   }
-                               }">
-                        + رفع ملف
-                    </label>
-                    
-                    <!-- Attachments List -->
-                    <template x-if="attachments.length === 0">
-                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
-                            لا توجد مرفقات
-                        </div>
-                    </template>
-                    
-                    <template x-for="file in attachments" :key="file.id">
-                        <div class="note-item" style="display: flex; align-items: center; gap: 12px;">
-                            <div style="font-size: 24px;">📄</div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div class="note-content" style="margin: 0; font-weight: 500;" x-text="file.file_name"></div>
-                                <div class="note-time" x-text="file.created_at?.substring(0,10)"></div>
+                    <!-- Note Input Box (expandable) -->
+                    <div x-data="{ showNoteInput: false, newNote: '' }">
+                        <div x-show="showNoteInput" x-cloak x-transition class="note-input-box">
+                            <textarea 
+                                x-model="newNote" 
+                                placeholder="اكتب ملاحظتك هنا..."
+                                x-ref="noteTextarea"
+                            ></textarea>
+                            <div class="note-input-actions">
+                                <button 
+                                    class="note-cancel-btn" 
+                                    @click="showNoteInput = false; newNote = ''"
+                                >
+                                    إلغاء
+                                </button>
+                                <button 
+                                    class="note-save-btn"
+                                    @click="showNoteInput = false; newNote = ''"
+                                >
+                                    حفظ
+                                </button>
                             </div>
-                            <a :href="'/V3/storage/' + file.file_path" 
-                               target="_blank" 
-                               style="color: var(--text-light); text-decoration: none; font-size: 18px; padding: 4px;"
-                               title="تحميل">
-                                ⬇️
-                            </a>
                         </div>
-                    </template>
-                </div>
+                        <button 
+                            class="add-note-btn" 
+                            @click="showNoteInput = true; $nextTick(() => $refs.noteTextarea.focus())"
+                        >
+                            + إضافة ملاحظة
+                        </button>
+                    </div>
+                </section>
             </div>
         </aside>
 
@@ -1917,127 +1738,34 @@ $mockCandidates = [
         </div>
     </div>
 
-    <!-- Attachments Modal -->
-    <div x-show="showAttachmentsModal" 
-         x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-         x-transition.opacity>
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showAttachmentsModal = false">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">📂 المستندات المرفقة</h3>
-                <button @click="showAttachmentsModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block w-full border-2 border-dashed border-gray-300 rounded p-4 text-center hover:bg-gray-50 cursor-pointer transition">
-                    <input type="file" class="hidden" @change="uploadAttachment($event)">
-                    <span class="text-2xl block mb-1">📂</span>
-                    <span class="text-sm text-gray-600" x-text="uploading ? 'جاري الرفع...' : 'اضغط لرفع ملف'"></span>
-                </label>
-            </div>
-            
-            <div class="space-y-2 max-h-60 overflow-y-auto">
-                <template x-if="attachments.length === 0">
-                    <div class="text-center text-gray-400 text-sm py-4">لا توجد مرفقات</div>
-                </template>
-                <template x-for="file in attachments" :key="file.id">
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-sm">
-                        <div class="text-blue-500 text-lg">📄</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="truncate font-medium text-gray-700" x-text="file.file_name"></div>
-                            <div class="text-xs text-gray-400" x-text="file.created_at?.substring(0,10)"></div>
-                        </div>
-                        <a :href="'V3/storage/' + file.file_path" target="_blank" class="text-gray-400 hover:text-blue-600 p-1">⬇️</a>
-                    </div>
-                </template>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notes Modal -->
-    <div x-show="showNotesModal" 
-         x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-         x-transition.opacity>
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showNotesModal = false">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">📝 الملاحظات</h3>
-                <button @click="showNotesModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            
-            <div class="mb-4">
-                <textarea class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
-                          rows="3" 
-                          placeholder="أضف ملاحظة..." 
-                          x-model="noteText"></textarea>
-                <button class="mt-2 w-full bg-blue-600 text-white py-1.5 rounded text-sm hover:bg-blue-700 transition font-medium"
-                        @click="saveNote()"
-                        :disabled="!noteText.trim()">
-                    حفظ الملاحظة
-                </button>
-            </div>
-            
-            <div class="space-y-3 max-h-60 overflow-y-auto">
-                <template x-if="notes.length === 0">
-                    <div class="text-center text-gray-400 text-sm py-4">لا توجد ملاحظات</div>
-                </template>
-                <template x-for="note in notes" :key="note.id">
-                    <div class="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm relative">
-                        <div class="text-gray-800 whitespace-pre-wrap" x-text="note.content"></div>
-                        <div class="text-xs text-gray-500 mt-2 flex justify-between">
-                            <span x-text="note.created_by"></span>
-                            <span x-text="note.created_at"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-    </div>
-
     <script>
     function unifiedWorkflow() {
         return {
             // State
             currentIndex: 1,
-            totalRecords: <?= $totalRecords ?? 0 ?>,
+            totalRecords: 63,
             showPreview: false,
-            activeEventId: null, // Initialized to null, will be set by API
+            activeEventId: <?= !empty($mockTimeline) ? $mockTimeline[0]['id'] : 'null' ?>,
             showImportModal: false,
             showManualInput: false,
             showPasteModal: false,
             showNoteInput: false,
-            // History & Extras
-            showHistoryModal: false,
-            showAttachmentsModal: false,
-            showNotesModal: false,
-            apiHistory: <?= json_encode($mockTimeline ?? []) ?>,
-            attachments: <?= json_encode($mockAttachments ?? []) ?>, 
-            notes: <?= json_encode($mockNotes ?? []) ?>,
             uploading: false,
             noteText: '',
             
-            // Candidates (Smart Chips)
-            candidates: {
-                suppliers: [],
-                banks: []
-            },
-            
             // Data
             record: {
-                id: <?= $mockRecord['id'] ?? 0 ?>,
                 guarantee_number: '<?= $mockRecord['guarantee_number'] ?>',
                 issue_date: '<?= $mockRecord['issue_date'] ?>',
                 amount: <?= $mockRecord['amount'] ?>,
                 supplier_name: '<?= $mockRecord['supplier_name'] ?>',
-                excel_supplier: '<?= $mockRecord['supplier_name'] ?>', // Init with same value
                 bank_name: '<?= $mockRecord['bank_name'] ?>',
                 contract_number: '<?= $mockRecord['contract_number'] ?? '' ?>',
-                expiry_date: '<?= $mockRecord['expiry_date'] ?>',
-                type: '<?= $mockRecord['type'] ?>',
-                supplier_id: null
+                expiry_date: '2025-06-30',
+                type: '<?= $mockRecord['type'] ?>'
             },
             
-            // Timeline Data - Initialize from PHP
+            // Mock Data for Simulation
             timelineEvents: <?= json_encode($mockTimeline) ?>,
             
             // Computed
@@ -2050,152 +1778,71 @@ $mockCandidates = [
                 this.showPreview = !this.showPreview;
             },
             
-            // ... (keep selectEvent and other methods) ...
-            
-            async fetchSuggestions(rawName) {
-                if (!rawName) {
-                    this.candidates.suppliers = [];
-                    return;
-                }
-                
-                try {
-                    const response = await fetch(`/V3/api/suggestions.php?raw=${encodeURIComponent(rawName)}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.candidates.suppliers = data.suggestions;
-                        
-                        // Auto-select if high confidence (>95%)
-                        if (this.candidates.suppliers.length > 0) {
-                            const top = this.candidates.suppliers[0];
-                            if (top.score > 90) {
-                                // Only auto-select if user hasn't typed something else
-                                // For now, we just suggest it
-                            }
-                        }
-                    }
-                } catch (error) {
-                    console.error('Failed to fetch suggestions:', error);
-                }
-            },
-            
-            selectSupplier(supplier) {
-                this.record.supplier_name = supplier.name;
-                this.record.supplier_id = supplier.id;
-                this.record.confidence_score = supplier.score;
-                this.record.was_top_suggestion = (this.candidates.suppliers[0].id === supplier.id);
-            },
-            
-            isSupplierSelected(supplier) {
-                return this.record.supplier_name === supplier.name;
-            },
-
             selectEvent(event) {
                 this.activeEventId = event.id;
-                // ... (rest of selectEvent logic)
+                console.log('Selected Event ID:', event.id);
+                
+                // Logic to simulate "Time Travel" based on Event ID
+                // Events are ordered: 6 (Newest) -> 1 (Oldest)
+                
+                // 1. Reset to Base State (Oldest known values)
+                let tempState = {
+                    supplier_name: 'شركة الاختبار', // Old value from event 3
+                    bank_name: 'SNB',               // Old value from event 5
+                    amount: 500000,
+                    expiry_date: '2025-06-30'
+                };
+
+                // 2. Apply changes sequentially up to the selected event
+                // We iterate from Oldest (ID 1) to Selected ID
+                const allEvents = this.timelineEvents.slice().reverse(); // Make it 1 -> 6
+                
+                for (let e of allEvents) {
+                    if (e.id > event.id) break; // Stop if we passed the selected event
+                    
+                    console.log('Applying event:', e.type, e.id);
+
+                    // Apply this event's changes based on TYPE
+                    if (e.type === 'supplier_change') {
+                        tempState.supplier_name = 'شركة الاختبار التجريبية'; // New Value
+                    }
+                    else if (e.type === 'bank_change') {
+                        tempState.bank_name = 'البنك الأهلي السعودي'; // New Value
+                    }
+                    else if (e.type === 'extension') {
+                        tempState.expiry_date = '2025-12-31'; // Extended Date
+                    }
+                }
+
+                // 3. Update the View (Spread object to trigger reactivity)
+                this.record = {
+                    ...this.record,
+                    supplier_name: tempState.supplier_name,
+                    bank_name: tempState.bank_name,
+                    amount: tempState.amount,
+                    expiry_date: tempState.expiry_date
+                };
+                
+                console.log('Record updated:', this.record);
             },
             
             previousRecord() {
                 if (this.currentIndex > 1) {
                     this.currentIndex--;
-                    this.loadRecord(this.currentIndex);
+                    console.log('Navigate to previous record:', this.currentIndex);
                 }
             },
             
-            async saveAndNext() {
-                try {
-                    // Send decision
-                    const payload = {
-                        guarantee_id: this.record.id,
-                        supplier_id: this.record.supplier_id,
-                        supplier_name: this.record.supplier_name,
-                        bank_name: this.record.bank_name,
-                        confidence_score: this.record.confidence_score,
-                        was_top_suggestion: this.record.was_top_suggestion,
-                        decision_source: this.record.supplier_id ? 'chip' : 'manual',
-                        current_index: this.currentIndex
-                    };
-                    
-                    const response = await fetch('/V3/api/save.php', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-                    const json = await response.json();
-
-                    if (json.success) {
-                        if (json.completed) {
-                            alert(json.message || 'تم الانتهاء من جميع السجلات');
-                            return;
-                        }
-                        
-                        // Update with next record data from API
-                        this.record = json.record;
-                        this.record.excel_supplier = json.record.raw_supplier_name || json.record.supplier_name;
-                        this.timelineEvents = json.timeline || [];
-                        this.attachments = json.attachments || [];
-                        this.notes = json.notes || [];
-                        this.currentIndex = json.index;
-                        this.totalRecords = json.total;
-                        
-                        // Reset selection state
-                        this.record.supplier_id = null;
-                        this.record.confidence_score = null;
-                        this.record.was_top_suggestion = null;
-                        
-                        // Fetch suggestions for the new record
-                        this.fetchSuggestions(this.record.excel_supplier);
-                        
-                        // Set active event to first timeline item
-                        if (this.timelineEvents.length > 0) {
-                            this.activeEventId = this.timelineEvents[0].id;
-                        }
-                    } else {
-                        alert('خطأ: ' + (json.error || 'فشل الحفظ'));
-                    }
-                } catch (error) {
-                    console.error('Save error:', error);
-                    alert('فشل الحفظ');
+            saveAndNext() {
+                console.log('Saving record:', this.record);
+                if (this.currentIndex < this.totalRecords) {
+                    this.currentIndex++;
+                    console.log('Navigate to next record:', this.currentIndex);
                 }
             },
-            
-            async loadRecord(index) {
-                try {
-                    const response = await fetch(`/V3/api/get-record.php?index=${index}`);
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.record = data.record;
-                        this.record.excel_supplier = data.record.raw_supplier_name || data.record.supplier_name;
-                        this.timelineEvents = data.timeline || [];
-                        this.attachments = data.attachments || [];
-                        this.notes = data.notes || [];
-                        this.currentIndex = data.index;
-                        this.totalRecords = data.total;
-                        
-                        // Reset selection state
-                        this.record.supplier_id = null;
-                        this.record.confidence_score = null;
-                        this.record.was_top_suggestion = null;
-                        
-                        // Fetch suggestions for the new record
-                        this.fetchSuggestions(this.record.excel_supplier);
-                        
-                        // Set active event to first timeline item
-                        if (this.timelineEvents.length > 0) {
-                            this.activeEventId = this.timelineEvents[0].id;
-                        }
-                    }
-                } catch (error) {
-                    console.error('Load error:', error);
-                }
-            },
-            
-            // ... (keep import, extend, release, notes methods) ...
             
             // Import Excel
             async handleFileSelect(event) {
-                // ... (keep existing implementation) ...
                 const file = event.target.files[0];
                 if (!file) return;
                 
@@ -2212,6 +1859,7 @@ $mockCandidates = [
                     const data = await response.json();
                     
                     if (data.success) {
+                        alert(`تم الاستيراد بنجاح!\nعدد السجلات: ${data.count || 0}`);
                         this.showImportModal = false;
                         window.location.reload();
                     } else {
@@ -2219,43 +1867,67 @@ $mockCandidates = [
                     }
                 } catch (error) {
                     console.error('Import error:', error);
+                    alert('حدث خطأ في الاستيراد');
                 } finally {
                     this.uploading = false;
                 }
             },
             
-            // ... (keep extend, release, notes) ...
-            
-             // Actions
+            // Actions
             async extend() {
                 if (!confirm('هل تريد تمديد هذا الضمان لمدة سنة؟')) return;
+                
                 try {
                     const response = await fetch('/V3/api/extend.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guarantee_id: this.record.id })
+                        body: JSON.stringify({ 
+                            guarantee_id: <?= $mockRecord['id'] ?? 1 ?> 
+                        })
                     });
-                    await response.json();
-                    window.location.reload();
-                } catch (e) { alert('خطأ'); }
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('تم التمديد بنجاح!');
+                        window.location.reload();
+                    } else {
+                        alert('خطأ: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('حدث خطأ');
+                }
             },
             
             async release() {
-                 if (!confirm('هل تريد الإفراج عن هذا الضمان؟')) return;
+                if (!confirm('هل تريد الإفراج عن هذا الضمان؟')) return;
+                
                 try {
                     const response = await fetch('/V3/api/release.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ guarantee_id: this.record.id })
+                        body: JSON.stringify({ 
+                            guarantee_id: <?= $mockRecord['id'] ?? 1 ?> 
+                        })
                     });
-                    await response.json();
-                    window.location.reload();
-                } catch (e) { alert('خطأ'); }
+                    
+                    const data = await response.json();
+                    if (data.success) {
+                        alert('تم الإفراج بنجاح!');
+                        window.location.reload();
+                    } else {
+                        alert('خطأ: ' + data.error);
+                    }
+                } catch (error) {
+                    console.error('Error:', error);
+                    alert('حدث خطأ');
+                }
             },
             
             // Notes
             saveNote() {
                 if (this.noteText.trim()) {
+                    console.log('Saving note:', this.noteText);
                     alert('تم حفظ الملاحظة!');
                     this.noteText = '';
                     this.showNoteInput = false;
@@ -2266,110 +1938,11 @@ $mockCandidates = [
                 this.noteText = '';
                 this.showNoteInput = false;
             },
-
-            print(type) {
-                if (!this.record.id) {
-                    alert('لا يوجد سجل للطباعة');
-                    return;
-                }
-                const url = `views/print.php?id=${this.record.id}&action=${type}`;
-                window.open(url, '_blank', 'width=1000,height=1200');
-            },
             
-            async openHistoryModal() {
-                if (!this.record.id) return;
-                this.showHistoryModal = true;
-                this.apiHistory = []; // Clear
-                try {
-                    const res = await fetch(`api/history.php?guarantee_id=${this.record.id}`);
-                    const json = await res.json();
-                    if(json.success) {
-                        this.apiHistory = json.data;
-                    }
-                } catch(e) { console.error(e); }
-            },
-
-            printHistory(historyId) {
-                const url = `views/print.php?history_id=${historyId}`;
-                window.open(url, '_blank', 'width=1000,height=1200');
-            },
-
-            async uploadAttachment(event) {
-                const file = event.target.files[0];
-                if (!file || !this.record.id) return;
-                
-                this.uploading = true;
-                const formData = new FormData();
-                formData.append('file', file);
-                formData.append('guarantee_id', this.record.id);
-
-                try {
-                    const res = await fetch('api/upload-attachment.php', {
-                        method: 'POST',
-                        body: formData
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        // Refresh record to get updated lists
-                        this.fetchRecord(this.currentIndex);
-                        this.uploading = false;
-                        event.target.value = ''; // Reset input
-                    } else {
-                        alert('فشل الرفع: ' + json.error);
-                    }
-                } catch(e) {
-                    console.error(e);
-                    alert('خطأ في الرفع');
-                } finally {
-                    this.uploading = false;
-                }
-            },
-
-            async saveNote() {
-                if (!this.noteText.trim() || !this.record.id) return;
-                
-                try {
-                    const res = await fetch('api/save-note.php', {
-                        method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
-                        body: JSON.stringify({
-                            guarantee_id: this.record.id,
-                            content: this.noteText
-                        })
-                    });
-                    const json = await res.json();
-                    if (json.success) {
-                        this.fetchRecord(this.currentIndex);
-                        this.noteText = '';
-                    }
-                } catch(e) { console.error(e); }
-            },
-
-            openAttachmentsModal() {
-                this.showAttachmentsModal = true;
-            },
-            
-            openNotesModal() {
-                this.showNotesModal = true;
-            },
-            
-            // Fetch/Reload Record
-            fetchRecord(index) {
-                // Reload the page to get fresh data
-                window.location.reload();
-            },
-
             // Lifecycle
             init() {
-                // Set initial active event
-                if (this.timelineEvents.length > 0) {
-                    this.activeEventId = this.timelineEvents[0].id;
-                }
-                
-                // Initial fetch suggestions
-                if (this.record.excel_supplier) {
-                    this.fetchSuggestions(this.record.excel_supplier);
-                }
+                console.log('Unified Workflow v3.0 initialized');
+                console.log('Current record:', this.currentIndex, '/', this.totalRecords);
             }
         }
     }

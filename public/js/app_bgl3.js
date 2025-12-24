@@ -17,18 +17,19 @@ document.addEventListener('DOMContentLoaded', () => {
                             const json = JSON.parse(txt);
                              if(json.success || json.status === 'success') {
                                 alert('Import successful!');
+                                // alert('Import successful!');
                                 window.location.reload();
                              } else {
-                                alert('Import failed: ' + (json.message || txt));
+                                // alert('Import failed: ' + (json.message || txt));
                              }
                          } catch(e) {
                              window.location.reload();
                          }
                     } else {
-                        alert('Upload failed: ' + res.status);
+                        // alert('Upload failed: ' + res.status);
                     }
                 } catch(e) {
-                    alert('Network error during upload');
+                    // alert('Network error during upload');
                 }
             }
         });

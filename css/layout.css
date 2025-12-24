@@ -1,0 +1,161 @@
+/* ═══════════════════════════════════════════════════════════════
+   BGL3 LAYOUT STYLES
+   Contains: Page Structure, Grid System, Sidebars, Main Content
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════════
+   TOP BAR (Global)
+   ═══════════════════════════════════════════════════════════════ */
+.top-bar {
+    height: var(--height-top-bar);
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 var(--space-lg);
+    box-shadow: var(--shadow-sm);
+    flex-shrink: 0;
+}
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-weight: var(--font-weight-black);
+    font-size: var(--font-size-xl);
+    color: var(--text-primary);
+}
+
+.brand-icon {
+    width: 36px;
+    height: 36px;
+    background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+    border-radius: var(--radius-md);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+}
+
+.global-actions {
+    display: flex;
+    gap: var(--space-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   MAIN CONTAINER
+   ═══════════════════════════════════════════════════════════════ */
+.app-container {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SIDEBAR (Left)
+   ═══════════════════════════════════════════════════════════════ */
+.sidebar {
+    width: var(--width-sidebar);
+    background: var(--bg-card);
+    border-right: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+}
+
+.progress-container {
+    height: 48px;
+    background: var(--bg-card);
+    padding: 0 var(--space-md);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: var(--gap-small);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.sidebar-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md);
+    background: var(--bg-secondary);
+}
+
+.sidebar-section {
+    margin-bottom: var(--space-md);
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    padding: var(--space-md);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   CENTER SECTION (Main Content)
+   ═══════════════════════════════════════════════════════════════ */
+.center-section {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--bg-body);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   TIMELINE SIDEBAR (Right)
+   ═══════════════════════════════════════════════════════════════ */
+.timeline-sidebar {
+    width: var(--width-timeline);
+    background: var(--bg-card);
+    border-left: 1px solid var(--border-primary);
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    overflow: hidden;
+}
+
+.timeline-header {
+    height: var(--height-record-header);
+    padding: 0 var(--space-md);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+    flex-shrink: 0;
+}
+
+.timeline-body {
+    flex: 1;
+    overflow-y: auto;
+    padding: var(--space-md);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DECISION CARD (Main Record Area)
+   ═══════════════════════════════════════════════════════════════ */
+.decision-card {
+    margin: var(--gap-card);
+    background: var(--bg-card);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-md);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+
+.card-header {
+    height: var(--height-record-header);
+    padding: 0 var(--space-lg);
+    border-bottom: 1px solid var(--border-primary);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--bg-card);
+}
+
+.card-body {
+    padding: var(--space-lg);
+    overflow-y: auto;
+}

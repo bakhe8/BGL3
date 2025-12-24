@@ -1,0 +1,942 @@
+<?php
+/**
+ * Experiment: Ultimate Unified Interface
+ * ========================================
+ * 
+ * التصميم النهائي - البديل الرسمي للواجهة الحالية
+ * 
+ * يجمع أفضل ما في جميع التجارب الـ12:
+ * - التخطيط الثلاثي من Unified Workflow
+ * - النظافة البصرية من Improved Current + Clean UI
+ * - وضوح البيانات من Unified Workflow Light
+ * - المعاينة الدقيقة من Improved Current
+ * - التايم لاين الواضح من Chronos Pro
+ * 
+ * التحسينات الرئيسية:
+ * 1. Light Mode (لا ألوان داكنة)
+ * 2. No Main Menu (أدوات سريعة فقط)
+ * 3. Timeline Always Visible (دائماً مرئي)
+ * 4. Data Source Transparency (مصدر كل اقتراح واضح)
+ * 5. A4 Accurate Preview (210mm × 297mm)
+ * 6. Visual Progress (شريط + نسبة مئوية)
+ */
+
+$EXPERIMENT_NAME = 'Ultimate Unified Interface';
+$currentRecord = 1;
+$totalRecords = 63;
+$progressPercent = round(($currentRecord / $totalRecords) * 100, 1);
+?>
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= $EXPERIMENT_NAME ?> - DesignLab</title>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        /* ═══════════════════════════════════════════════════════════════
+           RESET & BASE
+           ═══════════════════════════════════════════════════════════════ */
+        *, *::before, *::after { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+        }
+        
+        :root {
+            /* Colors - Light Mode */
+            --color-primary: #3b82f6;
+            --color-primary-dark: #2563eb;
+            --color-primary-light: #eff6ff;
+            --color-bg: #f8fafc;
+            --color-surface: #ffffff;
+            --color-border: #e2e8f0;
+            --color-text: #1e293b;
+            --color-text-muted: #64748b;
+            --color-success: #22c55e;
+            --color-warning: #f59e0b;
+            --color-error: #ef4444;
+            
+            /* Spacing */
+            --space-xs: 8px;
+            --space-sm: 12px;
+            --space-md: 16px;
+            --space-lg: 24px;
+            --space-xl: 32px;
+        }
+        
+        body {
+            font-family: 'Tajawal', sans-serif;
+            background: var(--color-bg);
+            color: var(--color-text);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           TOP BAR (Global Actions)
+           ═══════════════════════════════════════════════════════════════ */
+        .top-bar {
+            height: 56px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-lg);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            flex-shrink: 0;
+            z-index: 100;
+        }
+        
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: var(--space-sm);
+            font-weight: 800;
+            font-size: 18px;
+            color: var(--color-text);
+        }
+        
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--color-primary), #8b5cf6);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+            font-weight: 800;
+        }
+        
+        .global-actions {
+            display: flex;
+            gap: var(--space-xs);
+        }
+        
+        .btn-global {
+            padding: 8px 16px;
+            background: transparent;
+            border: 1px solid var(--color-border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--color-text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        
+        .btn-global:hover {
+            background: var(--color-bg);
+            border-color: #cbd5e1;
+            color: var(--color-text);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           CONTEXT BAR (Record Info + Progress)
+           ═══════════════════════════════════════════════════════════════ */
+        .context-bar {
+            height: 64px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            padding: 0 var(--space-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-shrink: 0;
+        }
+        
+        .context-info {
+            display: flex;
+            align-items: center;
+            gap: var(--space-md);
+        }
+        
+        .context-title {
+            font-size: 20px;
+            font-weight: 800;
+            color: var(--color-text);
+        }
+        
+        .status-badge {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 700;
+            background: #fef3c7;
+            color: #d97706;
+            border: 1px solid #fde68a;
+        }
+        
+        .status-badge.ready {
+            background: #dcfce7;
+            color: #16a34a;
+            border-color: #86efac;
+        }
+        
+        /* Progress */
+        .progress-container {
+            min-width: 220px;
+        }
+        
+        .progress-bar {
+            height: 6px;
+            background: var(--color-border);
+            border-radius: 3px;
+            overflow: hidden;
+            margin-bottom: 6px;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, var(--color-primary), #8b5cf6);
+            transition: width 0.3s ease;
+            border-radius: 3px;
+        }
+        
+        .progress-text {
+            display: flex;
+            justify-content: space-between;
+            font-size: 11px;
+            color: var(--color-text-muted);
+        }
+        
+        .progress-percent {
+            font-weight: 700;
+            color: var(--color-primary);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           THREE-COLUMN LAYOUT - Sharp Edges, No Gaps
+           ═══════════════════════════════════════════════════════════════ */
+        .workspace {
+            flex: 1;
+            width: 100%;
+            display: grid;
+            grid-template-columns: 320px 1fr 420px;
+            gap: 0;
+            overflow: hidden;
+            min-height: 0;
+            background: var(--color-bg);
+            padding: 0;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           TIMELINE PANEL (Right - Arabic First)
+           ═══════════════════════════════════════════════════════════════ */
+        .timeline-panel {
+            background: var(--color-surface);
+            border-left: 1px solid var(--color-border);
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .timeline-header {
+            height: 48px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-md);
+        }
+        
+        .timeline-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+        
+        .timeline-count {
+            font-size: 11px;
+            color: #94a3b8;
+            background: #f1f5f9;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        
+        .timeline-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-md);
+        }
+        
+        .timeline-list {
+            position: relative;
+            padding-right: 20px;
+        }
+        
+        .timeline-line {
+            position: absolute;
+            right: 7px;
+            top: 0;
+            bottom: 0;
+            width: 2px;
+            background: var(--color-border);
+        }
+        
+        .timeline-item {
+            position: relative;
+            margin-bottom: 20px;
+        }
+        
+        .timeline-dot {
+            position: absolute;
+            right: -17px;
+            top: 6px;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            border: 3px solid var(--color-bg);
+            background: #94a3b8;
+            box-shadow: 0 0 0 1px var(--color-border);
+        }
+        
+        .timeline-dot.active {
+            background: var(--color-primary);
+            box-shadow: 0 0 0 1px var(--color-primary), 0 0 0 4px rgba(59, 130, 246, 0.2);
+        }
+        
+        .timeline-dot.success {
+            background: var(--color-success);
+            box-shadow: 0 0 0 1px var(--color-success);
+        }
+        
+        .event-card {
+            background: var(--color-surface);
+            border-radius: 0;
+            padding: 14px;
+            border: 1px solid var(--color-border);
+            box-shadow: none;
+        }
+        
+        .event-card.current {
+            background: var(--color-primary-light);
+            border-color: #93c5fd;
+        }
+        
+        .event-badge {
+            display: inline-block;
+            font-size: 9px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 3px 8px;
+            border-radius: 12px;
+            background: var(--color-primary);
+            color: white;
+            margin-bottom: 6px;
+        }
+        
+        .event-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text);
+            margin-bottom: 4px;
+        }
+        
+        .event-time {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 6px;
+        }
+        
+        .event-desc {
+            font-size: 11px;
+            color: var(--color-text-muted);
+            line-height: 1.5;
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           DECISION PANEL (Center)
+           ═══════════════════════════════════════════════════════════════ */
+        .decision-panel {
+            background: var(--color-surface);
+            border-top: 1px solid var(--color-border);
+            border-bottom: 1px solid var(--color-border);
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .decision-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-lg);
+        }
+        
+        .form-section {
+            background: var(--color-surface);
+            border-radius: 0;
+            border: 1px solid var(--color-border);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        
+        .section-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #475569;
+            margin-bottom: var(--space-md);
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+        
+        .field-group {
+            margin-bottom: 20px;
+        }
+        
+        .field-group:last-child {
+            margin-bottom: 0;
+        }
+        
+        .field-label {
+            display: block;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #94a3b8;
+            margin-bottom: var(--space-xs);
+        }
+        
+        .field-input {
+            width: 100%;
+            font-family: inherit;
+            font-size: 15px;
+            font-weight: 600;
+            color: var(--color-text);
+            background: transparent;
+            border: none;
+            border-bottom: 2px solid var(--color-border);
+            padding: 8px 4px;
+            transition: all 0.2s;
+        }
+        
+        .field-input:hover {
+            border-color: #93c5fd;
+        }
+        
+        .field-input:focus {
+            outline: none;
+            border-color: var(--color-primary);
+        }
+        
+        /* Chips with Source - التحسين الرئيسي */
+        .chips-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: var(--space-xs);
+            margin-top: 10px;
+        }
+        
+        .chip {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1.5px solid;
+            font-family: inherit;
+            background: var(--color-surface);
+        }
+        
+        .chip-selected {
+            background: #dcfce7;
+            color: #16a34a;
+            border-color: #86efac;
+        }
+        
+        .chip-learned {
+            background: #fef3c7;
+            color: #d97706;
+            border-color: #fde68a;
+        }
+        
+        .chip-excel {
+            background: #dbeafe;
+            color: #2563eb;
+            border-color: #93c5fd;
+        }
+        
+        .chip-candidate {
+            background: var(--color-bg);
+            color: var(--color-text-muted);
+            border-color: var(--color-border);
+        }
+        
+        .chip-candidate:hover {
+            background: var(--color-primary-light);
+            border-color: #93c5fd;
+            color: var(--color-primary);
+        }
+        
+        .chip-source {
+            font-size: 9px;
+            padding: 2px 6px;
+            background: rgba(0,0,0,0.08);
+            border-radius: 6px;
+            margin-right: 4px;
+        }
+        
+        .chip-stars {
+            color: var(--color-warning);
+        }
+        
+        /* Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: var(--space-md);
+            background: var(--color-bg);
+            padding: var(--space-md);
+            border-radius: 0;
+            border: 1px solid var(--color-border);
+        }
+        
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .info-label {
+            font-size: 10px;
+            color: #94a3b8;
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        
+        .info-value {
+            font-size: 13px;
+            font-weight: 700;
+            color: var(--color-text);
+        }
+        
+        /* Actions Footer */
+        .actions-footer {
+            background: var(--color-bg);
+            padding: 20px var(--space-lg);
+            border-top: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .btn-primary {
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-weight: 700;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+            font-family: inherit;
+        }
+        
+        .btn-primary:hover {
+            background: var(--color-primary-dark);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+        
+        .btn-secondary {
+            background: var(--color-surface);
+            color: var(--color-text-muted);
+            border: 1px solid var(--color-border);
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .btn-secondary:hover {
+            border-color: #cbd5e1;
+            color: var(--color-text);
+        }
+        
+        /* ═══════════════════════════════════════════════════════════════
+           PREVIEW PANEL (Left) - A4 Accurate
+           ═══════════════════════════════════════════════════════════════ */
+        .preview-panel {
+            background: #f1f5f9;
+            border-right: 1px solid var(--color-border);
+            border-radius: 0;
+            box-shadow: none;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .preview-header {
+            height: 48px;
+            background: var(--color-surface);
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-md);
+        }
+        
+        .preview-title {
+            font-size: 12px;
+            font-weight: 700;
+            color: #475569;
+        }
+        
+        .preview-print {
+            padding: 6px 12px;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+        }
+        
+        .preview-print:hover {
+            background: var(--color-primary-dark);
+        }
+        
+        .preview-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: var(--space-lg);
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+        }
+        
+        /* A4 Paper - ACCURATE */
+        .letter-paper {
+            width: 210mm;
+            min-height: 297mm;
+            transform: scale(0.65);
+            transform-origin: top center;
+            background: white;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            padding: 1in;
+            font-size: 12pt;
+            line-height: 1.6;
+            color: #1e293b;
+            font-family: 'Tajawal', serif;
+        }
+        
+        .letter-header {
+            text-align: center;
+            font-weight: 700;
+            font-size: 14pt;
+            margin-bottom: 24px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid #1e293b;
+        }
+        
+        .letter-to {
+            margin-bottom: 16px;
+            font-size: 12pt;
+        }
+        
+        .letter-greeting {
+            margin-bottom: 20px;
+            font-size: 11pt;
+        }
+        
+        .letter-body {
+            margin-bottom: 24px;
+            line-height: 1.8;
+        }
+        
+        .letter-signature {
+            margin-top: 60px;
+            text-align: left;
+        }
+        
+        /* Scrollbar Styling */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- TOP BAR -->
+    <div class="top-bar">
+        <div class="brand">
+            <div class="brand-icon">B</div>
+            <span>نظام إدارة خطابات الضمان</span>
+        </div>
+        <div class="global-actions">
+            <button class="btn-global">📥 استيراد</button>
+            <button class="btn-global">🔄 تحديث</button>
+            <button class="btn-global">🖨️ طباعة</button>
+            <button class="btn-global">📊 إحصائيات</button>
+            <button class="btn-global">⚙️ إعدادات</button>
+        </div>
+    </div>
+
+    <!-- CONTEXT BAR -->
+    <div class="context-bar">
+        <div class="context-info">
+            <span class="context-title">LG-2024-8821</span>
+            <span class="status-badge">يحتاج قرار</span>
+        </div>
+        <div class="progress-container">
+            <div class="progress-bar">
+                <div class="progress-fill" style="width: <?= $progressPercent ?>%"></div>
+            </div>
+            <div class="progress-text">
+                <span>سجل <?= $currentRecord ?> من <?= $totalRecords ?></span>
+                <span class="progress-percent"><?= $progressPercent ?>%</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- WORKSPACE (3 Columns) -->
+    <div class="workspace">
+        
+        <!-- TIMELINE PANEL (Right) -->
+        <aside class="timeline-panel">
+            <header class="timeline-header">
+                <span class="timeline-title">📜 سجل العمليات</span>
+                <span class="timeline-count">3 أحداث</span>
+            </header>
+            <div class="timeline-body">
+                <div class="timeline-list">
+                    <div class="timeline-line"></div>
+                    
+                    <div class="timeline-item">
+                        <div class="timeline-dot active"></div>
+                        <div class="event-card current">
+                            <span class="event-badge">الآن</span>
+                            <h5 class="event-title">في انتظار القرار</h5>
+                            <p class="event-time">10:45 ص</p>
+                            <p class="event-desc">تمت مراجعة البيانات آلياً ولم يتم العثور على ملاحظات جوهرية.</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot success"></div>
+                        <div class="event-card">
+                            <span class="event-time">أمس (09:30 ص)</span>
+                            <h5 class="event-title">وارد من البنك</h5>
+                            <p class="event-desc">تم استلام طلب التمديد عبر سويفت MT760</p>
+                        </div>
+                    </div>
+
+                    <div class="timeline-item">
+                        <div class="timeline-dot"></div>
+                        <div class="event-card">
+                            <span class="event-time">01/01/2024</span>
+                            <h5 class="event-title">إصدار الضمان</h5>
+                            <p class="event-desc">تم إصدار الضمان الأساسي لمدة سنة واحدة.</p>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+        </aside>
+
+        <!-- DECISION PANEL (Center) -->
+        <main class="decision-panel">
+            <div class="decision-body">
+                
+                <!-- Supplier Section -->
+                <div class="form-section">
+                    <h3 class="section-title">👤 المورد (المستفيد)</h3>
+                    
+                    <div class="field-group">
+                        <label class="field-label">اسم المورد</label>
+                        <input type="text" class="field-input" value="شركة المقاولات المتحدة" placeholder="ابحث عن المورد...">
+                        
+                        <!-- Chips with Data Source - التحسين الرئيسي -->
+                        <div class="chips-row">
+                            <!-- Selected Chip -->
+                            <button class="chip chip-selected">
+                                <span>✓ شركة المقاولات المتحدة</span>
+                            </button>
+                            
+                            <!-- Learning Chip -->
+                            <button class="chip chip-learned">
+                                <span class="chip-stars">⭐⭐⭐</span>
+                                <span>شركة المراعي</span>
+                                <span class="chip-source">استخدمته 15 مرة</span>
+                            </button>
+                            
+                            <!-- Excel Chip -->
+                            <button class="chip chip-excel">
+                                <span>المقاولات التجارية</span>
+                                <span class="chip-source">من Excel: 85%</span>
+                            </button>
+                            
+                            <!-- Fuzzy Match Chip -->
+                            <button class="chip chip-candidate">
+                                <span>شركة البناء المتقدم</span>
+                                <span class="chip-source">72%</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bank Section -->
+                <div class="form-section">
+                    <h3 class="section-title">🏦 البنك المصدر</h3>
+                    
+                    <div class="field-group">
+                        <label class="field-label">اسم البنك</label>
+                        <input type="text" class="field-input" value="البنك الأهلي السعودي" placeholder="ابحث عن البنك...">
+                        
+                        <div class="chips-row">
+                            <button class="chip chip-selected">
+                                <span>✓ البنك الأهلي السعودي</span>
+                            </button>
+                            
+                            <button class="chip chip-learned">
+                                <span class="chip-stars">⭐</span>
+                                <span>بنك الرياض</span>
+                                <span class="chip-source">استخدمته 8 مرات</span>
+                            </button>
+                            
+                            <button class="chip chip-candidate">
+                                <span>البنك السعودي الفرنسي</span>
+                                <span class="chip-source">68%</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Info Grid -->
+                <div class="info-grid">
+                    <div class="info-item">
+                        <span class="info-label">رقم العقد</span>
+                        <span class="info-value">CON-2024-9982</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">المبلغ</span>
+                        <span class="info-value">1,500,000.00 ريال</span>
+                    </div>
+                    <div class="info-item">
+                        <span class="info-label">تاريخ الانتهاء</span>
+                        <span class="info-value" style="color: var(--color-success);">30 ديسمبر 2025</span>
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- Actions Footer -->
+            <div class="actions-footer">
+                <div style="display: flex; gap: var(--space-sm);">
+                    <button class="btn-secondary">← السابق</button>
+                    <button class="btn-primary">
+                        <span>✓</span>
+                        <span>حفظ وانتقل للتالي</span>
+                    </button>
+                </div>
+            </div>
+        </main>
+
+        <!-- PREVIEW PANEL (Left) -->
+        <aside class="preview-panel">
+            <header class="preview-header">
+                <span class="preview-title">📄 معاينة الخطاب</span>
+                <button class="preview-print">🖨️ طباعة</button>
+            </header>
+            <div class="preview-body">
+                <div class="letter-paper">
+                    <div class="letter-header">
+                        مستشفى الملك فيصل التخصصي ومركز الأبحاث
+                    </div>
+                    
+                    <div class="letter-to">
+                        <div style="font-weight: 700;">السادة / البنك الأهلي السعودي</div>
+                        <div>المحترمين</div>
+                    </div>
+                    
+                    <div class="letter-greeting">
+                        السَّلام عليكُم ورحمَة الله وبركاتِه
+                    </div>
+                    
+                    <div style="margin-bottom: 16px;">
+                        <strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم (LG-2024-8821)
+                    </div>
+                    
+                    <div class="letter-body">
+                        <p style="margin-bottom: 12px;">
+                            إشارة الى الضمان البنكي الموضح أعلاه، والصادر منكم لصالحنا على حساب 
+                            <strong>شركة المقاولات المتحدة</strong> بمبلغ قدره (<strong>1,500,000.00</strong>) ريال،
+                        </p>
+                        <p style="margin-bottom: 12px;">
+                            نأمل منكم <strong>تمديد فترة سريان الضمان حتى تاريخ 30 ديسمبر 2025م</strong>، 
+                            مع بقاء الشروط الأخرى دون تغيير.
+                        </p>
+                        <p>
+                            علمًا بأنه في حال عدم تمكن البنك من تمديد الضمان المذكور قبل انتهاء مدة سريانه، 
+                            فيجب على البنك دفع قيمة الضمان إلينا حسب النظام.
+                        </p>
+                    </div>
+                    
+                    <div style="text-indent: 5em; margin-top: 20px;">
+                        وَتفضَّلوا بِقبُول خَالِص تحيَّاتِي
+                    </div>
+                    
+                    <div class="letter-signature">
+                        <div style="margin-bottom: 60px; font-weight: 700;">
+                            مُدير الإدارة العامَّة للعمليَّات المحاسبيَّة
+                        </div>
+                        <div style="font-weight: 700;">
+                            سَامِي بن عبَّاس الفايز
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </aside>
+
+    </div>
+
+</body>
+</html>

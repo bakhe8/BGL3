@@ -8,7 +8,7 @@ try {
     $dbOriginal->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     // V3 DB
-    $dbV3 = new PDO('sqlite:V3/storage/database/app.sqlite');
+    $dbV3 = new PDO('sqlite:storage/database/app.sqlite');
     $dbV3->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
     
     // 1. Copy Suppliers

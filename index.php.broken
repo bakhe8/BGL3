@@ -198,7 +198,7 @@ $mockCandidates = [
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Alpine.js - TODO: Convert to server-side rendering -->
+    <!-- Alpine.js -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     
     <style>
@@ -1472,25 +1472,17 @@ $mockCandidates = [
             <!-- Record Header -->
             <header class="record-header">
                 <div class="record-title">
-                    <h1>ضمان رقم <span x-text="record.guarantee_number"></span></h1>
+                    <h1>ضمان رقم <span id="guarantee-number">---</span></h1>
                     <span class="badge badge-pending">يحتاج قرار</span>
                 </div>
-                <div class="record-actions" x-data="{ showPrint: false }">
-                    <button class="btn btn-secondary btn-sm" @click="saveAndNext()">&#x1F4BE; حفظ</button>
+                <div class="record-actions">
+                    <button class="btn btn-secondary btn-sm" data-action="saveAndNext">💾 حفظ</button>
                     
-                    <div class="dropdown">
-                        <button class="btn btn-secondary btn-sm" @click="showPrint = !showPrint" @click.away="showPrint = false">
-                            &#x1F5A8; طباعة &#x25BC;
-                        </button>
-                        <div class="dropdown-content" :class="{ 'show': showPrint }">
-                            <a href="#" @click.prevent="print('extension'); showPrint = false">تمديد ضمان</a>
-                            <a href="#" @click.prevent="print('release'); showPrint = false">إفراج ضمان</a>
-                        </div>
-                    </div>
+                    <!-- Print dropdown removed -->
 
-                    <button class="btn btn-secondary btn-sm" @click="extend()">&#x1F504; تمديد</button>
-                    <button class="btn btn-secondary btn-sm" @click="reduce()">&#x1F4C9; تخفيض</button>
-                    <button class="btn btn-secondary btn-sm" @click="release()">&#x1F4E4; إفراج</button>
+                    <button class="btn btn-secondary btn-sm" data-action="executeExtend">🔄 تمديد</button>
+                    <button class="btn btn-secondary btn-sm" data-action="executeReduce">📉 تخفيض</button>
+                    <button class="btn btn-secondary btn-sm" data-action="executeRelease">📤 إفراج</button>
                 </div>
             </header>
 
@@ -1567,22 +1559,11 @@ $mockCandidates = [
                                 <span>&#x1F4CB;</span>
                                 <span>بيانات الضمان</span>
                             </div>
-                            <button class="btn btn-ghost btn-sm" @click="togglePreview">
-                                <span x-text="showPreview ? '&#x1F53C;' : '&#x1F441;'"></span>
-                                <span x-text="showPreview ? 'إخفاء المعاينة' : 'معاينة الخطاب'"></span>
+                            <button class="btn btn-ghost btn-sm" data-action="togglePreview">
+                                <span>👁</span>
+                                <span>معاينة الخطاب</span>
                             </button>
-                            <div class="flex gap-1 border-r border-gray-200 pr-2 mr-2">
-                                <button class="btn btn-ghost btn-sm" @click="openAttachmentsModal()">
-                                    <span>📎</span>
-                                    <span>المرفقات</span>
-                                    <span class="badge badge-sm badge-ghost" x-show="attachments.length > 0" x-text="attachments.length"></span>
-                                </button>
-                                <button class="btn btn-ghost btn-sm" @click="openNotesModal()">
-                                    <span>📝</span>
-                                    <span>الملاحظات</span>
-                                    <span class="badge badge-sm badge-ghost" x-show="notes.length > 0" x-text="notes.length"></span>
-                                </button>
-                            </div>
+                            <!-- Attachments and Notes removed -->
                         </header>
                         <div class="card-body">
                             <!-- Supplier Field -->
@@ -1648,19 +1629,19 @@ $mockCandidates = [
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">تاريخ الانتهاء</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['expiry_date'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.expiry_date"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">رقم العقد</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['contract_number'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.contract_number"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">تاريخ الإصدار</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['issue_date'] ?? '') ?></div>
+                                    <div class="info-value" x-text="record.issue_date"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">النوع</div>
-                                    <div class="info-value"><?= htmlspecialchars($record['type'] ?? 'ابتدائي') ?></div>
+                                    <div class="info-value" x-text="record.type"></div>
                                 </div>
                                 <div class="info-item">
                                     <div class="info-label">الحالة</div>
@@ -1679,15 +1660,15 @@ $mockCandidates = [
                         <div class="preview-body">
                             <div class="letter-paper">
                                 <div class="letter-header">
-                                    <div class="letter-to">إلى: <span><?= htmlspecialchars($record['bank_name'] ?? '') ?></span></div>
+                                    <div class="letter-to">إلى: <span x-text="record.bank_name"></span></div>
                                     <div class="letter-greeting">السلام عليكم ورحمة الله وبركاته</div>
                                 </div>
                                 <div class="letter-body">
-                                    <p><strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم <span><?= htmlspecialchars($record['guarantee_number'] ?? '') ?></span></p>
+                                    <p><strong>الموضوع:</strong> طلب تمديد الضمان البنكي رقم <span x-text="record.guarantee_number"></span></p>
                                     
-                                    <p>نشير إلى الضمان البنكي <span><?= htmlspecialchars($record['type'] ?? '') ?></span> المشار إليه أعلاه والصادر لصالحنا من قبلكم بتاريخ <span><?= htmlspecialchars($record['issue_date'] ?? '') ?></span> بمبلغ وقدره <strong><span><?= number_format($record['amount'] ?? 0, 0, '.', ',') ?></span> ريال سعودي</strong> لصالح المورد <strong><span><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span></strong> بموجب العقد رقم <span><?= htmlspecialchars($record['contract_number'] ?? '') ?></span>.</p>
+                                    <p>نشير إلى الضمان البنكي <span x-text="record.type"></span> المشار إليه أعلاه والصادر لصالحنا من قبلكم بتاريخ <span x-text="record.issue_date"></span> بمبلغ وقدره <strong><span x-text="Number(record.amount).toLocaleString('en-US')"></span> ريال سعودي</strong> لصالح المورد <strong><span x-text="record.supplier_name"></span></strong> بموجب العقد رقم <span x-text="record.contract_number"></span>.</p>
                                     
-                                    <p>نرجو التكرم بتمديد صلاحية الضمان المذكور أعلاه لمدة إضافية حتى تاريخ <strong><span><?= htmlspecialchars($record['expiry_date'] ?? '') ?></span></strong>.</p>
+                                    <p>نرجو التكرم بتمديد صلاحية الضمان المذكور أعلاه لمدة إضافية حتى تاريخ <strong><span x-text="record.expiry_date"></span></strong>.</p>
                                     
                                     <p>شاكرين لكم حسن تعاونكم،،،</p>
                                 </div>
@@ -1880,122 +1861,225 @@ $mockCandidates = [
 
     </div>
 
-    <!-- Import Modal -->
-    <div x-show="showImportModal" 
-         x-cloak
-         @click.self="showImportModal = false"
-         style="position: fixed; inset: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;">
-        <div style="background: white; border-radius: 12px; padding: 24px; max-width: 500px; width: 90%; box-shadow: 0 20px 60px rgba(0,0,0,0.3);">
-            <h3 style="font-size: 18px; font-weight: 700; margin-bottom: 16px; color: #1e293b;">استيراد ملف Excel</h3>
-            
-            <div style="margin-bottom: 16px;">
-                <label style="display: block; font-size: 13px; font-weight: 600; color: #475569; margin-bottom: 8px;">
-                    اختر ملف Excel
-                </label>
-                <input type="file" 
-                       x-ref="fileInput"
-                       @change="handleFileSelect($event)"
-                       accept=".xlsx,.xls"
-                       style="display: block; width: 100%; padding: 8px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 13px;">
-            </div>
-            
-            <div x-show="uploading" style="text-align: center; padding: 12px; color: #3b82f6;">
-                جاري الرفع...
-            </div>
-            
-            <div style="display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px;">
-                <button @click="showImportModal = false" 
-                        style="padding: 8px 16px; background: #f1f5f9; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                    إلغاء
-                </button>
-                <button @click="$refs.fileInput.files.length && handleFileSelect({target: $refs.fileInput})" 
-                        :disabled="uploading"
-                        style="padding: 8px 20px; background: #3b82f6; color: white; border: none; border-radius: 6px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                    استيراد
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Attachments Modal -->
-    <div x-show="showAttachmentsModal" 
-         x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-         x-transition.opacity>
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showAttachmentsModal = false">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">📂 المستندات المرفقة</h3>
-                <button @click="showAttachmentsModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            
-            <div class="mb-4">
-                <label class="block w-full border-2 border-dashed border-gray-300 rounded p-4 text-center hover:bg-gray-50 cursor-pointer transition">
-                    <input type="file" class="hidden" @change="uploadAttachment($event)">
-                    <span class="text-2xl block mb-1">📂</span>
-                    <span class="text-sm text-gray-600" x-text="uploading ? 'جاري الرفع...' : 'اضغط لرفع ملف'"></span>
-                </label>
-            </div>
-            
-            <div class="space-y-2 max-h-60 overflow-y-auto">
-                <template x-if="attachments.length === 0">
-                    <div class="text-center text-gray-400 text-sm py-4">لا توجد مرفقات</div>
-                </template>
-                <template x-for="file in attachments" :key="file.id">
-                    <div class="flex items-center gap-2 p-2 bg-gray-50 rounded border border-gray-200 text-sm">
-                        <div class="text-blue-500 text-lg">📄</div>
-                        <div class="flex-1 min-w-0">
-                            <div class="truncate font-medium text-gray-700" x-text="file.file_name"></div>
-                            <div class="text-xs text-gray-400" x-text="file.created_at?.substring(0,10)"></div>
-                        </div>
-                        <a :href="'V3/storage/' + file.file_path" target="_blank" class="text-gray-400 hover:text-blue-600 p-1">⬇️</a>
-                    </div>
-                </template>
-            </div>
-        </div>
-    </div>
-
-    <!-- Notes Modal -->
-    <div x-show="showNotesModal" 
-         x-cloak
-         class="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
-         x-transition.opacity>
-        <div class="bg-white rounded-lg shadow-xl w-full max-w-lg p-6" @click.away="showNotesModal = false">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-bold">📝 الملاحظات</h3>
-                <button @click="showNotesModal = false" class="text-gray-400 hover:text-gray-600">✕</button>
-            </div>
-            
-            <div class="mb-4">
-                <textarea class="w-full border rounded p-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none" 
-                          rows="3" 
-                          placeholder="أضف ملاحظة..." 
-                          x-model="noteText"></textarea>
-                <button class="mt-2 w-full bg-blue-600 text-white py-1.5 rounded text-sm hover:bg-blue-700 transition font-medium"
-                        @click="saveNote()"
-                        :disabled="!noteText.trim()">
-                    حفظ الملاحظة
-                </button>
-            </div>
-            
-            <div class="space-y-3 max-h-60 overflow-y-auto">
-                <template x-if="notes.length === 0">
-                    <div class="text-center text-gray-400 text-sm py-4">لا توجد ملاحظات</div>
-                </template>
-                <template x-for="note in notes" :key="note.id">
-                    <div class="bg-yellow-50 p-3 rounded border border-yellow-200 text-sm relative">
-                        <div class="text-gray-800 whitespace-pre-wrap" x-text="note.content"></div>
-                        <div class="text-xs text-gray-500 mt-2 flex justify-between">
-                            <span x-text="note.created_by"></span>
-                            <span x-text="note.created_at"></span>
-                        </div>
-                    </div>
-                </template>
-            </div>
-        </div>
-    </div>
+    <!-- All modals removed - functionality to be implemented server-side -->
 
     <script>
-    function unifiedWorkflow() {
+    // UnifiedController - Server-Driven Architecture
+    // Policy: .agent/policies/server-driven-architecture.md
+    window.UnifiedController = {
+        currentIndex: 1,
+        totalRecords: <?= $totalRecords ?? 0 ?>,
+        
+        init() {
+            // Event delegation
+            document.addEventListener('click', (e) => {
+                const target = e.target.closest('[data-action]');
+                if (!target) return;
+                
+                const action = target.dataset.action;
+                if (this[action]) {
+                    e.preventDefault();
+                    this[action](target);
+                }
+            });
+            
+            // Load first record
+            this.loadRecord(1);
+        },
+        
+        showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed; top: 20px; right: 20px;
+                background: ${type === 'success' ? '#10b981' : type === 'error' ? '#ef4444' : '#3b82f6'};
+                color: white; padding: 12px 20px; border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        },
+        
+        async loadRecord(index) {
+            try {
+                const res = await fetch(`/api/get-record.php?index=${index}`);
+                const html = await res.text();
+                const section = document.getElementById('record-form-section');
+                if (section) section.outerHTML = html;
+                this.currentIndex = index;
+            } catch (e) {
+                this.showToast('فشل تحميل السجل', 'error');
+            }
+        },
+        
+        nextRecord() {
+            if (this.currentIndex < this.totalRecords) {
+                this.loadRecord(this.currentIndex + 1);
+            }
+        },
+        
+        prevRecord() {
+            if (this.currentIndex > 1) {
+                this.loadRecord(this.currentIndex - 1);
+            }
+        },
+        
+        async saveAndNext() {
+            const supplierId = document.getElementById('supplierIdHidden')?.value;
+            const supplierName = document.getElementById('supplierInput')?.value;
+            const bankId = document.getElementById('bankSelect')?.value;
+            
+            if (!supplierId || !bankId) {
+                this.showToast('يرجى اختيار المورد والبنك', 'warning');
+                return;
+            }
+            
+            try {
+                const res = await fetch('/api/save-and-next.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        supplier_id: supplierId,
+                        bank_id: bankId,
+                        current_index: this.currentIndex
+                    })
+                });
+                
+                if (res.ok) {
+                    const html = await res.text();
+                    const section = document.getElementById('record-form-section');
+                    if (section) section.outerHTML = html;
+                    this.currentIndex++;
+                    this.showToast('تم الحفظ', 'success');
+                } else {
+                    this.showToast('فشل الحفظ', 'error');
+                }
+            } catch (e) {
+                this.showToast('حدث خطأ', 'error');
+            }
+        },
+        
+        async executeExtend() {
+            const recordId = document.getElementById('supplierInput')?.dataset.recordId;
+            if (!recordId) return;
+            
+            try {
+                const res = await fetch('/api/extend.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ guarantee_id: recordId })
+                });
+                
+                if (res.ok) {
+                    const html = await res.text();
+                    const section = document.getElementById('record-form-section');
+                    if (section) section.outerHTML = html;
+                    this.showToast('تم التمديد', 'success');
+                } else {
+                    this.showToast('فشل التمديد', 'error');
+                }
+            } catch (e) {
+                this.showToast('حدث خطأ', 'error');
+            }
+        },
+        
+        async executeReduce() {
+            const recordId = document.getElementById('supplierInput')?.dataset.recordId;
+            if (!recordId) return;
+            
+            try {
+                const res = await fetch('/api/reduce.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ guarantee_id: recordId })
+                });
+                
+                if (res.ok) {
+                    const html = await res.text();
+                    const section = document.getElementById('record-form-section');
+                    if (section) section.outerHTML = html;
+                    this.showToast('تم التخفيض', 'success');
+                } else {
+                    this.showToast('فشل التخفيض', 'error');
+                }
+            } catch (e) {
+                this.showToast('حدث خطأ', 'error');
+            }
+        },
+        
+        async executeRelease() {
+            const recordId = document.getElementById('supplierInput')?.dataset.recordId;
+            if (!recordId) return;
+            
+            try {
+                const res = await fetch('/api/release.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ guarantee_id: recordId })
+                });
+                
+                if (res.ok) {
+                    const html = await res.text();
+                    const section = document.getElementById('record-form-section');
+                    if (section) section.outerHTML = html;
+                    this.showToast('تم الإفراج', 'success');
+                } else {
+                    this.showToast('فشل الإفراج', 'error');
+                }
+            } catch (e) {
+                this.showToast('حدث خطأ', 'error');
+            }
+        },
+        
+        async fetchSupplierSuggestions(rawName) {
+            if (!rawName) return;
+            try {
+                const res = await fetch(`/api/suggestions.php?raw=${encodeURIComponent(rawName)}`);
+                const html = await res.text();
+                const container = document.getElementById('supplier-suggestions');
+                if (container) container.outerHTML = html;
+            } catch (e) {
+                console.error('Failed to fetch suggestions:', e);
+            }
+        },
+        
+        selectSupplier(target) {
+            const id = target.dataset.id;
+            const name = target.dataset.name;
+            const input = document.getElementById('supplierInput');
+            const hidden = document.getElementById('supplierIdHidden');
+            if (input) input.value = name;
+            if (hidden) hidden.value = id;
+            this.showToast('تم اختيار المورد', 'success');
+        },
+        
+        togglePreview() { console.log('togglePreview'); },
+        openHistoryModal() { console.log('openHistoryModal'); }
+    };
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        window.UnifiedController.init();
+    });
+    
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOut {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+    `;
+    document.head.appendChild(style);
+    </script>
+</body>
+</html>
         return {
             // State
             currentIndex: 1,

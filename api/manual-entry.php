@@ -29,6 +29,17 @@ try {
         'id' => $id,
         'message' => 'تم إضافة السجل بنجاح!',
     ]);
+    
+    // --- SMART AUTOMATION ---
+    // Try to auto-match this new record immediately
+    try {
+        // Close session/buffer so user doesn't wait (optional but good for performance)
+        if (function_exists('fastcgi_finish_request')) {
+            fastcgi_finish_request();
+        }
+        $processor = new \App\Services\SmartProcessingService();
+        $processor->processNewGuarantees(1);
+    } catch (\Throwable $e) { /* background task */ }
 
 } catch (\Throwable $e) {
     http_response_code(500);

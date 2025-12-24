@@ -30,10 +30,15 @@ class ActionService
             throw new \RuntimeException("Guarantee not found");
         }
         
-        // Check if already released
-        if ($this->actions->hasRelease($guaranteeId)) {
-            throw new \RuntimeException("Cannot extend after release");
+        // Check if currently released (Source of Truth: GuaranteeDecision)
+        // We do NOT check historical actions because a release might have been reverted/overridden.
+        $decision = $this->decisions->findByGuarantee($guaranteeId);
+        if ($decision && $decision->status === 'released') {
+             throw new \RuntimeException("Cannot extend after release");
         }
+
+        // Void any historical blocking releases in the actions table to satisfy DB Triggers
+        $this->actions->voidReleases($guaranteeId);
         
         $currentExpiry = $guarantee->getExpiryDate();
         if (!$currentExpiry) {
