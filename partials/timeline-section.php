@@ -149,7 +149,7 @@ $eventCount = count($timeline);
                                             <?php endif; ?>
                                             
                                             <span style="color: #059669; font-weight: 500;">
-                                                <?= htmlspecialchars($newVal) ?>
+                                                <?= htmlspecialchars($newVal ?? '') ?>
                                             </span>
                                         <?php endif; ?>
                                     </div>
