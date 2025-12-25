@@ -89,53 +89,58 @@ class TimelineMachine {
     updateFormFields(snapshot) {
         console.log('🔄 Updating fields with snapshot:', snapshot);
 
-        // Update supplier input (text field with data-field="supplier")
-        const supplierInputs = document.querySelectorAll('input[data-field="supplier"]');
-        supplierInputs.forEach(input => {
-            if (snapshot.supplier_name) {
-                input.value = snapshot.supplier_name;
-                console.log('✓ Updated supplier:', snapshot.supplier_name);
-            }
-        });
+        // Update supplier input (ID: supplierInput)
+        const supplierInput = document.getElementById('supplierInput');
+        if (supplierInput && snapshot.supplier_name) {
+            supplierInput.value = snapshot.supplier_name;
+            console.log('✓ Updated supplier:', snapshot.supplier_name);
+        }
 
-        // Update hidden supplier ID
-        const supplierIdInputs = document.querySelectorAll('input[name="supplier_id"]');
-        supplierIdInputs.forEach(input => {
-            if (snapshot.supplier_id) {
-                input.value = snapshot.supplier_id;
-            }
-        });
+        // Update hidden supplier ID (ID: supplierIdHidden)
+        const supplierIdHidden = document.getElementById('supplierIdHidden');
+        if (supplierIdHidden && snapshot.supplier_id) {
+            supplierIdHidden.value = snapshot.supplier_id;
+            console.log('✓ Updated supplier ID:', snapshot.supplier_id);
+        }
 
-        // Update bank select
-        const bankSelects = document.querySelectorAll('select[data-field="bank"]');
-        bankSelects.forEach(select => {
-            if (snapshot.bank_id) {
-                select.value = snapshot.bank_id;
-                console.log('✓ Updated bank:', snapshot.bank_id);
-            }
-        });
+        // Update bank name input (ID: bankNameInput)
+        const bankNameInput = document.getElementById('bankNameInput');
+        if (bankNameInput && snapshot.bank_name) {
+            bankNameInput.value = snapshot.bank_name;
+            console.log('✓ Updated bank name:', snapshot.bank_name);
+        }
 
-        // Update all info-value elements by matching labels
-        const infoGroups = document.querySelectorAll('.info-group');
-        infoGroups.forEach(group => {
-            const label = group.querySelector('.info-label')?.textContent;
-            const valueEl = group.querySelector('.info-value');
+        // Update hidden bank ID (ID: bankSelect)
+        const bankSelect = document.getElementById('bankSelect');
+        if (bankSelect && snapshot.bank_id) {
+            bankSelect.value = snapshot.bank_id;
+            console.log('✓ Updated bank ID:', snapshot.bank_id);
+        }
 
-            if (!valueEl || !label) return;
+        // Update info-value elements by matching labels
+        document.querySelectorAll('.info-item').forEach(item => {
+            const label = item.querySelector('.info-label')?.textContent || '';
+            const valueEl = item.querySelector('.info-value');
 
+            if (!valueEl) return;
+
+            // Amount
             if (label.includes('المبلغ') && snapshot.amount) {
                 const formattedAmount = new Intl.NumberFormat('ar-SA').format(snapshot.amount);
                 valueEl.textContent = formattedAmount + ' ر.س';
-                console.log('✓ Updated amount:', snapshot.amount);
+                console.log('✓ Updated amount:', formattedAmount);
             }
 
+            // Expiry date
             if (label.includes('تاريخ الانتهاء') && snapshot.expiry_date) {
                 valueEl.textContent = snapshot.expiry_date;
                 console.log('✓ Updated expiry:', snapshot.expiry_date);
             }
 
+            // Issue date
             if (label.includes('تاريخ الإصدار') && snapshot.issue_date) {
                 valueEl.textContent = snapshot.issue_date;
+                console.log('✓ Updated issue date:', snapshot.issue_date);
             }
         });
 
