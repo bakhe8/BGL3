@@ -1,8 +1,7 @@
 <?php
 /**
- * Clean False Changes from Timeline Events
- * Removes amount/expiry_date changes that were incorrectly detected
- * during manual save operations (not from actual extend/reduce/release actions)
+ * Clean Timeline Events - Remove FALSE amount/expiry detections
+ * User confirmed ALL amount/expiry in 'modified' events are false detections
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
@@ -37,39 +36,15 @@ try {
         $originalCount = count($details['changes']);
         $cleanedChanges = [];
         
+        // SIMPLE LOGIC: Keep only supplier/bank, remove everything else
         foreach ($details['changes'] as $change) {
             $field = $change['field'] ?? '';
-            $trigger = $change['trigger'] ?? 'manual';
             
-            // Keep supplier/bank changes always
+            // ONLY keep supplier_id and bank_id
             if ($field === 'supplier_id' || $field === 'bank_id') {
                 $cleanedChanges[] = $change;
-                continue;
             }
-            
-            // For amount: only keep if from actual reduction action
-            if ($field === 'amount') {
-                // Only keep if it's from a real reduction/release action
-                // Manual saves should NOT have amount changes
-                if ($trigger === 'reduction_action' || $trigger === 'release_action') {
-                    $cleanedChanges[] = $change;
-                }
-                // Skip if manual - this was false detection
-                continue;
-            }
-            
-            // For expiry_date: only keep if from actual extension action
-            if ($field === 'expiry_date') {
-                // Only keep if it's from a real extension action
-                if ($trigger === 'extension_action') {
-                    $cleanedChanges[] = $change;
-                }
-                // Skip if manual - this was false detection
-                continue;
-            }
-            
-            // Keep other fields
-            $cleanedChanges[] = $change;
+            // Skip amount, expiry_date, and any other fields
         }
         
         // If we removed any changes, update the event
@@ -95,6 +70,7 @@ try {
         'success' => true,
         'total_processed' => $totalProcessed,
         'events_cleaned' => $cleaned,
+        'removed_fields' => 'amount, expiry_date, and any non-supplier/bank fields',
         'message' => "Cleaned $cleaned events out of $totalProcessed total"
     ], JSON_PRETTY_PRINT);
     
