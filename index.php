@@ -202,15 +202,19 @@ if ($currentRecord) {
             foreach ($history as $event) {
                 $mockTimeline[] = [
                     'id' => 'history_' . $event['id'],
+                    'event_id' => $event['id'],  // Add raw ID
+                    'event_type' => $event['event_type'] ?? 'unknown',
                     'type' => $event['event_type'] ?? 'unknown',
                     'icon' => $iconMap[$event['event_type'] ?? 'unknown'] ?? '📋',
                     'action' => $event['event_type'] ?? 'unknown',
                     'date' => $event['created_at'],
                     'created_at' => $event['created_at'],
+                    'event_details' => $event['event_details'] ?? null,  // CRITICAL: Add this!
                     'change_reason' => '', // removed - use event_details
                     'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
                     'user' => $event['created_by'] ?? 'النظام',
-                    'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true)
+                    'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
+                    'snapshot_data' => $event['snapshot_data'] ?? '{}'  // Add raw too
                 ];
             }
         } catch (\Exception $e) {

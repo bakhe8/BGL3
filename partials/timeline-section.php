@@ -92,6 +92,9 @@ $eventCount = count($timeline);
                             </div>
                             
                             <!-- Event Changes Details -->
+                            <?php if ($event['event_type'] === 'modified' && $index < 2): ?>
+                            <!-- DEBUG EVENT <?= $event['id'] ?>: raw=<?= htmlspecialchars(substr($event['event_details'] ?? 'NULL', 0, 100)) ?> | changes_count=<?= count($changes) ?> -->
+                            <?php endif; ?>
                             <?php if (!empty($changes)): ?>
                             <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
                                 <?php foreach ($changes as $change): ?>
