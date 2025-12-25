@@ -121,22 +121,30 @@ $eventCount = count($timeline);
                                             <?php endif; ?>
                                             
                                             <span style="color: #059669; font-weight: 500;">
-                                        <strong style="color: #1e293b;">• <?= htmlspecialchars($fieldLabel) ?>:</strong>
-                                        
-                                        <?php if ($oldVal): ?>
-                                            <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
-                                                <?= htmlspecialchars($oldVal) ?>
+                                                <?= htmlspecialchars($newName) ?>
                                             </span>
-                                            <span style="color: #64748b; margin: 0 4px;">→</span>
-                                        <?php endif; ?>
-                                        
-                                        <span style="color: #059669; font-weight: 500;">
-                                            <?= htmlspecialchars($newVal) ?>
-                                        </span>
-                                        
-                                        <?php if (isset($change['confidence'])): ?>
-                                            <span style="color: #3b82f6; font-size: 11px; margin-left: 4px;">
-                                                (<?= round($change['confidence']) ?>%)
+                                            
+                                            <?php if (isset($change['confidence'])): ?>
+                                                <span style="color: #3b82f6; font-size: 11px; margin-left: 4px;">
+                                                    (<?= round($change['confidence']) ?>%)
+                                                </span>
+                                            <?php endif; ?>
+                                            
+                                        <?php else: ?>
+                                            <?php
+                                            $oldVal = $change['old_value'];
+                                            $newVal = $change['new_value'];
+                                            ?>
+                                            
+                                            <?php if ($oldVal): ?>
+                                                <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
+                                                    <?= htmlspecialchars($oldVal) ?>
+                                                </span>
+                                                <span style="color: #64748b; margin: 0 4px;">→</span>
+                                            <?php endif; ?>
+                                            
+                                            <span style="color: #059669; font-weight: 500;">
+                                                <?= htmlspecialchars($newVal) ?>
                                             </span>
                                         <?php endif; ?>
                                     </div>
