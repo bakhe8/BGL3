@@ -167,7 +167,7 @@ class UnifiedController {
         };
 
         try {
-            const response = await fetch('/api/save.php', {
+            const response = await fetch('/api/save-and-next.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
