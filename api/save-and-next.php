@@ -10,7 +10,7 @@ require_once __DIR__ . '/../app/Support/autoload.php';
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
 
-header('Content-Type: text/html; charset=utf-8');
+header('Content-Type: application/json; charset=utf-8');
 
 try {
     // Get POST data
@@ -22,6 +22,11 @@ try {
     $supplierName = trim($input['supplier_name'] ?? '');
     $bankName = trim($input['bank_name'] ?? '');
     $currentIndex = $input['current_index'] ?? 1;
+    
+    if (!$guaranteeId) {
+        echo json_encode(['success' => false, 'error' => 'guarantee_id is required']);
+        exit;
+    }
     
     $db = Database::connect();
     $guaranteeRepo = new GuaranteeRepository($db);
