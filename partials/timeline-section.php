@@ -160,9 +160,59 @@ $eventCount = count($timeline);
                                 <?php endif; ?>
                             </div>
                             <?php elseif (!empty($event['change_reason'])): ?>
-                            <!-- Fallback: Show legacy change_reason if no changes array -->
-                            <div style="font-size: 12px; color: #475569; line-height: 1.4; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
-                                <?= htmlspecialchars($event['change_reason']) ?>
+                            <!-- Fallback: Parse and format legacy change_reason -->
+                            <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
+                                <?php
+                                $reason = $event['change_reason'];
+                                
+                                // Try to parse old format and apply new styling
+                                // Pattern: "تغيير X من [old] إلى [new]"
+                                if (preg_match_all('/تغيير (.*?) من \[(.*?)\] إلى \[(.*?)\]/', $reason, $matches, PREG_SET_ORDER)) {
+                                    foreach ($matches as $match) {
+                                        $field = trim($match[1]);
+                                        $oldVal = trim($match[2]);
+                                        $newVal = trim($match[3]);
+                                        ?>
+                                        <div style="margin-bottom: 4px;">
+                                            <strong style="color: #1e293b;">• <?= htmlspecialchars($field) ?>:</strong>
+                                            <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
+                                                <?= htmlspecialchars($oldVal) ?>
+                                            </span>
+                                            <span style="color: #64748b; margin: 0 4px;">→</span>
+                                            <span style="color: #059669; font-weight: 500;">
+                                                <?= htmlspecialchars($newVal) ?>
+                                            </span>
+                                        </div>
+                                        <?php
+                                    }
+                                } elseif (preg_match('/مطابقة تلقائية (لل.*?): (.*?) -> (.*?) \((\d+)%\)/', $reason, $match)) {
+                                    // AI match format
+                                    $field = trim($match[1]);
+                                    $oldVal = trim($match[2]);
+                                    $newVal = trim($match[3]);
+                                    $confidence = trim($match[4]);
+                                    ?>
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #1e293b;">• <?= htmlspecialchars($field) ?>:</strong>
+                                        <?php if ($oldVal): ?>
+                                        <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
+                                            <?= htmlspecialchars($oldVal) ?>
+                                        </span>
+                                        <span style="color: #64748b; margin: 0 4px;">→</span>
+                                        <?php endif; ?>
+                                        <span style="color: #059669; font-weight: 500;">
+                                            <?= htmlspecialchars($newVal) ?>
+                                        </span>
+                                        <span style="color: #3b82f6; font-size: 11px; margin-left: 4px;">
+                                            (<?= htmlspecialchars($confidence) ?>%)
+                                        </span>
+                                    </div>
+                                    <?php
+                                } else {
+                                    // Fallback: display as-is but cleaner
+                                    echo '<div style="color: #475569;">' . htmlspecialchars($reason) . '</div>';
+                                }
+                                ?>
                             </div>
                             <?php endif; ?>
                             
