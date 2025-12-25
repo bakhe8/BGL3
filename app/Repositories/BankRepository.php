@@ -61,10 +61,11 @@ class BankRepository
     {
         $pdo = Database::connection();
         $stmt = $pdo->query('
-            SELECT id, official_name, official_name_en, normalized_key, short_code, 
-                   is_confirmed, created_at, updated_at,
+            SELECT id, official_name, official_name_en, short_code, 
+                   is_confirmed, created_at,
                    department, address_line_1, address_line_2, contact_email
             FROM banks
+            ORDER BY official_name ASC
         ');
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
