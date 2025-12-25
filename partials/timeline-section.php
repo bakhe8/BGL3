@@ -92,7 +92,7 @@ $eventCount = count($timeline);
                             </div>
                             
                             <!-- Event Changes Details -->
-                            <?php if ($event['event_type'] === 'modified' && $index < 2): ?>
+                            <?php if (($event['event_type'] ?? '') === 'modified' && $index < 2): ?>
                             <!-- DEBUG EVENT <?= $event['id'] ?>: raw=<?= htmlspecialchars(substr($event['event_details'] ?? 'NULL', 0, 100)) ?> | changes_count=<?= count($changes) ?> -->
                             <?php endif; ?>
                             <?php if (!empty($changes)): ?>
