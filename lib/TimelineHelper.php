@@ -102,31 +102,35 @@ class TimelineHelper {
             ];
         }
         
-        // Check amount change (for reduction)
-        $oldAmount = $oldSnapshot['amount'] ?? 0;
-        $newAmount = $newData['amount'] ?? 0;
-        
-        if ($oldAmount != $newAmount) {
-            $changes[] = [
-                'field' => 'amount',
-                'old_value' => $oldAmount,
-                'new_value' => $newAmount,
-                'trigger' => $newData['amount_trigger'] ?? 'reduction_action'
-            ];
+        // Check amount change (for reduction) - only if explicitly provided
+        if (isset($newData['amount'])) {
+            $oldAmount = $oldSnapshot['amount'] ?? 0;
+            $newAmount = $newData['amount'];
+            
+            if ($oldAmount != $newAmount) {
+                $changes[] = [
+                    'field' => 'amount',
+                    'old_value' => $oldAmount,
+                    'new_value' => $newAmount,
+                    'trigger' => $newData['amount_trigger'] ?? 'reduction_action'
+                ];
+            }
         }
         
-        // Check expiry date change (for extension)
-        $oldExpiry = $oldSnapshot['expiry_date'] ?? null;
-        $newExpiry = $newData['expiry_date'] ?? null;
-        
-        if ($oldExpiry !== $newExpiry) {
-            $changes[] = [
-                'field' => 'expiry_date',
-                'old_value' => $oldExpiry,
-                'new_value' => $newExpiry,
-                'trigger' => $newData['expiry_trigger'] ?? 'extension_action',
-                'action_id' => $newData['action_id'] ?? null
-            ];
+        // Check expiry date change (for extension) - only if explicitly provided
+        if (isset($newData['expiry_date'])) {
+            $oldExpiry = $oldSnapshot['expiry_date'] ?? null;
+            $newExpiry = $newData['expiry_date'];
+            
+            if ($oldExpiry !== $newExpiry) {
+                $changes[] = [
+                    'field' => 'expiry_date',
+                    'old_value' => $oldExpiry,
+                    'new_value' => $newExpiry,
+                    'trigger' => $newData['expiry_trigger'] ?? 'extension_action',
+                    'action_id' => $newData['action_id'] ?? null
+                ];
+            }
         }
         
         return $changes;
