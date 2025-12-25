@@ -1,15 +1,15 @@
 <?php
-/**
- * V3 API - Create Guarantee (Manual Entry)
- */
+declare(strict_types=1);
 
 require_once __DIR__ . '/../app/Support/autoload.php';
 require_once __DIR__ . '/../lib/TimelineHelper.php';
 
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeDecisionRepository;
+use App\Repositories\SupplierRepository;
 use App\Support\Database;
 use App\Models\Guarantee;
+use App\Models\GuaranteeDecision;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -27,6 +27,7 @@ try {
     $db = Database::connect();
     $repo = new GuaranteeRepository($db);
     $decisionRepo = new GuaranteeDecisionRepository($db);
+    $supplierRepo = new SupplierRepository();
 
     // 1. Prepare Raw Data
     $rawData = [
@@ -61,34 +62,56 @@ try {
 
     $savedGuarantee = $repo->create($guaranteeModel);
     $guaranteeId = $savedGuarantee->id;
-
-    // 3. Create Initial Decision (active status)
-    $decisionRepo->create([
-        'guarantee_id' => $guaranteeId,
-        'status' => 'active', 
-        'decision_source' => 'manual',
-        'decided_by' => 'Web User',
-        'supplier_id' => null, 
-        'bank_id' => null,
-        'amount' => $input['amount']
-    ]);
-
-    // 4. Timeline Integration
-    // Create first snapshot
-    $snapshot = TimelineHelper::createSnapshot($guaranteeId);
     
-    // Record "Created" event
-    $changes = [
-        [
-            'field' => 'status',
-            'old_value' => null,
-            'new_value' => 'created',
-            'trigger' => 'manual_creation'
-        ]
-    ];
-    TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $snapshot);
+    // 3. Learn Supplier (Direct Repository Logic)
+    try {
+        $rawSupplier = trim($input['supplier']);
+        if (!empty($rawSupplier)) {
+            // Normalize
+            $normalized = mb_strtolower($rawSupplier);
+            $normalized = preg_replace('/[^\p{L}\p{N}\s]/u', '', $normalized);
+            $normalized = preg_replace('/\s+/', ' ', $normalized);
+            $normalized = trim($normalized);
+            
+            if (!empty($normalized)) {
+                $existing = $supplierRepo->findByNormalizedName($normalized);
+                if (!$existing) {
+                    $supplierRepo->create([
+                        'official_name' => $rawSupplier,
+                        'normalized_name' => $normalized,
+                        'is_confirmed' => 1, // User manually entered it
+                        'display_name' => $rawSupplier
+                    ]);
+                }
+            }
+        }
+    } catch (\Throwable $e) {
+        error_log("Supplier learning failed: " . $e->getMessage());
+    }
 
-    echo json_encode(['success' => true, 'id' => $guaranteeId]);
+    // 4. Create Initial Decision (active status)
+    $decision = new GuaranteeDecision(
+        id: null,
+        guaranteeId: $guaranteeId,
+        status: 'active',
+        isLocked: false,
+        lockedReason: null,
+        supplierId: null, // Initial manual entry might not link ID immediately
+        bankId: null,
+        decisionSource: 'manual',
+        confidenceScore: 1.0,
+        decidedAt: date('Y-m-d H:i:s'),
+        decidedBy: 'Web User'
+    );
+
+    $decisionRepo->createOrUpdate($decision);
+    
+    // 5. Create History Event
+    $snapshot = TimelineHelper::createSnapshot($guaranteeId);
+    $changes = [['field' => 'status', 'old_value' => null, 'new_value' => 'created', 'trigger' => 'manual_creation']];
+    TimelineHelper::saveModifiedEvent($guaranteeId, $changes, []);
+
+    echo json_encode(['success' => true, 'id' => $guaranteeId, 'message' => 'تم إنشاء الضمان بنجاح']);
 
 } catch (\Throwable $e) {
     http_response_code(400);

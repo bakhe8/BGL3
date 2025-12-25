@@ -71,7 +71,7 @@ class TimelineMachine {
         // Check if snapshot is empty or legacy
         if (!snapshotData || Object.keys(snapshotData).length === 0 || snapshotData._no_snapshot) {
             console.warn('⚠️ No snapshot data available');
-            alert('⚠️ لا توجد بيانات تاريخية\n\nهذا الحدث قديم ولا يحتوي على بيانات تاريخية.');
+            if (window.showToast) window.showToast('لا توجد بيانات تاريخية لهذا الحدث', 'error');
             return;
         }
 
@@ -306,7 +306,7 @@ class TimelineMachine {
     }
 
     showError(message) {
-        alert('⚠️ ' + message);
+        if (window.showToast) window.showToast(message, 'error');
     }
 }
 

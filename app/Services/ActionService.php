@@ -118,6 +118,10 @@ class ActionService
         if ($newAmount >= $currentAmount) {
             throw new \RuntimeException("Reduction amount must be less than current");
         }
+
+        if ($newAmount <= 0) {
+            throw new \RuntimeException("New amount must be positive");
+        }
         
         $actionId = $this->actions->create([
             'guarantee_id' => $guaranteeId,

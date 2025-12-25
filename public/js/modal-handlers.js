@@ -44,7 +44,7 @@ async function handleManualEntry() {
     const amount = document.getElementById('manualAmount')?.value;
 
     if (!supplier || !bank || !guarantee || !contract || !amount) {
-        alert('يرجى ملء جميع الحقول المطلوبة');
+        showToast('يرجى ملء جميع الحقول المطلوبة', 'error');
         return;
     }
 
@@ -69,14 +69,14 @@ async function handleManualEntry() {
 
         const data = await response.json();
         if (data.success) {
-            alert('تم إضافة الضمان بنجاح');
-            window.location.reload();
+            showToast('تم إضافة الضمان بنجاح', 'success');
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            alert('خطأ: ' + (data.error || 'فشل الحفظ'));
+            showToast('خطأ: ' + (data.error || 'فشل الحفظ'), 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('حدث خطأ في الاتصال');
+        showToast('حدث خطأ في الاتصال', 'error');
     }
 }
 
@@ -85,7 +85,7 @@ async function handlePasteData() {
     const text = document.getElementById('smartPasteInput')?.value;
 
     if (!text || !text.trim()) {
-        alert('يرجى لصق النص أولاً');
+        showToast('يرجى لصق النص أولاً', 'error');
         return;
     }
 
@@ -98,14 +98,14 @@ async function handlePasteData() {
 
         const data = await response.json();
         if (data.success) {
-            alert(`تم استخراج البيانات بنجاح`);
-            window.location.reload();
+            showToast('تم استخراج البيانات بنجاح', 'success');
+            setTimeout(() => window.location.reload(), 1000);
         } else {
-            alert('خطأ: ' + (data.error || 'فشل تحليل النص'));
+            showToast('خطأ: ' + (data.error || 'فشل تحليل النص'), 'error');
         }
     } catch (error) {
         console.error('Error:', error);
-        alert('حدث خطأ في الاتصال');
+        showToast('حدث خطأ في الاتصال', 'error');
     }
 }
 
@@ -189,15 +189,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 loadingMsg.remove();
 
                 if (data.success) {
-                    alert(`تم الاستيراد بنجاح!\n${data.imported || 0} سجل تم إضافته.`);
-                    window.location.reload();
+                    showToast(`تم الاستيراد بنجاح!\n${data.imported || 0} سجل تم إضافته.`, 'success');
+                    setTimeout(() => window.location.reload(), 1500);
                 } else {
-                    alert('خطأ: ' + (data.error || 'فشل الاستيراد'));
+                    showToast('خطأ: ' + (data.error || 'فشل الاستيراد'), 'error');
                 }
             } catch (error) {
                 loadingMsg.remove();
                 console.error('Error:', error);
-                alert('حدث خطأ في الاتصال');
+                showToast('حدث خطأ في الاتصال', 'error');
             }
 
             // Reset input for next time

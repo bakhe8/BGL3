@@ -38,7 +38,7 @@ class Guarantee
     /**
      * Get amount from raw data
      */
-    public function getAmount(): ?string
+    public function getAmount(): string|int|float|null
     {
         return $this->rawData['amount'] ?? null;
     }
