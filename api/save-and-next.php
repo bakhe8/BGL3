@@ -208,7 +208,7 @@ try {
     // 1. Create snapshot of current state (BEFORE changes)
     $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
     
-    // 2. Prepare new data for change detection
+    // 2. Prepare new data for change detection (ONLY fields that user can modify via this endpoint!)
     $newData = [
         'supplier_id' => $supplierId,
         'supplier_name' => $newSupplier,
@@ -216,7 +216,10 @@ try {
         'bank_id' => $bankId,
         'bank_name' => $newBank,
         'bank_trigger' => 'manual'
+        // NOTE: Do NOT include amount/expiry_date here - they should only appear 
+        // in changes if explicitly modified via extend/reduce/release actions
     ];
+
     
     // 3. Detect changes between old and new
     $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
