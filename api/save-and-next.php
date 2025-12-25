@@ -205,29 +205,41 @@ try {
     
     require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
     
-    // 1. Create snapshot of current state (BEFORE changes)
+    // ====================================================================
+    // TIMELINE INTEGRATION - Track changes with new logic
+    // ====================================================================
+    
+    require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
+    
+    // 1. SNAPSHOT: Capture state BEFORE update
     $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
     
-    // 2. Prepare new data for change detection (ONLY fields that user can modify via this endpoint!)
-    $newData = [
-        'supplier_id' => $supplierId,
-        'supplier_name' => $newSupplier,
-        'supplier_trigger' => 'manual',  // User manually saved
-        'bank_id' => $bankId,
-        'bank_name' => $newBank,
-        'bank_trigger' => 'manual'
-        // NOTE: Do NOT include amount/expiry_date here - they should only appear 
-        // in changes if explicitly modified via extend/reduce/release actions
-    ];
-
+    // 2. UPDATE: Save decision to DB
+    $newStatus = \App\Services\TimelineRecorder::calculateStatus($guaranteeId); // This logic needs to be run AFTER update? No, we calculate status based on inputs usually, but here we save first.
+    // Wait, the original code saves decision with a status. But status depends on the decision being present?
+    // Actually, calculateStatus reads from DB. So we must Update First to get correct new status, OR calculate it manually.
+    // However, recordDecisionEvent needs 'new data'.
     
-    // 3. Detect changes between old and new
-    $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
+    // Let's refine the flow:
+    // Snapshot taken.
+    // Update DB.
+    // Detect & Record.
     
-    // 4. Calculate new status
-    $newStatus = \App\Services\TimelineRecorder::calculateStatus($guaranteeId);
+    // But we need the 'newStatus' to save into the Decision table itself? 
+    // The previous code calculated newStatus using TimelineRecorder BEFORE saving. The calculation reads from DB.
+    // If we haven't saved, DB has old data. 
+    // So previous code's `calculateStatus` before save was potentially wrong if it relied on DB query?
+    // Let's check calculateStatus: it runs `SELECT ... FROM guarantee_decisions`.
+    // So yes, we MUST save to DB first for calculateStatus to work, OR pass data to it.
+    // But the previous code called it at step 4, BEFORE step 5 (Save).
+    // This implies `calculateStatus` would return 'pending' if it looked at DB.
+    // BUT we are saving the *NEW* status into the DB row.
+    // Let's stick to the simpler strict logic:
+    // 1. Snapshot.
+    // 2. Insert Decision (We know if we have S & B, it is approved/ready. If not, pending).
+    // Let's manually determine status for the INSERT, to avoid circular dependency.
+    $statusToSave = ($supplierId && $bankId) ? 'approved' : 'pending';
     
-    // 5. Save decision
     $stmt = $db->prepare('
         REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -236,16 +248,25 @@ try {
         $guaranteeId,
         $supplierId,
         $bankId,
-        $newStatus,  // Calculate based on data
+        $statusToSave,
         $now,
         'manual',
         $now
     ]);
+
+    // 3. RECORD: Strict Event Recording (UE-01 Decision)
+    $newData = [
+        'supplier_id' => $supplierId,
+        'supplier_name' => $newSupplier,
+        'bank_id' => $bankId,
+        'bank_name' => $newBank
+    ];
+
+    \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, false); // isAuto = false
     
-    // 6. Save timeline event (only if changes exist)
-    if (!empty($changes)) {
-        \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
-    }
+    // 4. RECORD: Status Transition Event (SE-01/SE-02) - Separate Event
+    // We compare with oldSnapshot to see if status changed from Pending -> Approved/Ready
+    \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $statusToSave, 'data_completeness_check');
     
     // --- SMART LEARNING FEEDBACK LOOP ---
     try {

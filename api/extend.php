@@ -31,21 +31,38 @@ try {
     $guaranteeRepo = new GuaranteeRepository($db);
     $service = new ActionService($actionRepo, $decisionRepo, $guaranteeRepo);
     
-    // Create extension
+    // --------------------------------------------------------------------
+    // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
+    // --------------------------------------------------------------------
+
+    // 1. SNAPSHOT: Capture state BEFORE any modification
+    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
+    
+    // 2. UPDATE: Execute system changes
+    // Create extension record
     $result = $service->createExtension($guaranteeId);
     
     // Issue immediately
     $service->issueExtension($result['action_id']);
     
-    // ✅ UPDATE SOURCE OF TRUTH: Update raw_data with new expiry
+    // Update source of truth (Raw Data)
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
-    $raw['expiry_date'] = $result['new_expiry_date']; // Update with new date
+    $raw['expiry_date'] = $result['new_expiry_date'];
     
-    // Save back to database
     $stmt = $db->prepare('UPDATE guarantees SET raw_data = ? WHERE id = ?');
     $stmt->execute([json_encode($raw), $guaranteeId]);
 
+    // 3. RECORD: Strict Event Recording (UE-02 Extend)
+    \App\Services\TimelineRecorder::recordExtensionEvent(
+        $guaranteeId, 
+        $oldSnapshot, 
+        $result['new_expiry_date'], 
+        $result['action_id']
+    );
+
+    // --------------------------------------------------------------------
+    
     // Prepare record data
     $record = [
         'id' => $guarantee->id,
@@ -64,30 +81,8 @@ try {
     // Get banks for dropdown
     $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // ====================================================================
-    // TIMELINE INTEGRATION - Track extension action
-    // ====================================================================
-    
-    // 1. Capture snapshot BEFORE extension
-    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
-    
-    // 2. Prepare change data
-    $newData = [
-        'expiry_date' => $result['new_expiry_date'],
-        'expiry_trigger' => 'extension_action',
-        'action_id' => $result['action_id']
-    ];
-    
-    // 3. Detect changes
-    $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
-    
-    // 4. Save timeline event
-    if (!empty($changes)) {
-        \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
-    }
-    
-    // Include partial template to render HTML
+
+    // Include partial template
     echo '<div id="record-form-section" class="decision-card">';
     include __DIR__ . '/../partials/record-form.php';
     echo '</div>';

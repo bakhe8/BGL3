@@ -31,15 +31,24 @@ try {
     $guaranteeRepo = new GuaranteeRepository($db);
     $service = new ActionService($actionRepo, $decisionRepo, $guaranteeRepo);
     
+    // --------------------------------------------------------------------
+    // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
+    // --------------------------------------------------------------------
+
+    // 1. SNAPSHOT: Capture state BEFORE release
+    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
+
+    // 2. UPDATE: Execute system changes
     // Create release through Service
     $result = $service->createRelease($guaranteeId, $reason);
-    
-    // 6. TIMELINE INTEGRATION
-    // Must capture event before issuing release to snapshot the "Active" state
-    \App\Services\TimelineRecorder::saveReleaseEvent($guaranteeId, $reason);
 
     // Issue immediately (locks the guarantee)
     $service->issueRelease($result['action_id'], $guaranteeId);
+
+    // 3. RECORD: Strict Event Recording (UE-04 Release)
+    \App\Services\TimelineRecorder::recordReleaseEvent($guaranteeId, $oldSnapshot, $reason);
+
+    // --------------------------------------------------------------------
     
     // Include partial template
     echo '<div id="record-form-section" class="decision-card">';

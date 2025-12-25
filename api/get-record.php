@@ -167,21 +167,35 @@ try {
                         $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
                         
                         // 5. Save to guarantee_decisions
+                        // 5. Save to guarantee_decisions
                         if (!empty($changes)) {
+                            // Check if Bank implies status change
+                            $decStmt = $db->prepare('SELECT bank_id FROM guarantee_decisions WHERE guarantee_id = ?');
+                            $decStmt->execute([$guaranteeId]);
+                            $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
+                            $bankId = $currentDec['bank_id'] ?? null;
+                            
+                            $newStatus = ($top['id'] && $bankId) ? 'approved' : 'pending';
+
                             $stmt = $db->prepare('
-                                INSERT OR REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, decided_at, decision_source, created_at)
-                                VALUES (?, ?, ?, ?, ?)
+                                INSERT OR REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
                             ');
                             $stmt->execute([
                                 $guaranteeId,
                                 $top['id'],
+                                $bankId,
+                                $newStatus,
                                 date('Y-m-d H:i:s'),
                                 'ai_quick',
                                 date('Y-m-d H:i:s')
                             ]);
                             
-                            // 6. Save timeline event
-                            \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+                            // 6. Save timeline event (Strict UE-01)
+                            \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, true, $top['score']);
+                            
+                            // 7. Save Status Transition (SE-01) if changed
+                            \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $newStatus, 'ai_completeness_check');
                         }
                     } catch (\Throwable $e) { /* Ignore match error */ }
                 }
@@ -229,16 +243,18 @@ try {
                             $decStmt = $db->prepare('SELECT supplier_id FROM guarantee_decisions WHERE guarantee_id = ?');
                             $decStmt->execute([$guaranteeId]);
                             $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
+                            $supplierId = $currentDec['supplier_id'] ?? null;
+                            
+                            $newStatus = ($supplierId && $top['id']) ? 'approved' : 'pending';
                             
                             $stmt = $db->prepare('
                                 INSERT OR REPLACE INTO guarantee_decisions 
                                 (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, ?)
                             ');
-                            $newStatus = \App\Services\TimelineRecorder::calculateStatus($guaranteeId);
                             $stmt->execute([
                                 $guaranteeId,
-                                $currentDec['supplier_id'] ?? null,
+                                $supplierId,
                                 $top['id'],
                                 $newStatus,
                                 date('Y-m-d H:i:s'),
@@ -246,8 +262,11 @@ try {
                                 date('Y-m-d H:i:s')
                             ]);
                             
-                            // 6. Save timeline event
-                            \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+                            // 6. Save timeline event (Strict UE-01)
+                            \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, true, $top['score']);
+                            
+                            // 7. Save Status Transition (SE-01) if changed
+                            \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $newStatus, 'ai_completeness_check');
                         }
                     } catch (\Throwable $e) { /* Ignore match error */ }
                 }

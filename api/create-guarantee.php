@@ -108,7 +108,7 @@ try {
     
     // 5. Create History Event
     $snapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
-    \App\Services\TimelineRecorder::saveImportEvent($guaranteeId, 'manual');
+    \App\Services\TimelineRecorder::recordImportEvent($guaranteeId, 'manual');
 
     echo json_encode(['success' => true, 'id' => $guaranteeId, 'message' => 'تم إنشاء الضمان بنجاح']);
 

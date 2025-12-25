@@ -247,3 +247,78 @@
 - السياسة تفسّر
 - المستخدم يحسم
 - والنظام يوثّق
+
+---
+
+### 9. Timeline Event Matrix – Final (Updated)
+**(When × Who × What × Why)**
+*Scope: فقط الضمانات التي دخلت النظام بنجاح (بعد الاستيراد).*
+
+#### 0️⃣ Lifecycle – Import (Mandatory First Event)
+| Code | Event | When | Who | What | Why |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **LE-00** | Import Guarantee | عند نجاح استيراد الضمان | System | Import | Entry Point |
+
+- **Title**: استيراد الضمان
+- **Description**: المصدر: ملف Excel \| لصق ذكي \| إدخال مباشر
+- **Footer**: بواسطة النظام
+- **📌 قواعد حاكمة**:
+    - أول حدث زمني لأي ضمان إلزاميًا.
+    - يسبق أي Matching / Conflict / Decision.
+    - لا يُعاد تسجيله.
+
+#### 1️⃣ User Action Events
+| Code | Event | When | Who | What | Why |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **UE-01** | User Saved Decision | بعد Save مع تغيير فعلي | User | Supplier/Bank | UserDecision |
+| **UE-02** | User Extended Guarantee | بعد Extend | User | Expiry Date | Extend |
+| **UE-03** | User Reduced Guarantee | بعد Reduce | User | Amount | Reduce |
+| **UE-04** | User Released Guarantee | بعد Release | User | Lifecycle Status | Release |
+
+**Titles & Descriptions:**
+- **UE-01**: "اعتماد بيانات المورد أو البنك" (المورد: … → …)
+- **UE-02**: "تمديد الضمان" (تاريخ الانتهاء: … → …)
+- **UE-03**: "تخفيض قيمة الضمان" (المبلغ: … → …)
+- **UE-04**: "إفراج الضمان" (الحالة: … → …)
+
+#### 2️⃣ Status Transition Events
+*(System Triggered حتى لو كان سببها قرار المستخدم)*
+
+| Code | Event | When | Who | What | Why |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **SE-01** | Needs Decision → Ready | بعد إعادة تقييم | System | Status | Resolution |
+| **SE-02** | Ready → Needs Decision | بعد إعادة تقييم | System | Status | Conflict/Reeval |
+
+**Titles:**
+- **SE-01**: "الضمان جاهز"
+- **SE-02**: "يحتاج مراجعة"
+
+#### 3️⃣ System Adjustment Events
+| Code | Event | When | Who | What | Why |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **SY-01** | System Updated Supplier Name | بعد تحديث فعلي | System | Supplier Name | Normalization |
+| **SY-02** | System Updated Bank Name | بعد تحديث فعلي | System | Bank Name | Normalization |
+| **SY-03** | System Re-evaluated Matching | بعد Re-evaluation (فقط إذا غيّر الحالة) | System | Status Context | Reeval |
+
+**Titles:**
+- **SY-01**: "تحديث اسم المورد"
+- **SY-02**: "تحديث اسم البنك"
+- **SY-03**: "إعادة تقييم البيانات"
+
+#### 4️⃣ Events That Must NOT Appear
+- فشل الاستيراد أو منع الدخول
+- إعادة حساب Scores بدون أثر
+- اكتشاف تعارض بدون تغيير حالة
+- أي تفاعل عرضي (فتح/تنقل)
+
+#### 5️⃣ Mandatory Snapshot Rules
+- كل حدث = **Snapshot Before** إلزامي.
+- **Snapshot After** عند وجود تغيير.
+- **Description** قيمي فقط (Before → After).
+- *لا نصوص تفسيرية داخل Description.*
+
+#### 6️⃣ القواعد الذهبية
+- **LE-00** هو البداية دائمًا.
+- **No Change → No Event.**
+- **One Change → One Event.**
+- **Conflict** يُذكر فقط إذا غيّر الحالة.

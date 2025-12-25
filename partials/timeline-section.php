@@ -97,16 +97,32 @@ $eventCount = count($timeline);
                             <?php endif; ?>
                             <?php if (!empty($changes)): ?>
                             <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
-                                <?php foreach ($changes as $change): ?>
+                                <?php 
+                                // STRICT RENDERING RULE: Only show fields allowed for this event type
+                                $allowedFields = [];
+                                if ($eventLabel === 'تمديد الضمان') $allowedFields = ['expiry_date'];
+                                elseif ($eventLabel === 'تخفيض قيمة الضمان') $allowedFields = ['amount'];
+                                elseif ($eventLabel === 'اعتماد بيانات المورد أو البنك') $allowedFields = ['supplier_id', 'bank_id'];
+                                elseif ($eventLabel === 'إفراج الضمان') $allowedFields = ['status']; // Usually handled by status logic, but implicit change might exist
+                                elseif ($eventLabel === 'تحديث بيانات') $allowedFields = []; // Show nothing for generic updates to avoid noise
+                                else $allowedFields = ['supplier_id', 'bank_id', 'amount', 'expiry_date', 'status']; // Fallback for pure debug? Or restrict? Let's restrict.
+
+                                // Filter changes
+                                $visibleChanges = array_filter($changes, function($change) use ($allowedFields) {
+                                    return in_array($change['field'], $allowedFields);
+                                });
+                                ?>
+
+                                <?php foreach ($visibleChanges as $change): ?>
                                     <?php
                                     $fieldLabels = [
                                         'supplier_id' => 'المورد',
                                         'bank_id' => 'البنك',
                                         'amount' => 'المبلغ',
-                                        'expiry_date' => 'تاريخ الانتهاء'
+                                        'expiry_date' => 'تاريخ الانتهاء',
+                                        'status' => 'الحالة'
                                     ];
                                     $fieldLabel = $fieldLabels[$change['field']] ?? $change['field'];
-                                    $trigger = $change['trigger'] ?? 'manual';
                                     ?>
                                     
                                     <div style="margin-bottom: 4px;">
@@ -137,8 +153,8 @@ $eventCount = count($timeline);
                                             
                                         <?php else: ?>
                                             <?php
-                                            $oldVal = $change['old_value'];
-                                            $newVal = $change['new_value'];
+                                            $oldVal = $change['old_value'] ?? null;
+                                            $newVal = $change['new_value'] ?? null;
                                             ?>
                                             
                                             <?php if ($oldVal): ?>

@@ -35,16 +35,34 @@ try {
     $guaranteeRepo = new GuaranteeRepository($db);
     $service = new ActionService($actionRepo, $decisionRepo, $guaranteeRepo);
     
+    // --------------------------------------------------------------------
+    // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
+    // --------------------------------------------------------------------
+
+    // 1. SNAPSHOT: Capture state BEFORE any modification
+    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
+
+    // 2. UPDATE: Execute system changes
     // Create reduction through Service
-    // This handles validation (new < old) and creating the action record
     $result = $service->createReduction($guaranteeId, (float)$newAmount);
     
-    // ✅ UPDATE SOURCE OF TRUTH: Update raw_data with new amount
+    // Update raw_data with new amount
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
     $raw['amount'] = $result['new_amount']; 
     $stmt = $db->prepare('UPDATE guarantees SET raw_data = ? WHERE id = ?');
     $stmt->execute([json_encode($raw), $guaranteeId]);
+
+    // 3. RECORD: Strict Event Recording (UE-03 Reduce)
+    // We pass previous_amount explicitly to avoid reliance on snapshot if it was already dirty (safety)
+    \App\Services\TimelineRecorder::recordReductionEvent(
+        $guaranteeId, 
+        $oldSnapshot, 
+        $result['new_amount'],
+        $result['previous_amount']
+    );
+
+    // --------------------------------------------------------------------
 
     // Prepare record data for form
     // Re-fetch to get latest state or manual construction
@@ -65,30 +83,6 @@ try {
     // Get banks for dropdown
     $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // ====================================================================
-    // TIMELINE INTEGRATION - Track reduction action
-    // ====================================================================
-    
-    // 1. Captured Old State implicitly via createReduction logic
-    // But we need to record a timeline event for visibility
-    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
-    // HACK: Restore old amount to snapshot so it shows as change
-    $oldSnapshot['amount'] = $result['previous_amount'];
-    
-    // 2. Prepare change data
-    $newData = [
-        'amount' => $result['new_amount'],
-        'amount_trigger' => 'reduction_action'
-    ];
-    
-    // 3. Detect changes
-    $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
-    
-    // 4. Save timeline event
-    if (!empty($changes)) {
-        \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
-    }
     
     // Include partial template
     echo '<div id="record-form-section" class="decision-card">';
