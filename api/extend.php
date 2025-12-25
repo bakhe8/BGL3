@@ -94,7 +94,8 @@ try {
     
     
 } catch (\Throwable $e) {
-    http_response_code(500);
+    // Return 400 for logic errors (like "Cannot extend after release")
+    http_response_code(400);
     echo '<div id="record-form-section" class="card">';
     echo '<div class="card-body" style="color: red;">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
     echo '</div>';
