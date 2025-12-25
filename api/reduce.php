@@ -4,7 +4,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Services\ActionService;
 use App\Repositories\GuaranteeActionRepository;
@@ -72,7 +72,7 @@ try {
     
     // 1. Captured Old State implicitly via createReduction logic
     // But we need to record a timeline event for visibility
-    $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
     // HACK: Restore old amount to snapshot so it shows as change
     $oldSnapshot['amount'] = $result['previous_amount'];
     
@@ -83,11 +83,11 @@ try {
     ];
     
     // 3. Detect changes
-    $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+    $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
     
     // 4. Save timeline event
     if (!empty($changes)) {
-        TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+        \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
     }
     
     // Include partial template

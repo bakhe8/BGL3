@@ -26,6 +26,7 @@ class SmartProcessingService
     private PDO $db;
     private LearningService $learningService;
     private BankLearningRepository $bankLearningRepo;
+    private ConflictDetector $conflictDetector;
 
     public function __construct()
     {
@@ -36,6 +37,7 @@ class SmartProcessingService
         $supplierRepo = new SupplierRepository();
         $this->learningService = new LearningService($learningRepo, $supplierRepo);
         $this->bankLearningRepo = new BankLearningRepository($this->db);
+        $this->conflictDetector = new ConflictDetector();
     }
 
     /**
@@ -107,10 +109,31 @@ class SmartProcessingService
                 }
             }
 
+            // --- Conflict Detection (Strict Gate) ---
+            // Even if scores are high, we must ensure there are no ambiguities
+            $candidates = [
+                'supplier' => [
+                    'candidates' => $supplierSuggestions,
+                    // Assume normalized logic matches TextParsingService usage
+                    'normalized' => mb_strtolower(trim($supplierName)) 
+                ],
+                'bank' => [
+                    'candidates' => $bankSuggestions,
+                    'normalized' => mb_strtolower(trim($bankName))
+                ]
+            ];
+            
+            $recordContext = [
+                'raw_supplier_name' => $supplierName,
+                'raw_bank_name' => $bankName
+            ];
+            
+            $conflicts = $this->conflictDetector->detect($candidates, $recordContext);
+
             // --- Decision Making ---
 
-            // If BOTH matches are high confidence -> Auto Approve!
-            if ($supplierId && $bankId) {
+            // If BOTH matches have High Score AND No Conflicts -> Auto Approve!
+            if ($supplierId && $bankId && empty($conflicts)) {
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence, $finalBankName, $bankConfidence);
                 $stats['auto_matched']++;

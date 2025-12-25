@@ -4,7 +4,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Services\ActionService;
 use App\Repositories\GuaranteeActionRepository;
@@ -34,40 +34,12 @@ try {
     // Create release through Service
     $result = $service->createRelease($guaranteeId, $reason);
     
+    // 6. TIMELINE INTEGRATION
+    // Must capture event before issuing release to snapshot the "Active" state
+    \App\Services\TimelineRecorder::saveReleaseEvent($guaranteeId, $reason);
+
     // Issue immediately (locks the guarantee)
     $service->issueRelease($result['action_id'], $guaranteeId);
-    
-    // ✅ UPDATE SOURCE OF TRUTH (optional for release, but status is managed by GuaranteeDecisions)
-    // No change to raw_data needed for Release usually, but we refresh record
-    $guarantee = $guaranteeRepo->find($guaranteeId);
-    $raw = $guarantee->rawData;
-
-    // Prepare record data for form
-    $record = [
-        'id' => $guarantee->id,
-        'guarantee_number' => $guarantee->guaranteeNumber,
-        'supplier_name' => $raw['supplier'] ?? '',
-        'bank_name' => $raw['bank'] ?? '',
-        'bank_id' => null,
-        'amount' => $raw['amount'] ?? 0,
-        'expiry_date' => $raw['expiry_date'] ?? '',
-        'issue_date' => $raw['issue_date'] ?? '',
-        'contract_number' => $raw['contract_number'] ?? '',
-        'type' => $raw['type'] ?? 'Initial',
-        'status' => 'released' // Explicitly released
-    ];
-    
-    // Get banks for dropdown
-    $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
-    $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
-    
-    // ====================================================================
-    // TIMELINE INTEGRATION - Track release action
-    // ====================================================================
-    
-    // Actions table tracks it, but we can also add a Timeline Event if desired
-    // Currently index.php reads from guarantee_actions table so it will show up!
-    // No need to duplicate into guarantee_history unless we want strictly unified view
     
     // Include partial template
     echo '<div id="record-form-section" class="decision-card">';

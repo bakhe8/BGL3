@@ -1,10 +1,16 @@
 <?php
-/**
- * Timeline Helper
- * Core functions for tracking guarantee history events
- */
+declare(strict_types=1);
 
-class TimelineHelper {
+namespace App\Services;
+
+use PDO;
+
+/**
+ * Timeline Recorder
+ * Core functions for tracking guarantee history events
+ * Formerly TimelineHelper
+ */
+class TimelineRecorder {
     
     /**
      * Create snapshot of current guarantee state (BEFORE event)
@@ -264,6 +270,41 @@ class TimelineHelper {
         
         return $db->lastInsertId();
     }
+
+    /**
+     * Save release event
+     */
+    public static function saveReleaseEvent($guaranteeId, $reason = null) {
+        global $db;
+        
+        // Snapshot 
+        $snapshot = self::createSnapshot($guaranteeId);
+        
+        $eventDetails = [
+            'reason_text' => $reason,
+            'changes' => [[
+                'trigger' => 'release_action', 
+                'field' => 'status',
+                'new_value' => 'released'
+            ]] // Pass generic change for UI compatibility
+        ];
+        
+        $stmt = $db->prepare("
+            INSERT INTO guarantee_history 
+            (guarantee_id, event_type, snapshot_data, event_details, created_at, created_by)
+            VALUES (?, 'release', ?, ?, ?, ?)
+        ");
+        
+        $stmt->execute([
+            $guaranteeId,
+            json_encode($snapshot),
+            json_encode($eventDetails),
+            date('Y-m-d H:i:s'),
+            self::getCurrentUser()
+        ]);
+        
+        return $db->lastInsertId();
+    }
     
     /**
      * Get timeline for a guarantee
@@ -274,7 +315,7 @@ class TimelineHelper {
         $stmt = $db->prepare("
             SELECT * FROM guarantee_history
             WHERE guarantee_id = ?
-            ORDER BY created_at DESC
+            ORDER BY created_at DESC, id DESC
         ");
         $stmt->execute([$guaranteeId]);
         

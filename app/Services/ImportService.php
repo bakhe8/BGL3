@@ -95,13 +95,17 @@ class ImportService
                 $contractNumber = $this->getColumn($row, $headerMap['contract'] ?? null);
 
                 // Validation
-                if (empty($supplier) || empty($bank)) {
-                    $skipped[] = "الصف #{$rowNumber}: نقص المورد أو البنك";
-                    continue;
-                }
+                // Validation (Strict BR-01)
+                $missingFields = [];
+                if (empty($supplier)) $missingFields[] = 'المورد';
+                if (empty($bank)) $missingFields[] = 'البنك';
+                if (empty($guaranteeNumber)) $missingFields[] = 'رقم الضمان';
+                if (empty($amount) || $amount <= 0) $missingFields[] = 'القيمة';
+                if (empty($expiryDate)) $missingFields[] = 'تاريخ الانتهاء';
+                if (empty($contractNumber)) $missingFields[] = 'رقم العقد';
 
-                if (empty($guaranteeNumber)) {
-                    $skipped[] = "الصف #{$rowNumber}: نقص رقم الضمان";
+                if (!empty($missingFields)) {
+                    $skipped[] = "الصف #{$rowNumber}: بيانات ناقصة (" . implode('، ', $missingFields) . ")";
                     continue;
                 }
 
@@ -159,6 +163,18 @@ class ImportService
 
         if (empty($data['bank'])) {
             throw new RuntimeException('اسم البنك مطلوب');
+        }
+
+        if (empty($data['amount']) || floatval($data['amount']) <= 0) {
+            throw new RuntimeException('القيمة مطلوبة');
+        }
+
+        if (empty($data['expiry_date'])) {
+            throw new RuntimeException('تاريخ الانتهاء مطلوب');
+        }
+
+        if (empty($data['contract_number'])) {
+            throw new RuntimeException('رقم العقد/أمر الشراء مطلوب');
         }
 
         // Build raw_data

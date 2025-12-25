@@ -5,7 +5,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
@@ -62,6 +62,13 @@ try {
     }
 
 
+    // 5. Contract Number (PO or Contract)
+    if (preg_match('/(?:Contract|PO|Order|العقد|الشراء)[:\s]*([A-Z0-9\-\/]+)/iu', $text, $m)) {
+        $extracted['contract_number'] = trim($m[1]);
+    } else {
+        $extracted['contract_number'] = null;
+    }
+
     // --- Database Check ---
     // If guarantee number found, check if exists
     $foundId = null;
@@ -75,55 +82,43 @@ try {
         if ($existing) {
             $exists = true;
             $foundId = $existing->id;
-            // Maybe update extracted with DB data? No, user wants to see what failed or passed
         } else {
-            // Auto-create? Typically 'Smart Paste' just fills the form for review.
-            // But modal-handlers.js logic (line 100) says:
-            // if (data.success) { alert('Success'); reload(); }
-            // This implies the API creates the record!
-            
-            // So we should Create it if sufficient data, or return extracted data for frontend form?
-            // "handleManualEntry" does fetch('create-guarantee.php').
-            // "handlePasteData" does fetch('parse-paste.php').
-            
-            // Looking at modal-handlers.js: 
-            // if (data.success) { alert(`تم استخراج البيانات بنجاح`); window.location.reload(); }
-            // This suggests it creates it.
-            
-            // Let's create it if we have at least Guarantee Number + Amount
-            if ($extracted['amount'] && $extracted['guarantee_number']) {
-                 // Create Logic similar to create-guarantee.php
-                 // reuse repositories...
-                 
-                 // Reuse GuaranteeRepository logic
-                 $rawData = [
-                    'bg_number' => $extracted['guarantee_number'],
-                    'supplier' => $extracted['supplier'] ?? 'Unknown',
-                    'bank' => $extracted['bank'] ?? 'Unknown',
-                    'amount' => $extracted['amount'],
-                    'expiry_date' => $extracted['expiry_date'],
-                    'source' => 'smart_paste',
-                    'original_text' => $text
-                 ];
-                 
-                 $guaranteeModel = new Guarantee(
-                    id: null,
-                    guaranteeNumber: $extracted['guarantee_number'],
-                    rawData: $rawData,
-                    importSource: 'Smart Paste',
-                    importedAt: date('Y-m-d H:i:s'),
-                    importedBy: 'Web User'
-                 );
-                 
-                 $saved = $repo->create($guaranteeModel);
-                 $foundId = $saved->id;
-                 $exists = true;
-            } else {
-                // Return success=false but with extracted data? (JS doesn't support filling form yet, just reload)
-                // modal-handlers.js reload() implies it expects a save.
-                
-                throw new \RuntimeException("لم يتم العثور على رقم الضمان والمبلغ في النص. يرجى التأكد من التنسيق.");
+            // STRICT VALIDATION: All 5 Mandatory Fields
+            $missing = [];
+            if (!$extracted['supplier']) $missing[] = "اسم المورد";
+            if (!$extracted['bank']) $missing[] = "اسم البنك";
+            if (!$extracted['amount']) $missing[] = "القيمة";
+            if (!$extracted['expiry_date']) $missing[] = "تاريخ الانتهاء";
+            if (!$extracted['contract_number']) $missing[] = "رقم العقد/أمر الشراء";
+
+            if (!empty($missing)) {
+                throw new \RuntimeException("بيانات غير مكتملة. الحقول الناقصة: " . implode(', ', $missing));
             }
+
+            // Create Logic
+             $rawData = [
+                'bg_number' => $extracted['guarantee_number'],
+                'supplier' => $extracted['supplier'],
+                'bank' => $extracted['bank'],
+                'amount' => $extracted['amount'],
+                'expiry_date' => $extracted['expiry_date'],
+                'contract_number' => $extracted['contract_number'],
+                'source' => 'smart_paste',
+                'original_text' => $text
+             ];
+             
+             $guaranteeModel = new Guarantee(
+                id: null,
+                guaranteeNumber: $extracted['guarantee_number'],
+                rawData: $rawData,
+                importSource: 'Smart Paste',
+                importedAt: date('Y-m-d H:i:s'),
+                importedBy: 'Web User'
+             );
+             
+             $saved = $repo->create($guaranteeModel);
+             $foundId = $saved->id;
+             $exists = true;
         }
     } else {
         throw new \RuntimeException("لم يتم العثور على رقم الضمان في النص.");

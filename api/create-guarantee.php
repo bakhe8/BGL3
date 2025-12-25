@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/../app/Support/autoload.php';
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeDecisionRepository;
@@ -17,7 +17,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
 
     // Validate required fields
-    $required = ['guarantee_number', 'supplier', 'bank', 'amount', 'contract_number'];
+    $required = ['guarantee_number', 'supplier', 'bank', 'amount', 'contract_number', 'expiry_date'];
     foreach ($required as $field) {
         if (empty($input[$field])) {
             throw new \RuntimeException("الحقل مطلوب: $field");
@@ -107,9 +107,8 @@ try {
     $decisionRepo->createOrUpdate($decision);
     
     // 5. Create History Event
-    $snapshot = TimelineHelper::createSnapshot($guaranteeId);
-    $changes = [['field' => 'status', 'old_value' => null, 'new_value' => 'created', 'trigger' => 'manual_creation']];
-    TimelineHelper::saveModifiedEvent($guaranteeId, $changes, []);
+    $snapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
+    \App\Services\TimelineRecorder::saveImportEvent($guaranteeId, 'manual');
 
     echo json_encode(['success' => true, 'id' => $guaranteeId, 'message' => 'تم إنشاء الضمان بنجاح']);
 

@@ -5,7 +5,7 @@
  * Required variables: $timeline (array of events)
  */
 
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 if (!isset($timeline)) {
     $timeline = [];
@@ -14,7 +14,7 @@ if (!isset($timeline)) {
 $eventCount = count($timeline);
 ?>
 
-<aside class="timeline-panel">
+<aside class="timeline-panel" id="timeline-section">
     <header class="timeline-header mb-2 relative">
         <div class="timeline-title">
             <span>⏲️</span>
@@ -33,9 +33,9 @@ $eventCount = count($timeline);
                 </div>
             <?php else: ?>
                 <?php foreach ($timeline as $index => $event): 
-                    // Use TimelineHelper for labels and icons
-                    $eventLabel = TimelineHelper::getEventDisplayLabel($event);
-                    $eventIcon = TimelineHelper::getEventIcon($event);
+                    // Use TimelineRecorder for labels and icons
+                    $eventLabel = \App\Services\TimelineRecorder::getEventDisplayLabel($event);
+                    $eventIcon = \App\Services\TimelineRecorder::getEventIcon($event);
                     
                     // Parse event_details JSON
                     $eventDetailsRaw = $event['event_details'] ?? null;

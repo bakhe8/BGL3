@@ -110,7 +110,8 @@ try {
     $banks = []; 
     
     // 5. Wrap in the same ID container as the main page to ensure direct replacement
-    echo '<div id="record-form-section" class="decision-card">';
+    $index = $_GET['index'] ?? 1;
+    echo '<div id="record-form-section" class="decision-card" data-record-index="' . $index . '">';
     
     // 6. Include the partial
     require __DIR__ . '/../partials/record-form.php';
@@ -123,7 +124,7 @@ try {
     <div class="alert alert-error">
         <h4>فشل تحميل النسخة التاريخية</h4>
         <p><?= htmlspecialchars($e->getMessage()) ?></p>
-        <button onclick="UnifiedController.loadRecord(UnifiedController.currentIndex)" class="btn btn-secondary">
+        <button data-action="load-record" data-index="<?= $_GET['index'] ?? 1 ?>" class="btn btn-secondary">
             العودة للوضع الحالي
         </button>
     </div>

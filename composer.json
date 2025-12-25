@@ -1,6 +1,6 @@
 {
     "name": "bgl/unified-workflow-v3",
-    "description": "Unified Workflow V3 - Standalone System",
+    "description": "BGL System V3 - Standalone System",
     "type": "project",
     "require": {
         "php": ">=8.0",

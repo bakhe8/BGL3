@@ -1,4 +1,4 @@
-# Unified Workflow V3 - Standalone System
+# BGL System V3 - Standalone System
 
 نظام مستقل بالكامل لإدارة الضمانات البنكية.
 

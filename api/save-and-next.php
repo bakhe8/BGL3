@@ -203,10 +203,10 @@ try {
     // TIMELINE INTEGRATION - Track changes with new logic
     // ====================================================================
     
-    require_once __DIR__ . '/../lib/TimelineHelper.php';
+    require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
     
     // 1. Create snapshot of current state (BEFORE changes)
-    $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
     
     // 2. Prepare new data for change detection (ONLY fields that user can modify via this endpoint!)
     $newData = [
@@ -222,10 +222,10 @@ try {
 
     
     // 3. Detect changes between old and new
-    $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+    $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
     
     // 4. Calculate new status
-    $newStatus = TimelineHelper::calculateStatus($guaranteeId);
+    $newStatus = \App\Services\TimelineRecorder::calculateStatus($guaranteeId);
     
     // 5. Save decision
     $stmt = $db->prepare('
@@ -244,7 +244,7 @@ try {
     
     // 6. Save timeline event (only if changes exist)
     if (!empty($changes)) {
-        TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+        \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
     }
     
     // --- SMART LEARNING FEEDBACK LOOP ---

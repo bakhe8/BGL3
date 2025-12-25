@@ -4,7 +4,7 @@
  * Shows historical state of guarantee at any point in time
  */
 
-class TimelineMachine {
+class TimelineController {
     constructor() {
         this.currentEventId = null;
         this.isHistoricalView = false;
@@ -18,14 +18,14 @@ class TimelineMachine {
         document.addEventListener('click', (e) => {
             const eventWrapper = e.target.closest('.timeline-event-wrapper');
             if (eventWrapper) {
-                this.handleTimelineClick(eventWrapper);
+                this.processTimelineClick(eventWrapper);
             }
         });
 
-        console.log('✅ Timeline Machine initialized');
+        console.log('✅ Timeline Controller initialized');
     }
 
-    handleTimelineClick(element) {
+    processTimelineClick(element) {
         const eventId = element.dataset.eventId;
         const snapshotData = element.dataset.snapshot;
         const isLatest = element.dataset.isLatest === '1';
@@ -196,7 +196,7 @@ class TimelineMachine {
                         <div style="font-size: 12px; color: #78350f;">تعرض الحالة قبل حدوث التغيير</div>
                     </div>
                 </div>
-                <button onclick="timelineMachine.loadCurrentState()" 
+                <button data-action="timeline-load-current" 
                         style="background: #f59e0b; color: white; border: none; 
                                padding: 8px 16px; border-radius: 6px; font-weight: 600; 
                                cursor: pointer; transition: background 0.2s;"
@@ -311,8 +311,8 @@ class TimelineMachine {
 }
 
 // Initialize Time Machine immediately
-const timelineMachine = new TimelineMachine();
+const timelineController = new TimelineController();
 
 // Make globally accessible for onclick handlers
-window.timelineMachine = timelineMachine;
+window.timelineController = timelineController;
 

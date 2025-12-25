@@ -5,7 +5,7 @@ header("Cache-Control: post-check=0, pre-check=0", false);
 header("Pragma: no-cache");
 
 /**
- * Unified Workflow v3.0 - Clean Rebuild
+ * BGL System v3.0 - Clean Rebuild
  * =====================================
  * 
  * Timeline-First approach with clean, maintainable code
@@ -112,9 +112,9 @@ if ($currentRecord) {
         'guarantee_number' => $currentRecord->guaranteeNumber ?? 'N/A',
         'supplier_name' => htmlspecialchars($raw['supplier'] ?? '', ENT_QUOTES),
         'bank_name' => htmlspecialchars($raw['bank'] ?? '', ENT_QUOTES),
-        'amount' => is_numeric($raw['amount'] ?? 0) ? floatval($raw['amount']) : 0,
-        'expiry_date' => $raw['expiry_date'] ?? date('Y-m-d'),
-        'issue_date' => $raw['issue_date'] ?? date('Y-m-d'),
+        'amount' => is_numeric($raw['amount'] ?? 0) ? floatval($raw['amount'] ?? 0) : 0,
+        'expiry_date' => $raw['expiry_date'] ?? '',
+        'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => htmlspecialchars($raw['contract_number'] ?? '', ENT_QUOTES),
         'type' => htmlspecialchars($raw['type'] ?? 'ابتدائي', ENT_QUOTES),
         'status' => 'pending',
@@ -354,7 +354,7 @@ $formattedSuppliers = array_map(function($s) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Unified Workflow v3.0 - BGL</title>
+    <title>BGL System v3.0</title>
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -1924,8 +1924,9 @@ $formattedSuppliers = array_map(function($s) {
     <?php require __DIR__ . '/partials/paste-modal.php'; ?>
 
     <!-- JavaScript - Vanilla Controller (No Alpine.js) -->
-    <script src="public/js/modal-handlers.js"></script>
-    <script src="public/js/timeline-handler.js"></script>
-    <script src="public/js/unified-controller.js"></script>
+    <script src="public/js/main.js?v=<?= time() ?>"></script>
+    <script src="public/js/input-modals.controller.js?v=<?= time() ?>"></script>
+    <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
+    <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
 </body>
 </html>

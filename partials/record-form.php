@@ -29,6 +29,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 ?>
 
 <!-- Record Form Content -->
+<div id="record-form-sec" data-record-index="<?= $index ?? 1 ?>" data-record-id="<?= $record['id'] ?? 0 ?>"></div>
 <?php if ($isHistorical): ?>
 <div style="background-color: #fffbeb; border: 1px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 12px;">
@@ -43,7 +44,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
             </div>
         </div>
     </div>
-    <button class="btn btn-sm btn-outline-warning" onclick="UnifiedController.loadRecord(UnifiedController.currentIndex)" style="background: white; border: 1px solid #d97706; color: #d97706;">
+    <button class="btn btn-sm btn-outline-warning" data-action="load-record" data-index="<?= $index ?? 1 ?>" style="background: white; border: 1px solid #d97706; color: #d97706;">
         العودة للوضع الحالي ↩️
     </button>
 </div>

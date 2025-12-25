@@ -36,7 +36,7 @@ function closeAllModals() {
 }
 
 // دالة لمعالجة الإدخال اليدوي
-async function handleManualEntry() {
+async function submitManualEntry() {
     const supplier = document.getElementById('manualSupplier')?.value;
     const bank = document.getElementById('manualBank')?.value;
     const guarantee = document.getElementById('manualGuarantee')?.value;
@@ -81,7 +81,7 @@ async function handleManualEntry() {
 }
 
 // دالة لمعالجة البيانات الملصوقة
-async function handlePasteData() {
+async function parsePasteData() {
     const text = document.getElementById('smartPasteInput')?.value;
 
     if (!text || !text.trim()) {
@@ -125,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (btnSaveManual) {
-        btnSaveManual.addEventListener('click', handleManualEntry);
+        btnSaveManual.addEventListener('click', submitManualEntry);
     }
 
     // Paste Modal handlers
@@ -142,7 +142,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     if (btnProcessPaste) {
-        btnProcessPaste.addEventListener('click', handlePasteData);
+        btnProcessPaste.addEventListener('click', parsePasteData);
     }
 
     // Close modals on ESC key
@@ -152,11 +152,11 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
-    // Add modal functions to unified controller
-    if (window.unifiedController) {
-        window.unifiedController.showManualInput = showManualInput;
-        window.unifiedController.showPasteModal = showPasteModal;
-        window.unifiedController.showImportModal = showImportModal;
+    // Add modal functions to records controller
+    if (window.recordsController) {
+        window.recordsController.showManualInput = showManualInput;
+        window.recordsController.showPasteModal = showPasteModal;
+        window.recordsController.showImportModal = showImportModal;
     }
 
     // Handle file selection

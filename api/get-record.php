@@ -5,7 +5,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
-require_once __DIR__ . '/../lib/TimelineHelper.php';
+require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
@@ -149,7 +149,7 @@ try {
                 if ($record['status'] === 'pending' && $top['score'] >= 80) {
                     try {
                         // 1. Capture snapshot BEFORE change
-                        $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+                        $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
                         
                         // 2. Update record data
                         $record['supplier_name'] = $top['official_name'];
@@ -164,7 +164,7 @@ try {
                         ];
                         
                         // 4. Detect changes
-                        $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+                        $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
                         
                         // 5. Save to guarantee_decisions
                         if (!empty($changes)) {
@@ -181,7 +181,7 @@ try {
                             ]);
                             
                             // 6. Save timeline event
-                            TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+                            \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
                         }
                     } catch (\Throwable $e) { /* Ignore match error */ }
                 }
@@ -207,7 +207,7 @@ try {
                 if ($record['status'] === 'pending' && $top['score'] >= 80) {
                     try {
                         // 1. Capture snapshot BEFORE change
-                        $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+                        $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
                         
                         // 2. Update record data
                         $record['bank_id'] = $top['id'];
@@ -221,7 +221,7 @@ try {
                         ];
                         
                         // 4. Detect changes
-                        $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+                        $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
                         
                         // 5. Update guarantee_decisions
                         if (!empty($changes)) {
@@ -235,7 +235,7 @@ try {
                                 (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
                                 VALUES (?, ?, ?, ?, ?, ?, ?)
                             ');
-                            $newStatus = TimelineHelper::calculateStatus($guaranteeId);
+                            $newStatus = \App\Services\TimelineRecorder::calculateStatus($guaranteeId);
                             $stmt->execute([
                                 $guaranteeId,
                                 $currentDec['supplier_id'] ?? null,
@@ -247,7 +247,7 @@ try {
                             ]);
                             
                             // 6. Save timeline event
-                            TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+                            \App\Services\TimelineRecorder::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
                         }
                     } catch (\Throwable $e) { /* Ignore match error */ }
                 }
