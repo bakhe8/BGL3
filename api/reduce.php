@@ -4,6 +4,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
+require_once __DIR__ . '/../lib/TimelineHelper.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
@@ -101,22 +102,27 @@ try {
     $updateRawStmt->execute([json_encode($raw), $guaranteeId]);
 
     
-    // 3. Log History
-    $histStmt = $db->prepare("
-        INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-        VALUES (?, 'reduction', ?, ?, ?, 'Web User')
-    ");
+    // ====================================================================
+    // TIMELINE INTEGRATION - Track reduction action
+    // ====================================================================
     
-    // Snapshot
-    $snap = $prevDecision ?: []; // Base
-    $snap['amount'] = $newAmount;
+    // 1. Capture snapshot BEFORE reduction (with old amount)
+    $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+    $oldSnapshot['amount'] = $currentAmount;  // Ensure old amount is in snapshot
     
-    $histStmt->execute([
-        $guaranteeId,
-        '📉 تم تخفيض المبلغ من [' . number_format($currentAmount) . '] إلى [' . number_format($newAmount) . ']',
-        json_encode($snap),
-        $now
-    ]);
+    // 2. Prepare change data
+    $newData = [
+        'amount' => $newAmount,
+        'amount_trigger' => 'reduction_action'
+    ];
+    
+    // 3. Detect changes
+    $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+    
+    // 4. Save timeline event
+    if (!empty($changes)) {
+        TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+    }
     
     // 4. Return Updated View
     // Use RecordHydratorService to hydrate the record

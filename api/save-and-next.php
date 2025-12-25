@@ -194,88 +194,49 @@ try {
         $changes[] = "تغيير البنك من [{$oldBank}] إلى [{$newBank}]";
     }
 
-    // Save decision (Use REPLACE to handle re-saves)
-    $stmt = $db->prepare('
-        REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, created_at)
-        VALUES (?, ?, ?, ?, ?)
-    ');
-    $stmt->execute([$guaranteeId, $supplierId, $bankId, 'approved', $now]);
+    // ====================================================================
+    // TIMELINE INTEGRATION - Track changes with new logic
+    // ====================================================================
     
-    // LOG APPROVAL EVENT (Single Full Snapshot)
-    // Enrich snapshot with exact names used at time of saving
-    $snapshotData = json_encode([
-        'supplier_id' => $supplierId, 
-        'supplier_name' => $newSupplier, 
+    require_once __DIR__ . '/../lib/TimelineHelper.php';
+    
+    // 1. Create snapshot of current state (BEFORE changes)
+    $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+    
+    // 2. Prepare new data for change detection
+    $newData = [
+        'supplier_id' => $supplierId,
+        'supplier_name' => $newSupplier,
+        'supplier_trigger' => 'manual',  // User manually saved
         'bank_id' => $bankId,
         'bank_name' => $newBank,
-        'status' => 'approved'
+        'bank_trigger' => 'manual'
+    ];
+    
+    // 3. Detect changes between old and new
+    $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+    
+    // 4. Calculate new status
+    $newStatus = TimelineHelper::calculateStatus($guaranteeId);
+    
+    // 5. Save decision
+    $stmt = $db->prepare('
+        REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ');
+    $stmt->execute([
+        $guaranteeId,
+        $supplierId,
+        $bankId,
+        $newStatus,  // Calculate based on data
+        $now,
+        'manual',
+        $now
     ]);
     
-    // --- LOGGING LOGIC ---
-    // We NO LONGER imply "Approved" status just by saving.
-    // "Approved" status is ONLY achieved if there is a valid Supplier ID (Match).
-    
-    $historyAction = null;
-    $historyReason = '';
-    
-    // 1. Detect Explicit Changes first
+    // 6. Save timeline event (only if changes exist)
     if (!empty($changes)) {
-        $historyAction = 'update';
-        $historyReason = implode(' و ', $changes);
-    }
-    
-    // 2. Detect Manual Match (The most important event)
-    $isNewMatch = ($supplierId && (!$prevDecision || $supplierId != $prevDecision['supplier_id']));
-    $nameChanged = (trim($oldSupplier) !== trim($newSupplier));
-
-    if ($isNewMatch) {
-         // Only log "Manual Match" if the user actually CHANGED the name
-         // OR if they switched IDs (e.g. from ID 5 to ID 6).
-         
-         // If Name is Same, and we just resolved ID from Null -> System detected it.
-         // User prefers NOT to see "Manual Match" if they didn't touch it.
-         
-         if ($nameChanged || ($prevDecision && $prevDecision['supplier_id'])) {
-            $matchData = json_encode(['supplier_id' => $supplierId, 'supplier_name' => $newSupplier]);
-            
-            if ($historyAction === 'update') {
-                $historyAction = 'manual_match'; 
-                $historyReason .= ' | 🔗 تم ربط المورد يدوياً: [' . $newSupplier . ']';
-            } else {
-                 $historyAction = 'manual_match';
-                 $historyReason = '🔗 تم ربط المورد يدوياً: [' . $newSupplier . ']';
-            }
-         }
-    }
-    
-    // DEDUPLICATION
-    $shouldLog = false;
-    
-    // Logic: 
-    // If it's a NEW Snapshot -> Log it.
-    // Except if it's just 'approved' generic (which we removed).
-    
-    if ($historyAction) {
-        $checkDup = $db->prepare('SELECT snapshot_data FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
-        $checkDup->execute([$guaranteeId]);
-        $lastSnapshot = $checkDup->fetchColumn(); 
-        
-        if ($lastSnapshot !== $snapshotData) {
-            $shouldLog = true;
-        }
-    }
-    
-    if ($shouldLog) {
-         $db->prepare("
-            INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, 'Web User')
-        ")->execute([
-            $guaranteeId, 
-            $historyAction,
-            $historyReason,
-            $snapshotData, 
-            $now
-        ]);
+        TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
     }
     
     // --- SMART LEARNING FEEDBACK LOOP ---

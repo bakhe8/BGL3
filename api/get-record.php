@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
+require_once __DIR__ . '/../lib/TimelineHelper.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
@@ -145,29 +146,44 @@ try {
                 ];
                 
                 // Auto-fill if confidence is high and no decision yet
-                if ($record['status'] === 'pending' && $top['score'] >= 90) {
-                    $record['supplier_name'] = $top['official_name'];
-                    $record['supplier_id'] = $top['id'];
-                    
-                    // --- LOG AUTO-MATCH EVENT ---
-                    // Only log if we haven't logged this specific auto-match before
+                if ($record['status'] === 'pending' && $top['score'] >= 80) {
                     try {
-                        $checkStmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND action = 'auto_matched' AND snapshot_data LIKE ?");
-                        $matchData = json_encode(['field' => 'supplier', 'to' => $top['official_name']]);
-                        $checkStmt->execute([$guaranteeId, "%$matchData%"]);
+                        // 1. Capture snapshot BEFORE change
+                        $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
                         
-                        if (!$checkStmt->fetch()) {
-                            $histStmt = $db->prepare("
-                                INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-                                VALUES (?, 'auto_matched', ?, ?, NOW(), 'System AI')
-                            ");
-                            $histStmt->execute([
+                        // 2. Update record data
+                        $record['supplier_name'] = $top['official_name'];
+                        $record['supplier_id'] = $top['id'];
+                        
+                        // 3. Prepare change data
+                        $newData = [
+                            'supplier_id' => $top['id'],
+                            'supplier_name' => $top['official_name'],
+                            'supplier_trigger' => 'ai_match',
+                            'supplier_confidence' => $top['score']
+                        ];
+                        
+                        // 4. Detect changes
+                        $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+                        
+                        // 5. Save to guarantee_decisions
+                        if (!empty($changes)) {
+                            $stmt = $db->prepare('
+                                INSERT OR REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, decided_at, decision_source, created_at)
+                                VALUES (?, ?, ?, ?, ?)
+                            ');
+                            $stmt->execute([
                                 $guaranteeId,
-                                "مطابقة تلقائية للمورد: {$guarantee->rawData['supplier']} -> {$top['official_name']} ({$top['score']}%)",
-                                $matchData
+                                $top['id'],
+                                date('Y-m-d H:i:s'),
+                                'ai_quick',
+                                date('Y-m-d H:i:s')
                             ]);
+                            
+                            // 6. Save timeline event
+                            TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
                         }
-                    } catch (\Throwable $e) { /* Ignore log error */ }
+                    } catch (\Throwable $e) { /* Ignore match error */ }
                 }
             }
         }
@@ -189,26 +205,51 @@ try {
                 
                 // Auto-select bank if confidence is high and no decision yet
                 if ($record['status'] === 'pending' && $top['score'] >= 80) {
-                    $record['bank_id'] = $top['id'];
-                    
-                     // --- LOG AUTO-MATCH EVENT FOR BANK ---
                     try {
-                        $checkStmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND action = 'auto_matched' AND snapshot_data LIKE ?");
-                        $matchData = json_encode(['field' => 'bank', 'to' => $top['official_name']]);
-                        $checkStmt->execute([$guaranteeId, "%$matchData%"]);
+                        // 1. Capture snapshot BEFORE change
+                        $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
                         
-                        if (!$checkStmt->fetch()) {
-                            $histStmt = $db->prepare("
-                                INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-                                VALUES (?, 'auto_matched', ?, ?, NOW(), 'System AI')
-                            ");
-                            $histStmt->execute([
+                        // 2. Update record data
+                        $record['bank_id'] = $top['id'];
+                        
+                        // 3. Prepare change data
+                        $newData = [
+                            'bank_id' => $top['id'],
+                            'bank_name' => $top['official_name'],
+                            'bank_trigger' => 'ai_match',
+                            'bank_confidence' => $top['score']
+                        ];
+                        
+                        // 4. Detect changes
+                        $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+                        
+                        // 5. Update guarantee_decisions
+                        if (!empty($changes)) {
+                            // Fetch current decision to preserve supplier_id
+                            $decStmt = $db->prepare('SELECT supplier_id FROM guarantee_decisions WHERE guarantee_id = ?');
+                            $decStmt->execute([$guaranteeId]);
+                            $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
+                            
+                            $stmt = $db->prepare('
+                                INSERT OR REPLACE INTO guarantee_decisions 
+                                (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
+                                VALUES (?, ?, ?, ?, ?, ?, ?)
+                            ');
+                            $newStatus = TimelineHelper::calculateStatus($guaranteeId);
+                            $stmt->execute([
                                 $guaranteeId,
-                                "مطابقة تلقائية للبنك: {$guarantee->rawData['bank']} -> {$top['official_name']} ({$top['score']}%)",
-                                $matchData
+                                $currentDec['supplier_id'] ?? null,
+                                $top['id'],
+                                $newStatus,
+                                date('Y-m-d H:i:s'),
+                                'ai_quick',
+                                date('Y-m-d H:i:s')
                             ]);
+                            
+                            // 6. Save timeline event
+                            TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
                         }
-                    } catch (\Throwable $e) { /* Ignore log error */ }
+                    } catch (\Throwable $e) { /* Ignore match error */ }
                 }
             }
         }

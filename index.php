@@ -1911,6 +1911,7 @@ $formattedSuppliers = array_map(function($s) {
 
     <!-- JavaScript - Vanilla Controller (No Alpine.js) -->
     <script src="public/js/modal-handlers.js"></script>
+    <script src="public/js/timeline-handler.js"></script>
     <script src="public/js/unified-controller.js"></script>
 </body>
 </html>

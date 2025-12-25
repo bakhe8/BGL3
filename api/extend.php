@@ -5,6 +5,7 @@
  */
 
 require_once __DIR__ . '/../app/Support/autoload.php';
+require_once __DIR__ . '/../lib/TimelineHelper.php';
 
 use App\Services\ActionService;
 use App\Repositories\GuaranteeActionRepository;
@@ -64,22 +65,27 @@ try {
     $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // --- LOG TO HISTORY ---
-    $now = date('Y-m-d H:i:s');
-    $snapshotData = json_encode([
-        'supplier_id' => null, // Extension keeps same supplier
-        'supplier_name' => $record['supplier_name'],
-        'bank_id' => null,
-        'bank_name' => $record['bank_name'],
-        'extension_date' => $result['new_expiry_date'],
-        'status' => 'extended'
-    ]);
+    // ====================================================================
+    // TIMELINE INTEGRATION - Track extension action
+    // ====================================================================
     
-    $histStmt = $db->prepare("
-        INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-        VALUES (?, 'extend', 'تم تمديد الضمان لمدة سنة', ?, ?, 'Web User')
-    ");
-    $histStmt->execute([$guaranteeId, $snapshotData, $now]);
+    // 1. Capture snapshot BEFORE extension
+    $oldSnapshot = TimelineHelper::createSnapshot($guaranteeId);
+    
+    // 2. Prepare change data
+    $newData = [
+        'expiry_date' => $result['new_expiry_date'],
+        'expiry_trigger' => 'extension_action',
+        'action_id' => $result['action_id']
+    ];
+    
+    // 3. Detect changes
+    $changes = TimelineHelper::detectChanges($oldSnapshot, $newData);
+    
+    // 4. Save timeline event
+    if (!empty($changes)) {
+        TimelineHelper::saveModifiedEvent($guaranteeId, $changes, $oldSnapshot);
+    }
     
     // Include partial template to render HTML
     echo '<div id="record-form-section" class="decision-card">';

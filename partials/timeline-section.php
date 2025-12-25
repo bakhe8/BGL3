@@ -1,9 +1,11 @@
 <?php
 /**
  * Partial: Timeline Section
- * Professional timeline for work environment
+ * Enhanced timeline using TimelineHelper
  * Required variables: $timeline (array of events)
  */
+
+require_once __DIR__ . '/../lib/TimelineHelper.php';
 
 if (!isset($timeline)) {
     $timeline = [];
@@ -31,23 +33,36 @@ $eventCount = count($timeline);
                 </div>
             <?php else: ?>
                 <?php foreach ($timeline as $index => $event): 
-                    // Professional color scheme - neutral and subtle
-                    $typeColors = [
-                        'import' => ['border' => '#64748b', 'text' => '#334155'],
-                        'decision' => ['border' => '#16a34a', 'text' => '#15803d'],
-                        'extension' => ['border' => '#ca8a04', 'text' => '#a16207'],
-                        'release' => ['border' => '#dc2626', 'text' => '#991b1b'],
-                        'reduction' => ['border' => '#7c3aed', 'text' => '#5b21b6'],
-                        'manual_edit' => ['border' => '#475569', 'text' => '#1e293b'],
-                        'approve' => ['border' => '#059669', 'text' => '#047857'],
-                        'update' => ['border' => '#2563eb', 'text' => '#1e40af'],
+                    // Use TimelineHelper for labels and icons
+                    $eventLabel = TimelineHelper::getEventDisplayLabel($event);
+                    $eventIcon = TimelineHelper::getEventIcon($event);
+                    
+                    // Parse event_details if exists
+                    $details = json_decode($event['event_details'] ?? '{}', true);
+                    $changes = $details['changes'] ?? [];
+                    $statusChange = $details['auto_status_change'] ?? null;
+                    
+                    // Color mapping based on event label
+                    $labelColors = [
+                        'استيراد' => ['border' => '#64748b', 'text' => '#334155'],
+                        'محاولة استيراد مكرر' => ['border' => '#f59e0b', 'text' => '#92400e'],
+                        'تطابق تلقائي' => ['border' => '#3b82f6', 'text' => '#1e40af'],
+                        'تعديل يدوي' => ['border' => '#059669', 'text' => '#047857'],
+                        'تمديد' => ['border' => '#ca8a04', 'text' => '#a16207'],
+                        'تخفيض' => ['border' => '#7c3aed', 'text' => '#5b21b6'],
+                        'إفراج' => ['border' => '#dc2626', 'text' => '#991b1b'],
                     ];
                     
-                    $eventType = $event['type'] ?? $event['action'] ?? 'default';
-                    $colors = $typeColors[$eventType] ?? ['border' => '#94a3b8', 'text' => '#475569'];
+                    $colors = $labelColors[$eventLabel] ?? ['border' => '#94a3b8', 'text' => '#475569'];
                     $isFirst = $index === 0;
+                    $isLatest = $index === 0;  // Latest event (current state)
                 ?>
-                    <div style="position: relative; padding-right: 12px; margin-bottom: 10px;">
+                    <div class="timeline-event-wrapper" 
+                         data-event-id="<?= $event['id'] ?>"
+                         data-snapshot='<?= htmlspecialchars($event['snapshot_data'] ?? '{}') ?>'
+                         data-is-latest="<?= $isLatest ? '1' : '0' ?>"
+                         style="position: relative; padding-right: 12px; margin-bottom: 10px; cursor: pointer;">
+                        
                         <!-- Timeline Connector -->
                         <?php if ($index < count($timeline) - 1): ?>
                         <div style="position: absolute; right: 3px; top: 14px; bottom: -10px; width: 2px; background: #e2e8f0;"></div>
@@ -57,55 +72,86 @@ $eventCount = count($timeline);
                         <div style="position: absolute; right: -2px; top: 8px; width: 10px; height: 10px; border-radius: 50%; background: <?= $colors['border'] ?>; border: 2px solid white; box-shadow: 0 0 0 1px #e2e8f0; z-index: 1;"></div>
                         
                         <!-- Event Card -->
-                        <div style="background: white; border: 1px solid #e2e8f0; border-right: 3px solid <?= $colors['border'] ?>; border-radius: 4px; padding: 10px 12px; margin-right: 16px; transition: border-color 0.2s;" 
-                             onmouseover="this.style.borderRightColor='<?= $colors['border'] ?>'; this.style.boxShadow='0 1px 3px rgba(0,0,0,0.1)'"
-                             onmouseout="this.style.borderRightColor='<?= $colors['border'] ?>'; this.style.boxShadow='none'">
+                        <div class="timeline-event-card" style="background: white; border: 1px solid #e2e8f0; border-right: 3px solid <?= $colors['border'] ?>; border-radius: 4px; padding: 10px 12px; margin-right: 16px; transition: all 0.2s;" 
+                             onmouseover="this.style.borderRightWidth='4px'; this.style.boxShadow='0 2px 6px rgba(0,0,0,0.1)'"
+                             onmouseout="this.style.borderRightWidth='3px'; this.style.boxShadow='none'">
                             
+                            <!-- Event Header -->
                             <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px;">
                                 <div style="display: flex; align-items: center; gap: 6px;">
-                                    <span style="font-size: 14px; filter: grayscale(30%);"><?= htmlspecialchars($event['icon'] ?? '📋') ?></span>
+                                    <span style="font-size: 14px;"><?= $eventIcon ?></span>
                                     <span style="font-weight: 600; color: <?= $colors['text'] ?>; font-size: 13px;">
-                                        <?php
-                                        $labels = [
-                                            'import' => 'استيراد', 'decision' => 'قرار', 'extension' => 'تمديد',
-                                            'release' => 'إفراج', 'reduction' => 'تخفيض', 'manual_edit' => 'تعديل',
-                                            'approve' => 'موافقة', 'update' => 'تحديث',
-                                        ];
-                                        echo $labels[$eventType] ?? htmlspecialchars($event['action'] ?? 'حدث');
-                                        ?>
+                                        <?= htmlspecialchars($eventLabel) ?>
                                     </span>
                                 </div>
-                                <?php if ($isFirst): ?>
-                                <span style="background: #1e293b; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 2px;">جديد</span>
+                                <?php if ($isLatest): ?>
+                                <span style="background: #1e293b; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 2px;">الحالي</span>
                                 <?php endif; ?>
                             </div>
                             
-                            <?php if (!empty($event['change_reason']) || !empty($event['description'])): ?>
+                            <!-- Event Changes Details -->
+                            <?php if (!empty($changes)): ?>
                             <div style="font-size: 12px; color: #475569; line-height: 1.4; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
-                                <?= htmlspecialchars($event['change_reason'] ?? $event['description'] ?? '') ?>
+                                <?php foreach ($changes as $change): ?>
+                                    <?php
+                                    $fieldLabels = [
+                                        'supplier_id' => 'المورد',
+                                        'bank_id' => 'البنك',
+                                        'amount' => 'المبلغ',
+                                        'expiry_date' => 'تاريخ الانتهاء'
+                                    ];
+                                    $fieldLabel = $fieldLabels[$change['field']] ?? $change['field'];
+                                    $trigger = $change['trigger'] ?? 'manual';
+                                    
+                                    // Show change details
+                                    if ($change['field'] === 'supplier_id' || $change['field'] === 'bank_id') {
+                                        $oldName = $change['old_value']['name'] ?? 'غير محدد';
+                                        $newName = $change['new_value']['name'] ?? 'غير محدد';
+                                        echo "<strong>{$fieldLabel}:</strong> ";
+                                        if ($oldName !== 'غير محدد') {
+                                            echo htmlspecialchars($oldName) . ' → ';
+                                        }
+                                        echo htmlspecialchars($newName);
+                                        
+                                        // Show confidence if AI match
+                                        if ($trigger === 'ai_match' && isset($change['confidence'])) {
+                                            echo " <span style='color: #3b82f6;'>(" . round($change['confidence']) . "%)</span>";
+                                        }
+                                    } else {
+                                        $oldVal = $change['old_value'] ?? '';
+                                        $newVal = $change['new_value'] ?? '';
+                                        echo "<strong>{$fieldLabel}:</strong> ";
+                                        if ($oldVal) {
+                                            echo htmlspecialchars($oldVal) . ' → ';
+                                        }
+                                        echo htmlspecialchars($newVal);
+                                    }
+                                    echo "<br>";
+                                    ?>
+                                <?php endforeach; ?>
+                                
+                                <?php if ($statusChange): ?>
+                                <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #e2e8f0; color: #059669; font-weight: 500;">
+                                    📊 الحالة: <?= htmlspecialchars($statusChange) ?>
+                                </div>
+                                <?php endif; ?>
                             </div>
                             <?php endif; ?>
                             
-                            <!-- Date at bottom -->
-                            <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9;">
-                                <?= htmlspecialchars($event['created_at'] ?? $event['date'] ?? '') ?>
+                            <!-- Date and User -->
+                            <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
+                                <span><?= htmlspecialchars($event['created_at'] ?? '') ?></span>
+                                <span style="font-weight: 500;"><?= htmlspecialchars($event['created_by'] ?? 'النظام') ?></span>
                             </div>
                             
-                            <?php if (!empty($event['action_status'])): ?>
-                            <div style="margin-top: 6px;">
-                                <?php
-                                $statuses = [
-                                    'pending' => ['bg' => '#fef3c7', 'text' => '#92400e', 'label' => 'معلق'],
-                                    'issued' => ['bg' => '#d1fae5', 'text' => '#065f46', 'label' => 'منفذ'],
-                                    'cancelled' => ['bg' => '#fee2e2', 'text' => '#991b1b', 'label' => 'ملغى'],
-                                ];
-                                $st = $statuses[$event['action_status']] ?? ['bg' => '#f1f5f9', 'text' => '#475569', 'label' => $event['action_status']];
-                                ?>
-                                <span style="background: <?= $st['bg'] ?>; color: <?= $st['text'] ?>; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 3px;">
-                                    <?= $st['label'] ?>
-                                </span>
+                            <!-- Click hint -->
+                            <div style="font-size: 10px; color: #94a3b8; margin-top: 4px; text-align: center;">
+                                <?php if ($isLatest): ?>
+                                    👁️ انقر لعرض الحالة الحالية
+                                <?php else: ?>
+                                    🕐 انقر لعرض الحالة قبل هذا الحدث
+                                <?php endif; ?>
                             </div>
-                            <?php endif; ?>
                         </div>
                     </div>
                 <?php endforeach; ?>
