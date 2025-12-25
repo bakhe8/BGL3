@@ -284,6 +284,34 @@ class UnifiedController {
         // TODO: Implement create supplier functionality
         alert('إضافة مورد جديد قيد التطوير');
     }
+
+    // Modal handlers
+    showManualInput() {
+        const modal = document.getElementById('manualEntryModal');
+        if (modal) {
+            modal.style.display = 'block';
+            document.getElementById('manualSupplier')?.focus();
+        }
+    }
+
+    showPasteModal() {
+        const modal = document.getElementById('smartPasteModal');
+        if (modal) {
+            modal.style.display = 'flex';
+            document.getElementById('smartPasteInput')?.focus();
+        }
+    }
+
+    showImportModal() {
+        // Trigger hidden file input
+        const fileInput = document.getElementById('hiddenFileInput');
+        if (fileInput) {
+            fileInput.click();
+        } else {
+            // Fallback to old behavior
+            window.location.href = 'views/import.php';
+        }
+    }
 }
 
 // Initialize on DOM ready
