@@ -280,18 +280,50 @@ class TimelineHelper {
     /**
      * Get display label for event based on changes
      * Used for UI display
+     * Supports both legacy (action field) and new (event_type field) formats
      */
     public static function getEventDisplayLabel($event) {
-        if ($event['event_type'] === 'import') {
+        // Backward compatibility: handle legacy events with 'action' field
+        if (!isset($event['event_type']) && isset($event['action'])) {
+            // Map old action types to display labels
+            $legacyMap = [
+                'imported' => 'استيراد',
+                'import' => 'استيراد',
+                'extend' => 'تمديد',
+                'extension' => 'تمديد',
+                'reduce' => 'تخفيض',
+                'reduction' => 'تخفيض',
+                'release' => 'إفراج',
+                'released' => 'إفراج',
+                'update' => 'تعديل',
+                'manual_match' => 'تعديل يدوي',
+                'auto_matched' => 'تطابق تلقائي',
+                'approved' => 'موافقة',
+            ];
+            
+            return $legacyMap[$event['action']] ?? 'تعديل';
+        }
+        
+        // New format handling
+        if (isset($event['event_type']) && $event['event_type'] === 'import') {
             return 'استيراد';
         }
         
-        if ($event['event_type'] === 'reimport') {
+        if (isset($event['event_type']) && $event['event_type'] === 'reimport') {
             return 'محاولة استيراد مكرر';
         }
         
         // For 'modified' events, determine from changes
-        $details = json_decode($event['event_details'], true);
+        $eventDetails = $event['event_details'] ?? null;
+        if (!$eventDetails) {
+            return 'تعديل';
+        }
+        
+        $details = json_decode($eventDetails, true);
+        if (!$details || !is_array($details)) {
+            return 'تعديل';
+        }
+        
         $changes = $details['changes'] ?? [];
         
         if (empty($changes)) {
