@@ -91,7 +91,7 @@ $eventCount = count($timeline);
                             
                             <!-- Event Changes Details -->
                             <?php if (!empty($changes)): ?>
-                            <div style="font-size: 12px; color: #475569; line-height: 1.4; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
+                            <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
                                 <?php foreach ($changes as $change): ?>
                                     <?php
                                     $fieldLabels = [
@@ -102,37 +102,60 @@ $eventCount = count($timeline);
                                     ];
                                     $fieldLabel = $fieldLabels[$change['field']] ?? $change['field'];
                                     $trigger = $change['trigger'] ?? 'manual';
-                                    
-                                    // Show change details
-                                    if ($change['field'] === 'supplier_id' || $change['field'] === 'bank_id') {
-                                        $oldName = $change['old_value']['name'] ?? 'غير محدد';
-                                        $newName = $change['new_value']['name'] ?? 'غير محدد';
-                                        echo "<strong>{$fieldLabel}:</strong> ";
-                                        if ($oldName !== 'غير محدد') {
-                                            echo htmlspecialchars($oldName) . ' → ';
-                                        }
-                                        echo htmlspecialchars($newName);
-                                        
-                                        // Show confidence if AI match
-                                        if ($trigger === 'ai_match' && isset($change['confidence'])) {
-                                            echo " <span style='color: #3b82f6;'>(" . round($change['confidence']) . "%)</span>";
-                                        }
-                                    } else {
-                                        $oldVal = $change['old_value'] ?? '';
-                                        $newVal = $change['new_value'] ?? '';
-                                        echo "<strong>{$fieldLabel}:</strong> ";
-                                        if ($oldVal) {
-                                            echo htmlspecialchars($oldVal) . ' → ';
-                                        }
-                                        echo htmlspecialchars($newVal);
-                                    }
-                                    echo "<br>";
                                     ?>
+                                    
+                                    <div style="margin-bottom: 4px;">
+                                        <strong style="color: #1e293b;">• <?= $fieldLabel ?>:</strong>
+                                        
+                                        <?php if ($change['field'] === 'supplier_id' || $change['field'] === 'bank_id'): ?>
+                                            <?php
+                                            $oldName = $change['old_value']['name'] ?? null;
+                                            $newName = $change['new_value']['name'] ?? null;
+                                            ?>
+                                            
+                                            <?php if ($oldName && $oldName !== 'غير محدد'): ?>
+                                                <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
+                                                    <?= htmlspecialchars($oldName) ?>
+                                                </span>
+                                                <span style="color: #64748b; margin: 0 4px;">→</span>
+                                            <?php endif; ?>
+                                            
+                                            <span style="color: #059669; font-weight: 500;">
+                                                <?= htmlspecialchars($newName) ?>
+                                            </span>
+                                            
+                                            <?php if ($trigger === 'ai_match' && isset($change['confidence'])): ?>
+                                                <span style="color: #3b82f6; font-size: 11px; margin-left: 4px;">
+                                                    (<?= round($change['confidence']) ?>%)
+                                                </span>
+                                            <?php endif; ?>
+                                            
+                                        <?php else: ?>
+                                            <?php
+                                            $oldVal = $change['old_value'] ?? null;
+                                            $newVal = $change['new_value'] ?? null;
+                                            ?>
+                                            
+                                            <?php if ($oldVal): ?>
+                                                <span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">
+                                                    <?= htmlspecialchars($oldVal) ?>
+                                                </span>
+                                                <span style="color: #64748b; margin: 0 4px;">→</span>
+                                            <?php endif; ?>
+                                            
+                                            <span style="color: #059669; font-weight: 500;">
+                                                <?= htmlspecialchars($newVal) ?>
+                                            </span>
+                                        <?php endif; ?>
+                                    </div>
                                 <?php endforeach; ?>
                                 
                                 <?php if ($statusChange): ?>
-                                <div style="margin-top: 4px; padding-top: 4px; border-top: 1px solid #e2e8f0; color: #059669; font-weight: 500;">
-                                    📊 الحالة: <?= htmlspecialchars($statusChange) ?>
+                                <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0;">
+                                    <strong style="color: #1e293b;">• الحالة:</strong>
+                                    <span style="color: #059669; font-weight: 500;">
+                                        <?= htmlspecialchars($statusChange) ?>
+                                    </span>
                                 </div>
                                 <?php endif; ?>
                             </div>
@@ -142,6 +165,7 @@ $eventCount = count($timeline);
                                 <?= htmlspecialchars($event['change_reason']) ?>
                             </div>
                             <?php endif; ?>
+                            
                             
                             
                             <!-- Date and User -->
