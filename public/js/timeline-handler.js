@@ -56,6 +56,8 @@ class TimelineMachine {
     }
 
     displayHistoricalState(snapshot, eventId) {
+        console.log('📜 Displaying historical state:', snapshot);
+
         // Save current state if first time entering historical view
         if (!this.isHistoricalView) {
             this.saveCurrentState();
@@ -64,8 +66,19 @@ class TimelineMachine {
         this.isHistoricalView = true;
         this.currentEventId = eventId;
 
+        // Parse snapshot if it's a string
+        let snapshotData = snapshot;
+        if (typeof snapshot === 'string') {
+            try {
+                snapshotData = JSON.parse(snapshot);
+            } catch (e) {
+                console.error('Failed to parse snapshot:', e);
+                return;
+            }
+        }
+
         // Update form fields with snapshot data
-        this.updateFormFields(snapshot);
+        this.updateFormFields(snapshotData);
 
         // Show historical banner
         this.showHistoricalBanner();
@@ -75,46 +88,63 @@ class TimelineMachine {
     }
 
     updateFormFields(snapshot) {
-        // Update supplier
-        const supplierInput = document.getElementById('supplierInput');
-        const supplierIdInput = document.getElementById('supplier-id');
-        if (supplierInput && snapshot.supplier_name) {
-            supplierInput.value = snapshot.supplier_name;
-        }
-        if (supplierIdInput && snapshot.supplier_id) {
-            supplierIdInput.value = snapshot.supplier_id;
-        }
+        console.log('🔄 Updating fields with snapshot:', snapshot);
 
-        // Update bank
-        const bankInput = document.getElementById('bankNameInput');
-        const bankSelect = document.getElementById('bankSelect');
-        if (bankInput && snapshot.bank_name) {
-            bankInput.value = snapshot.bank_name;
-        }
-        if (bankSelect && snapshot.bank_id) {
-            bankSelect.value = snapshot.bank_id;
-        }
-
-        // Update amount (if visible)
-        const amountDisplay = document.querySelector('.info-value.highlight');
-        if (amountDisplay && snapshot.amount) {
-            const formattedAmount = new Intl.NumberFormat('ar-SA').format(snapshot.amount);
-            amountDisplay.textContent = formattedAmount + ' ر.س';
-        }
-
-        // Update expiry date (if visible)
-        const expiryElements = document.querySelectorAll('.info-value');
-        expiryElements.forEach(el => {
-            const label = el.previousElementSibling;
-            if (label && label.textContent.includes('تاريخ الانتهاء') && snapshot.expiry_date) {
-                el.textContent = snapshot.expiry_date;
+        // Update supplier input (text field with data-field="supplier")
+        const supplierInputs = document.querySelectorAll('input[data-field="supplier"]');
+        supplierInputs.forEach(input => {
+            if (snapshot.supplier_name) {
+                input.value = snapshot.supplier_name;
+                console.log('✓ Updated supplier:', snapshot.supplier_name);
             }
         });
 
-        // Update status badge (if exists)
+        // Update hidden supplier ID
+        const supplierIdInputs = document.querySelectorAll('input[name="supplier_id"]');
+        supplierIdInputs.forEach(input => {
+            if (snapshot.supplier_id) {
+                input.value = snapshot.supplier_id;
+            }
+        });
+
+        // Update bank select
+        const bankSelects = document.querySelectorAll('select[data-field="bank"]');
+        bankSelects.forEach(select => {
+            if (snapshot.bank_id) {
+                select.value = snapshot.bank_id;
+                console.log('✓ Updated bank:', snapshot.bank_id);
+            }
+        });
+
+        // Update all info-value elements by matching labels
+        const infoGroups = document.querySelectorAll('.info-group');
+        infoGroups.forEach(group => {
+            const label = group.querySelector('.info-label')?.textContent;
+            const valueEl = group.querySelector('.info-value');
+
+            if (!valueEl || !label) return;
+
+            if (label.includes('المبلغ') && snapshot.amount) {
+                const formattedAmount = new Intl.NumberFormat('ar-SA').format(snapshot.amount);
+                valueEl.textContent = formattedAmount + ' ر.س';
+                console.log('✓ Updated amount:', snapshot.amount);
+            }
+
+            if (label.includes('تاريخ الانتهاء') && snapshot.expiry_date) {
+                valueEl.textContent = snapshot.expiry_date;
+                console.log('✓ Updated expiry:', snapshot.expiry_date);
+            }
+
+            if (label.includes('تاريخ الإصدار') && snapshot.issue_date) {
+                valueEl.textContent = snapshot.issue_date;
+            }
+        });
+
+        // Update status badge
         const statusBadge = document.querySelector('.status-badge');
         if (statusBadge && snapshot.status) {
             this.updateStatusBadge(statusBadge, snapshot.status);
+            console.log('✓ Updated status:', snapshot.status);
         }
     }
 
