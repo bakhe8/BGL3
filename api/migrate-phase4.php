@@ -35,7 +35,7 @@ try {
     ");
     $results[] = "✓ Created new table schema";
     
-    // Step 2: Copy data (handle NULL created_by with COALESCE)
+    // Step 2: Copy data (handle ALL NULL values with COALESCE)
     $db->exec("
         INSERT INTO guarantee_history_new 
             (id, guarantee_id, event_type, snapshot_data, event_details, created_at, created_by)
@@ -45,12 +45,12 @@ try {
             event_type, 
             snapshot_data, 
             event_details, 
-            created_at, 
+            COALESCE(created_at, datetime('now')),
             COALESCE(created_by, 'System')
         FROM guarantee_history
     ");
     $count = $db->query("SELECT COUNT(*) FROM guarantee_history_new")->fetchColumn();
-    $results[] = "✓ Copied $count events to new table";
+    $results[] = "✓ Copied $count events (handled NULL values)";
     
     // Step 3: Drop old table
     $db->exec("DROP TABLE guarantee_history");
