@@ -167,7 +167,7 @@ class UnifiedController {
         };
 
         try {
-            const response = await fetch('/V3/api/save.php', {
+            const response = await fetch('/api/save.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
@@ -207,7 +207,7 @@ class UnifiedController {
         }
 
         try {
-            const response = await fetch('/V3/api/extend.php', {
+            const response = await fetch('/api/extend.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ guarantee_id: recordIdEl.dataset.recordId })
@@ -231,7 +231,7 @@ class UnifiedController {
         }
 
         try {
-            const response = await fetch('/V3/api/release.php', {
+            const response = await fetch('/api/release.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ guarantee_id: recordIdEl.dataset.recordId })
