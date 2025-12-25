@@ -136,7 +136,13 @@ $eventCount = count($timeline);
                                 </div>
                                 <?php endif; ?>
                             </div>
+                            <?php elseif (!empty($event['change_reason'])): ?>
+                            <!-- Fallback: Show legacy change_reason if no changes array -->
+                            <div style="font-size: 12px; color: #475569; line-height: 1.4; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
+                                <?= htmlspecialchars($event['change_reason']) ?>
+                            </div>
                             <?php endif; ?>
+                            
                             
                             <!-- Date and User -->
                             <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
