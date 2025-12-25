@@ -202,13 +202,13 @@ if ($currentRecord) {
             foreach ($history as $event) {
                 $mockTimeline[] = [
                     'id' => 'history_' . $event['id'],
-                    'type' => $event['action'],
-                    'icon' => $iconMap[$event['action']] ?? '📋',
-                    'action' => $event['action'],
+                    'type' => $event['event_type'] ?? 'unknown',
+                    'icon' => $iconMap[$event['event_type'] ?? 'unknown'] ?? '📋',
+                    'action' => $event['event_type'] ?? 'unknown',
                     'date' => $event['created_at'],
                     'created_at' => $event['created_at'],
-                    'change_reason' => $event['change_reason'] ?? '',
-                    'description' => $event['change_reason'] ?? '',
+                    'change_reason' => '', // removed - use event_details
+                    'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
                     'user' => $event['created_by'] ?? 'النظام',
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true)
                 ];
