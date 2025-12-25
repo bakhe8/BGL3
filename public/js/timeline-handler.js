@@ -57,14 +57,6 @@ class TimelineMachine {
     displayHistoricalState(snapshot, eventId) {
         console.log('📜 Displaying historical state:', snapshot);
 
-        // Save current state if first time entering historical view
-        if (!this.isHistoricalView) {
-            this.saveCurrentState();
-        }
-
-        this.isHistoricalView = true;
-        this.currentEventId = eventId;
-
         // Parse snapshot if it's a string
         let snapshotData = snapshot;
         if (typeof snapshot === 'string') {
@@ -75,6 +67,21 @@ class TimelineMachine {
                 return;
             }
         }
+
+        // Check if snapshot is empty or legacy
+        if (!snapshotData || Object.keys(snapshotData).length === 0 || snapshotData._no_snapshot) {
+            console.warn('⚠️ No snapshot data available');
+            alert('⚠️ لا توجد بيانات تاريخية\n\nهذا الحدث قديم ولا يحتوي على بيانات تاريخية.');
+            return;
+        }
+
+        // Save current state if first time entering historical view
+        if (!this.isHistoricalView) {
+            this.saveCurrentState();
+        }
+
+        this.isHistoricalView = true;
+        this.currentEventId = eventId;
 
         // Update form fields with snapshot data
         this.updateFormFields(snapshotData);
