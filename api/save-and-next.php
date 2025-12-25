@@ -142,7 +142,7 @@ try {
         if (!$bankId) $missing[] = "Bank (Unknown" . ($bankError ? ": $bankError" : "") . ")";
         
         http_response_code(400); // Bad Request
-        echo "Missing fields: " . implode(', ', $missing);
+        echo json_encode(['success' => false, 'error' => 'Missing fields: ' . implode(', ', $missing)]);
         exit;
     }
     
@@ -324,13 +324,18 @@ try {
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Include partial template to render HTML for next record
-    echo '<div id="record-form-section" class="decision-card">';
-    include __DIR__ . '/../partials/record-form.php';
-    echo '</div>';
+    // Return data for next record as JSON
+    echo json_encode([
+        'success' => true,
+        'finished' => false,
+        'record' => $record,
+        'banks' => $banks,
+        'currentIndex' => $nextIndex,
+        'totalRecords' => $total
+    ]);
     
-} catch (\Throwable $e) {
+} catch (\Exception $e) {
     http_response_code(500);
-    echo '<div id="record-form-section" class="card">';
-    echo '<div class="card-body" style="color: red;">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
-    echo '</div>';
+    echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
+```
