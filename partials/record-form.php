@@ -61,75 +61,6 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     </button>
 </header>
 
-<?php if (!empty($record['decision_source']) || !empty($record['decided_at'])): ?>
-<!-- Decision Metadata -->
-<div class="decision-metadata" style="background: linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%); border-left: 4px solid #0ea5e9; padding: 12px 16px; margin: 0 20px 20px 20px; border-radius: 8px; font-size: 13px;">
-    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; font-weight: 600; color: #0369a1;">
-        <span style="font-size: 16px;">ℹ️</span>
-        <span>معلومات القرار</span>
-    </div>
-    
-    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin-top: 8px;">
-        <?php if (!empty($record['decision_source'])): ?>
-        <div style="display: flex; gap: 8px;">
-            <span style="color: #64748b; font-weight: 500;">المصدر:</span>
-            <span style="color: #1e293b; font-weight: 600;">
-                <?php
-                $sourceLabels = [
-                    'manual' => '🖐️ يدوي',
-                    'ai_quick' => '🤖 تلقائي سريع',
-                    'ai_assisted' => '🤝 بمساعدة الذكاء الاصطناعي',
-                    'propagated' => '📋 منسوخ',
-                    'auto_match' => '✨ مطابقة تلقائية'
-                ];
-                echo $sourceLabels[$record['decision_source']] ?? $record['decision_source'];
-                ?>
-            </span>
-        </div>
-        <?php endif; ?>
-        
-        <?php if (!empty($record['confidence_score'])): ?>
-        <div style="display: flex; gap: 8px;">
-            <span style="color: #64748b; font-weight: 500;">درجة الثقة:</span>
-            <span style="color: #1e293b; font-weight: 600;">
-                <?php
-                $conf = round($record['confidence_score']);
-                $color = $conf >= 80 ? '#10b981' : ($conf >= 50 ? '#f59e0b' : '#ef4444');
-                ?>
-                <span style="color: <?= $color ?>;"><?= $conf ?>%</span>
-            </span>
-        </div>
-        <?php endif; ?>
-        
-        <?php if (!empty($record['decided_at'])): ?>
-        <div style="display: flex; gap: 8px;">
-            <span style="color: #64748b; font-weight: 500;">تاريخ القرار:</span>
-            <span style="color: #1e293b;"><?= date('Y-m-d H:i', strtotime($record['decided_at'])) ?></span>
-        </div>
-        <?php endif; ?>
-        
-        <?php if (!empty($record['decided_by'])): ?>
-        <div style="display: flex; gap: 8px;">
-            <span style="color: #64748b; font-weight: 500;">بواسطة:</span>
-            <span style="color: #1e293b; font-weight: 600;">👤 <?= htmlspecialchars($record['decided_by']) ?></span>
-        </div>
-        <?php endif; ?>
-    </div>
-    
-    <?php if (!empty($record['is_locked'])): ?>
-    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #bae6fd;">
-        <div style="display: flex; align-items: center; gap: 8px; color: #dc2626; font-weight: 600;">
-            <span style="font-size: 16px;">🔒</span>
-            <span>السجل مقفل</span>
-            <?php if (!empty($record['locked_reason'])): ?>
-            <span style="color: #64748b; font-weight: normal;">- <?= htmlspecialchars($record['locked_reason']) ?></span>
-            <?php endif; ?>
-        </div>
-    </div>
-    <?php endif; ?>
-</div>
-<?php endif; ?>
-
 <div class="card-body">
     <!-- Supplier Field -->
     <div class="field-group">
