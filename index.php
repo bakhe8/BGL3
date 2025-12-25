@@ -234,13 +234,23 @@ if ($currentRecord) {
             foreach ($actions as $action) {
                 $description = '';
                 if ($action['action_type'] === 'extension') {
-                    $description = 'تمديد لمدة سنة من ' . ($action['previous_expiry_date'] ?? '') . ' إلى ' . ($action['new_expiry_date'] ?? '');
+                    $oldDate = htmlspecialchars($action['previous_expiry_date'] ?? '');
+                    $newDate = htmlspecialchars($action['new_expiry_date'] ?? '');
+                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• تاريخ الانتهاء:</strong> '
+                        . '<span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">' . $oldDate . '</span>'
+                        . ' <span style="color: #64748b;">→</span> '
+                        . '<span style="color: #059669; font-weight: 500;">' . $newDate . '</span></div>';
                 } elseif ($action['action_type'] === 'reduction') {
-                    $prevAmount = number_format($action['previous_amount'] ?? 0, 0);
-                    $newAmount = number_format($action['new_amount'] ?? 0, 0);
-                    $description = "تخفيض المبلغ من {$prevAmount} ر.س إلى {$newAmount} ر.س";
+                    $prevAmount = number_format($action['previous_amount'] ?? 0, 2);
+                    $newAmount = number_format($action['new_amount'] ?? 0, 2);
+                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• المبلغ:</strong> '
+                        . '<span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">' . htmlspecialchars($prevAmount) . ' ر.س</span>'
+                        . ' <span style="color: #64748b;">→</span> '
+                        . '<span style="color: #059669; font-weight: 500;">' . htmlspecialchars($newAmount) . ' ر.س</span></div>';
                 } elseif ($action['action_type'] === 'release') {
-                    $description = 'إفراج عن الضمان - ' . ($action['release_reason'] ?? '');
+                    $reason = htmlspecialchars($action['release_reason'] ?? '');
+                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• سبب الإفراج:</strong> '
+                        . '<span style="color: #059669; font-weight: 500;">' . $reason . '</span></div>';
                 }
                 
                 $mockTimeline[] = [

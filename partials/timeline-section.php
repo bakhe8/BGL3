@@ -165,9 +165,9 @@ $eventCount = count($timeline);
                                 <?php endif; ?>
                             </div>
                             <?php elseif (!empty($event['change_reason'])): ?>
-                            <!-- Legacy event - display change_reason as-is -->
-                            <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0;">
-                                <?= nl2br(htmlspecialchars($event['change_reason'])) ?>
+                            <!-- Action event (extension/reduction/release) with formatted description -->
+                            <div style="font-size: 12px; color: #475569; line-height: 1.6; margin: 6px 0; padding: 6px 8px; background: #f8fafc; border-radius: 3px;">
+                                <?= $event['change_reason'] /* HTML formatted */ ?>
                             </div>
                             <?php endif; ?>
                             
