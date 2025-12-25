@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 /**
  * V3 API - Save and Next (Server-Driven Partial HTML)
  * Saves current record decision and returns HTML for next record
@@ -338,4 +338,3 @@ try {
     http_response_code(500);
     echo json_encode(['success' => false, 'error' => $e->getMessage()]);
 }
-```
