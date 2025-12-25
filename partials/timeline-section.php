@@ -37,10 +37,12 @@ $eventCount = count($timeline);
                     $eventLabel = TimelineHelper::getEventDisplayLabel($event);
                     $eventIcon = TimelineHelper::getEventIcon($event);
                     
-                    // Parse event_details if exists
-                    $details = json_decode($event['event_details'] ?? '{}', true);
+                    // Parse event_details JSON
+                    $eventDetailsRaw = $event['event_details'] ?? null;
+                    $details = $eventDetailsRaw ? json_decode($eventDetailsRaw, true) : [];
                     $changes = $details['changes'] ?? [];
-                    $statusChange = $details['auto_status_change'] ?? null;
+                    $statusChange = $details['status_change'] ?? null;
+                    $trigger = $details['trigger'] ?? 'manual';
                     
                     // Color mapping based on event label
                     $labelColors = [
