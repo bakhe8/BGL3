@@ -13,17 +13,16 @@ class TimelineMachine {
     }
 
     init() {
-        // Initialize event listeners on timeline cards
-        this.attachEventListeners();
-    }
-
-    attachEventListeners() {
-        document.addEventListener('DOMContentLoaded', () => {
-            const timelineCards = document.querySelectorAll('.timeline-event-wrapper');
-            timelineCards.forEach(card => {
-                card.addEventListener('click', (e) => this.handleTimelineClick(e.currentTarget));
-            });
+        // Use event delegation for reliability
+        // This works even if timeline cards are added dynamically
+        document.addEventListener('click', (e) => {
+            const eventWrapper = e.target.closest('.timeline-event-wrapper');
+            if (eventWrapper) {
+                this.handleTimelineClick(eventWrapper);
+            }
         });
+
+        console.log('✅ Timeline Machine initialized');
     }
 
     handleTimelineClick(element) {
@@ -299,15 +298,9 @@ class TimelineMachine {
     }
 }
 
-// Initialize Time Machine when DOM is ready
-let timelineMachine;
-if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        timelineMachine = new TimelineMachine();
-    });
-} else {
-    timelineMachine = new TimelineMachine();
-}
+// Initialize Time Machine immediately
+const timelineMachine = new TimelineMachine();
 
 // Make globally accessible for onclick handlers
 window.timelineMachine = timelineMachine;
+
