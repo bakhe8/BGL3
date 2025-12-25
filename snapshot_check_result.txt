@@ -1,0 +1,3 @@
+=== Database connected: C:\Users\Bakheet\Documents\Projects\BGL3/storage/database/app.sqlite ===
+
+ERROR: SQLSTATE[HY000]: General error: 1 no such column: event_type

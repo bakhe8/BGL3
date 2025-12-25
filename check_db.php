@@ -1,34 +1,106 @@
 <?php
-require_once __DIR__ . '/app/Support/autoload.php';
+/**
+ * Check SQLite Database - guarantee_history snapshots
+ */
 
-use App\Support\Database;
+$dbPath = __DIR__ . '/storage/database/app.sqlite';
+$outputFile = __DIR__ . '/snapshot_check_result.txt';
 
-$db = Database::connect();
-
-echo "=== Checking guarantee_actions table ===\n\n";
-
-$stmt = $db->query('SELECT * FROM guarantee_actions ORDER BY created_at DESC LIMIT 5');
-$actions = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-if (empty($actions)) {
-    echo "No actions found in guarantee_actions table.\n";
-} else {
-    echo "Found " . count($actions) . " actions:\n";
-    foreach ($actions as $action) {
-        echo "- ID: {$action['id']}, Type: {$action['action_type']}, Guarantee: {$action['guarantee_id']}, Status: {$action['action_status']}, Date: {$action['created_at']}\n";
-    }
+if (!file_exists($dbPath)) {
+    die("Database not found at: $dbPath\n");
 }
 
-echo "\n=== Checking guarantee_history table ===\n\n";
+ob_start(); // Capture output
 
-$stmt2 = $db->query('SELECT * FROM guarantee_history ORDER BY created_at DESC LIMIT 5');
-$history = $stmt2->fetchAll(PDO::FETCH_ASSOC);
-
-if (empty($history)) {
-    echo "No history found in guarantee_history table.\n";
-} else {
-    echo "Found " . count($history) . " history entries:\n";
-    foreach ($history as $h) {
-        echo "- ID: {$h['id']}, Guarantee: {$h['guarantee_id']}, Action: {$h['action']}, Date: {$h['created_at']}\n";
+try {
+    $pdo = new PDO('sqlite:' . $dbPath);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    
+    echo "=== Database connected: $dbPath ===\n\n";
+    
+    // Get latest 10 events
+    $stmt = $pdo->query("
+        SELECT 
+            id,
+            guarantee_id,
+            event_type,
+            CASE 
+                WHEN snapshot_data IS NULL THEN 'NULL'
+                WHEN snapshot_data = '' THEN 'EMPTY'
+                WHEN snapshot_data = '{}' THEN 'EMPTY_JSON'
+                ELSE 'HAS_DATA'
+            END as status,
+            LENGTH(snapshot_data) as len,
+            SUBSTR(snapshot_data, 1, 60) as preview,
+            created_at
+        FROM guarantee_history
+        ORDER BY id DESC
+        LIMIT 10
+    ");
+    
+    $events = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    echo "Latest 10 events:\n";
+    echo str_repeat('-', 130) . "\n";
+    printf("%-5s | %-4s | %-15s | %-12s | %-6s | %-40s | %s\n", 
+        'ID', 'GID', 'Type', 'Status', 'Len', 'Preview', 'Created');
+    echo str_repeat('-', 130) . "\n";
+    
+    foreach ($events as $e) {
+        printf("%-5s | %-4s | %-15s | %-12s | %-6s | %-40s | %s\n",
+            $e['id'],
+            $e['guarantee_id'],
+            $e['event_type'] ?? 'N/A',
+            $e['status'],
+            $e['len'] ?? '0',
+            substr($e['preview'] ?? '', 0, 40),
+            substr($e['created_at'] ?? '', 0, 19)
+        );
     }
+    
+    echo "\n\n=== Summary ===\n";
+    $summary = $pdo->query("
+        SELECT 
+            CASE 
+                WHEN snapshot_data IS NULL THEN 'NULL'
+                WHEN snapshot_data = '' THEN 'EMPTY'
+                WHEN snapshot_data = '{}' THEN 'EMPTY_JSON'
+                ELSE 'HAS_DATA'
+            END as status,
+            COUNT(*) as count
+        FROM guarantee_history
+        GROUP BY status
+    ")->fetchAll(PDO::FETCH_ASSOC);
+    
+    foreach ($summary as $s) {
+        printf("%-15s: %d\n", $s['status'], $s['count']);
+    }
+    
+    echo "\n=== Sample Event with Data ===\n";
+    $sample = $pdo->query("
+        SELECT id, guarantee_id, event_type, snapshot_data
+        FROM guarantee_history
+        WHERE snapshot_data IS NOT NULL 
+          AND snapshot_data != '' 
+          AND snapshot_data != '{}'
+        ORDER BY id DESC
+        LIMIT 1
+    ")->fetch(PDO::FETCH_ASSOC);
+    
+    if ($sample) {
+        echo "Event ID: " . $sample['id'] . "\n";
+        echo "Snapshot Data:\n" . $sample['snapshot_data'] . "\n";
+    } else {
+        echo "No events with snapshot data found!\n";
+    }
+    
+} catch (PDOException $e) {
+    echo "ERROR: " . $e->getMessage() . "\n";
 }
+
+// Save to file
+$output = ob_get_clean();
+file_put_contents($outputFile, $output);
+echo $output; // Also print
+echo "\n\nResults saved to: $outputFile\n";
+
