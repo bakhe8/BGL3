@@ -1633,7 +1633,7 @@ $formattedSuppliers = array_map(function($s) {
         <nav class="global-actions">
 
             <a href="views/statistics.php" class="btn-global">&#x1F4CA; إحصائيات</a>
-            <a href="#" class="btn-global">&#x2699; إعدادات</a>
+            <a href="views/settings.php" class="btn-global">&#x2699; إعدادات</a>
         </nav>
     </header>
 
