@@ -8,8 +8,9 @@ use App\Support\Settings;
 
 class ConflictDetector
 {
-    public function __construct(private Settings $settings = new Settings())
+    public function __construct(private ?Settings $settings = null)
     {
+        $this->settings = $settings ?? new Settings();
     }
 
     /**

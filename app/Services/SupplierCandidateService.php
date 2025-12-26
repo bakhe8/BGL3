@@ -54,10 +54,13 @@ class SupplierCandidateService
     public function __construct(
         private SupplierRepository $suppliers,
         private SupplierAlternativeNameRepository $supplierAlts,
-        private Normalizer $normalizer = new Normalizer(),
-        private SupplierOverrideRepository $overrides = new SupplierOverrideRepository(),
-        private Settings $settings = new Settings(),
+        private ?Normalizer $normalizer = null,
+        private ?SupplierOverrideRepository $overrides = null,
+        private ?Settings $settings = null,
     ) {
+        $this->normalizer = $normalizer ?? new Normalizer();
+        $this->overrides = $overrides ?? new SupplierOverrideRepository();
+        $this->settings = $settings ?? new Settings();
     }
 
     // ═══════════════════════════════════════════════════════════════════
