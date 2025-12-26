@@ -1,0 +1,36 @@
+# Dependencies
+/vendor/
+/node_modules/
+
+# Environment
+.env
+.env.local
+
+# Database
+storage/database/*.sqlite
+storage/database/*.db
+*.sqlite.backup_*
+*.db.backup_*
+
+# Logs
+*.log
+/logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Temporary files
+*.tmp
+*.temp
+*_backup_*
+create_empty_db*.php
+restore_*.php
+copy_*.php
