@@ -1689,45 +1689,17 @@ $formattedSuppliers = array_map(function($s) {
                 <?php 
                 $timeline = $mockTimeline;
                 require __DIR__ . '/partials/timeline-section.php'; 
-     // Get first record for display (or null if no records)
-    $firstRecord = !empty($allRecords) ? reset($allRecords) : null;
-    
-    // Get record ID from URL or use first record
-    $requestedId = isset($_GET['id']) ? (int)$_GET['id'] : ($firstRecord['id'] ?? null);
-    
-    // Load specific record or first one
-    $record = null;
-    if ($requestedId) {
-        foreach ($allRecords as $r) {
-            if ($r['id'] == $requestedId) {
-                $record = $r;
-                break;
-            }
-        }
-    }
-    
-    // If no record found and we have records, use first
-    if (!$record && !empty($allRecords)) {
-        $record = $firstRecord;
-    }
-    
-    // Handle empty database gracefully
-    if (!$record) {
-        $record = [
-            'id' => null,
-            'guarantee_number' => '',
-            'supplier_id' => null,
-            'bank_id' => null,
-            'amount' => 0,
-            'expiry_date' => '',
-            'issue_date' => '',
-            'contract_number' => '',
-            'type' => 'Initial',
-            'status' => 'pending',
-            'supplier_name' => '',
-            'bank_name' => ''
-        ];
-    }                    $guarantee = $currentRecord; // For rawData access
+                ?>
+
+                <!-- Main Content -->
+                <main class="main-content">
+                    <!-- Decision Card -->
+                    <div class="decision-card">
+                        
+                        <?php
+                        // Prepare data for record-form partial
+                        $record = $mockRecord;
+                        $guarantee = $currentRecord; // For rawData access
                         $supplierMatch = [
                             'suggestions' => $formattedSuppliers,
                             'score' => !empty($formattedSuppliers) ? $formattedSuppliers[0]['score'] : 0
@@ -1738,7 +1710,7 @@ $formattedSuppliers = array_map(function($s) {
                         
                         // Try to find matching bank
                         $bankMatch = [];
-                        if (!empty($mockRecord['bank_id'])) {
+                        if ($mockRecord['bank_id']) {
                             // If decision has bank_id, use it
                             foreach ($allBanks as $bank) {
                                 if ($bank['id'] == $mockRecord['bank_id']) {
