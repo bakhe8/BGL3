@@ -30,9 +30,16 @@ class ActionService
             throw new \RuntimeException("Guarantee not found");
         }
         
+        // VALIDATION: Require both supplier and bank before allowing extension
+        $decision = $this->decisions->findByGuarantee($guaranteeId);
+        if (!$decision || empty($decision->supplierId) || empty($decision->bankId)) {
+            throw new \RuntimeException(
+                'لا يمكن تنفيذ التمديد - يجب اختيار المورد والبنك أولاً'
+            );
+        }
+        
         // Check if currently released (Source of Truth: GuaranteeDecision)
         // We do NOT check historical actions because a release might have been reverted/overridden.
-        $decision = $this->decisions->findByGuarantee($guaranteeId);
         if ($decision && $decision->status === 'released') {
              throw new \RuntimeException("Cannot extend after release");
         }
@@ -81,6 +88,14 @@ class ActionService
             throw new \RuntimeException("Guarantee not found");
         }
         
+        // VALIDATION: Require both supplier and bank before allowing release
+        $decision = $this->decisions->findByGuarantee($guaranteeId);
+        if (!$decision || empty($decision->supplierId) || empty($decision->bankId)) {
+            throw new \RuntimeException(
+                'لا يمكن تنفيذ الإفراج - يجب اختيار المورد والبنك أولاً'
+            );
+        }
+        
         $actionId = $this->actions->create([
             'guarantee_id' => $guaranteeId,
             'action_type' => 'release',
@@ -111,6 +126,14 @@ class ActionService
         $guarantee = $this->guarantees->find($guaranteeId);
         if (!$guarantee) {
             throw new \RuntimeException("Guarantee not found");
+        }
+        
+        // VALIDATION: Require both supplier and bank before allowing reduction
+        $decision = $this->decisions->findByGuarantee($guaranteeId);
+        if (!$decision || empty($decision->supplierId) || empty($decision->bankId)) {
+            throw new \RuntimeException(
+                'لا يمكن تنفيذ التخفيض - يجب اختيار المورد والبنك أولاً'
+            );
         }
         
         $currentAmount = (float)$guarantee->getAmount();
