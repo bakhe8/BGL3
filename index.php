@@ -1885,6 +1885,33 @@ $formattedSuppliers = array_map(function($s) {
     <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
     
     <script>
+        // Toast notification system
+        function showToast(message, type = 'info') {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                background: ${type === 'error' ? '#dc2626' : type === 'success' ? '#16a34a' : '#3b82f6'};
+                color: white;
+                padding: 16px 24px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+                z-index: 10000;
+                font-family: 'Tajawal', sans-serif;
+                font-size: 14px;
+                max-width: 400px;
+                animation: slideIn 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.style.animation = 'slideOut 0.3s ease';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+        
         // Notes functionality - Vanilla JS
         function showNoteInput() {
             document.getElementById('noteInputBox').style.display = 'block';
@@ -1903,7 +1930,7 @@ $formattedSuppliers = array_map(function($s) {
             if (!content) return;
             
             try {
-                const res = await fetch('/V3/api/save-note.php', {
+                const res = await fetch('api/save-note.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/json'},
                     body: JSON.stringify({
@@ -1913,14 +1940,15 @@ $formattedSuppliers = array_map(function($s) {
                 });
                 const data = await res.json();
                 if (data.success) {
+                    showToast('تم حفظ الملاحظة بنجاح', 'success');
                     // Reload page to show new note
-                    location.reload();
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'));
+                    showToast('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'), 'error');
                 }
             } catch(e) { 
                 console.error('Error saving note:', e);
-                alert('حدث خطأ أثناء حفظ الملاحظة');
+                showToast('حدث خطأ أثناء حفظ الملاحظة', 'error');
             }
         }
         
@@ -1934,23 +1962,38 @@ $formattedSuppliers = array_map(function($s) {
             formData.append('guarantee_id', <?= $mockRecord['id'] ?? 0 ?>);
             
             try {
-                const res = await fetch('/V3/api/upload-attachment.php', {
+                const res = await fetch('api/upload-attachment.php', {
                     method: 'POST',
                     body: formData
                 });
                 const data = await res.json();
                 if (data.success) {
+                    showToast('تم رفع الملف بنجاح', 'success');
                     // Reload page to show new attachment
-                    location.reload();
+                    setTimeout(() => location.reload(), 500);
                 } else {
-                    alert('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'));
+                    showToast('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'), 'error');
                 }
             } catch(err) {
                 console.error('Error uploading file:', err);
-                alert('حدث خطأ أثناء رفع الملف');
+                showToast('حدث خطأ أثناء رفع الملف', 'error');
             }
             event.target.value = ''; // Reset input
         }
+        
+        // Add CSS animations
+        const style = document.createElement('style');
+        style.textContent = `
+            @keyframes slideIn {
+                from { transform: translateX(400px); opacity: 0; }
+                to { transform: translateX(0); opacity: 1; }
+            }
+            @keyframes slideOut {
+                from { transform: translateX(0); opacity: 1; }
+                to { transform: translateX(400px); opacity: 0; }
+            }
+        `;
+        document.head.appendChild(style);
     </script>
 
     <script src="public/js/main.js?v=<?= time() ?>"></script>
