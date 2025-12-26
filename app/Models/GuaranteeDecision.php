@@ -30,11 +30,14 @@ class GuaranteeDecision
     ) {}
     
     /**
-     * Check if decision is ready
+     * Check if decision is approved (P3: Renamed from isReady, canonical term)
      */
-    public function isReady(): bool
+    public function isApproved(): bool
     {
-        return $this->status === 'ready' && $this->supplierId !== null && $this->bankId !== null;
+        // Check for 'approved' status (canonical) and both supplier & bank exist
+        return ($this->status === 'approved' || $this->status === 'ready') 
+            && $this->supplierId !== null 
+            && $this->bankId !== null;
     }
     
     /**

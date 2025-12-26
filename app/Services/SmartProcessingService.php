@@ -84,10 +84,14 @@ class SmartProcessingService
             $supplierSuggestions = $this->learningService->getSuggestions($supplierName);
             $supplierConfidence = 0;
             $finalSupplierName = '';
+            $supplierSource = null;
             
             if (!empty($supplierSuggestions)) {
                 $top = $supplierSuggestions[0];
-                if ($top['score'] >= 90) { // Threshold for auto-approval
+                $supplierSource = $top['source'] ?? null;
+                
+                // SAFE LEARNING: Block auto-approval from learned aliases
+                if ($top['score'] >= 90 && $supplierSource !== 'alias') {
                     $supplierId = $top['id'];
                     $finalSupplierName = $top['official_name'];
                     $supplierConfidence = $top['score'];
@@ -137,6 +141,13 @@ class SmartProcessingService
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence, $finalBankName, $bankConfidence);
                 $stats['auto_matched']++;
+            } else if ($supplierSource === 'alias' && !empty($supplierSuggestions)) {
+                // SAFE LEARNING: Log blocked auto-approval from learned alias
+                error_log(sprintf(
+                    "[SAFE_LEARNING] Auto-approval blocked for guarantee #%d - supplier match from learned alias (score: %d)",
+                    $guaranteeId,
+                    $supplierSuggestions[0]['score'] ?? 0
+                ));
             }
         }
 

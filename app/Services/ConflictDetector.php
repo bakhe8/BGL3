@@ -93,4 +93,54 @@ class ConflictDetector
 
         return $conflicts;
     }
+    
+    /**
+     * Format conflicts for UI display (UI Logic Projection)
+     * 
+     * Converts technical conflict messages to user-friendly Arabic/English
+     * 
+     * @param array $conflicts Raw conflicts from detect()
+     * @param string $lang Language ('ar' or 'en')
+     * @return array Formatted conflicts for UI
+     */
+    public static function formatForUI(array $conflicts, string $lang = 'ar'): array
+    {
+        $formatted = [];
+        
+        foreach ($conflicts as $conflict) {
+            // Detect conflict type from message content
+            if (str_contains($conflict, 'Similar scores')) {
+                $formatted[] = [
+                    'ar' => '⚠️ نتائج متقاربة - يُنصح بالمراجعة اليدوية',
+                    'en' => 'Similar scores - manual review recommended',
+                    'icon' => '⚠️',
+                    'severity' => 'warning'
+                ];
+            } elseif (str_contains($conflict, 'Alternative name') || str_contains($conflict, 'Override')) {
+                $formatted[] = [
+                    'ar' => '⚠️ المصدر من أسماء بديلة - تحتاج مراجعة',
+                    'en' => 'Source from alternative names - review needed',
+                    'icon' => '⚠️',
+                    'severity' => 'warning'
+                ];
+            } elseif (str_contains($conflict, 'Short') || str_contains($conflict, 'Ambiguous')) {
+                $formatted[] = [
+                    'ar' => '❌ الاسم قصير أو غامض - لا يمكن المطابقة التلقائية',
+                    'en' => 'Name too short or ambiguous - cannot auto-match',
+                    'icon' => '❌',
+                    'severity' => 'error'
+                ];
+            } else {
+                // Generic conflict
+                $formatted[] = [
+                    'ar' => '⚠️ تضارب محتمل - راجع يدوياً',
+                    'en' => 'Potential conflict - manual review',
+                    'icon' => '⚠️',
+                    'severity' => 'warning'
+                ];
+            }
+        }
+        
+        return $formatted;
+    }
 }

@@ -86,6 +86,15 @@ try {
         }
     }
     
+    // === UI LOGIC PROJECTION: Status Reasons (Phase 1) ===
+    // Get WHY status is what it is for user transparency
+    $statusReasons = \App\Services\StatusEvaluator::getReasons(
+        $record['supplier_id'] ?? null,
+        $record['bank_id'] ?? null,
+        [] // Conflicts will be added later in Phase 3
+    );
+    $record['status_reasons'] = $statusReasons;
+    
     
     // Get timeline/history for this guarantee (optional - may not exist)
     $timeline = [];

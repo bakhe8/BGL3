@@ -222,30 +222,15 @@ class TimelineRecorder {
     
     /**
      * Calculate status based on supplier and bank presence
-     * approved = both supplier_id and bank_id exist
-     * pending = anything else
+     * 
+     * DEPRECATED: Delegates to StatusEvaluator for authority
+     * Kept for backward compatibility with existing calls
+     * 
+     * @param int $guaranteeId Guarantee ID
+     * @return string Status: 'approved' or 'pending'
      */
     public static function calculateStatus($guaranteeId) {
-        global $db;
-        
-        $stmt = $db->prepare("
-            SELECT supplier_id, bank_id 
-            FROM guarantee_decisions 
-            WHERE guarantee_id = ?
-        ");
-        $stmt->execute([$guaranteeId]);
-        $decision = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$decision) {
-            return 'pending';
-        }
-        
-        // approved only if both supplier and bank exist
-        if ($decision['supplier_id'] && $decision['bank_id']) {
-            return 'approved';
-        }
-        
-        return 'pending';
+        return \App\Services\StatusEvaluator::evaluateFromDatabase($guaranteeId);
     }
 
     // ... [Values kept for saveModifiedEvent, keeping strictly for backward compat if needed] ...

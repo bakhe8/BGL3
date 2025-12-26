@@ -50,10 +50,13 @@ try {
     $raw = $guarantee->rawData;
     $raw['expiry_date'] = $result['new_expiry_date'];
     
-    $stmt = $db->prepare('UPDATE guarantees SET raw_data = ? WHERE id = ?');
-    $stmt->execute([json_encode($raw), $guaranteeId]);
+    // === P2: MUTATION ISOLATION ===
+    // Route mutation through repository instead of direct SQL
+    // Update raw_data through repository
+    $guaranteeRepo->updateRawData($guaranteeId, json_encode($raw));
 
     // 3. RECORD: Strict Event Recording (UE-02 Extend)
+    // Record extension event (timeline recording still enforced)
     \App\Services\TimelineRecorder::recordExtensionEvent(
         $guaranteeId, 
         $oldSnapshot, 

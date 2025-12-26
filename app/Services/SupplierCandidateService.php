@@ -39,7 +39,7 @@ namespace App\Services;
 
 use App\Repositories\SupplierAlternativeNameRepository;
 use App\Repositories\SupplierRepository;
-use App\Repositories\SupplierSuggestionRepository;
+use App\Repositories\SupplierLearningCacheRepository;
 use App\Repositories\SupplierOverrideRepository;
 use App\Support\Normalizer;
 use App\Support\Settings;
@@ -113,7 +113,7 @@ class SupplierCandidateService
         $candidates = [];
         
         // Get blocked supplier IDs from cache
-        $suggestionRepo = new SupplierSuggestionRepository();
+        $suggestionRepo = new SupplierLearningCacheRepository();
         $blockedIds = $suggestionRepo->getBlockedSupplierIds($normalized);
         $cachedSuggestions = $suggestionRepo->getSuggestions($normalized, 10);
         
@@ -126,7 +126,7 @@ class SupplierCandidateService
                         'strength' => 'strong',
                         'supplier_id' => (int) $cached['supplier_id'],
                         'name' => $cached['display_name'],
-                        'score' => 1.0,
+                        'score' => 0.90, // SAFE LEARNING: Reduced from 1.0 to prevent auto-approval
                         'score_raw' => (float) $cached['fuzzy_score'],
                         'is_learning' => true,
                         'usage_count' => (int) ($cached['usage_count'] ?? 0),

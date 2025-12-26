@@ -78,6 +78,26 @@ class GuaranteeRepository
     }
     
     /**
+     * Update guarantee raw_data (P2: Mutation Isolation)
+     * 
+     * Centralized mutation point for raw_data updates (e.g., extend, reduce actions)
+     * Ensures all raw_data changes go through repository layer
+     * 
+     * @param int $guaranteeId Guarantee ID
+     * @param string $rawData Updated JSON raw_data
+     * @return void
+     */
+    public function updateRawData(int $guaranteeId, string $rawData): void
+    {
+        $stmt = $this->db->prepare('
+            UPDATE guarantees 
+            SET raw_data = ? 
+            WHERE id = ?
+        ');
+        $stmt->execute([$rawData, $guaranteeId]);
+    }    
+    
+    /**
      * Get all guarantees with filters
      */
     public function getAll(array $filters = [], int $limit = 50, int $offset = 0): array

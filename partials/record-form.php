@@ -54,7 +54,6 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 <header class="card-header">
     <div class="header-title">
         <h2>تفاصيل الضمان</h2>
-
     </div>
     <button class="btn btn-ghost btn-sm" data-action="togglePreview">
         <span>👁️</span>
@@ -66,7 +65,18 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <!-- Supplier Field -->
     <div class="field-group">
         <div class="field-row">
-            <label class="field-label">المورد</label>
+            <label class="field-label">
+                المورد
+                <?php 
+                // Contextual status indicator for supplier
+                $supplierMissing = empty($record['supplier_id']);
+                if ($supplierMissing && ($record['status'] ?? 'pending') === 'pending'):
+                ?>
+                    <span class="field-status-indicator field-status-missing" title="المورد غير محدد - يحتاج قرار">⚠️</span>
+                <?php elseif (!$supplierMissing): ?>
+                    <span class="field-status-indicator field-status-ok" title="المورد محدد">✓</span>
+                <?php endif; ?>
+            </label>
             <input type="text" 
                    class="field-input" 
                    id="supplierInput" 
@@ -133,7 +143,18 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <!-- Bank Field (Updated to Text Input + Chips) -->
     <div class="field-group">
         <div class="field-row">
-            <label class="field-label">البنك</label>
+            <label class="field-label">
+                البنك
+                <?php 
+                // Contextual status indicator for bank
+                $bankMissing = empty($record['bank_id']);
+                if ($bankMissing && ($record['status'] ?? 'pending') === 'pending'):
+                ?>
+                    <span class="field-status-indicator field-status-missing" title="البنك غير محدد - يحتاج قرار">⚠️</span>
+                <?php elseif (!$bankMissing): ?>
+                    <span class="field-status-indicator field-status-ok" title="البنك محدد">✓</span>
+                <?php endif; ?>
+            </label>
             <input type="text" 
                    class="field-input" 
                    id="bankNameInput" 

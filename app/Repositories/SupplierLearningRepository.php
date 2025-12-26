@@ -5,7 +5,7 @@ use PDO;
 
 class SupplierLearningRepository
 {
-    private PDO $db;
+    public PDO $db; // Changed from private to public for session tracking
 
     public function __construct(PDO $db)
     {
@@ -71,10 +71,19 @@ class SupplierLearningRepository
         $norm = $this->normalize($rawName);
         $stmt = $this->db->prepare("
             UPDATE supplier_alternative_names 
-            SET usage_count = usage_count + 1 
+            SET usage_count = usage_count + 1, last_used_at = CURRENT_TIMESTAMP
             WHERE supplier_id = ? AND normalized_name = ?
         ");
-        $stmt->execute([$supplierId, $norm]);
+        $affected = $stmt->execute([$supplierId, $norm]);
+        
+        // SAFE LEARNING: Log when usage is incremented
+        if ($stmt->rowCount() > 0) {
+            error_log(sprintf(
+                "[SAFE_LEARNING] Incremented usage_count for supplier_id=%d, alias='%s'",
+                $supplierId,
+                $rawName
+            ));
+        }
         
         // 2. We could update a general usage stats table here
     }

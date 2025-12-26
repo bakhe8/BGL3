@@ -234,11 +234,9 @@ try {
     // But the previous code called it at step 4, BEFORE step 5 (Save).
     // This implies `calculateStatus` would return 'pending' if it looked at DB.
     // BUT we are saving the *NEW* status into the DB row.
-    // Let's stick to the simpler strict logic:
-    // 1. Snapshot.
-    // 2. Insert Decision (We know if we have S & B, it is approved/ready. If not, pending).
-    // Let's manually determine status for the INSERT, to avoid circular dependency.
-    $statusToSave = ($supplierId && $bankId) ? 'approved' : 'pending';
+    // === STATUS AUTHORITY (P1) ===
+    // Use StatusEvaluator as single source of truth
+    $statusToSave = \App\Services\StatusEvaluator::evaluate($supplierId, $bankId);
     
     $stmt = $db->prepare('
         REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)

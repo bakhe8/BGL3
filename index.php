@@ -174,6 +174,15 @@ if ($currentRecord) {
         }
     }
     
+    // === UI LOGIC PROJECTION: Status Reasons (Phase 1) ===
+    // Get WHY status is what it is for user transparency
+    $statusReasons = \App\Services\StatusEvaluator::getReasons(
+        $mockRecord['supplier_id'] ?? null,
+        $mockRecord['bank_id'] ?? null,
+        [] // Conflicts will be added later in Phase 3
+    );
+    $mockRecord['status_reasons'] = $statusReasons;
+    
     // Load timeline/history for this guarantee
     $mockTimeline = [];
     if ($currentRecord) {
@@ -214,7 +223,9 @@ if ($currentRecord) {
                     'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
                     'user' => $event['created_by'] ?? 'النظام',
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
-                    'snapshot_data' => $event['snapshot_data'] ?? '{}'  // Add raw too
+                    'snapshot_data' => $event['snapshot_data'] ?? '{}',  // Add raw too
+                    // UI LOGIC PROJECTION (Phase 4): Source badge
+                    'source_badge' => ($event['created_by'] ?? 'system') === 'system' ? '🤖 نظام' : '👤 مستخدم'
                 ];
             }
         } catch (\Exception $e) {

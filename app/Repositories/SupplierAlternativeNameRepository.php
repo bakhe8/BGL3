@@ -48,4 +48,48 @@ class SupplierAlternativeNameRepository
             'usageCount' => (int) ($row['usage_count'] ?? 0)
         ];
     }
+    
+    /**
+     * Find all alternative names matching normalized name (for exact matching)
+     * Used by SupplierCandidateService line 215
+     * @return array Array of associative arrays with supplier_id, raw_name, etc.
+     */
+    public function findAllByNormalized(string $normalizedName): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT 
+                id,
+                supplier_id,
+                alternative_name as raw_name,
+                normalized_name,
+                source,
+                usage_count
+            FROM supplier_alternative_names
+            WHERE normalized_name = ?
+        ");
+        $stmt->execute([$normalizedName]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
+     * Get all normalized alternative names (for fuzzy matching)
+     * Used by SupplierCandidateService line 235
+     * @return array Array of all alternative names with normalized data
+     */
+    public function allNormalized(): array
+    {
+        $stmt = $this->db->prepare("
+            SELECT 
+                id,
+                supplier_id,
+                alternative_name as raw_name,
+                normalized_name,
+                normalized_name as normalized_raw_name,
+                source,
+                usage_count
+            FROM supplier_alternative_names
+        ");
+        $stmt->execute();
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
 }

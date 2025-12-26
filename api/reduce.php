@@ -50,8 +50,17 @@ try {
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
     $raw['amount'] = $result['new_amount']; 
-    $stmt = $db->prepare('UPDATE guarantees SET raw_data = ? WHERE id = ?');
-    $stmt->execute([json_encode($raw), $guaranteeId]);
+    // === P2: MUTATION ISOLATION ===
+    // Route mutation through repository instead of direct SQL
+    // The following lines are already handled at the top of the script:
+    // require_once __DIR__ . '/../app/Support/autoload.php';
+    // use App\Support\Database;
+    // use App\Repositories\GuaranteeRepository;
+    // $db = Database::connect();
+    // $guaranteeRepo = new GuaranteeRepository($db);
+    
+    // Update raw_data through repository
+    $guaranteeRepo->updateRawData($guaranteeId, json_encode($raw));
 
     // 3. RECORD: Strict Event Recording (UE-03 Reduce)
     // We pass previous_amount explicitly to avoid reliance on snapshot if it was already dirty (safety)
