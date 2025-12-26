@@ -325,18 +325,18 @@ if ($currentRecord) {
         }
     }
 } else {
-    // No data in database - use empty state
+    // No data in database - use empty state with no confusing values
     $mockRecord = [
         'id' => 0,
         'session_id' => 0,
         'guarantee_number' => 'لا توجد بيانات',
-        'supplier_name' => 'قم باستيراد ملف Excel',
-        'bank_name' => '',
+        'supplier_name' => '—',
+        'bank_name' => '—',
         'amount' => 0,
-        'expiry_date' => date('Y-m-d'),
-        'issue_date' => date('Y-m-d'),
-        'contract_number' => '',
-        'type' => 'ابتدائي',
+        'expiry_date' => '—',
+        'issue_date' => '—',
+        'contract_number' => '—',
+        'type' => '—',
         'status' => 'pending'
     ];
     
