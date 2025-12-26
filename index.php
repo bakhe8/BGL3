@@ -1738,7 +1738,7 @@ $formattedSuppliers = array_map(function($s) {
                         
                         // Try to find matching bank
                         $bankMatch = [];
-                        if ($mockRecord['bank_id']) {
+                        if (!empty($mockRecord['bank_id'])) {
                             // If decision has bank_id, use it
                             foreach ($allBanks as $bank) {
                                 if ($bank['id'] == $mockRecord['bank_id']) {
