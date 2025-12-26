@@ -1789,71 +1789,45 @@ $formattedSuppliers = array_map(function($s) {
             <!-- Sidebar Body -->
             <div class="sidebar-body">
                 <!-- Notes Section -->
-                <div class="sidebar-section" x-data="{ showNoteInput: false, newNote: '' }">
+                <div class="sidebar-section" id="notesSection">
                     <div class="sidebar-section-title">
                         📝 الملاحظات
                     </div>
                     
                     <!-- Notes List -->
-                    <template x-if="notes.length === 0 && !showNoteInput">
-                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
-                            لا توجد ملاحظات
-                        </div>
-                    </template>
-                    
-                    <template x-for="note in notes" :key="note.id">
-                        <div class="note-item">
-                            <div class="note-header">
-                                <span class="note-author" x-text="note.created_by"></span>
-                                <span class="note-time" x-text="note.created_at?.substring(0,16)"></span>
+                    <div id="notesList">
+                        <?php if (empty($mockNotes)): ?>
+                            <div id="emptyNotesMessage" style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
+                                لا توجد ملاحظات
                             </div>
-                            <div class="note-content" x-text="note.content"></div>
-                        </div>
-                    </template>
+                        <?php else: ?>
+                            <?php foreach ($mockNotes as $note): ?>
+                                <div class="note-item">
+                                    <div class="note-header">
+                                        <span class="note-author"><?= htmlspecialchars($note['created_by'] ?? 'مستخدم') ?></span>
+                                        <span class="note-time"><?= substr($note['created_at'] ?? '', 0, 16) ?></span>
+                                    </div>
+                                    <div class="note-content"><?= htmlspecialchars($note['content'] ?? '') ?></div>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
                     
                     <!-- Note Input Box -->
-                    <div x-show="showNoteInput" class="note-input-box" x-transition>
-                        <textarea x-model="newNote" 
-                                  placeholder="أضف ملاحظة..."
-                                  x-ref="noteTextarea"
-                                  @keydown.escape="showNoteInput = false; newNote = ''"></textarea>
+                    <div id="noteInputBox" class="note-input-box" style="display: none;">
+                        <textarea id="noteTextarea" placeholder="أضف ملاحظة..."></textarea>
                         <div class="note-input-actions">
-                            <button @click="showNoteInput = false; newNote = ''" class="note-cancel-btn">
+                            <button onclick="cancelNote()" class="note-cancel-btn">
                                 إلغاء
                             </button>
-                            <button @click="async () => {
-                                if (!newNote.trim()) return;
-                                try {
-                                    const res = await fetch('/V3/api/save-note.php', {
-                                        method: 'POST',
-                                        headers: {'Content-Type': 'application/json'},
-                                        body: JSON.stringify({
-                                            guarantee_id: record.id,
-                                            content: newNote.trim()
-                                        })
-                                    });
-                                    const data = await res.json();
-                                    if (data.success) {
-                                        notes.unshift(data.note);
-                                        newNote = '';
-                                        showNoteInput = false;
-                                    } else {
-                                        alert('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'));
-                                    }
-                                } catch(e) { 
-                                    console.error('Error saving note:', e);
-                                    alert('حدث خطأ أثناء حفظ الملاحظة');
-                                }
-                            }" class="note-save-btn">
+                            <button onclick="saveNote()" class="note-save-btn">
                                 حفظ
                             </button>
                         </div>
                     </div>
                     
                     <!-- Add Note Button -->
-                    <button @click="showNoteInput = true; $nextTick(() => $refs.noteTextarea?.focus())" 
-                            x-show="!showNoteInput"
-                            class="add-note-btn">
+                    <button id="addNoteBtn" onclick="showNoteInput()" class="add-note-btn">
                         + إضافة ملاحظة
                     </button>
                 </div>
@@ -1866,64 +1840,34 @@ $formattedSuppliers = array_map(function($s) {
                     
                     <!-- Upload Button -->
                     <label class="add-note-btn" style="cursor: pointer; display: inline-block; width: 100%; text-align: center;">
-                        <input type="file" 
-                               style="display: none;" 
-                               @change="async (e) => {
-                                   const file = e.target.files[0];
-                                   if (!file) return;
-                                   
-                                   const formData = new FormData();
-                                   formData.append('file', file);
-                                   formData.append('guarantee_id', record.id);
-                                   
-                                   try {
-                                       const res = await fetch('/V3/api/upload-attachment.php', {
-                                           method: 'POST',
-                                           body: formData
-                                       });
-                                       const data = await res.json();
-                                       if (data.success) {
-                                           // Add to attachments list
-                                           attachments.unshift({
-                                               id: data.file.id,
-                                               file_name: data.file.name,
-                                               file_path: data.file.path,
-                                               created_at: new Date().toISOString()
-                                           });
-                                           e.target.value = ''; // Reset input
-                                       } else {
-                                           alert('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'));
-                                       }
-                                   } catch(err) {
-                                       console.error('Error uploading file:', err);
-                                       alert('حدث خطأ أثناء رفع الملف');
-                                   }
-                               }">
+                        <input type="file" id="fileInput" style="display: none;" onchange="uploadFile(event)">
                         + رفع ملف
                     </label>
                     
                     <!-- Attachments List -->
-                    <template x-if="attachments.length === 0">
-                        <div style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
-                            لا توجد مرفقات
-                        </div>
-                    </template>
-                    
-                    <template x-for="file in attachments" :key="file.id">
-                        <div class="note-item" style="display: flex; align-items: center; gap: 12px;">
-                            <div style="font-size: 24px;">📄</div>
-                            <div style="flex: 1; min-width: 0;">
-                                <div class="note-content" style="margin: 0; font-weight: 500;" x-text="file.file_name"></div>
-                                <div class="note-time" x-text="file.created_at?.substring(0,10)"></div>
+                    <div id="attachmentsList">
+                        <?php if (empty($mockAttachments)): ?>
+                            <div id="emptyAttachmentsMessage" style="text-align: center; color: var(--text-light); font-size: var(--font-size-sm); padding: 16px 0;">
+                                لا توجد مرفقات
                             </div>
-                            <a :href="'/V3/storage/' + file.file_path" 
-                               target="_blank" 
-                               style="color: var(--text-light); text-decoration: none; font-size: 18px; padding: 4px;"
-                               title="تحميل">
-                                ⬇️
-                            </a>
-                        </div>
-                    </template>
+                        <?php else: ?>
+                            <?php foreach ($mockAttachments as $file): ?>
+                                <div class="note-item" style="display: flex; align-items: center; gap: 12px;">
+                                    <div style="font-size: 24px;">📄</div>
+                                    <div style="flex: 1; min-width: 0;">
+                                        <div class="note-content" style="margin: 0; font-weight: 500;"><?= htmlspecialchars($file['file_name'] ?? 'ملف') ?></div>
+                                        <div class="note-time"><?= substr($file['created_at'] ?? '', 0, 10) ?></div>
+                                    </div>
+                                    <a href="/V3/storage/<?= htmlspecialchars($file['file_path'] ?? '') ?>" 
+                                       target="_blank" 
+                                       style="color: var(--text-light); text-decoration: none; font-size: 18px; padding: 4px;"
+                                       title="تحميل">
+                                        ⬇️
+                                    </a>
+                                </div>
+                            <?php endforeach; ?>
+                        <?php endif; ?>
+                    </div>
                 </div>
             </div>
         </aside>
@@ -1935,6 +1879,80 @@ $formattedSuppliers = array_map(function($s) {
     <?php require __DIR__ . '/partials/paste-modal.php'; ?>
 
     <!-- JavaScript - Vanilla Controller (No Alpine.js) -->
+    <script src="public/js/main.js?v=<?= time() ?>"></script>
+    <script src="public/js/input-modals.controller.js?v=<?= time() ?>"></script>
+    <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
+    <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
+    
+    <script>
+        // Notes functionality - Vanilla JS
+        function showNoteInput() {
+            document.getElementById('noteInputBox').style.display = 'block';
+            document.getElementById('addNoteBtn').style.display = 'none';
+            document.getElementById('noteTextarea').focus();
+        }
+        
+        function cancelNote() {
+            document.getElementById('noteInputBox').style.display = 'none';
+            document.getElementById('addNoteBtn').style.display = 'block';
+            document.getElementById('noteTextarea').value = '';
+        }
+        
+        async function saveNote() {
+            const content = document.getElementById('noteTextarea').value.trim();
+            if (!content) return;
+            
+            try {
+                const res = await fetch('/V3/api/save-note.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({
+                        guarantee_id: <?= $mockRecord['id'] ?? 0 ?>,
+                        content: content
+                    })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Reload page to show new note
+                    location.reload();
+                } else {
+                    alert('فشل حفظ الملاحظة: ' + (data.error || 'خطأ غير معروف'));
+                }
+            } catch(e) { 
+                console.error('Error saving note:', e);
+                alert('حدث خطأ أثناء حفظ الملاحظة');
+            }
+        }
+        
+        // Attachments functionality
+        async function uploadFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('guarantee_id', <?= $mockRecord['id'] ?? 0 ?>);
+            
+            try {
+                const res = await fetch('/V3/api/upload-attachment.php', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                if (data.success) {
+                    // Reload page to show new attachment
+                    location.reload();
+                } else {
+                    alert('فشل رفع الملف: ' + (data.error || 'خطأ غير معروف'));
+                }
+            } catch(err) {
+                console.error('Error uploading file:', err);
+                alert('حدث خطأ أثناء رفع الملف');
+            }
+            event.target.value = ''; // Reset input
+        }
+    </script>
+
     <script src="public/js/main.js?v=<?= time() ?>"></script>
     <script src="public/js/input-modals.controller.js?v=<?= time() ?>"></script>
     <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
