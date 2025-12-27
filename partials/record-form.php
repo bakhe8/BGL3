@@ -62,6 +62,8 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 </header>
 
 <div class="card-body">
+    <!-- Side-by-Side Grid for Supplier and Bank -->
+    <div class="fields-grid">
     <!-- Supplier Field -->
     <div class="field-group">
         <div class="field-row">
@@ -209,6 +211,8 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
             </div>
         </div>
     </div>
+    </div>
+    <!-- End of fields-grid -->
 
     <!-- Info Grid -->
     <div class="info-grid">

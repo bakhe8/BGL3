@@ -1226,6 +1226,22 @@ $formattedSuppliers = array_map(function($s) {
         }
         
         /* Field Group */
+        
+        /* Side-by-Side Grid for Supplier and Bank Fields */
+        .fields-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        
+        /* Responsive: Stack on smaller screens */
+        @media (max-width: 1024px) {
+            .fields-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+        
         .field-group {
             display: flex;
             flex-direction: column;
