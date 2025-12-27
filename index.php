@@ -1235,10 +1235,22 @@ $formattedSuppliers = array_map(function($s) {
             margin-bottom: 20px;
         }
         
+        /* Visual separator between fields */
+        .fields-grid > .field-group:first-child {
+            border-left: 1px solid #e5e7eb;
+            padding-left: 20px;
+        }
+        
         /* Responsive: Stack on smaller screens */
         @media (max-width: 1024px) {
             .fields-grid {
                 grid-template-columns: 1fr;
+            }
+            
+            /* Remove border on mobile */
+            .fields-grid > .field-group:first-child {
+                border-left: none;
+                padding-left: 0;
             }
         }
         
