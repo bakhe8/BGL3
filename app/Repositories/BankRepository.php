@@ -43,17 +43,17 @@ class BankRepository
     {
         return new Bank(
             (int) $row['id'],
-            $row['official_name'],
-            $row['official_name_en'] ?? null,
-            $row['official_name_ar'] ?? $row['official_name'] ?? null,  // ✅ Fixed
-            $row['normalized_key'] ?? null,
-            $row['short_code'] ?? null,
-            (int) ($row['is_confirmed'] ?? 0),
+            $row['arabic_name'],
+            $row['english_name'] ?? null,
+            $row['arabic_name'],
+            null, // normalized_key removed
+            $row['short_name'] ?? null,
+            1, // is_confirmed - always confirmed in new schema
             $row['created_at'] ?? null,
-            $row['department'] ?? null,
-            $row['address_line_1'] ?? null,
-            $row['address_line_2'] ?? null,
-            $row['contact_email'] ?? null,
+            null, // department removed
+            null, // address_line_1 removed
+            null, // address_line_2 removed
+            null  // contact_email removed
         );
     }
 
@@ -61,20 +61,19 @@ class BankRepository
     {
         $pdo = Database::connection();
         $stmt = $pdo->query('
-            SELECT id, official_name, official_name_en, short_code, 
-                   is_confirmed, created_at,
-                   department, address_line_1, address_line_2, contact_email
+            SELECT id, arabic_name as official_name, english_name as official_name_en, 
+                   short_name as short_code, created_at
             FROM banks
-            ORDER BY official_name ASC
+            ORDER BY arabic_name ASC
         ');
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    /** @return array<int, array{id:int, official_name:string, official_name_en:?string, normalized_key:?string, short_code:?string, is_confirmed:int, created_at:?string, updated_at:?string}> */
+    /** @return array<int, array{id:int, arabic_name:string, english_name:?string, short_name:?string, created_at:?string, updated_at:?string}> */
     public function search(string $normalizedLike): array
     {
         $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT id, official_name, official_name_en, normalized_key, short_code, is_confirmed, created_at, updated_at FROM banks WHERE normalized_key LIKE :q OR official_name LIKE :q');
+        $stmt = $pdo->prepare('SELECT id, arabic_name, english_name, short_name, created_at, updated_at FROM banks WHERE short_name LIKE :q OR arabic_name LIKE :q');
         $stmt->execute(['q' => "%{$normalizedLike}%"]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
