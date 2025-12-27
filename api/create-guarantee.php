@@ -41,7 +41,8 @@ try {
         'type' => $input['type'] ?? 'Initial',
         'currency' => 'SAR',
         'details' => $input['comment'] ?? '',
-        'source' => 'manual_entry'
+        'source' => 'manual_entry',
+        'related_to' => $input['related_to'] ?? 'contract', // 🔥 NEW
     ];
 
     // 2. Create Guarantee Record

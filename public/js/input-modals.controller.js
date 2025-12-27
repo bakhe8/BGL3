@@ -23,7 +23,19 @@ function showPasteModal() {
 
 // دالة لفتح صفحة الاستيراد
 function showImportModal() {
-    window.location.href = 'views/import.php';
+    // Trigger hidden file input
+    const fileInput = document.getElementById('hiddenFileInput');
+    if (fileInput) {
+        fileInput.click();
+    } else {
+        // Fallback: Show error instead of redirecting to non-existent page
+        console.error('File input element #hiddenFileInput not found');
+        if (typeof showToast === 'function') {
+            showToast('عفواً، خاصية الاستيراد غير متاحة حالياً', 'error');
+        } else {
+            alert('عفواً، خاصية الاستيراد غير متاحة حالياً');
+        }
+    }
 }
 
 // دالة لإغلاق جميع الـ modals
@@ -57,11 +69,12 @@ async function submitManualEntry() {
         expiry_date: document.getElementById('manualExpiry')?.value,
         type: document.getElementById('manualType')?.value,
         issue_date: document.getElementById('manualIssue')?.value,
-        comment: document.getElementById('manualComment')?.value
+        comment: document.getElementById('manualComment')?.value,
+        related_to: document.querySelector('input[name="relatedTo"]:checked')?.value || 'contract' // 🔥 NEW
     };
 
     try {
-        const response = await fetch('api/create-guarantee.php', {
+        const response = await fetch('/api/create-guarantee.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -90,7 +103,7 @@ async function parsePasteData() {
     }
 
     try {
-        const response = await fetch('api/parse-paste.php', {
+        const response = await fetch('/api/parse-paste.php', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ text })
@@ -175,10 +188,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Create FormData
             const formData = new FormData();
-            formData.append('excel_file', file);
+            formData.append('file', file);
 
             try {
-                const response = await fetch('api/import-excel.php', {
+                const response = await fetch('/api/import.php', {
                     method: 'POST',
                     body: formData
                 });
@@ -189,7 +202,8 @@ document.addEventListener('DOMContentLoaded', function () {
                 loadingMsg.remove();
 
                 if (data.success) {
-                    showToast(`تم الاستيراد بنجاح!\n${data.imported || 0} سجل تم إضافته.`, 'success');
+                    const importedCount = data.data?.imported || data.imported || 0;
+                    showToast(`تم الاستيراد بنجاح!\n${importedCount} سجل تم إضافته.`, 'success');
                     setTimeout(() => window.location.reload(), 1500);
                 } else {
                     showToast('خطأ: ' + (data.error || 'فشل الاستيراد'), 'error');

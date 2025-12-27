@@ -52,7 +52,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('file', e.target.files[0]);
 
                 try {
-                    const res = await fetch('api/import.php', { method: 'POST', body: formData });
+                    const res = await fetch('/api/import.php', { method: 'POST', body: formData });
                     if (res.ok) {
                         const txt = await res.text();
                         try {

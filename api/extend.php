@@ -39,29 +39,24 @@ try {
     $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
     
     // 2. UPDATE: Execute system changes
-    // Create extension record
-    $result = $service->createExtension($guaranteeId);
-    
-    // Issue immediately
-    $service->issueExtension($result['action_id']);
-    
-    // Update source of truth (Raw Data)
+    // 🆕 Calculate new expiry date directly (always +1 year)
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
-    $raw['expiry_date'] = $result['new_expiry_date'];
+    $oldExpiry = $raw['expiry_date'] ?? '';
+    $newExpiry = date('Y-m-d', strtotime($oldExpiry . ' +1 year'));
     
-    // === P2: MUTATION ISOLATION ===
-    // Route mutation through repository instead of direct SQL
+    // Update source of truth (Raw Data)
+    $raw['expiry_date'] = $newExpiry;
+    
     // Update raw_data through repository
     $guaranteeRepo->updateRawData($guaranteeId, json_encode($raw));
 
     // 3. RECORD: Strict Event Recording (UE-02 Extend)
-    // Record extension event (timeline recording still enforced)
+    // 🆕 Record ONLY in guarantee_history (no guarantee_actions)
     \App\Services\TimelineRecorder::recordExtensionEvent(
         $guaranteeId, 
         $oldSnapshot, 
-        $result['new_expiry_date'], 
-        $result['action_id']
+        $newExpiry
     );
 
     // --------------------------------------------------------------------
@@ -74,7 +69,7 @@ try {
         'bank_name' => $raw['bank'] ?? '',
         'bank_id' => null,
         'amount' => $raw['amount'] ?? 0,
-        'expiry_date' => $result['new_expiry_date'] ?? ($raw['expiry_date'] ?? ''),
+        'expiry_date' => $newExpiry,  // 🆕 Use calculated value
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
         'type' => $raw['type'] ?? 'Initial',

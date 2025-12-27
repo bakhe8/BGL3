@@ -6,7 +6,7 @@ namespace App\Services;
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
-use PhpOffice\PhpSpreadsheet\IOFactory;
+use App\Support\SimpleXlsxReader;
 use RuntimeException;
 
 /**
@@ -39,13 +39,17 @@ class ImportService
         }
 
         // Load Excel
-        $spreadsheet = IOFactory::load($filePath);
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = $sheet->toArray();
+        // Load Excel using SimpleXlsxReader
+        try {
+            $rows = SimpleXlsxReader::read($filePath);
+        } catch (\Exception $e) {
+            throw new RuntimeException('فشل قراءة ملف Excel: ' . $e->getMessage());
+        }
 
         if (count($rows) < 2) {
             throw new RuntimeException('الملف فارغ أو لا يحتوي على بيانات');
         }
+
 
 
         // Smart Header Detection: Try first 5 rows to find the actual headers
@@ -64,10 +68,10 @@ class ImportService
         }
         
         if (!$headerMap || !isset($headerMap['supplier']) || !isset($headerMap['bank'])) {
-            throw new RuntimeException('لم يتم العثور على عمود المورد أو البنك');
+            throw new RuntimeException('لم يتم العثور على عمود المورد أو البنك في صف العناوين. الرجاء التأكد من أن الملف يحتوي على عناوين مثل: SUPPLIER, CONTRACTOR NAME, BANK NAME');
         }
 
-        // Data rows (skip header and any rows before it)
+        // Data rows (skip header)
         $dataRows = array_slice($rows, $headerRowIndex + 1);
         
         $imported = 0;
@@ -94,15 +98,14 @@ class ImportService
                 $type = $this->getColumn($row, $headerMap['type'] ?? null);
                 $contractNumber = $this->getColumn($row, $headerMap['contract'] ?? null);
 
-                // Validation
-                // Validation (Strict BR-01)
+                // Validation (All Required Fields)
                 $missingFields = [];
                 if (empty($supplier)) $missingFields[] = 'المورد';
                 if (empty($bank)) $missingFields[] = 'البنك';
                 if (empty($guaranteeNumber)) $missingFields[] = 'رقم الضمان';
                 if (empty($amount) || $amount <= 0) $missingFields[] = 'القيمة';
                 if (empty($expiryDate)) $missingFields[] = 'تاريخ الانتهاء';
-                if (empty($contractNumber)) $missingFields[] = 'رقم العقد';
+                if (empty($contractNumber)) $missingFields[] = 'رقم العقد/أمر الشراء';
 
                 if (!empty($missingFields)) {
                     $skipped[] = "الصف #{$rowNumber}: بيانات ناقصة (" . implode('، ', $missingFields) . ")";
@@ -117,8 +120,9 @@ class ImportService
                     'amount' => $amount,
                     'issue_date' => $issueDate,
                     'expiry_date' => $expiryDate,
-                    'type' => $type ?: 'ابتدائي',
+                    'type' => $type ?: 'نهائي',
                     'contract_number' => $contractNumber,
+                    'related_to' => $headerMap['contract_type'] ?? 'contract', // 🔥 NEW
                 ];
 
                 // Create Guarantee
@@ -185,8 +189,9 @@ class ImportService
             'amount' => isset($data['amount']) ? floatval($data['amount']) : 0,
             'issue_date' => $data['issue_date'] ?? null,
             'expiry_date' => $data['expiry_date'] ?? null,
-            'type' => $data['type'] ?? 'ابتدائي',
+            'type' => $data['type'] ?? 'نهائي',
             'contract_number' => $data['contract_number'] ?? null,
+            'related_to' => $data['related_to'] ?? 'contract', // 🔥 NEW
         ];
 
         $guarantee = new Guarantee(
@@ -210,62 +215,111 @@ class ImportService
     {
         $keywords = [
             'supplier' => [
-                'supplier', 'vendor', 'supplier name', 'vendor name', 'party name', 'contractor name',
+                'supplier', 'vendor', 'supplier name', 'vendor name', 'party name', 
+                'contractor name', 'contractor', 'company name', 'company',
                 'المورد', 'اسم المورد', 'اسم الموردين', 'الشركة', 'اسم الشركة', 'مقدم الخدمة',
             ],
             'guarantee' => [
+                // English (including common typos from real files)
                 'guarantee no', 'guarantee number', 'reference', 'ref no',
                 'bank guarantee number', 'bank gurantee number', 'bank guaranty number',
                 'gurantee no', 'gurantee number', 'bank gurantee', 'guranttee number',
-                'رقم الضمان', 'رقم المرجع', 'مرجع الضمان',
+                'bg number', 'bg no', 'bg#', 'bg ##',
+                // Arabic
+                'رقم الضمان', 'رقم المرجع', 'مرجع الضمان', 'الضمان البنكي',
             ],
             'type' => [
-                'type', 'guarantee type', 'category',
-                'نوع الضمان', 'نوع', 'فئة الضمان',
+                'type', 'guarantee type', 'category', 'bg type',
+                'نوع الضمان', 'نوع', 'فئة الضمان', 'النوع',
             ],
             'amount' => [
+                // English
                 'amount', 'value', 'total amount', 'guarantee amount',
-                'المبلغ', 'قيمة الضمان', 'قيمة', 'مبلغ الضمان',
+                'bg amount', 'gurantee amount', 'guarantee value',
+                // Arabic
+                'المبلغ', 'قيمة الضمان', 'قيمة', 'مبلغ الضمان', 'القيمة',
             ],
             'expiry' => [
-                'expiry date', 'exp date', 'validity', 'valid until', 'end date', 'validity date',
-                'تاريخ الانتهاء', 'صلاحية', 'تاريخ الصلاحية', 'ينتهي في',
+                // English (from real files)
+                'expiry date', 'exp date', 'validity', 'valid until', 'end date', 
+                'validity date', 'bg expiry date', 'expiry', 'valid till',
+                'expire date', 'expiration date', 'valid days', 'days valid',
+                // Arabic
+                'تاريخ الانتهاء', 'صلاحية', 'تاريخ الصلاحية', 'ينتهي في', 'تاريخ انتهاء الصلاحية',
             ],
             'issue' => [
-                'issue date', 'issuance date', 'issued on', 'release date',
+                'issue date', 'issuance date', 'issued on', 'release date', 'start date',
                 'تاريخ الاصدار', 'تاريخ الإصدار', 'تاريخ التحرير', 'تاريخ الاصدار/التحرير',
             ],
             'contract' => [
+                // Contract
                 'contract number', 'contract no', 'contract #', 'contract reference', 'contract id',
                 'agreement number', 'agreement no',
+                // PO (very common in files)
+                'po number', 'po no', 'po#', 'po ##', 'purchase order', 'purchase order number',
+                // Arabic
                 'رقم العقد', 'رقم الاتفاقية', 'مرجع العقد',
+                'رقم أمر الشراء', 'أمر الشراء', 'رقم الشراء', 'امر شراء',
             ],
             'bank' => [
-                'bank', 'bank name', 'issuing bank', 'beneficiary bank',
+                // English
+                'bank', 'bank name', 'issuing bank', 'beneficiary bank', 'financial institution',
+                // Arabic
                 'البنك', 'اسم البنك', 'البنك المصدر', 'بنك الاصدار', 'بنك الإصدار',
             ],
         ];
 
         $map = [];
+        $usedIndices = []; // Prevent column duplication as user suggested
         
         foreach ($headerRow as $idx => $header) {
             $h = $this->normalizeHeader($header);
             
-            // Protect against capturing guarantee columns as Bank
-            $isGuaranteeish = str_contains($h, 'guarantee');
+            // Skip empty or already matched columns
+            if (empty($h) || in_array($idx, $usedIndices)) {
+                continue;
+            }
             
-            foreach ($keywords as $field => $synonyms) {
+            // Protect against capturing guarantee columns as Bank
+            $isGuaranteeish = str_contains($h, 'guarantee') || str_contains($h, 'gurantee');
+            
+        foreach ($keywords as $field => $synonyms) {
+                // Skip if this field already found
+                if (isset($map[$field])) {
+                    continue;
+                }
+                
                 if ($field === 'bank' && $isGuaranteeish) {
                     continue;
                 }
                 
-                foreach ($synonyms as $synonym) {
-                    if (str_contains($h, $this->normalizeHeader($synonym))) {
-                        // Store first match only (avoid duplicates)
-                        if (!isset($map[$field])) {
+                // Special handling for contract field to detect type
+                if ($field === 'contract') {
+                    foreach ($synonyms as $synonym) {
+                        if (str_contains($h, $this->normalizeHeader($synonym))) {
                             $map[$field] = $idx;
+                            
+                            // 🔥 NEW: Detect if it's Purchase Order or Contract based on ACTUAL column name
+                            $isPurchaseOrder = (
+                                str_contains($h, 'po') ||
+                                str_contains($h, 'purchase') ||
+                                str_contains($h, 'شراء') ||
+                                str_contains($h, 'امر')
+                            );
+                            $map['contract_type'] = $isPurchaseOrder ? 'purchase_order' : 'contract';
+                            
+                            $usedIndices[] = $idx; // Mark column as used
+                            break 2; // Exit both loops
                         }
-                        break 2;
+                    }
+                } else {
+                    // Normal handling for other fields
+                    foreach ($synonyms as $synonym) {
+                        if (str_contains($h, $this->normalizeHeader($synonym))) {
+                            $map[$field] = $idx;
+                            $usedIndices[] = $idx; // Mark column as used
+                            break 2; // Exit both loops
+                        }
                     }
                 }
             }
@@ -381,9 +435,11 @@ class ImportService
             throw new RuntimeException('الملف غير موجود');
         }
 
-        $spreadsheet = IOFactory::load($filePath);
-        $sheet = $spreadsheet->getActiveSheet();
-        $rows = $sheet->toArray();
+        try {
+            $rows = SimpleXlsxReader::read($filePath);
+        } catch (\Exception $e) {
+            throw new RuntimeException('فشل قراءة ملف Excel: ' . $e->getMessage());
+        }
 
         if (count($rows) < 2) {
             throw new RuntimeException('الملف فارغ');

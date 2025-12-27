@@ -81,7 +81,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                    class="field-input" 
                    id="supplierInput" 
                    name="supplier_name"
-                   value="<?= htmlspecialchars($record['supplier_name']) ?>"
+                   value="<?= htmlspecialchars($record['supplier_name'], ENT_QUOTES, 'UTF-8', false) ?>"
                    data-record-id="<?= $record['id'] ?>"
                    data-action="handleSupplierInput"
                    <?= $isHistorical ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
@@ -159,14 +159,14 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                    class="field-input" 
                    id="bankNameInput" 
                    name="bank_name"
-                   value="<?= htmlspecialchars($record['bank_name']) ?>"
+                   value="<?= htmlspecialchars($record['bank_name'], ENT_QUOTES, 'UTF-8', false) ?>"
                    placeholder="اسم البنك"
                    <?= $isHistorical ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
             <input type="hidden" id="bankSelect" name="bank_id" value="<?= $record['bank_id'] ?? '' ?>">
         </div>
         
         <div class="chips-row">
-            <!-- Render Best Bank Match if available -->
+            <!-- Always show Best Bank Match with star if found -->
             <?php if (!empty($bankMatch['id'])): ?>
                  <button class="chip <?= ($record['bank_name'] === $bankMatch['name']) ? 'chip-selected' : '' ?>"
                         data-action="selectBank"
@@ -177,8 +177,11 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                 </button>
             <?php endif; ?>
 
-            <!-- Render Top Banks from list (Limit to prevent overflow) -->
-            <?php if (isset($banks)): ?>
+            <!-- Only show generic banks list if confidence is low (<80%) or no match -->
+            <?php 
+                $showGenericBanks = empty($bankMatch['score']) || $bankMatch['score'] < 80;
+                if (isset($banks) && $showGenericBanks && !$isHistorical): 
+            ?>
                 <?php 
                     $count = 0; 
                     foreach ($banks as $bank): 
@@ -187,7 +190,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                         if ($count > 5) break; // Limit to 5 generic banks
                         $count++;
                 ?>
-                    <button class="chip <?= ($record['bank_id'] == $bank['id']) ? 'chip-selected' : '' ?>"
+                    <button class="chip <?= (isset($record['bank_id']) && $record['bank_id'] == $bank['id']) ? 'chip-selected' : '' ?>"
                             data-action="selectBank"
                             data-id="<?= $bank['id'] ?>"
                             data-name="<?= htmlspecialchars($bank['official_name']) ?>">
@@ -210,6 +213,20 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <!-- Info Grid -->
     <div class="info-grid">
         <div class="info-item">
+            <div class="info-label">رقم الضمان</div>
+            <div class="info-value"><?= htmlspecialchars($record['guarantee_number'] ?? 'N/A') ?></div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">
+                <?php 
+                // 🔥 Read from raw_data to determine correct label
+                $relatedTo = $guarantee->rawData['related_to'] ?? 'contract';
+                echo $relatedTo === 'purchase_order' ? 'رقم أمر الشراء' : 'رقم العقد';
+                ?>
+            </div>
+            <div class="info-value"><?= htmlspecialchars($record['contract_number']) ?></div>
+        </div>
+        <div class="info-item">
             <div class="info-label">المبلغ</div>
             <div class="info-value highlight">
                 <?= number_format($record['amount'], 0) ?> ر.س
@@ -220,20 +237,8 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
             <div class="info-value"><?= htmlspecialchars($record['expiry_date']) ?></div>
         </div>
         <div class="info-item">
-            <div class="info-label">رقم العقد</div>
-            <div class="info-value"><?= htmlspecialchars($record['contract_number']) ?></div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">تاريخ الإصدار</div>
-            <div class="info-value"><?= htmlspecialchars($record['issue_date']) ?></div>
-        </div>
-        <div class="info-item">
             <div class="info-label">النوع</div>
             <div class="info-value"><?= htmlspecialchars($record['type']) ?></div>
-        </div>
-        <div class="info-item">
-            <div class="info-label">رقم الضمان</div>
-            <div class="info-value"><?= htmlspecialchars($record['guarantee_number'] ?? 'N/A') ?></div>
         </div>
     </div>
 </div>

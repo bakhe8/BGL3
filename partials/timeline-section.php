@@ -87,11 +87,28 @@ $eventCount = count($timeline);
                                     </span>
                                 </div>
                                 <?php if ($isLatest): ?>
-                                <span style="background: #1e293b; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 2px;">الحالي</span>
+                                <span style="background: #1e293b; color: white; font-size: 9px; font-weight: 600; padding: 2px 6px; border-radius: 2px;">آخر حدث</span>
                                 <?php endif; ?>
                             </div>
                             
                             <!-- Event Changes Details -->
+                            
+                            <?php 
+                            // 🆕 Show import source for import/reimport events
+                            if (in_array($event['event_type'] ?? '', ['import', 'reimport'])):
+                                $sourceLabels = [
+                                    'excel' => ['text' => '📁 ملف Excel', 'color' => '#3b82f6'],
+                                    'smart_paste' => ['text' => '⚡ لصق ذكي', 'color' => '#8b5cf6'],
+                                    'manual' => ['text' => '✍️ إدخال يدوي', 'color' => '#10b981']
+                                ];
+                                $source = $event['event_subtype'] ?? 'excel';
+                                $sourceInfo = $sourceLabels[$source] ?? ['text' => '📋 غير محدد', 'color' => '#6b7280'];
+                            ?>
+                            <div style="font-size: 11px; color: <?= $sourceInfo['color'] ?>; font-weight: 500; margin: 6px 0; padding: 4px 8px; background: <?= $sourceInfo['color'] ?>15; border-radius: 3px; border-left: 3px solid <?= $sourceInfo['color'] ?>;">
+                                <?= $sourceInfo['text'] ?>
+                            </div>
+                            <?php endif; ?>
+                            
                             <?php if (($event['event_type'] ?? '') === 'modified' && $index < 2): ?>
                             <!-- DEBUG EVENT <?= $event['id'] ?>: raw=<?= htmlspecialchars(substr($event['event_details'] ?? 'NULL', 0, 100)) ?> | changes_count=<?= count($changes) ?> -->
                             <?php endif; ?>

@@ -199,11 +199,11 @@ if ($currentRecord) {
         ];
         
         try {
-            // Load from guarantee_history table
+            // 🆕 Load from guarantee_history table ONLY (unified timeline)
             $stmt = $db->prepare('
                 SELECT * FROM guarantee_history 
                 WHERE guarantee_id = ? 
-                ORDER BY created_at DESC
+                ORDER BY created_at DESC, id DESC
             ');
             $stmt->execute([$currentRecord->id]);
             $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -211,20 +211,20 @@ if ($currentRecord) {
             foreach ($history as $event) {
                 $mockTimeline[] = [
                     'id' => 'history_' . $event['id'],
-                    'event_id' => $event['id'],  // Add raw ID
+                    'event_id' => $event['id'],
                     'event_type' => $event['event_type'] ?? 'unknown',
+                    'event_subtype' => $event['event_subtype'] ?? null,  // 🆕
                     'type' => $event['event_type'] ?? 'unknown',
                     'icon' => $iconMap[$event['event_type'] ?? 'unknown'] ?? '📋',
                     'action' => $event['event_type'] ?? 'unknown',
                     'date' => $event['created_at'],
                     'created_at' => $event['created_at'],
-                    'event_details' => $event['event_details'] ?? null,  // CRITICAL: Add this!
-                    'change_reason' => '', // removed - use event_details
+                    'event_details' => $event['event_details'] ?? null,
+                    'change_reason' => '',
                     'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
                     'user' => $event['created_by'] ?? 'النظام',
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
-                    'snapshot_data' => $event['snapshot_data'] ?? '{}',  // Add raw too
-                    // UI LOGIC PROJECTION (Phase 4): Source badge
+                    'snapshot_data' => $event['snapshot_data'] ?? '{}',
                     'source_badge' => ($event['created_by'] ?? 'system') === 'system' ? '🤖 نظام' : '👤 مستخدم'
                 ];
             }
@@ -232,54 +232,10 @@ if ($currentRecord) {
             // If error, keep empty array
         }
         
-        // Load from guarantee_actions table
-        try {
-            $stmtActions = $db->prepare('
-                SELECT * FROM guarantee_actions 
-                WHERE guarantee_id = ? 
-                ORDER BY action_date DESC
-            ');
-            $stmtActions->execute([$currentRecord->id]);
-            $actions = $stmtActions->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($actions as $action) {
-                $description = '';
-                if ($action['action_type'] === 'extension') {
-                    $oldDate = htmlspecialchars($action['previous_expiry_date'] ?? '');
-                    $newDate = htmlspecialchars($action['new_expiry_date'] ?? '');
-                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• تاريخ الانتهاء:</strong> '
-                        . '<span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">' . $oldDate . '</span>'
-                        . ' <span style="color: #64748b;">→</span> '
-                        . '<span style="color: #059669; font-weight: 500;">' . $newDate . '</span></div>';
-                } elseif ($action['action_type'] === 'reduction') {
-                    $prevAmount = number_format($action['previous_amount'] ?? 0, 2);
-                    $newAmount = number_format($action['new_amount'] ?? 0, 2);
-                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• المبلغ:</strong> '
-                        . '<span style="color: #dc2626; text-decoration: line-through; opacity: 0.8;">' . htmlspecialchars($prevAmount) . ' ر.س</span>'
-                        . ' <span style="color: #64748b;">→</span> '
-                        . '<span style="color: #059669; font-weight: 500;">' . htmlspecialchars($newAmount) . ' ر.س</span></div>';
-                } elseif ($action['action_type'] === 'release') {
-                    $reason = htmlspecialchars($action['release_reason'] ?? '');
-                    $description = '<div style="margin: 4px 0;"><strong style="color: #1e293b;">• سبب الإفراج:</strong> '
-                        . '<span style="color: #059669; font-weight: 500;">' . $reason . '</span></div>';
-                }
-                
-                $mockTimeline[] = [
-                    'id' => 'action_' . $action['id'],
-                    'type' => $action['action_type'],
-                    'icon' => $iconMap[$action['action_type']] ?? '📋',
-                    'action' => $action['action_type'],
-                    'date' => $action['action_date'],
-                    'created_at' => $action['action_date'],
-                    'change_reason' => $description,
-                    'description' => $description,
-                    'user' => $action['created_by'] ?? 'النظام',
-                    'action_status' => $action['action_status'] ?? 'pending'
-                ];
-            }
-        } catch (\Exception $e) {
-            // If error, skip actions
-        }
+        // Sort timeline by date (most recent first)
+        usort($mockTimeline, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
         
         // Sort all timeline events by date descending
         usort($mockTimeline, function($a, $b) {
@@ -923,6 +879,7 @@ $formattedSuppliers = array_map(function($s) {
         
         /* Record Header */
         .record-header {
+            position: relative; /* Added for absolute positioning of nav controls */
             height: var(--height-record-header);
             background: var(--bg-card);
             border-bottom: 1px solid var(--border-primary);
@@ -1406,7 +1363,7 @@ $formattedSuppliers = array_map(function($s) {
         /* Info Grid */
         .info-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(5, 1fr);
             gap: var(--space-md);
             padding: var(--space-md);
             background: var(--bg-secondary);
@@ -1647,11 +1604,16 @@ $formattedSuppliers = array_map(function($s) {
             <header class="record-header">
                 <div class="record-title">
                     <h1>ضمان رقم <span id="guarantee-number-display"><?= htmlspecialchars($mockRecord['guarantee_number']) ?></span></h1>
-                    <span class="badge badge-pending">يحتاج قرار</span>
+                    <?php
+                        // Display status badge based on actual status
+                        $statusClass = ($mockRecord['status'] === 'approved') ? 'badge-approved' : 'badge-pending';
+                        $statusText = ($mockRecord['status'] === 'approved') ? 'جاهز' : 'يحتاج قرار';
+                    ?>
+                    <span class="badge <?= $statusClass ?>"><?= $statusText ?></span>
                 </div>
                 
                 <!-- Navigation Controls -->
-                <div class="navigation-controls" style="display: flex; align-items: center; gap: 16px; margin: 0 auto;">
+                <div class="navigation-controls" style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px;">
                     <button class="btn btn-ghost btn-sm" 
                             data-action="previousRecord" 
                             data-id="<?= $prevId ?? '' ?>"
@@ -1708,7 +1670,7 @@ $formattedSuppliers = array_map(function($s) {
                         // Load banks - now using real data!
                         $banks = $allBanks;
                         
-                        // Try to find matching bank
+                        // Try to find matching bank using intelligent detection
                         $bankMatch = [];
                         if (!empty($mockRecord['bank_id'])) {
                             // If decision has bank_id, use it
@@ -1716,25 +1678,31 @@ $formattedSuppliers = array_map(function($s) {
                                 if ($bank['id'] == $mockRecord['bank_id']) {
                                     $bankMatch = [
                                         'id' => $bank['id'],
-                                        'name' => $bank['official_name']
+                                        'name' => $bank['official_name'],
+                                        'score' => 100
                                     ];
                                     break;
                                 }
                             }
                         } else {
-                            // Try simple name matching as fallback
-                            $excelBankNormalized = strtolower(trim($mockRecord['excel_bank'] ?? ''));
-                            if ($excelBankNormalized) {
-                                foreach ($allBanks as $bank) {
-                                    $bankNameNormalized = strtolower(trim($bank['official_name']));
-                                    if (str_contains($bankNameNormalized, $excelBankNormalized) || 
-                                        str_contains($excelBankNormalized, $bankNameNormalized)) {
+                            // Use intelligent detection via BankLearningRepository
+                            $excelBank = trim($mockRecord['excel_bank'] ?? '');
+                            if ($excelBank) {
+                                try {
+                                    $bankRepo = new \App\Repositories\BankLearningRepository($db);
+                                    $normalized = mb_strtolower($excelBank);
+                                    $suggestions = $bankRepo->findSuggestions($normalized, 1);
+                                    
+                                    if (!empty($suggestions)) {
                                         $bankMatch = [
-                                            'id' => $bank['id'],
-                                            'name' => $bank['official_name']
+                                            'id' => $suggestions[0]['id'],
+                                            'name' => $suggestions[0]['official_name'],
+                                            'score' => $suggestions[0]['score']
                                         ];
-                                        break;
                                     }
+                                } catch (\Exception $e) {
+                                    // Fallback to simple matching if learning repo fails
+                                    error_log("BankLearningRepository error: " . $e->getMessage());
                                 }
                             }
                         }
@@ -1773,6 +1741,8 @@ $formattedSuppliers = array_map(function($s) {
                         <span>لصق</span>
                     </button>
                 </div>
+                <!-- Hidden Input for Import -->
+                <input type="file" id="hiddenFileInput" style="display: none;" accept=".xlsx,.xls,.csv" />
             </div>
 
             <!-- Progress -->
@@ -1996,9 +1966,9 @@ $formattedSuppliers = array_map(function($s) {
         document.head.appendChild(style);
     </script>
 
-    <script src="public/js/main.js?v=<?= time() ?>"></script>
-    <script src="public/js/input-modals.controller.js?v=<?= time() ?>"></script>
-    <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
-    <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
+    <script src="/public/js/main.js?v=<?= time() ?>"></script>
+    <script src="/public/js/input-modals.controller.js?v=<?= time() ?>"></script>
+    <script src="/public/js/timeline.controller.js?v=<?= time() ?>"></script>
+    <script src="/public/js/records.controller.js?v=<?= time() ?>"></script>
 </body>
 </html>

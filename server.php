@@ -8,14 +8,25 @@ $file = __DIR__ . $uri;
 
 // Serve static files directly
 if ($uri !== '/' && file_exists($file) && !is_dir($file)) {
-    $ext = pathinfo($file, PATHINFO_EXTENSION);
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
     
-    if ($ext === 'php') {
-        require $file;
+    $mimes = [
+        'css' => 'text/css',
+        'js'  => 'application/javascript',
+        'png' => 'image/png',
+        'jpg' => 'image/jpeg',
+        'gif' => 'image/gif',
+        'svg' => 'image/svg+xml',
+        'map' => 'application/json'
+    ];
+
+    if (isset($mimes[$ext])) {
+        header("Content-Type: " . $mimes[$ext]);
+        readfile($file);
         exit;
     }
     
-    return false; // Let PHP's built-in server handle it
+    return false; // Let PHP's built-in server handle others
 }
 
 // Default to index.php

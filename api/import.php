@@ -15,6 +15,16 @@ ini_set('memory_limit', '512M');
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
+// Fatal Error Handler
+register_shutdown_function(function() {
+    $error = error_get_last();
+    if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
+        file_put_contents(__DIR__ . '/../debug_import_error.txt', date('Y-m-d H:i:s') . " FATAL: " . print_r($error, true));
+        http_response_code(500);
+        echo json_encode(['success' => false, 'error' => 'Fatal Error', 'details' => $error]);
+    }
+});
+
 try {
     // Validate upload
     if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
@@ -80,6 +90,9 @@ try {
     }
 
 } catch (\Throwable $e) {
+    // Log exception to file since user cannot see JSON response easily
+    file_put_contents(__DIR__ . '/../debug_exception.txt', date('Y-m-d H:i:s') . " EXCEPTION: " . $e->getMessage() . "\nStack: " . $e->getTraceAsString() . "\n", FILE_APPEND);
+    
     http_response_code(500);
     echo json_encode([
         'success' => false,

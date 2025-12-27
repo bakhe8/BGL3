@@ -84,7 +84,7 @@ class TimelineRecorder {
             'action_id' => $actionId
         ]];
 
-        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User');
+        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'extension');
     }
 
     /**
@@ -106,7 +106,7 @@ class TimelineRecorder {
             'trigger' => 'reduction_action'
         ]];
 
-        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User');
+        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'reduction');
     }
 
     /**
@@ -124,7 +124,7 @@ class TimelineRecorder {
         // Add reason to event details if present
         $extraDetails = $reason ? ['reason_text' => $reason] : [];
 
-        return self::recordEvent($guaranteeId, 'release', $oldSnapshot, $changes, 'User', $extraDetails);
+        return self::recordEvent($guaranteeId, 'release', $oldSnapshot, $changes, 'User', $extraDetails, 'release');
     }
 
     /**
@@ -169,14 +169,23 @@ class TimelineRecorder {
         $creator = $isAuto ? 'System' : 'User';
         $extra = $confidence ? ['confidence' => $confidence] : [];
 
-        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, $creator, $extra);
+        $subtype = $isAuto ? 'ai_match' : 'manual_edit';
+        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, $creator, $extra, $subtype);
     }
 
     /**
      * Core Private Recording Method
      * Enforces Closed Event Contract
      */
-    private static function recordEvent($guaranteeId, $type, $snapshot, $changes, $creator, $extraDetails = []) {
+    private static function recordEvent(
+        $guaranteeId, 
+        $type, 
+        $snapshot, 
+        $changes, 
+        $creator, 
+        $extraDetails = [],
+        $subtype = null  // 🆕 event_subtype
+    ) {
         global $db;
         
         // Note: We do NOT calculate status change here anymore. 
@@ -195,13 +204,14 @@ class TimelineRecorder {
 
         $stmt = $db->prepare("
             INSERT INTO guarantee_history 
-            (guarantee_id, event_type, snapshot_data, event_details, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?)
+            (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
             $guaranteeId,
             $type,
+            $subtype,
             json_encode($snapshot),
             json_encode($eventDetails),
             date('Y-m-d H:i:s'),
@@ -249,19 +259,48 @@ class TimelineRecorder {
         $stmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? LIMIT 1");
         $stmt->execute([$guaranteeId]);
         if ($stmt->fetch()) {
-             // Event already exists! This violates LE-00 rule.
-             // But maybe we are re-importing? Then it is RE-import event?
-             // The user said: "Import... Event 1 only... No event can precede it".
-             // If we are calling this, we assume it's a new guarantee or we want to log re-import.
-             // But we have `saveReimportEvent`.
-             // So `recordImportEvent` should only be called for NEW guarantees.
              return false;
         }
 
+        //  🔥 FIX: Fetch raw_data from guarantees to create proper snapshot
+        $stmt = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$guaranteeId]);
+        $rawDataJson = $stmt->fetchColumn();
+        
+        if (!$rawDataJson) {
+            // Fallback if no raw_data
+            $snapshot = [];
+        } else {
+            $rawData = json_decode($rawDataJson, true) ?? [];
+            
+            // Create snapshot from RAW Excel/manual data (before any AI matching)
+            $snapshot = [
+                'supplier_name' => $rawData['supplier'] ?? '',
+                'bank_name' => $rawData['bank'] ?? '',
+                'supplier_id' => null,  // Not matched yet
+                'bank_id' => null,      // Not matched yet
+                'amount' => $rawData['amount'] ?? 0,
+                'expiry_date' => $rawData['expiry_date'] ?? '',
+                'issue_date' => $rawData['issue_date'] ?? '',
+                'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
+                'guarantee_number' => $rawData['guarantee_number'] ?? '',
+                'type' => $rawData['type'] ?? '',
+                'status' => 'pending'
+            ];
+        }
+
         $eventDetails = ['source' => $source];
-        $stmt = $db->prepare("INSERT INTO guarantee_history (guarantee_id, event_type, snapshot_data, event_details, created_at, created_by) VALUES (?, 'import', 'null', ?, ?, ?)");
-        $stmt->execute([$guaranteeId, json_encode($eventDetails), date('Y-m-d H:i:s'), 'النظام']);
-        return $db->lastInsertId();
+        
+        // Use recordEvent with subtype
+        return self::recordEvent(
+            $guaranteeId,
+            'import',
+            $snapshot,
+            [],  // no changes for import
+            'النظام',
+            $eventDetails,
+            $source  // event_subtype (excel/manual/smart_paste)
+        );
     }
 
     /**
@@ -287,7 +326,7 @@ class TimelineRecorder {
         $extra = ['reason' => $reason];
 
         // SE events are System attributed usually.
-        return self::recordEvent($guaranteeId, 'status_change', $oldSnapshot, $changes, 'System', $extra);
+        return self::recordEvent($guaranteeId, 'status_change', $oldSnapshot, $changes, 'System', $extra, 'status_change');
     }
     
     /**
@@ -313,7 +352,24 @@ class TimelineRecorder {
     
     public static function getEventDisplayLabel(array $event): string
     {
+        $subtype = $event['event_subtype'] ?? '';
         $type = $event['event_type'] ?? '';
+        
+        // 🆕 Prioritize event_subtype if available (unified timeline)
+        if ($subtype) {
+            return match ($subtype) {
+                'excel', 'manual', 'smart_paste' => 'استيراد',
+                'extension' => 'تمديد',
+                'reduction' => 'تخفيض',
+                'release' => 'إفراج',
+                'supplier_change', 'bank_change', 'manual_edit' => 'اعتماد',
+                'ai_match' => 'تطابق تلقائي',
+                'status_change' => 'تغيير حالة',
+                default => 'تحديث'
+            };
+        }
+        
+        // Fallback to old logic for legacy records without subtype
         $details = json_decode($event['event_details'] ?? '{}', true);
         $changes = $details['changes'] ?? [];
 
@@ -333,24 +389,23 @@ class TimelineRecorder {
             return false;
         };
 
-        if ($type === 'import') return 'استيراد الضمان';
-        if ($type === 'reimport') return 'محاولة استيراد مكررة';
+        if ($type === 'import') return 'استيراد';
+        if ($type === 'reimport') return 'استيراد مكرر';
 
         if ($type === 'modified') {
-            if ($hasField('expiry_date') || $hasTrigger('extension_action')) return 'تمديد الضمان';
-            if ($hasField('amount') || $hasTrigger('reduction_action')) return 'تخفيض قيمة الضمان';
-            if ($hasField('supplier_id') || $hasField('bank_id')) return 'اعتماد بيانات المورد أو البنك';
-            return 'تحديث بيانات'; 
+            if ($hasField('expiry_date') || $hasTrigger('extension_action')) return 'تمديد';
+            if ($hasField('amount') || $hasTrigger('reduction_action')) return 'تخفيض';
+            if ($hasField('supplier_id') || $hasField('bank_id')) return 'اعتماد';
+            return 'تحديث'; 
         }
 
-        if ($type === 'released' || $type === 'release') return 'إفراج الضمان';
+        if ($type === 'released' || $type === 'release') return 'إفراج';
 
         if ($type === 'status_change') {
-             // Basic status change (SE-01, SE-02) logic can be inferred or explicit
-             return 'تغير حالة الضمان';
+             return 'تغيير حالة';
         }
 
-        return 'تحديث بيانات';
+        return 'تحديث';
     }
 
     public static function getEventIcon(array $event): string

@@ -43,45 +43,34 @@ try {
     $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
 
     // 2. UPDATE: Execute system changes
-    // Create reduction through Service
-    $result = $service->createReduction($guaranteeId, (float)$newAmount);
-    
-    // Update raw_data with new amount
+    // 🆕 Directly update amount (no guarantee_actions)
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
-    $raw['amount'] = $result['new_amount']; 
-    // === P2: MUTATION ISOLATION ===
-    // Route mutation through repository instead of direct SQL
-    // The following lines are already handled at the top of the script:
-    // require_once __DIR__ . '/../app/Support/autoload.php';
-    // use App\Support\Database;
-    // use App\Repositories\GuaranteeRepository;
-    // $db = Database::connect();
-    // $guaranteeRepo = new GuaranteeRepository($db);
+    $previousAmount = $raw['amount'] ?? 0;
+    $raw['amount'] = (float)$newAmount;
     
     // Update raw_data through repository
     $guaranteeRepo->updateRawData($guaranteeId, json_encode($raw));
 
     // 3. RECORD: Strict Event Recording (UE-03 Reduce)
-    // We pass previous_amount explicitly to avoid reliance on snapshot if it was already dirty (safety)
+    // 🆕 Record ONLY in guarantee_history (no guarantee_actions)
     \App\Services\TimelineRecorder::recordReductionEvent(
         $guaranteeId, 
         $oldSnapshot, 
-        $result['new_amount'],
-        $result['previous_amount']
+        (float)$newAmount,
+        $previousAmount
     );
 
     // --------------------------------------------------------------------
 
     // Prepare record data for form
-    // Re-fetch to get latest state or manual construction
     $record = [
         'id' => $guarantee->id,
         'guarantee_number' => $guarantee->guaranteeNumber,
         'supplier_name' => $raw['supplier'] ?? '',
         'bank_name' => $raw['bank'] ?? '',
-        'bank_id' => null, // Will be filled by suggestions logic if needed
-        'amount' => $result['new_amount'],
+        'bank_id' => null,
+        'amount' => (float)$newAmount,  // 🆕 Use parameter value
         'expiry_date' => $raw['expiry_date'] ?? '',
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',

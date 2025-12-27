@@ -58,6 +58,28 @@
                         onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'">
                 </div>
 
+                <!-- 🔥 NEW: Related To (Contract vs Purchase Order) -->
+                <div>
+                    <label style="display: block; font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 8px;">
+                        نوع المستند <span style="color: #dc2626;">*</span>
+                    </label>
+                    <div style="display: flex; gap: 20px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #374151;">
+                            <input type="radio" name="relatedTo" value="contract" checked
+                                style="width: 18px; height: 18px; cursor: pointer; accent-color: #3b82f6;">
+                            <span>📄 عقد</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; color: #374151;">
+                            <input type="radio" name="relatedTo" value="purchase_order"
+                                style="width: 18px; height: 18px; cursor: pointer; accent-color: #10b981;">
+                            <span>🛒 أمر شراء</span>
+                        </label>
+                    </div>
+                    <small style="color: #6b7280; font-size: 12px; display: block; margin-top: 4px;">
+                        حدد نوع المستند المرتبط بهذا الضمان البنكي
+                    </small>
+                </div>
+
                 <!-- Amount -->
                 <div>
                     <label for="manualAmount" style="display: block; font-size: 14px; font-weight: 700; color: #374151; margin-bottom: 4px;">
