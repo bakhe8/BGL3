@@ -47,7 +47,6 @@ use App\Repositories\SupplierAlternativeNameRepository;
 use App\Repositories\SupplierRepository;
 use App\Repositories\BankRepository;
 use App\Repositories\SupplierOverrideRepository;
-use App\Repositories\BankLearningRepository;
 use App\Support\Normalizer;
 use App\Support\Settings;
 
@@ -62,8 +61,7 @@ class CandidateService
         private Normalizer $normalizer = new Normalizer(),
         private BankRepository $banks = new BankRepository(),
         private SupplierOverrideRepository $overrides = new SupplierOverrideRepository(),
-        private Settings $settings = new Settings(),
-        private ?BankLearningRepository $bankLearning = null,
+        private Settings $settings = new Settings()
     ) {
         // Initialize the split services
         $this->supplierService = new SupplierCandidateService(
@@ -77,8 +75,7 @@ class CandidateService
         $this->bankService = new BankCandidateService(
             $this->banks,
             $this->normalizer,
-            $this->settings,
-            $this->bankLearning
+            $this->settings
         );
     }
 

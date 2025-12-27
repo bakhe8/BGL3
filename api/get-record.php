@@ -212,35 +212,42 @@ try {
         }
     } catch (\Throwable $e) { /* Ignore learning errors */ }
 
-    // 2. Bank Matching
+    // 2. Bank Matching - Direct with BankNormalizer
     $bankMatch = ['score' => 0, 'id' => null, 'name' => ''];
     try {
-        $bankRepo = new \App\Repositories\BankLearningRepository($db);
         if (!empty($record['bank_name'])) {
-            $suggestions = $bankRepo->findSuggestions($record['bank_name'], 1);
-            if (!empty($suggestions)) {
-                $top = $suggestions[0];
+            $normalized = \App\Support\BankNormalizer::normalize($record['bank_name']);
+            $stmt = $db->prepare("
+                SELECT b.id, b.arabic_name as official_name
+                FROM banks b
+                JOIN bank_alternative_names a ON b.id = a.bank_id
+                WHERE a.normalized_name = ?
+                LIMIT 1
+            ");
+            $stmt->execute([$normalized]);
+            $bank = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($bank) {
                 $bankMatch = [
-                    'score' => $top['score'],
-                    'id' => $top['id'],
-                    'name' => $top['official_name']
+                    'score' => 100, // Direct match
+                    'id' => $bank['id'],
+                    'name' => $bank['official_name']
                 ];
                 
-                // Auto-select bank if confidence is high and no decision yet
-                if ($record['status'] === 'pending' && $top['score'] >= 80) {
+                // Auto-select bank if no decision yet
+                if ($record['status'] === 'pending') {
                     try {
                         // 1. Capture snapshot BEFORE change
                         $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
                         
                         // 2. Update record data
-                        $record['bank_id'] = $top['id'];
+                        $record['bank_id'] = $bank['id'];
                         
                         // 3. Prepare change data
                         $newData = [
-                            'bank_id' => $top['id'],
-                            'bank_name' => $top['official_name'],
-                            'bank_trigger' => 'ai_match',
-                            'bank_confidence' => $top['score']
+                            'bank_id' => $bank['id'],
+                            'bank_name' => $bank['official_name'],
+                            'bank_trigger' => 'direct_match'
                         ];
                         
                         // 4. Detect changes
@@ -254,7 +261,7 @@ try {
                             $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
                             $supplierId = $currentDec['supplier_id'] ?? null;
                             
-                            $newStatus = ($supplierId && $top['id']) ? 'approved' : 'pending';
+                            $newStatus = ($supplierId && $bank['id']) ? 'approved' : 'pending';
                             
                             $stmt = $db->prepare('
                                 INSERT OR REPLACE INTO guarantee_decisions 
@@ -264,15 +271,15 @@ try {
                             $stmt->execute([
                                 $guaranteeId,
                                 $supplierId,
-                                $top['id'],
+                                $bank['id'],
                                 $newStatus,
                                 date('Y-m-d H:i:s'),
-                                'ai_quick',
+                                'direct_match',
                                 date('Y-m-d H:i:s')
                             ]);
                             
-                            // 6. Save timeline event (Strict UE-01)
-                            \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, true, $top['score']);
+                            // 6. Save timeline event (Note: no longer recording bank events in timeline)
+                            // Bank matching is now deterministic, so timeline events removed
                             
                             // 7. Save Status Transition (SE-01) if changed
                             \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $newStatus, 'ai_completeness_check');
@@ -281,7 +288,7 @@ try {
                 }
             }
         }
-    } catch (\Throwable $e) { /* Ignore learning errors */ }
+    } catch (\Throwable $e) { /* Ignore matching errors */ }
     
     // Include only record form (timeline is separate in sidebar)
     ob_start();

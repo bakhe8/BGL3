@@ -6,8 +6,8 @@ namespace App\Services;
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\SupplierLearningRepository;
-use App\Repositories\BankLearningRepository;
 use App\Repositories\SupplierRepository;
+use App\Support\BankNormalizer;
 use PDO;
 
 /**
@@ -18,14 +18,13 @@ use PDO;
  * 
  * Core functions:
  * 1. Auto-matching suppliers and banks
- * 2. Creating decisions for high-confidence matches (>90% Supplier, >80% Bank)
+ * 2. Creating decisions for high-confidence matches (>90% Supplier, direct match for Banks)
  * 3. Logging auto-match events
  */
 class SmartProcessingService
 {
     private PDO $db;
     private LearningService $learningService;
-    private BankLearningRepository $bankLearningRepo;
     private ConflictDetector $conflictDetector;
 
     public function __construct()
@@ -36,7 +35,6 @@ class SmartProcessingService
         $learningRepo = new SupplierLearningRepository($this->db);
         $supplierRepo = new SupplierRepository();
         $this->learningService = new LearningService($learningRepo, $supplierRepo);
-        $this->bankLearningRepo = new BankLearningRepository($this->db);
         $this->conflictDetector = new ConflictDetector();
     }
 
@@ -98,18 +96,25 @@ class SmartProcessingService
                 }
             }
 
-            // 2. Bank Match
+            // 2. Bank Match - Direct matching with BankNormalizer
             $bankId = null;
-            $bankSuggestions = $this->bankLearningRepo->findSuggestions($bankName, 1);
-            $bankConfidence = 0;
             $finalBankName = '';
 
-            if (!empty($bankSuggestions)) {
-                $top = $bankSuggestions[0];
-                if ($top['score'] >= 80) { // Threshold for auto-approval
-                    $bankId = $top['id'];
-                    $finalBankName = $top['official_name'];
-                    $bankConfidence = $top['score'];
+            if (!empty($bankName)) {
+                $normalized = BankNormalizer::normalize($bankName);
+                $stmt2 = $this->db->prepare("
+                    SELECT b.id, b.arabic_name
+                    FROM banks b
+                    JOIN bank_alternative_names a ON b.id = a.bank_id
+                    WHERE a.normalized_name = ?
+                    LIMIT 1
+                ");
+                $stmt2->execute([$normalized]);
+                $bank = $stmt2->fetch(PDO::FETCH_ASSOC);
+                
+                if ($bank) {
+                    $bankId = $bank['id'];
+                    $finalBankName = $bank['arabic_name'];
                 }
             }
 
@@ -118,11 +123,10 @@ class SmartProcessingService
             $candidates = [
                 'supplier' => [
                     'candidates' => $supplierSuggestions,
-                    // Assume normalized logic matches TextParsingService usage
                     'normalized' => mb_strtolower(trim($supplierName)) 
                 ],
                 'bank' => [
-                    'candidates' => $bankSuggestions,
+                    'candidates' => [],  // Banks now use direct matching
                     'normalized' => mb_strtolower(trim($bankName))
                 ]
             ];
@@ -139,7 +143,7 @@ class SmartProcessingService
             // If BOTH matches have High Score AND No Conflicts -> Auto Approve!
             if ($supplierId && $bankId && empty($conflicts)) {
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
-                $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence, $finalBankName, $bankConfidence);
+                $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
                 $stats['auto_matched']++;
             } else if ($supplierSource === 'alias' && !empty($supplierSuggestions)) {
                 // SAFE LEARNING: Log blocked auto-approval from learned alias
@@ -168,29 +172,21 @@ class SmartProcessingService
 
     /**
      * Log timeline events for transparency
+     * Note: Bank matching is now automatic and deterministic, so we only log supplier events
      */
-    private function logAutoMatchEvents(int $guaranteeId, array $raw, string $supName, int $supScore, string $bankName, int $bankScore): void
+    private function logAutoMatchEvents(int $guaranteeId, array $raw, string $supName, int $supScore): void
     {
         $histStmt = $this->db->prepare("
             INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
             VALUES (?, ?, ?, ?, NOW(), ?)
         ");
 
-        // Supplier Event
+        // Supplier Event only
         $histStmt->execute([
             $guaranteeId,
             'auto_matched',
             "مطابقة تلقائية للمورد: {$raw['supplier']} -> {$supName} ({$supScore}%)",
             json_encode(['field' => 'supplier', 'to' => $supName]),
-            'System AI'
-        ]);
-
-        // Bank Event
-        $histStmt->execute([
-            $guaranteeId,
-            'auto_matched',
-            "مطابقة تلقائية للبنك: {$raw['bank']} -> {$bankName} ({$bankScore}%)",
-            json_encode(['field' => 'bank', 'to' => $bankName]),
             'System AI'
         ]);
         

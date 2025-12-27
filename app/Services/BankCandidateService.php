@@ -25,7 +25,6 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Repositories\BankRepository;
-use App\Repositories\BankLearningRepository;
 use App\Support\Normalizer;
 use App\Support\Settings;
 use App\Support\Config;
@@ -38,10 +37,9 @@ class BankCandidateService
     public function __construct(
         private BankRepository $banks = new BankRepository(),
         private Normalizer $normalizer = new Normalizer(),
-        private Settings $settings = new Settings(),
-        private ?BankLearningRepository $bankLearning = null,
+        private Settings $settings = new Settings()
     ) {
-        $this->bankLearning = $this->bankLearning ?: new BankLearningRepository();
+        // BankLearning removed - now using direct normalization
     }
 
     /**
@@ -59,32 +57,6 @@ class BankCandidateService
             return ['normalized' => '', 'candidates' => []];
         }
 
-        $blockedId = null;
-        $learning = $this->bankLearning?->findByNormalized($normalized);
-        
-        if ($learning) {
-            if ($learning['status'] === 'alias' && !empty($learning['bank_id'])) {
-                return [
-                    'normalized' => $normalized,
-                    'candidates' => [
-                        [
-                            'source' => 'learning_alias',
-                            'bank_id' => (int) $learning['bank_id'],
-                            'name' => $this->banks->find((int) $learning['bank_id'])?->officialName ?? '',
-                            'score' => 1.0,
-                            'score_raw' => 1.0,
-                        ]
-                    ],
-                ];
-            }
-            if ($learning['status'] === 'blocked') {
-                if (!empty($learning['bank_id']))
-                    $blockedId = (int) $learning['bank_id'];
-                else
-                    return ['normalized' => $normalized, 'candidates' => []];
-            }
-        }
-
         // Cache Banks
         if ($this->cachedBanks === null) {
             $this->cachedBanks = $this->banks->allNormalized();
@@ -94,8 +66,6 @@ class BankCandidateService
 
         // Iterate Cache Once for both Short and Long
         foreach ($this->cachedBanks as $row) {
-            if ($blockedId && (int) $row['id'] === $blockedId)
-                continue;
 
             // Short Code Logic
             if ($short !== '') {

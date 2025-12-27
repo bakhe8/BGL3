@@ -1685,24 +1685,30 @@ $formattedSuppliers = array_map(function($s) {
                                 }
                             }
                         } else {
-                            // Use intelligent detection via BankLearningRepository
+                            // Use direct bank matching with BankNormalizer
                             $excelBank = trim($mockRecord['excel_bank'] ?? '');
                             if ($excelBank) {
                                 try {
-                                    $bankRepo = new \App\Repositories\BankLearningRepository($db);
-                                    $normalized = mb_strtolower($excelBank);
-                                    $suggestions = $bankRepo->findSuggestions($normalized, 1);
+                                    $normalized = \App\Support\BankNormalizer::normalize($excelBank);
+                                    $stmt = $db->prepare("
+                                        SELECT b.id, b.arabic_name as name
+                                        FROM banks b
+                                        JOIN bank_alternative_names a ON b.id = a.bank_id
+                                        WHERE a.normalized_name = ?
+                                        LIMIT 1
+                                    ");
+                                    $stmt->execute([$normalized]);
+                                    $bank = $stmt->fetch(PDO::FETCH_ASSOC);
                                     
-                                    if (!empty($suggestions)) {
+                                    if ($bank) {
                                         $bankMatch = [
-                                            'id' => $suggestions[0]['id'],
-                                            'name' => $suggestions[0]['official_name'],
-                                            'score' => $suggestions[0]['score']
+                                            'id' => $bank['id'],
+                                            'name' => $bank['name']
                                         ];
                                     }
                                 } catch (\Exception $e) {
-                                    // Fallback to simple matching if learning repo fails
-                                    error_log("BankLearningRepository error: " . $e->getMessage());
+                                    // Fallback if matching fails
+                                    error_log("Bank matching error: " . $e->getMessage());
                                 }
                             }
                         }

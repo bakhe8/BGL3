@@ -65,8 +65,7 @@ class MatchingService
         private Normalizer $normalizer = new Normalizer(),
         private SupplierOverrideRepository $overrides = new SupplierOverrideRepository(),
         private Settings $settings = new Settings(),
-        private ?CandidateService $candidates = null,
-        private ?\App\Repositories\BankLearningRepository $bankLearning = null,
+        private ?CandidateService $candidates = null
     ) {
         $this->candidates = $this->candidates ?: new CandidateService(
             new SupplierRepository(),
@@ -76,7 +75,6 @@ class MatchingService
             new SupplierOverrideRepository(),
             $this->settings
         );
-        $this->bankLearning = $this->bankLearning ?: new \App\Repositories\BankLearningRepository();
     }
 
     /**
@@ -219,22 +217,7 @@ class MatchingService
             'normalized' => $normalized,
         ];
 
-        // Step 0: التعلم (alias/blocked) آخر قرار فقط
-        $learned = $this->bankLearning?->findByNormalized($normalized);
-        if ($learned) {
-            if ($learned['status'] === 'alias' && !empty($learned['bank_id'])) {
-                $result['bank_id'] = (int) $learned['bank_id'];
-                return $result;
-            }
-            if ($learned['status'] === 'blocked') {
-                if (!empty($learned['bank_id'])) {
-                    $result['_blocked_bank_id'] = (int) $learned['bank_id'];
-                } else {
-                    // محظور بشكل عام لهذا الاسم → لا تطابق
-                    return $result;
-                }
-            }
-        }
+        // Bank learning removed - now using direct normalization only
 
         // Load Cache
         if ($this->cachedBanks === null) {
