@@ -1703,7 +1703,8 @@ $formattedSuppliers = array_map(function($s) {
                                     if ($bank) {
                                         $bankMatch = [
                                             'id' => $bank['id'],
-                                            'name' => $bank['name']
+                                            'name' => $bank['name'],
+                                            'score' => 100 // Perfect match - hide other banks
                                         ];
                                     }
                                 } catch (\Exception $e) {
