@@ -1542,8 +1542,8 @@ $formattedSuppliers = array_map(function($s) {
         
         .preview-header-bar {
             height: 48px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-bottom: none;
+            background: #ffffff;
+            border-bottom: 1px solid #e5e7eb;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -1551,21 +1551,10 @@ $formattedSuppliers = array_map(function($s) {
             position: relative;
         }
         
-        .preview-header-bar::after {
-            content: '';
-            position: absolute;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            height: 3px;
-            background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
-        }
-        
         .preview-title {
             font-size: 15px;
             font-weight: 700;
-            color: #ffffff;
-            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            color: #1f2937;
             display: flex;
             align-items: center;
             gap: 8px;
@@ -1573,22 +1562,21 @@ $formattedSuppliers = array_map(function($s) {
         
         .preview-print {
             font-size: 14px;
-            color: #ffffff;
+            color: #3b82f6;
             font-weight: 600;
-            background: rgba(255, 255, 255, 0.2);
-            border: 1px solid rgba(255, 255, 255, 0.3);
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
             cursor: pointer;
             padding: 8px 16px;
             border-radius: 6px;
             transition: all 0.2s ease;
-            backdrop-filter: blur(10px);
         }
         
         .preview-print:hover {
-            background: rgba(255, 255, 255, 0.3);
-            border-color: rgba(255, 255, 255, 0.5);
+            background: #dbeafe;
+            border-color: #93c5fd;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
         }
         
         .preview-body {
