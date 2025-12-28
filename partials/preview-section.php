@@ -68,7 +68,7 @@ if (!isset($record)) {
                             <p class="letter-paragraph">
                                 إشارة إلى الضمان البنكي <span data-preview-target="type"><?= htmlspecialchars($guaranteeTypeArabic) ?></span> الموضح أعلاه، والصادر منكم لصالحنا على حساب شركة
                                 <span data-preview-target="supplier_name"><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span>
-                                بمبلغ قدره (<span data-preview-target="amount"><?= number_format($record['amount'] ?? 0, 2, '.', ',') ?></span>) ريال، نأمل منكم تمديد فترة سريان الضمان حتى تاريخ
+                                بمبلغ قدره (<span data-preview-target="amount"><?= number_format($record['amount'] ?? 0, 2, '.', ',') ?></span>)، نأمل منكم تمديد فترة سريان الضمان حتى تاريخ
                                 <span data-preview-target="expiry_date"><?= htmlspecialchars($record['expiry_date'] ?? '') ?></span>م مع بقاء
                                 الشروط الأخرى دون تغيير، وإفادتنا بذلك من خلال البريد الإلكتروني المخصص للضمانات البنكية لدى
                                 مستشفى الملك فيصل التخصصي ومركز الأبحاث بالرياض (<span lang="en">bgfinance@kfshrc.edu.sa</span>)، كما نأمل منكم إرسال أصل
