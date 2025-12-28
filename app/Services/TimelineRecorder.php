@@ -312,8 +312,51 @@ class TimelineRecorder {
     }
 
     /**
-     * Record Status Transition Event (SE-01, SE-02)
+     * Record Duplicate Import Event (RE-00)
+     * Called when user attempts to import/paste a guarantee that already exists
+     * Creates a timeline event for transparency without modifying guarantee data
      */
+    public static function recordDuplicateImportEvent($guaranteeId, $source = 'excel') {
+        global $db;
+        
+        // Fetch current raw_data for snapshot
+        $stmt = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$guaranteeId]);
+        $rawDataJson = $stmt->fetchColumn();
+        
+        if (!$rawDataJson) {
+            return false;
+        }
+        
+        $rawData = json_decode($rawDataJson, true) ?? [];
+        
+        // Create snapshot from current data
+        $snapshot = [
+            'supplier_name' => $rawData['supplier'] ?? '',
+            'bank_name' => $rawData['bank'] ?? '',
+            'amount' => $rawData['amount'] ?? 0,
+            'expiry_date' => $rawData['expiry_date'] ?? '',
+            'guarantee_number' => $rawData['guarantee_number'] ?? '',
+        ];
+
+        $eventDetails = [
+            'source' => $source,
+            'message' => 'محاولة استيراد مكرر - الضمان موجود بالفعل',
+            'action' => 'duplicate_detected'
+        ];
+        
+        // Use 'import' type with 'duplicate' subtype
+        return self::recordEvent(
+            $guaranteeId,
+            'import',
+            $snapshot,
+            [],  // no changes
+            'النظام',
+            $eventDetails,
+            'duplicate_' . $source  // event_subtype (duplicate_excel/duplicate_smart_paste)
+        );
+    }
+
     public static function recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $newStatus, $reason = 'auto_logic') {
         global $db;
         
@@ -366,7 +409,7 @@ class TimelineRecorder {
         // 🆕 Prioritize event_subtype if available (unified timeline)
         if ($subtype) {
             return match ($subtype) {
-                'excel', 'manual', 'smart_paste' => 'استيراد',
+                'excel', 'manual', 'smart_paste', 'smart_paste_multi' => 'استيراد',
                 'extension' => 'تمديد',
                 'reduction' => 'تخفيض',
                 'release' => 'إفراج',

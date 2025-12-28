@@ -63,7 +63,7 @@ $eventCount = count($timeline);
                     <div class="timeline-event-wrapper" 
                          data-event-id="<?= $event['id'] ?>"
                          data-event-type="<?= $event['event_subtype'] ?? 'unknown' ?>"
-                         data-snapshot='<?= htmlspecialchars($event['snapshot_data'] ?? '{}') ?>'
+                         data-snapshot='<?= htmlspecialchars($event['snapshot_data'] ?? '{}', ENT_QUOTES, 'UTF-8') ?>'
                          data-is-latest="<?= $isLatest ? '1' : '0' ?>"
                          style="position: relative; padding-right: 12px; margin-bottom: 10px; cursor: pointer;">
                         
@@ -101,10 +101,19 @@ $eventCount = count($timeline);
                                 $sourceLabels = [
                                     'excel' => ['text' => '📁 ملف Excel', 'color' => '#3b82f6'],
                                     'smart_paste' => ['text' => '⚡ لصق ذكي', 'color' => '#8b5cf6'],
+                                    'smart_paste_multi' => ['text' => '⚡ لصق ذكي', 'color' => '#8b5cf6'],
+                                    'duplicate_smart_paste' => ['text' => '🔄 لصق مكرر', 'color' => '#f59e0b'],
+                                    'duplicate_excel' => ['text' => '🔄 استيراد مكرر', 'color' => '#f59e0b'],
                                     'manual' => ['text' => '✍️ إدخال يدوي', 'color' => '#10b981']
                                 ];
-                                $source = $event['event_subtype'] ?? 'excel';
-                                $sourceInfo = $sourceLabels[$source] ?? ['text' => '📋 غير محدد', 'color' => '#6b7280'];
+                                // Fix: Check if event_subtype exists, if not check event_details
+                                $source = $event['event_subtype'] ?? '';
+                                if (!$source) {
+                                    $details = json_decode($event['event_details'] ?? '{}', true);
+                                    $source = $details['source'] ?? 'excel';
+                                }
+                                
+                                $sourceInfo = $sourceLabels[$source] ?? ['text' => '📁 استيراد ملف', 'color' => '#6b7280'];
                             ?>
                             <div style="font-size: 11px; color: <?= $sourceInfo['color'] ?>; font-weight: 500; margin: 6px 0; padding: 4px 8px; background: <?= $sourceInfo['color'] ?>15; border-radius: 3px; border-left: 3px solid <?= $sourceInfo['color'] ?>;">
                                 <?= $sourceInfo['text'] ?>

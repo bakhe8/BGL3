@@ -102,6 +102,16 @@ async function parsePasteData() {
         return;
     }
 
+    // Show loading state
+    const btnProcess = document.getElementById('btnProcessPaste');
+    const originalText = btnProcess.innerHTML;
+    btnProcess.innerHTML = '⏳ جاري التحليل...';
+    btnProcess.disabled = true;
+
+    // Hide previous results
+    document.getElementById('extractionPreview').style.display = 'none';
+    document.getElementById('smartPasteError').style.display = 'none';
+
     try {
         const response = await fetch('/api/parse-paste.php', {
             method: 'POST',
@@ -110,13 +120,131 @@ async function parsePasteData() {
         });
 
         const data = await response.json();
+
+        // Reset button
+        btnProcess.innerHTML = originalText;
+        btnProcess.disabled = false;
+
         if (data.success) {
-            showToast('تم استخراج البيانات بنجاح', 'success');
-            setTimeout(() => window.location.reload(), 1000);
+            // Check if multi-guarantee import
+            if (data.multi && data.results) {
+                // Multi-guarantee success!
+                const previewDiv = document.getElementById('extractionPreview');
+                const fieldsDiv = document.getElementById('extractionFields');
+
+                let multiHTML = `
+                    <div style="grid-column: 1 / -1; padding: 10px 14px; background: #dbeafe; border: 1px solid #60a5fa; border-radius: 6px; margin-bottom: 10px;">
+                        <div style="color: #1e40af; font-size: 14px; font-weight: 700;">
+                            🎯 تم استيراد ${data.count} ضمان بنجاح
+                        </div>
+                    </div>
+                `;
+
+                data.results.forEach((result, index) => {
+                    if (result.failed) {
+                        multiHTML += `
+                            <div style="grid-column: 1 / -1; padding: 8px 12px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 6px;">
+                                <div style="color: #991b1b; font-size: 12px;">❌ ${result.guarantee_number}: ${result.error}</div>
+                            </div>
+                        `;
+                    } else {
+                        multiHTML += `
+                            <div style="grid-column: 1 / -1; padding: 8px 12px; background: white; border: 1px solid #d1fae5; border-radius: 6px;">
+                                <div style="color: #10b981; font-size: 12px; font-weight: 600;">✅ ${result.guarantee_number}</div>
+                                <div style="color: #6b7280; font-size: 11px; margin-top: 2px;">${result.supplier || '—'} | ${result.amount ? result.amount.toLocaleString() + ' ر.س' : '—'}</div>
+                            </div>
+                        `;
+                    }
+                });
+
+                fieldsDiv.innerHTML = multiHTML;
+                previewDiv.style.display = 'block';
+
+                showToast(data.message, 'success');
+                setTimeout(() => window.location.reload(), 2000);
+                return;
+            }
+
+            // Single guarantee (existing logic)
+            const previewDiv = document.getElementById('extractionPreview');
+            const fieldsDiv = document.getElementById('extractionFields');
+
+            const fieldLabels = {
+                'guarantee_number': 'رقم الضمان',
+                'supplier': 'المورد',
+                'bank': 'البنك',
+                'amount': 'المبلغ',
+                'expiry_date': 'تاريخ الانتهاء',
+                'contract_number': 'رقم العقد',
+                'issue_date': 'تاريخ الإصدار',
+                'type': 'النوع'
+            };
+
+            let fieldsHTML = '';
+            for (const [key, label] of Object.entries(fieldLabels)) {
+                const value = data.extracted[key];
+                const status = data.field_status?.[key] || '⚠️';
+                if (value) {
+                    fieldsHTML += `
+                        <div style="padding: 6px 10px; background: white; border-radius: 6px; border: 1px solid #d1fae5;">
+                            <div style="color: #6b7280; font-size: 11px;">${status} ${label}</div>
+                            <div style="color: #1f2937; font-weight: 600; margin-top: 2px;">${value}</div>
+                        </div>
+                    `;
+                }
+            }
+
+            fieldsDiv.innerHTML = fieldsHTML;
+            previewDiv.style.display = 'block';
+
+            // Success!
+            showToast(data.message || 'تم استخراج البيانات بنجاح!', 'success');
+            setTimeout(() => window.location.href = '?id=' + data.id, 1500);
+
         } else {
-            showToast('خطأ: ' + (data.error || 'فشل تحليل النص'), 'error');
+            // Show detailed error
+            const errorDiv = document.getElementById('smartPasteError');
+            const errorMsg = document.getElementById('errorMessage');
+            const missingList = document.getElementById('missingFieldsList');
+
+            errorMsg.textContent = data.error || 'فشل في تحليل النص';
+
+            // Show what was extracted and what is missing
+            if (data.field_status) {
+                let statusHTML = '<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #fca5a5;"><strong>حالة الحقول:</strong><div style="margin-top: 8px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px;">';
+
+                const fieldLabels = {
+                    'guarantee_number': 'رقم الضمان',
+                    'supplier': 'المورد',
+                    'bank': 'البنك',
+                    'amount': 'المبلغ',
+                    'expiry_date': 'تاريخ الانتهاء',
+                    'contract_number': 'رقم العقد'
+                };
+
+                for (const [key, label] of Object.entries(fieldLabels)) {
+                    const status = data.field_status[key] || '❌';
+                    const value = data.extracted?.[key] || '—';
+                    const bgColor = status === '✅' ? '#f0fdf4' : '#fef2f2';
+                    const borderColor = status === '✅' ? '#86efac' : '#fca5a5';
+
+                    statusHTML += `
+                        <div style="padding: 6px 8px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 4px; font-size: 12px;">
+                            ${status} ${label}: ${value}
+                        </div>
+                    `;
+                }
+
+                statusHTML += '</div></div>';
+                missingList.innerHTML = statusHTML;
+            }
+
+            errorDiv.style.display = 'block';
+            showToast('فشل الاستخراج - يرجى مراجعة التفاصيل', 'error');
         }
     } catch (error) {
+        btnProcess.innerHTML = originalText;
+        btnProcess.disabled = false;
         console.error('Error:', error);
         showToast('حدث خطأ في الاتصال', 'error');
     }
