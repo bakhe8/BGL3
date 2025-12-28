@@ -24,7 +24,7 @@ $eventCount = count($timeline);
             <span><?= $eventCount ?></span> حدث
         </span>
     </header>
-    <div class="timeline-body h-full overflow-y-auto">
+    <div class="timeline-body h-full overflow-y-auto" style="padding-right: 4px;">
         <div class="timeline-list">
             
             <?php if (empty($timeline)): ?>
@@ -62,6 +62,7 @@ $eventCount = count($timeline);
                 ?>
                     <div class="timeline-event-wrapper" 
                          data-event-id="<?= $event['id'] ?>"
+                         data-event-type="<?= $event['event_subtype'] ?? 'unknown' ?>"
                          data-snapshot='<?= htmlspecialchars($event['snapshot_data'] ?? '{}') ?>'
                          data-is-latest="<?= $isLatest ? '1' : '0' ?>"
                          style="position: relative; padding-right: 12px; margin-bottom: 10px; cursor: pointer;">

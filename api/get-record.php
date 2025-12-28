@@ -296,13 +296,13 @@ try {
     $html = ob_get_clean();
     
     // Wrap in container div
-    echo '<div id="record-form-section" class="decision-card">';
+    echo '<div id="record-form-section" class="decision-card" data-current-event-type="current">';
     echo $html;
     echo '</div>';
     
 } catch (\Throwable $e) {
     http_response_code(500);
-    echo '<div id="record-form-section" class="card">';
+    echo '<div id="record-form-section" class="card" data-current-event-type="current">';
     echo '<div class="card-body" style="color: red;">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
     echo '</div>';
 }

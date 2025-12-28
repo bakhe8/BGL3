@@ -70,53 +70,126 @@ if (!window.TimelineController) {
                 return;
             }
 
-            // Save current state if first time entering historical view
-            if (!this.isHistoricalView) {
-                this.saveCurrentState();
-            }
 
+            // Mark as historical view (no client-side state saving - Server is source of truth)
             this.isHistoricalView = true;
             this.currentEventId = eventId;
+            this.currentGuaranteeId = snapshotData.guarantee_id ||
+                document.querySelector('[data-record-id]')?.dataset.recordId;
 
-            // Update form fields with snapshot data
-            this.updateFormFields(snapshotData);
+            // 🔥 BACKWARD COMPATIBILITY: Fill missing fields from previous snapshots
+            // (for old events created before createSnapshot() fix)
+            const completeSnapshot = this.fillMissingFields(eventId, snapshotData);
+
+            // Update form fields with complete snapshot data
+            this.updateFormFields(completeSnapshot);
 
             // Show historical banner
             this.showHistoricalBanner();
 
             // Disable editing
             this.disableEditing();
+
+            // Update preview if it's currently open (Derived View sync)
+            if (window.recordsController?.previewVisible) {
+                window.recordsController.updatePreviewFromDOM();
+            }
+        }
+
+        /**
+         * Fill missing snapshot fields from previous snapshots
+         * For backward compatibility with old events (before createSnapshot fix)
+         */
+        fillMissingFields(currentEventId, snapshot) {
+            const merged = { ...snapshot };
+
+            // Check if any critical field is missing
+            const hasMissingFields = !merged.bank_name || !merged.supplier_name;
+
+            if (!hasMissingFields) {
+                return merged; // All fields present
+            }
+
+            console.log('⚠️ Snapshot has missing fields, inheriting from previous events...');
+
+            // Find previous events in timeline
+            const allEvents = document.querySelectorAll('.timeline-event-wrapper');
+            let foundCurrent = false;
+
+            for (const eventWrapper of allEvents) {
+                const eventId = eventWrapper.dataset.eventId;
+
+                if (eventId === currentEventId) {
+                    foundCurrent = true;
+                    continue;
+                }
+
+                if (!foundCurrent) {
+                    // This is a previous event (before current in timeline)
+                    const prevSnapshotJson = eventWrapper.dataset.snapshot;
+                    if (!prevSnapshotJson) continue;
+
+                    try {
+                        const prevSnapshot = JSON.parse(prevSnapshotJson);
+
+                        // Inherit missing bank_name
+                        if (!merged.bank_name && prevSnapshot.bank_name) {
+                            merged.bank_name = prevSnapshot.bank_name;
+                            merged.bank_id = prevSnapshot.bank_id;
+                            console.log(`✓ Inherited bank_name: ${prevSnapshot.bank_name}`);
+                        }
+
+                        // Inherit missing supplier_name
+                        if (!merged.supplier_name && prevSnapshot.supplier_name) {
+                            merged.supplier_name = prevSnapshot.supplier_name;
+                            merged.supplier_id = prevSnapshot.supplier_id;
+                            console.log(`✓ Inherited supplier_name: ${prevSnapshot.supplier_name}`);
+                        }
+
+                        // Stop if all fields filled
+                        if (merged.bank_name && merged.supplier_name) {
+                            break;
+                        }
+                    } catch (e) {
+                        console.error('Failed to parse previous snapshot:', e);
+                    }
+                }
+            }
+
+            return merged;
         }
 
         updateFormFields(snapshot) {
             console.log('🔄 Updating fields with snapshot:', snapshot);
 
             // Update supplier input (ID: supplierInput)
+            // Always update to prevent "leakage" from previous events
             const supplierInput = document.getElementById('supplierInput');
-            if (supplierInput && snapshot.supplier_name) {
-                supplierInput.value = snapshot.supplier_name;
-                console.log('✓ Updated supplier:', snapshot.supplier_name);
+            if (supplierInput) {
+                supplierInput.value = snapshot.supplier_name || '';
+                console.log('✓ Updated supplier:', snapshot.supplier_name || '(cleared)');
             }
 
             // Update hidden supplier ID (ID: supplierIdHidden)
             const supplierIdHidden = document.getElementById('supplierIdHidden');
-            if (supplierIdHidden && snapshot.supplier_id) {
-                supplierIdHidden.value = snapshot.supplier_id;
-                console.log('✓ Updated supplier ID:', snapshot.supplier_id);
+            if (supplierIdHidden) {
+                supplierIdHidden.value = snapshot.supplier_id || '';
+                console.log('✓ Updated supplier ID:', snapshot.supplier_id || '(cleared)');
             }
 
             // Update bank name input (ID: bankNameInput)
+            // Always update to prevent "leakage" from previous events
             const bankNameInput = document.getElementById('bankNameInput');
-            if (bankNameInput && snapshot.bank_name) {
-                bankNameInput.value = snapshot.bank_name;
-                console.log('✓ Updated bank name:', snapshot.bank_name);
+            if (bankNameInput) {
+                bankNameInput.value = snapshot.bank_name || '';
+                console.log('✓ Updated bank name:', snapshot.bank_name || '(cleared)');
             }
 
             // Update hidden bank ID (ID: bankSelect)
             const bankSelect = document.getElementById('bankSelect');
-            if (bankSelect && snapshot.bank_id) {
-                bankSelect.value = snapshot.bank_id;
-                console.log('✓ Updated bank ID:', snapshot.bank_id);
+            if (bankSelect) {
+                bankSelect.value = snapshot.bank_id || '';
+                console.log('✓ Updated bank ID:', snapshot.bank_id || '(cleared)');
             }
 
             // Update info-value elements by matching labels
@@ -126,11 +199,24 @@ if (!window.TimelineController) {
 
                 if (!valueEl) return;
 
-                // Amount
+                // Amount - with NaN protection
                 if (label.includes('المبلغ') && snapshot.amount) {
-                    const formattedAmount = new Intl.NumberFormat('ar-SA').format(snapshot.amount);
-                    valueEl.textContent = formattedAmount + ' ر.س';
-                    console.log('✓ Updated amount:', formattedAmount);
+                    let amountValue = snapshot.amount;
+
+                    // Convert string to number safely
+                    if (typeof amountValue === 'string') {
+                        amountValue = parseFloat(amountValue.replace(/[^\d.]/g, ''));
+                    }
+
+                    // Validate number
+                    if (!isNaN(amountValue) && isFinite(amountValue)) {
+                        const formattedAmount = new Intl.NumberFormat('ar-SA').format(amountValue);
+                        valueEl.textContent = formattedAmount + ' ر.س';
+                        console.log('✓ Updated amount:', formattedAmount);
+                    } else {
+                        console.warn('⚠️ Invalid amount value:', snapshot.amount);
+                        valueEl.textContent = 'قيمة غير صحيحة ر.س';
+                    }
                 }
 
                 // Expiry date
@@ -248,77 +334,65 @@ if (!window.TimelineController) {
             });
         }
 
-        saveCurrentState() {
-            // Save ALL current form state (including amount, dates, status)
-            this.originalState = {
-                supplier: document.getElementById('supplierInput')?.value,
-                supplierId: document.getElementById('supplier-id')?.value,
-                bank: document.getElementById('bankNameInput')?.value,
-                bankId: document.getElementById('bankSelect')?.value,
-                amount: this.extractFieldValue('المبلغ'),
-                expiry_date: this.extractFieldValue('تاريخ الانتهاء'),
-                issue_date: this.extractFieldValue('تاريخ الإصدار'),
-                status: document.querySelector('.status-badge')?.textContent
-            };
-            console.log('💾 Saved current state:', this.originalState);
-        }
+        async loadCurrentState() {
+            console.log('🔄 Loading current state from server');
 
-        extractFieldValue(labelText) {
-            const items = document.querySelectorAll('.info-item');
-            for (const item of items) {
-                const label = item.querySelector('.info-label')?.textContent || '';
-                if (label.includes(labelText)) {
-                    const value = item.querySelector('.info-value')?.textContent || '';
-                    // Remove ر.س, commas, and Arabic numerals, keep only Western digits and decimal point
-                    return value.replace(' ر.س', '').replace(/,/g, '').trim();
-                }
-            }
-            return null;
-        }
-
-        loadCurrentState() {
-            console.log('🔄 Loading current state');
-            // Remove historical banner
             this.removeHistoricalBanner();
 
-            // Restore original state or reload from server
-            if (this.originalState) {
-                this.updateFormFields({
-                    supplier_name: this.originalState.supplier,
-                    supplier_id: this.originalState.supplierId,
-                    bank_name: this.originalState.bank,
-                    bank_id: this.originalState.bankId,
-                    amount: this.originalState.amount,
-                    expiry_date: this.originalState.expiry_date,
-                    issue_date: this.originalState.issue_date,
-                    status: this.originalState.status
-                });
-                console.log('✅ Restored all fields from saved state');
-            } else {
-                // Reload the page to get fresh current state
-                console.log('⚠️ No saved state, reloading page');
-                window.location.reload();
+            // Get guarantee ID  
+            const currentId = this.currentGuaranteeId ||
+                document.querySelector('[data-record-id]')?.dataset.recordId;
+
+            if (!currentId) {
+                console.error('No guarantee ID found');
                 return;
             }
 
-            // Enable editing
-            this.enableEditing();
+            try {
+                // Fetch current state from server (Server-Driven Architecture)
+                const response = await fetch(`/api/get-current-state.php?id=${currentId}`);
+                const data = await response.json();
 
-            // Remove active class from all timeline cards
-            document.querySelectorAll('.timeline-event-wrapper').forEach(card => {
-                card.querySelector('.timeline-event-card')?.classList.remove('active-event');
-            });
+                if (!data.success) {
+                    throw new Error(data.error || 'Failed to load current state');
+                }
 
-            // Activate latest event
-            const latestEvent = document.querySelector('.timeline-event-wrapper[data-is-latest="1"]');
-            if (latestEvent) {
-                latestEvent.querySelector('.timeline-event-card')?.classList.add('active-event');
+                // Update form fields with current state snapshot
+                this.updateFormFields(data.snapshot || {});
+
+                // Hide historical banner
+                this.removeHistoricalBanner();
+
+                // Enable editing (show buttons, enable inputs)
+                this.enableEditing();
+
+                // Reset timeline state
+                this.isHistoricalView = false;
+                this.currentEventId = null;
+                this.currentGuaranteeId = null;
+
+                // Re-activate latest timeline event
+                document.querySelectorAll('.timeline-event-wrapper').forEach(card => {
+                    card.querySelector('.timeline-event-card')?.classList.remove('active-event');
+                });
+
+                const latestEvent = document.querySelector('.timeline-event-wrapper[data-is-latest="1"]');
+                if (latestEvent) {
+                    latestEvent.querySelector('.timeline-event-card')?.classList.add('active-event');
+                }
+
+                // Update preview if it's currently open (Derived View sync)
+                if (window.recordsController?.previewVisible) {
+                    window.recordsController.updatePreviewFromDOM();
+                }
+
+                console.log('✅ Current state loaded from server');
+            } catch (error) {
+                console.error('Failed to load current state:', error);
+                if (window.showToast) {
+                    window.showToast('فشل تحميل الحالة الحالية', 'error');
+                }
             }
-
-            // Reset state
-            this.isHistoricalView = false;
-            this.currentEventId = null;
-            this.originalState = null;
         }
 
         showError(message) {

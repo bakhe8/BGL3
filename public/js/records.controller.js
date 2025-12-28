@@ -92,9 +92,44 @@ if (!window.RecordsController) {
         togglePreview() {
             this.previewVisible = !this.previewVisible;
             const previewEl = document.getElementById('preview-section');
-            if (previewEl) {
-                previewEl.style.display = this.previewVisible ? 'block' : 'none';
+            if (!previewEl) return;
+
+            if (this.previewVisible) {
+                // Update preview content from current displayed data (Presentation Logic)
+                this.updatePreviewFromDOM();
             }
+
+            previewEl.style.display = this.previewVisible ? 'block' : 'none';
+        }
+
+        updatePreviewFromDOM() {
+            console.log('🔄 Updating preview from current DOM state');
+
+            // Get all fields with data-preview-field
+            const fields = document.querySelectorAll('[data-preview-field]');
+
+            fields.forEach(field => {
+                const fieldName = field.dataset.previewField;
+                const fieldValue = this.getFieldValue(field);
+
+                // Update corresponding preview target
+                const target = document.querySelector(`[data-preview-target="${fieldName}"]`);
+                if (target && fieldValue) {
+                    target.textContent = fieldValue;
+                }
+            });
+
+            console.log('✅ Preview updated from DOM');
+        }
+
+        getFieldValue(element) {
+            // Handle input elements
+            if (element.tagName === 'INPUT' || element.tagName === 'SELECT') {
+                return element.value || '';
+            }
+
+            // Handle display elements (info-value)
+            return element.textContent?.trim() || '';
         }
 
         togglePrintMenu() {

@@ -1673,7 +1673,7 @@ $formattedSuppliers = array_map(function($s) {
                 </div>
                 
                 <!-- Navigation Controls -->
-                <div class="navigation-controls" style="position: absolute; left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 16px;">
+                <div class="navigation-controls" style="display: flex; align-items: center; gap: 16px;">
                     <button class="btn btn-ghost btn-sm" 
                             data-action="previousRecord" 
                             data-id="<?= $prevId ?? '' ?>"
@@ -1693,15 +1693,15 @@ $formattedSuppliers = array_map(function($s) {
                     </button>
                 </div>
                 
-                <div class="record-actions">
-                    <button class="btn btn-secondary btn-sm" data-action="saveAndNext">&#x1F4BE; حفظ</button>
+
+
                     
 
 
-                    <button class="btn btn-secondary btn-sm" data-action="extend">&#x1F504; تمديد</button>
-                    <button class="btn btn-secondary btn-sm" data-action="reduce">&#x1F4C9; تخفيض</button>
-                    <button class="btn btn-secondary btn-sm" data-action="release">&#x1F4E4; إفراج</button>
-                </div>
+
+
+
+
             </header>
 
             <!-- Content Wrapper -->

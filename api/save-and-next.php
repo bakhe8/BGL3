@@ -285,7 +285,7 @@ try {
     
     if ($nextIndex > $total) {
         // No more records
-        echo '<div id="record-form-section" class="card">';
+        echo '<div id="record-form-section" class="card" data-current-event-type="current">';
         echo '<div class="card-body" style="text-align: center; padding: 40px;">';
         echo '<h2>✅ تم الانتهاء من جميع السجلات</h2>';
         echo '<p>لا توجد سجلات أخرى للمعالجة</p>';

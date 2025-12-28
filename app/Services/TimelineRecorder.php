@@ -13,13 +13,16 @@ use PDO;
 class TimelineRecorder {
     
     /**
-     * Create snapshot of current guarantee state (BEFORE event)
+     * Create snapshot from Database (Server = Source Of Truth)
+     * 
+     * If $decisionData provided, use it. Else, fetch from DB.
+     * This snapshot represents the "current state" at the time of calling.
      */
     public static function createSnapshot($guaranteeId, $decisionData = null) {
         global $db;
         
         if (!$decisionData) {
-            // Fetch current state from database
+            // Fetch latest decision + raw data
             $stmt = $db->prepare("
                 SELECT 
                     g.raw_data, 
@@ -46,6 +49,11 @@ class TimelineRecorder {
         
         $rawData = json_decode($data['raw_data'], true);
         
+        // 🔥 FIX: Fallback to raw_data if decision fields are null
+        // This ensures snapshots ALWAYS have bank/supplier names
+        $supplierName = $data['supplier_name'] ?? $rawData['supplier'] ?? '';
+        $bankName = $data['bank_name'] ?? $rawData['bank'] ?? '';
+        
         return [
             'guarantee_number' => $rawData['guarantee_number'] ?? '',
             'contract_number' => $rawData['document_reference'] ?? '',
@@ -54,10 +62,10 @@ class TimelineRecorder {
             'issue_date' => $rawData['issue_date'] ?? '',
             'type' => $rawData['type'] ?? '',
             'supplier_id' => $data['supplier_id'],
-            'supplier_name' => $data['supplier_name'],
+            'supplier_name' => $supplierName,  // ← Always filled
             'bank_id' => $data['bank_id'],
-            'bank_name' => $data['bank_name'],
-            'status' => $data['status']
+            'bank_name' => $bankName,          // ← Always filled
+            'status' => $data['status'] ?? 'pending'
         ];
     }
     

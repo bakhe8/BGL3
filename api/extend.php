@@ -77,7 +77,7 @@ try {
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
 
     // Include partial template
-    echo '<div id="record-form-section" class="decision-card">';
+    echo '<div id="record-form-section" class="decision-card" data-current-event-type="current">';
     include __DIR__ . '/../partials/record-form.php';
     echo '</div>';
     
@@ -85,7 +85,7 @@ try {
 } catch (\Throwable $e) {
     // Return 400 for logic errors (like "Cannot extend after release")
     http_response_code(400);
-    echo '<div id="record-form-section" class="card">';
+    echo '<div id="record-form-section" class="card" data-current-event-type="current">';
     echo '<div class="card-body" style="color: red;">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
     echo '</div>';
 }

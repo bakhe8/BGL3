@@ -29,7 +29,9 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 ?>
 
 <!-- Record Form Content -->
-<div id="record-form-sec" data-record-index="<?= $index ?? 1 ?>" data-record-id="<?= $record['id'] ?? 0 ?>"></div>
+<div id="record-form-sec" 
+     data-record-index="<?= $index ?? 1 ?>" 
+     data-record-id="<?= $record['id'] ?? 0 ?>"></div>
 <?php if ($isHistorical): ?>
 <div style="background-color: #fffbeb; border: 1px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 12px;">
@@ -52,9 +54,14 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 
 <!-- Record Form Content -->
 <header class="card-header">
-    <div class="header-title">
-        <h2>تفاصيل الضمان</h2>
-    </div>
+    <div class="header-title" style="display: flex; align-items: center; width: 100%;">
+        <div class="record-actions" style="display: flex; gap: 8px; flex: 1; align-items: center;">
+            <button class="btn btn-secondary btn-sm" data-action="saveAndNext">💾 حفظ</button>
+            <div style="width: 1px; height: 20px; background: #e2e8f0; margin: 0 4px;"></div>
+            <button class="btn btn-secondary btn-sm" data-action="extend">🔄 تمديد</button>
+            <button class="btn btn-secondary btn-sm" data-action="reduce">📉 تخفيض</button>
+            <button class="btn btn-secondary btn-sm" data-action="release">📤 إفراج</button>
+        </div>
     <button class="btn btn-ghost btn-sm" data-action="togglePreview">
         <span>👁️</span>
         <span>معاينة الخطاب</span>
@@ -83,6 +90,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                    class="field-input" 
                    id="supplierInput" 
                    name="supplier_name"
+                   data-preview-field="supplier_name"
                    value="<?= htmlspecialchars($record['supplier_name'], ENT_QUOTES, 'UTF-8', false) ?>"
                    data-record-id="<?= $record['id'] ?>"
                    data-action="handleSupplierInput"
@@ -167,6 +175,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                    class="field-input" 
                    id="bankNameInput" 
                    name="bank_name"
+                   data-preview-field="bank_name"
                    value="<?= htmlspecialchars($record['bank_name'], ENT_QUOTES, 'UTF-8', false) ?>"
                    placeholder="اسم البنك"
                    <?= $isHistorical ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
@@ -218,7 +227,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
             <div class="hint-group">
                 <span class="hint-label">Excel:</span>
                 <span class="hint-value" id="excelBank">
-                    <?= htmlspecialchars($record['bank_name']) ?>
+                    <?= htmlspecialchars($guarantee->rawData['bank'] ?? '') ?>
                 </span>
             </div>
         </div>
@@ -230,7 +239,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <div class="info-grid">
         <div class="info-item">
             <div class="info-label">رقم الضمان</div>
-            <div class="info-value"><?= htmlspecialchars($record['guarantee_number'] ?? 'N/A') ?></div>
+            <div class="info-value" data-preview-field="guarantee_number"><?= htmlspecialchars($record['guarantee_number'] ?? 'N/A') ?></div>
         </div>
         <div class="info-item">
             <div class="info-label">
@@ -240,21 +249,21 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                 echo $relatedTo === 'purchase_order' ? 'رقم أمر الشراء' : 'رقم العقد';
                 ?>
             </div>
-            <div class="info-value"><?= htmlspecialchars($record['contract_number']) ?></div>
+            <div class="info-value" data-preview-field="contract_number"><?= htmlspecialchars($record['contract_number']) ?></div>
         </div>
         <div class="info-item">
             <div class="info-label">المبلغ</div>
-            <div class="info-value highlight">
+            <div class="info-value highlight" data-preview-field="amount">
                 <?= number_format($record['amount'], 0) ?> ر.س
             </div>
         </div>
         <div class="info-item">
             <div class="info-label">تاريخ الانتهاء</div>
-            <div class="info-value"><?= htmlspecialchars($record['expiry_date']) ?></div>
+            <div class="info-value" data-preview-field="expiry_date"><?= htmlspecialchars($record['expiry_date']) ?></div>
         </div>
         <div class="info-item">
             <div class="info-label">النوع</div>
-            <div class="info-value"><?= htmlspecialchars($record['type']) ?></div>
+            <div class="info-value" data-preview-field="type"><?= htmlspecialchars($record['type']) ?></div>
         </div>
     </div>
 </div>

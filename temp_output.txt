@@ -1,0 +1,44 @@
+﻿=================================================================================
+Events with Empty bank_name in Snapshot
+=================================================================================
+
+Total Events Found: 10
+
+Affected Guarantees: 5
+
+--------------------------------------------------------------------------------
+Guarantee ID: 13 (2 events with empty bank)
+--------------------------------------------------------------------------------
+  Event ID: 79    | Type: modified        | Subtype: manual_edit     | Bank: NULL       | Supplier: NULL
+  Event ID: 80    | Type: status_change   | Subtype: status_change   | Bank: NULL       | Supplier: NULL
+
+--------------------------------------------------------------------------------
+Guarantee ID: 17 (2 events with empty bank)
+--------------------------------------------------------------------------------
+  Event ID: 9     | Type: modified        | Subtype: manual_edit     | Bank: NULL       | Supplier: شركة التوريدات و
+  Event ID: 10    | Type: status_change   | Subtype: status_change   | Bank: NULL       | Supplier: شركة التوريدات و
+
+--------------------------------------------------------------------------------
+Guarantee ID: 18 (2 events with empty bank)
+--------------------------------------------------------------------------------
+  Event ID: 47    | Type: modified        | Subtype: manual_edit     | Bank: NULL       | Supplier: شركة فاروق ومأمو
+  Event ID: 48    | Type: status_change   | Subtype: status_change   | Bank: NULL       | Supplier: شركة فاروق ومأمو
+
+--------------------------------------------------------------------------------
+Guarantee ID: 20 (2 events with empty bank)
+--------------------------------------------------------------------------------
+  Event ID: 91    | Type: modified        | Subtype: manual_edit     | Bank: NULL       | Supplier: NULL
+  Event ID: 92    | Type: status_change   | Subtype: status_change   | Bank: NULL       | Supplier: NULL
+
+--------------------------------------------------------------------------------
+Guarantee ID: 33 (2 events with empty bank)
+--------------------------------------------------------------------------------
+  Event ID: 11    | Type: modified        | Subtype: manual_edit     | Bank: NULL       | Supplier: NULL
+  Event ID: 12    | Type: status_change   | Subtype: status_change   | Bank: NULL       | Supplier: NULL
+
+
+================================================================================
+Summary by Event Type:
+================================================================================
+  modified            : 5 events
+  status_change       : 5 events
