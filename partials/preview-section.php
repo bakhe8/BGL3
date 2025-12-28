@@ -53,9 +53,20 @@ if (!isset($record)) {
                         </div>
                         
                         <!-- المحتوى -->
+                        <?php
+                        // ترجمة نوع الضمان من الإنجليزية إلى العربية
+                        $typeTranslations = [
+                            'Final' => 'النهائي',
+                            'Preliminary' => 'الابتدائي',
+                            'Performance' => 'الأداء',
+                            'Advance Payment' => 'الدفعة المقدمة',
+                        ];
+                        $guaranteeType = $record['type'] ?? 'النهائي';
+                        $guaranteeTypeArabic = $typeTranslations[$guaranteeType] ?? $guaranteeType;
+                        ?>
                         <div class="preview-content">
                             <p class="letter-paragraph">
-                                إشارة إلى الضمان البنكي <span data-preview-target="type"><?= htmlspecialchars($record['type'] ?? 'النهائي') ?></span> الموضح أعلاه، والصادر منكم لصالحنا على حساب شركة
+                                إشارة إلى الضمان البنكي <span data-preview-target="type"><?= htmlspecialchars($guaranteeTypeArabic) ?></span> الموضح أعلاه، والصادر منكم لصالحنا على حساب شركة
                                 <span data-preview-target="supplier_name"><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span>
                                 بمبلغ قدره (<span data-preview-target="amount"><?= number_format($record['amount'] ?? 0, 2, '.', ',') ?></span>) ريال، نأمل منكم تمديد فترة سريان الضمان حتى تاريخ
                                 <span data-preview-target="expiry_date"><?= htmlspecialchars($record['expiry_date'] ?? '') ?></span>م مع بقاء
