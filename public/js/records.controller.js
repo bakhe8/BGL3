@@ -110,7 +110,13 @@ if (!window.RecordsController) {
 
             fields.forEach(field => {
                 const fieldName = field.dataset.previewField;
-                const fieldValue = this.getFieldValue(field);
+                let fieldValue = this.getFieldValue(field);
+
+                // خاص بالمبلغ: إزالة أي حروف غير رقمية (مثل ر.س)
+                if (fieldName === 'amount') {
+                    // الاحتفاظ بالأرقام، النقطة، والفاصلة فقط
+                    fieldValue = fieldValue.replace(/[^\d.,]/g, '').trim();
+                }
 
                 // Update corresponding preview target
                 const target = document.querySelector(`[data-preview-target="${fieldName}"]`);
