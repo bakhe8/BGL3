@@ -1573,14 +1573,32 @@ $formattedSuppliers = array_map(function($s) {
         
         .letter-paper {
             background: white;
-            width: 100%;
-            max-width: 480px;
-            padding: 32px;
+            /* A4 actual size in mm */
+            width: 210mm;
+            min-height: 297mm;
+            padding: 20mm;
             box-shadow: var(--shadow-lg);
-            font-size: var(--font-size-base);
+            font-size: 12pt;
             line-height: 1.8;
             color: #374151;
             border-radius: var(--radius-sm);
+            margin: 0 auto;
+            /* Scale down to fit screen */
+            transform-origin: top center;
+            transform: scale(0.7);
+        }
+        
+        /* Reset scale for print */
+        @media print {
+            .letter-paper {
+                transform: scale(1) !important;
+                box-shadow: none;
+                border-radius: 0;
+                margin: 0;
+                width: 210mm;
+                min-height: 297mm;
+                padding: 20mm;
+            }
         }
         
         .letter-header {

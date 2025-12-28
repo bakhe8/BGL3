@@ -22,9 +22,14 @@ $db = Database::connect();
 
 // Calculate Statistics
 try {
+    // DEBUG: Check what's happening
+    error_log("Statistics.php: Starting queries");
+    error_log("Database instance: " . get_class($db));
+    
     // Overview Statistics
     $stmt = $db->query("SELECT COUNT(*) as total FROM guarantees");
     $totalGuarantees = $stmt->fetch(PDO::FETCH_ASSOC)['total'];
+    error_log("Total guarantees found: " . $totalGuarantees);
     
     $stmt = $db->query("SELECT COALESCE(SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)), 0) as total_amount FROM guarantees");
     $totalAmount = $stmt->fetch(PDO::FETCH_ASSOC)['total_amount'];
@@ -70,11 +75,11 @@ try {
     
     // Top Banks
     $stmt = $db->query("
-        SELECT b.official_name, COUNT(*) as count
+        SELECT b.arabic_name as bank_name, COUNT(*) as count
         FROM guarantee_decisions d
         JOIN banks b ON d.bank_id = b.id
         WHERE d.bank_id IS NOT NULL
-        GROUP BY b.id, b.official_name
+        GROUP BY b.id, b.arabic_name
         ORDER BY count DESC
         LIMIT 10
     ");
@@ -120,6 +125,9 @@ try {
     
 } catch (Exception $e) {
     // Set defaults on error
+    $errorMessage = $e->getMessage();  // Capture error
+    error_log("Statistics error: " . $errorMessage);
+    
     $totalGuarantees = 0;
     $totalAmount = 0;
     $activeCount = 0;
@@ -380,6 +388,11 @@ function formatMoney($num) {
                     <div class="empty-state-icon">📊</div>
                     <h2>لا توجد بيانات للإحصائيات</h2>
                     <p>قاعدة البيانات فارغة. ابدأ بإضافة ضمانات بنكية لعرض الإحصائيات.</p>
+                    <?php if (isset($errorMessage)): ?>
+                        <div style="margin-top: 20px; padding: 15px; background: #fee; border-radius: 8px; color: #c00;">
+                            <strong>خطأ:</strong> <?= htmlspecialchars($errorMessage) ?>
+                        </div>
+                    <?php endif; ?>
                 </div>
             </div>
         <?php else: ?>
@@ -454,7 +467,7 @@ function formatMoney($num) {
                     <?php else: ?>
                         <?php foreach ($topBanks as $bank): ?>
                             <div class="list-item">
-                                <span class="list-item-name"><?= htmlspecialchars($bank['official_name']) ?></span>
+                                <span class="list-item-name"><?= htmlspecialchars($bank['bank_name']) ?></span>
                                 <span class="list-item-value"><?= formatNumber($bank['count']) ?> ضمان</span>
                             </div>
                         <?php endforeach; ?>
