@@ -85,7 +85,7 @@ try {
     // SAFEGUARD (Bank): Check for ID/Name Mismatch
     // Trust User Input > Hidden ID
     if ($bankId && $bankName) {
-        $chkStmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+        $chkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
         $chkStmt->execute([$bankId]);
         $dbName = $chkStmt->fetchColumn();
         
@@ -100,7 +100,7 @@ try {
         $normStub = mb_strtolower($bankName);
         
         // Strategy A: Exact Match
-        $stmt = $db->prepare('SELECT id FROM banks WHERE official_name = ?');
+        $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
         $stmt->execute([$bankName]);
         $bankId = $stmt->fetchColumn();
         
@@ -121,13 +121,13 @@ try {
                 // Generate normalized name (required by schema)
                 $normName = mb_strtolower(trim($bankName));
                 
-                $stmt = $db->prepare('INSERT INTO banks (official_name, short_code, normalized_name) VALUES (?, ?, ?)');
+                $stmt = $db->prepare('INSERT INTO banks (arabic_name, short_code, normalized_name) VALUES (?, ?, ?)');
                 $stmt->execute([$bankName, $shortCode, $normName]);
                 $bankId = $db->lastInsertId();
             } catch (\Exception $e) {
                 $bankError = $e->getMessage();
                 // Retry fetch
-                $stmt = $db->prepare('SELECT id FROM banks WHERE official_name = ?');
+                $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
                 $stmt->execute([$bankName]);
                 $bankId = $stmt->fetchColumn();
             }
@@ -171,7 +171,7 @@ try {
 
     // Resolve Old Bank Name
     if ($prevDecision && $prevDecision['bank_id']) {
-        $stmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+        $stmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
         $stmt->execute([$prevDecision['bank_id']]);
         $oldBank = $stmt->fetchColumn() ?: '';
     } else {
@@ -191,7 +191,7 @@ try {
     
     // 2. Check Bank Change
     // Fetch new bank name
-    $bnkStmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+    $bnkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
     $bnkStmt->execute([$bankId]);
     $newBank = $bnkStmt->fetchColumn();
     
@@ -255,6 +255,23 @@ try {
                 'source' => 'manual', // User manually saved this
                 'confidence' => 100
             ]);
+
+            // --- NEGATIVE LEARNING (Penalize Ignored Suggestions) ---
+            // If the user chose a supplier DIFFERENT from what we strongly suggested
+            if ($supplierId) {
+                $rawName = $currentGuarantee->rawData['supplier'];
+                $suggestions = $learningService->getSuggestions($rawName);
+                
+                foreach ($suggestions as $suggestion) {
+                    // Calculate score (it might be in 'score' or we assume high for aliases)
+                    $score = $suggestion['score'] ?? 0;
+                    
+                    // If suggestion was Strong (>80) AND was NOT chosen
+                    if ($suggestion['id'] != $supplierId && $score > 80) {
+                        $learningService->penalizeIgnoredSuggestion($suggestion['id'], $rawName);
+                    }
+                }
+            }
         }
     } catch (\Throwable $e) { /* Ignore learning errors to not block save */ }
     
@@ -314,7 +331,7 @@ try {
     }
     
     // Get banks for dropdown
-    $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
+    $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Include partial template to render HTML for next record

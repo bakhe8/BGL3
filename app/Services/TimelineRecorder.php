@@ -27,7 +27,7 @@ class TimelineRecorder {
                     d.bank_id, 
                     d.status,
                     s.official_name as supplier_name,
-                    b.official_name as bank_name
+                    b.arabic_name as bank_name
                 FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
                 LEFT JOIN suppliers s ON d.supplier_id = s.id
@@ -255,11 +255,11 @@ class TimelineRecorder {
     public static function recordImportEvent($guaranteeId, $source = 'excel') {
         global $db;
         
-        // Ensure no prior events exist (Strict LE-00)
-        $stmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? LIMIT 1");
+        // Check if import event already exists (prevent duplicates)
+        $stmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND event_type = 'import' LIMIT 1");
         $stmt->execute([$guaranteeId]);
         if ($stmt->fetch()) {
-             return false;
+             return false; // Already has import event
         }
 
         //  🔥 FIX: Fetch raw_data from guarantees to create proper snapshot
@@ -362,7 +362,7 @@ class TimelineRecorder {
                 'extension' => 'تمديد',
                 'reduction' => 'تخفيض',
                 'release' => 'إفراج',
-                'supplier_change', 'bank_change', 'manual_edit' => 'اعتماد',
+                'supplier_change', 'bank_change', 'manual_edit' => 'تطابق يدوي',
                 'ai_match' => 'تطابق تلقائي',
                 'status_change' => 'تغيير حالة',
                 default => 'تحديث'
@@ -391,11 +391,13 @@ class TimelineRecorder {
 
         if ($type === 'import') return 'استيراد';
         if ($type === 'reimport') return 'استيراد مكرر';
+        if ($type === 'auto_matched') return 'تطابق تلقائي';
+        if ($type === 'approved') return 'اعتماد';
 
         if ($type === 'modified') {
             if ($hasField('expiry_date') || $hasTrigger('extension_action')) return 'تمديد';
             if ($hasField('amount') || $hasTrigger('reduction_action')) return 'تخفيض';
-            if ($hasField('supplier_id') || $hasField('bank_id')) return 'اعتماد';
+            if ($hasField('supplier_id') || $hasField('bank_id')) return 'تطابق يدوي';
             return 'تحديث'; 
         }
 
@@ -412,13 +414,15 @@ class TimelineRecorder {
     {
         $label = self::getEventDisplayLabel($event);
         return match ($label) {
-            'استيراد الضمان' => '📥',
-            'اعتماد بيانات المورد أو البنك' => '✍️',
-            'تمديد الضمان' => '⏱️',
-            'تخفيض قيمة الضمان' => '💰',
-            'إفراج الضمان' => '🔓',
-            'الضمان جاهز' => '✅',
-            'يحتاج مراجعة' => '⚠️',
+            'استيراد' => '📥',
+            'استيراد مكرر' => '🔁',
+            'تطابق تلقائي' => '🤖',
+            'تطابق يدوي' => '✍️',
+            'اعتماد' => '✔️',
+            'تمديد' => '⏱️',
+            'تخفيض' => '💰',
+            'إفراج' => '🔓',
+            'تغيير حالة' => '🔄',
             default => '📝'
         };
     }

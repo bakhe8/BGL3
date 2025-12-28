@@ -22,7 +22,7 @@ class SupplierLearningRepository
             SELECT s.id, s.official_name, 'alias' as source, 100 as score
             FROM supplier_alternative_names a
             JOIN suppliers s ON a.supplier_id = s.id
-            WHERE a.normalized_name = ?
+            WHERE a.normalized_name = ? AND a.usage_count > 0
             LIMIT 1
         ");
         $stmt->execute([$normalizedName]);
@@ -71,7 +71,7 @@ class SupplierLearningRepository
         $norm = $this->normalize($rawName);
         $stmt = $this->db->prepare("
             UPDATE supplier_alternative_names 
-            SET usage_count = usage_count + 1, last_used_at = CURRENT_TIMESTAMP
+            SET usage_count = usage_count + 1
             WHERE supplier_id = ? AND normalized_name = ?
         ");
         $affected = $stmt->execute([$supplierId, $norm]);
@@ -86,6 +86,32 @@ class SupplierLearningRepository
         }
         
         // 2. We could update a general usage stats table here
+    }
+
+    /**
+     * Decrement usage for a supplier (Negative Learning)
+     * Used when a user explicitly ignores a suggestion
+     */
+    public function decrementUsage(int $supplierId, string $rawName): void
+    {
+        // 1. Update alias usage if exists
+        $norm = $this->normalize($rawName);
+        
+        // Decrease usage_count but ensure it doesn't drop below -5 (hard ignore limit)
+        $stmt = $this->db->prepare("
+            UPDATE supplier_alternative_names 
+            SET usage_count = CASE WHEN usage_count > -5 THEN usage_count - 1 ELSE -5 END
+            WHERE supplier_id = ? AND normalized_name = ?
+        ");
+        $stmt->execute([$supplierId, $norm]);
+        
+        if ($stmt->rowCount() > 0) {
+            error_log(sprintf(
+                "[SAFE_LEARNING] Decremented usage_count for supplier_id=%d, alias='%s' (Penalty)",
+                $supplierId,
+                $rawName
+            ));
+        }
     }
 
     /**

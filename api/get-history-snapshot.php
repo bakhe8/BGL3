@@ -15,13 +15,40 @@ try {
         throw new Exception('History ID is required');
     }
 
-    $historyId = (int)$_GET['history_id'];
+    $rawHistoryId = $_GET['history_id'];
     $db = Database::connect();
+    $event = null;
 
-    // 1. Fetch the history event
-    $stmt = $db->prepare('SELECT * FROM guarantee_history WHERE id = ?');
-    $stmt->execute([$historyId]);
-    $event = $stmt->fetch(PDO::FETCH_ASSOC);
+    // Check for "Synthetic Import" ID
+    if (strpos($rawHistoryId, 'import_synthetic_') === 0) {
+        // Extract Guarantee ID
+        $gId = (int)str_replace('import_synthetic_', '', $rawHistoryId);
+        
+        // Fetch Guarantee Info for Import Event
+        $stmtG = $db->prepare('SELECT id, imported_at, imported_by FROM guarantees WHERE id = ?');
+        $stmtG->execute([$gId]);
+        $gInfo = $stmtG->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$gInfo) throw new Exception('Guarantee not found for import event');
+        
+        // Construct Fake Event
+        $event = [
+            'id' => 0, // Mock
+            'guarantee_id' => $gInfo['id'],
+            'created_at' => $gInfo['imported_at'],
+            'change_reason' => 'Initial Import from ' . ($gInfo['import_source'] ?? 'Excel'),
+            'action' => 'import',
+            'snapshot_data' => '{}', // Base state = Raw Data
+            'created_by' => $gInfo['imported_by'] ?? 'System'
+        ];
+        
+    } else {
+        // Normal History Lookup
+        $historyId = (int)$rawHistoryId;
+        $stmt = $db->prepare('SELECT * FROM guarantee_history WHERE id = ?');
+        $stmt->execute([$historyId]);
+        $event = $stmt->fetch(PDO::FETCH_ASSOC);
+    }
 
     if (!$event) {
         throw new Exception('History event not found');
@@ -81,7 +108,7 @@ try {
     }
     
     if (!empty($record['bank_id']) && empty($snapshot['bank_name'])) {
-        $bankStmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+        $bankStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
         $bankStmt->execute([$record['bank_id']]);
         $name = $bankStmt->fetchColumn();
         if ($name) $record['bank_name'] = $name;

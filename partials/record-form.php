@@ -93,7 +93,13 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
         <!-- Suggestions Chips -->
         <div class="chips-row" id="supplier-suggestions" <?= $isHistorical ? 'style="display:none"' : '' ?>>
             <?php if (!empty($supplierMatch['suggestions'])): ?>
-                <?php foreach ($supplierMatch['suggestions'] as $sugg): ?>
+                <?php foreach ($supplierMatch['suggestions'] as $sugg): 
+                    // Skip if this suggestion is already the selected & approved supplier
+                    $isSelected = ($record['supplier_id'] == ($sugg['id'] ?? 0));
+                    $isApproved = ($record['status'] ?? '') === 'approved' || ($record['status'] ?? '') === 'issued'; // "Ready" or "Issued"
+                    
+                    if ($isSelected && $isApproved) continue;
+                ?>
                     <button class="chip <?= ($record['supplier_name'] === ($sugg['name'] ?? '')) ? 'chip-selected' : 'chip-candidate' ?>" 
                             data-action="selectSupplier"
                             data-id="<?= $sugg['id'] ?? 0 ?>"
@@ -168,8 +174,14 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
         </div>
         
         <div class="chips-row">
-            <!-- Always show Best Bank Match with star if found -->
-            <?php if (!empty($bankMatch['id'])): ?>
+            <!-- Always show Best Bank Match with star if found AND not already selected/approved -->
+            <?php 
+                $isAlreadySelected = isset($record['bank_id']) && 
+                                   isset($bankMatch['id']) && 
+                                   $record['bank_id'] == $bankMatch['id'];
+                
+                if (!empty($bankMatch['id']) && !$isAlreadySelected): 
+            ?>
                  <button class="chip <?= ($record['bank_name'] === $bankMatch['name']) ? 'chip-selected' : '' ?>"
                         data-action="selectBank"
                         data-id="<?= $bankMatch['id'] ?>"

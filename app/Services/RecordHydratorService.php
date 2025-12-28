@@ -109,7 +109,7 @@ class RecordHydratorService
     public function resolveBankName(?int $bankId, array $rawData): string
     {
         if ($bankId) {
-            $stmt = $this->db->prepare("SELECT official_name FROM banks WHERE id = ?");
+            $stmt = $this->db->prepare("SELECT arabic_name FROM banks WHERE id = ?");
             $stmt->execute([$bankId]);
             $name = $stmt->fetchColumn();
             return $name ?: ($rawData['bank'] ?? '');

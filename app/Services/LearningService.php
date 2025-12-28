@@ -91,6 +91,20 @@ class LearningService
     }
 
     /**
+     * Process a penalty for an ignored suggestion (Negative Learning)
+     */
+    public function penalizeIgnoredSuggestion(int $ignoredSupplierId, string $rawName): void
+    {
+        // Require minimal data
+        if (empty($ignoredSupplierId) || empty($rawName)) {
+            return;
+        }
+
+        // Just decrement basic usage count for this raw->supplier pair
+        $this->learningRepo->decrementUsage($ignoredSupplierId, $rawName);
+    }
+
+    /**
      * Get suggestions for a raw name
      */
     public function getSuggestions(string $rawName): array

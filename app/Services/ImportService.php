@@ -77,6 +77,7 @@ class ImportService
         $imported = 0;
         $skipped = [];
         $errors = [];
+        $importedIds = []; // Track IDs for timeline events
 
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2; // Excel row number (1-indexed + header)
@@ -135,7 +136,8 @@ class ImportService
                     importedBy: $importedBy
                 );
 
-                $this->guaranteeRepo->create($guarantee);
+                $created = $this->guaranteeRepo->create($guarantee);
+                $importedIds[] = $created->id; // Track ID
                 $imported++;
 
             } catch (\Throwable $e) {
@@ -145,6 +147,7 @@ class ImportService
 
         return [
             'imported' => $imported,
+            'imported_ids' => $importedIds, // Add IDs to result
             'total_rows' => count($dataRows),
             'skipped' => $skipped,
             'errors' => $errors,

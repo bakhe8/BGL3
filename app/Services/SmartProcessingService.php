@@ -177,25 +177,28 @@ class SmartProcessingService
     private function logAutoMatchEvents(int $guaranteeId, array $raw, string $supName, int $supScore): void
     {
         $histStmt = $this->db->prepare("
-            INSERT INTO guarantee_history (guarantee_id, action, change_reason, snapshot_data, created_at, created_by)
-            VALUES (?, ?, ?, ?, NOW(), ?)
+            INSERT INTO guarantee_history (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, NOW(), ?)
         ");
 
-        // Supplier Event only
+        // Single Auto-Match & Approval Event
+        // This represents both: supplier match + automatic approval in one logical action
         $histStmt->execute([
             $guaranteeId,
             'auto_matched',
-            "مطابقة تلقائية للمورد: {$raw['supplier']} -> {$supName} ({$supScore}%)",
-            json_encode(['field' => 'supplier', 'to' => $supName]),
-            'System AI'
-        ]);
-        
-        // Final Approval Event
-        $histStmt->execute([
-            $guaranteeId,
-            'approved',
-            'تم الاعتماد آلياً بناءً على ثقة عالية',
-            json_encode(['status' => 'approved']),
+            'ai_match',
+            json_encode([
+                'field' => 'supplier', 
+                'from' => $raw['supplier'],
+                'to' => $supName,
+                'confidence' => $supScore,
+                'status' => 'approved'
+            ]),
+            json_encode([
+                'action' => 'Auto-matched and approved',
+                'supplier' => ['raw' => $raw['supplier'], 'matched' => $supName, 'score' => $supScore],
+                'result' => 'Automatically approved based on high confidence match'
+            ]),
             'System AI'
         ]);
     }

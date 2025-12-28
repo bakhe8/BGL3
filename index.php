@@ -162,7 +162,7 @@ if ($currentRecord) {
         // If bank_id exists, load bank name
         if ($decision->bankId) {
             try {
-                $stmt = $db->prepare('SELECT official_name FROM banks WHERE id = ?');
+                $stmt = $db->prepare('SELECT arabic_name as official_name FROM banks WHERE id = ?');
                 $stmt->execute([$decision->bankId]);
                 $bank = $stmt->fetch(PDO::FETCH_ASSOC);
                 if ($bank) {
@@ -195,6 +195,10 @@ if ($currentRecord) {
             'reduction' => '📉',
             'manual_edit' => '✏️',
             'approve' => '✔️',
+            'approved' => '✔️',
+            'auto_matched' => '🤖',
+            'modified' => '📝',
+            'status_change' => '🔄',
             'update' => '📝'
         ];
         
@@ -225,7 +229,7 @@ if ($currentRecord) {
                     'user' => $event['created_by'] ?? 'النظام',
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
                     'snapshot_data' => $event['snapshot_data'] ?? '{}',
-                    'source_badge' => ($event['created_by'] ?? 'system') === 'system' ? '🤖 نظام' : '👤 مستخدم'
+                    'source_badge' => in_array($event['created_by'] ?? 'system', ['system', 'System', 'System AI', 'النظام', 'بواسطة النظام']) ? '🤖 نظام' : '👤 مستخدم'
                 ];
             }
         } catch (\Exception $e) {
@@ -244,11 +248,12 @@ if ($currentRecord) {
             return strtotime($dateB) - strtotime($dateA);
         });
         
-        // Always add import event if no events found
+        // Add import event if no events found
         if (empty($mockTimeline)) {
             $mockTimeline[] = [
                 'id' => 'import_1',
                 'type' => 'import',
+                'event_type' => 'import',
                 'icon' => '📥',
                 'action' => 'import',
                 'date' => $currentRecord->importedAt,
@@ -256,6 +261,7 @@ if ($currentRecord) {
                 'change_reason' => 'استيراد من ' . $currentRecord->importSource,
                 'description' => 'استيراد من ' . $currentRecord->importSource,
                 'user' => htmlspecialchars($currentRecord->importedBy ?? 'النظام', ENT_QUOTES),
+                'source_badge' => '🤖 نظام',
                 'changes' => []
             ];
         }
