@@ -1529,49 +1529,74 @@ $formattedSuppliers = array_map(function($s) {
         .preview-section {
             margin-top: var(--space-lg);
             background: var(--bg-card);
-            border: 1px solid var(--border-primary);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-md);
+            border: none;
+            border-radius: 12px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
             overflow: hidden;
+            transition: box-shadow 0.3s ease;
         }
         
-        .preview-header {
-            height: 36px;
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border-primary);
+        .preview-section:hover {
+            box-shadow: 0 8px 30px rgba(0, 0,0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+        }
+        
+        .preview-header-bar {
+            height: 48px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-bottom: none;
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 14px;
+            padding: 0 20px;
+            position: relative;
+        }
+        
+        .preview-header-bar::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
         }
         
         .preview-title {
-            font-size: var(--font-size-sm);
-            font-weight: var(--font-weight-bold);
-            color: var(--text-muted);
+            font-size: 15px;
+            font-weight: 700;
+            color: #ffffff;
+            text-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+            display: flex;
+            align-items: center;
+            gap: 8px;
         }
         
         .preview-print {
-            font-size: var(--font-size-sm);
-            color: var(--accent-primary);
-            font-weight: var(--font-weight-semibold);
-            background: none;
-            border: none;
+            font-size: 14px;
+            color: #ffffff;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.3);
             cursor: pointer;
-            padding: 4px 8px;
-            border-radius: var(--radius-sm);
-            transition: background var(--transition-fast);
+            padding: 8px 16px;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            backdrop-filter: blur(10px);
         }
         
         .preview-print:hover {
-            background: var(--bg-hover);
+            background: rgba(255, 255, 255, 0.3);
+            border-color: rgba(255, 255, 255, 0.5);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
         }
         
         .preview-body {
-            padding: var(--space-lg);
-            background: var(--bg-secondary);
+            padding: 32px;
+            background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
             display: flex;
             justify-content: center;
+            min-height: 400px;
         }
         
         /* Letter paper styles moved to assets/css/print-preview.css */
