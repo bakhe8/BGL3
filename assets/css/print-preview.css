@@ -1,0 +1,274 @@
+/* ===================================
+   Print Preview Styles - BGL System
+   Based on test/index.html template
+   =================================== */
+
+/* تحميل الخطوط المخصصة */
+@font-face {
+  font-family: 'AlMohanad';
+  src: url('../fonts/AL-Mohanad-Bold.ttf') format('truetype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'RobotoCondensed';
+  src: url('../fonts/RobotoCondensed-Light.ttf') format('truetype');
+  font-weight: 300;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* المتغيرات */
+:root {
+  --font-primary: 'AlMohanad', sans-serif;
+  --page-width: 210mm;
+  --page-height: 297mm;
+  --subject-accent: #c2d1c2;
+  --latin-font-family: 'Segoe UI', Tahoma, sans-serif;
+  --latin-font-size: 17px;
+  --latin-font-weight: 600;
+  --latin-line-height: 1.2;
+}
+
+/* الورقة الرئيسية - A4 */
+.letter-paper {
+  background: white;
+  width: var(--page-width);
+  min-height: var(--page-height);
+  margin: 0 auto;
+  padding: 0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  /* خلفية الترويسة */
+  background-image: url('../External Form.svg');
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: contain;
+}
+
+/* محتوى الورقة */
+.sheet-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  padding: 60mm 25mm 0 25mm;
+}
+
+/* منطقة الكتابة */
+.writing-area {
+  width: 100%;
+  flex: 1;
+  font-family: var(--font-primary);
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.2;
+  font-feature-settings: "anum";
+}
+
+.writing-area * {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: inherit;
+}
+
+/* النصوص الإنجليزية */
+.writing-area :lang(en),
+.writing-area [lang="en"] {
+  font-family: var(--latin-font-family);
+  font-size: var(--latin-font-size);
+  font-weight: var(--latin-font-weight);
+  line-height: var(--latin-line-height);
+  letter-spacing: 0.01em;
+  direction: ltr;
+  text-align: left;
+  display: inline-block;
+  font-feature-settings: "anum";
+}
+
+/* كونتينر المعاينة */
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 3mm;
+}
+
+/* رأس الخطاب */
+.preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin: 0;
+}
+
+.preview-recipient-name {
+  flex: 1;
+}
+
+.preview-recipient-name div {
+  font-weight: 900;
+  font-size: 17px;
+}
+
+.preview-salutation {
+  text-align: left;
+}
+
+.preview-salutation div {
+  margin: 0;
+}
+
+/* معلومات المستلم */
+.preview-recipient {
+  flex: 1;
+}
+
+/* السلام عليكم */
+.preview-greeting {
+  margin: 0;
+}
+
+/* الموضوع */
+.preview-subject {
+  background: var(--subject-accent);
+  display: flex;
+  gap: 2px;
+  padding: 0;
+}
+
+.preview-subject-label {
+  white-space: nowrap;
+}
+
+.preview-subject-text {
+  flex: 1;
+  text-align: right;
+}
+
+/* المحتوى */
+.preview-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2mm;
+}
+
+.letter-paragraph {
+  margin: 0;
+  text-align: justify;
+}
+
+.letter-line {
+  margin-bottom: 4mm;
+}
+
+.letter-line:last-child {
+  margin-bottom: 0;
+}
+
+/* صندوق العنوان */
+.preview-address-box {
+  margin: 0;
+  padding-right: 50px;
+}
+
+/* الملاحظة */
+.preview-note {
+  text-align: right;
+  padding-right: 100px;
+}
+
+/* التوقيع */
+.preview-signature {
+  text-align: center;
+  margin-right: 350px;
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+
+.preview-signature > div {
+  font-weight: 900;
+  font-size: 17px;
+}
+
+.preview-signature div + .signature-seal {
+  margin-top: 50px;
+}
+
+/* التذييل */
+.sheet-footer,
+.sheet-footer * {
+  font-family: 'RobotoCondensed', 'Segoe UI', 'Segoe UI Narrow', Tahoma, sans-serif !important;
+  font-feature-settings: normal;
+}
+
+.sheet-footer {
+  margin: -5mm 20mm 20mm 20mm;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 10px;
+  font-weight: 300;
+  line-height: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8mm;
+}
+
+.sheet-footer span {
+  flex: 1;
+  display: inline-block;
+  white-space: pre-wrap;
+}
+
+.sheet-footer .footer-left {
+  text-align: right;
+  font-family: 'RobotoCondensed', 'Segoe UI', sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.sheet-footer .footer-right {
+  text-align: left;
+  font-family: 'RobotoCondensed', 'Segoe UI', sans-serif;
+  font-weight: 300;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* إعدادات الطباعة */
+@media print {
+  @page {
+    size: A4;
+    margin: 0;
+  }
+  
+  .letter-paper {
+    box-shadow: none;
+    border-radius: 0;
+    margin: 0;
+    width: 210mm;
+    min-height: 297mm;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+  
+  .preview-subject {
+    background: var(--subject-accent) !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+}

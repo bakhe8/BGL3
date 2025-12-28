@@ -1,0 +1,1338 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ورقة اختبار خطابات الضمان</title>
+  <style>
+    /* تحميل الخط بأوزان متعددة */
+    @font-face {
+      font-family: 'AlMohanad';
+      src: url("assets/AL-Mohanad.ttf") format("truetype");
+      font-weight: 400;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'AlMohanad';
+      src: url("assets/AL-Mohanad Bold.ttf") format("truetype");
+      font-weight: 800;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    @font-face {
+      font-family: 'AlMohanad';
+      src: url("assets/AL-Mohanad Extra Bold.ttf") format("truetype");
+      font-weight: 1000;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    /* خط لاتيني مخصص للتذييل */
+    @font-face {
+      font-family: 'RobotoCondensed';
+      src: url("assets/RobotoCondensed-Light.ttf") format("truetype");
+      font-weight: 300;
+      font-style: normal;
+      font-display: swap;
+    }
+
+    :root {
+      --font-primary: 'AlMohanad', sans-serif;
+      --page-width: 210mm;
+      --page-height: 297mm;
+      --subject-accent: #c2d1c2;
+      --latin-font-family: 'Segoe UI', Tahoma, sans-serif;
+      --latin-font-size: 17px;
+      --latin-font-weight: 600;
+      --latin-line-height: 1.2;
+    }
+
+    /* ضبط القيم الافتراضية */
+    * {
+      box-sizing: border-box;
+    }
+
+    /* إعداد الخلفية والهيكل العام للصفحة */
+    body {
+      margin: 0;
+      font-family: var(--font-primary);
+      font-size: 20px;
+      font-weight: 800;
+      line-height: 1.2;
+      font-feature-settings: "anum";
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      background: transparent url("assets/External Form.svg") no-repeat center center;
+      background-size: contain;
+      padding: 0;
+    }
+
+    /* شريط الأدوات */
+    .toolbar {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      z-index: 10;
+    }
+
+    .toolbar button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 8px;
+      font-size: 0.95rem;
+      cursor: pointer;
+      background: #0b6fa4;
+      color: #fff;
+      box-shadow: 0 8px 18px rgba(11, 111, 164, 0.25);
+    }
+
+    .toolbar button:hover {
+      opacity: 0.9;
+    }
+
+    .toolbar button.secondary-btn {
+      background: #e2e8f0;
+      color: #0f172a;
+    }
+
+    .toolbar button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* لوحة إدخال البيانات */
+    .data-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: min(360px, 90vw);
+      height: 100vh;
+      background: #ffffff;
+      box-shadow: -8px 0 24px rgba(0, 0, 0, 0.1);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      transform: translateX(105%);
+      transition: transform 0.3s ease;
+      z-index: 15;
+      border-radius: 12px 0 0 12px;
+    }
+
+    .data-panel.is-open {
+      transform: translateX(0);
+    }
+
+    .data-panel__header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .data-panel__header h2 {
+      font-size: 1.1rem;
+      margin: 0;
+    }
+
+    .data-panel__header button {
+      border: none;
+      background: transparent;
+      font-size: 1.5rem;
+      cursor: pointer;
+    }
+
+    #letterDataForm {
+      overflow-y: auto;
+      padding-inline-end: 6px;
+    }
+
+    .panel-group {
+      border: 1px solid rgba(0, 0, 0, 0.08);
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+
+    .panel-group h3 {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+    }
+
+    .panel-group label {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: 0.85rem;
+      margin-bottom: 10px;
+    }
+
+    .panel-group input {
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 6px 10px;
+      font-size: 0.9rem;
+      text-align: right;
+      font-family: inherit;
+    }
+
+    .panel-group select {
+      border: 1px solid rgba(0, 0, 0, 0.2);
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 0.9rem;
+    }
+
+    .record-nav {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .upload-actions {
+      display: flex;
+      justify-content: flex-start;
+      gap: 10px;
+      margin-top: 10px;
+    }
+
+    .record-counter {
+      font-size: 0.85rem;
+      color: #475569;
+    }
+
+    button.small {
+      padding: 6px 12px;
+      font-size: 0.85rem;
+    }
+
+    .dataset-status {
+      font-size: 0.8rem;
+      color: #475569;
+      margin-bottom: 8px;
+    }
+
+    .dataset-status.muted {
+      color: #94a3b8;
+      margin-top: 4px;
+    }
+
+    .panel-actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-top: 8px;
+    }
+
+    .panel-actions button {
+      flex: 1;
+      padding: 10px 0;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+
+    #resetDataBtn {
+      background: #f1f1f1;
+    }
+
+    #closeAndSaveBtn {
+      background: #0b6fa4;
+      color: #fff;
+    }
+
+    /* الورقة */
+    .letter-sheet {
+      width: var(--page-width);
+      height: var(--page-height);
+      margin: 0;
+      padding: 0;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
+      position: relative;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* محتوى الورقة */
+    .sheet-content {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: stretch;
+      padding: 60mm 25mm 0mm 25mm;
+    }
+
+    /* حقل النص الرئيسي للخطاب */
+    .writing-area {
+      width: 100%;
+      flex: 1;
+    }
+
+    .writing-area * {
+      font-size: inherit;
+      font-weight: inherit;
+      line-height: inherit;
+    }
+
+    /* تخصيص موحّد للنصوص الإنجليزية عبر كامل الصفحة */
+    body :lang(en) {
+      font-family: var(--latin-font-family);
+      font-size: var(--latin-font-size);
+      font-weight: var(--latin-font-weight);
+      line-height: var(--latin-line-height);
+      letter-spacing: 0.01em;
+      direction: ltr;
+      text-align: left;
+      display: inline-block;
+      font-feature-settings: "anum";
+    }
+
+    /* كل سطر منفصل مع تباعد متساوٍ */
+    .letter-line {
+      margin-bottom: 4mm;
+    }
+
+    .letter-line:last-child {
+      margin-bottom: 0;
+    }
+
+    .letter-paragraph {
+      margin: 0;
+      text-align: justify;
+     }
+
+    /* التذييل */
+    .sheet-footer,
+    .sheet-footer * {
+      font-family: 'RobotoCondensed', 'Segoe UI', 'Segoe UI Narrow', Tahoma, sans-serif !important;
+      font-feature-settings: normal;
+    }
+
+    .sheet-footer {
+      margin: -5mm 20mm 20mm 20mm;
+      border: none;
+      background: transparent;
+      outline: none;
+      font-size: 10px;
+      font-weight: 300;
+      line-height: 1;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8mm;
+    }
+
+    /* إعداد الحقول داخل التذييل */
+    .sheet-footer span {
+      flex: 1;
+      display: inline-block;
+      white-space: pre-wrap;
+    }
+
+    #footerLeftField,
+    #footerRightField {
+      font-family: 'RobotoCondensed', 'Segoe UI', 'Segoe UI Narrow', Tahoma, sans-serif !important;
+      font-weight: 300;
+      font-size: 11px;
+      letter-spacing: 0.05em;
+    }
+
+    .sheet-footer .footer-left {
+      text-align: right;
+    }
+
+    .sheet-footer .footer-right {
+      text-align: left;
+    }
+
+    /* كتلة المستلم */
+    .preview-container {
+      display: flex;
+      flex-direction: column;
+      gap: 3mm;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin: 0;
+    }
+
+    .preview-recipient-name div {
+      font-weight: 900;
+      font-size: 17px;
+    }
+
+    .preview-salutation div {
+      margin: 0;
+    }
+
+    .preview-recipient {
+      flex: 1;
+    }
+
+    .preview-salutation {
+      text-align: left;
+    }
+
+    /* الموضوع */
+    .preview-subject {
+      background: var(--subject-accent);
+      display: flex;
+      gap: 2px;
+      padding: 0;
+    }
+
+    .preview-subject-label {
+      white-space: nowrap;
+    }
+
+    .preview-subject-text {
+      flex: 1;
+      text-align: right;
+    }
+
+    /* المحتوى */
+    .preview-content {
+      display: flex;
+      flex-direction: column;
+      gap: 2mm;
+    }
+
+    .preview-greeting {
+      margin: 0;
+    }
+
+    .preview-address-box {
+      margin: 0;
+      padding-right: 50px;
+    }
+
+    /* توقيع */
+    .preview-note {
+      text-align: right;
+      padding-right: 100px;
+    }
+
+    .preview-signature {
+      text-align: center;
+      margin-right: 350px;
+      display: flex;
+      flex-direction: column;
+      gap: 1mm;
+    }
+
+    .preview-signature > div {
+      font-weight: 900;
+      font-size: 17px;
+    }
+
+    .preview-signature div + .signature-seal {
+      margin-top: 50px;
+    }
+
+    @media print {
+      @page {
+        size: A4;
+        margin: 0;
+      }
+      body {
+        display: block;
+        margin: 0;
+        padding: 0;
+        min-height: auto;
+        align-items: initial;
+        justify-content: flex-start;
+        -webkit-print-color-adjust: exact;
+        print-color-adjust: exact;
+      }
+      #actionToolbar {
+        display: none !important;
+      }
+      #dataPanel {
+        display: none !important;
+      }
+      .preview-subject {
+        background: var(--subject-accent) !important;
+      }
+    }
+
+  </style>
+</head>
+<body id="pageRoot" data-eastern-digits="true">
+  <!-- شريط الأدوات للتحكم بعملية التصدير -->
+  <div class="toolbar" id="actionToolbar">
+    <button type="button" id="toggleEditorBtn" aria-controls="dataPanel">تحرير البيانات</button>
+    <button type="button" id="downloadAllBtn" class="secondary-btn" disabled>استخراج كل السجلات</button>
+    <button id="downloadBtn" aria-controls="letterSheetCanvas">استخراج PDF</button>
+  </div>
+
+  <aside class="data-panel" id="dataPanel" aria-hidden="true">
+    <div class="data-panel__header">
+      <h2>محرر البيانات</h2>
+      <button type="button" id="closeEditorBtn" aria-label="إغلاق المحرر">×</button>
+    </div>
+    <form id="letterDataForm" autocomplete="off">
+      <div class="panel-group">
+        <h3>ملف الضمانات</h3>
+        <p id="datasetStatus" class="dataset-status">جاري تحميل البيانات...</p>
+        <label>
+          اختر سجلًا من ملف JSON
+          <select id="datasetSelect" disabled>
+            <option value="">جار التحميل...</option>
+          </select>
+        </label>
+        <div class="record-nav">
+          <button type="button" id="prevRecordBtn" class="secondary small" disabled>◀ السابق</button>
+          <span id="recordCounter" class="record-counter">0 / 0</span>
+          <button type="button" id="nextRecordBtn" class="secondary small" disabled>التالي ▶</button>
+        </div>
+        <div class="upload-actions">
+          <button type="button" id="excelUploadBtn" class="secondary small">تحميل بيانات البنك من Excel</button>
+          <input type="file" id="excelFileInput" accept=".xlsx,.xls" hidden />
+        </div>
+        <p id="excelUploadStatus" class="dataset-status muted"></p>
+      </div>
+
+      <div class="panel-group">
+        <h3>قوالب البنوك</h3>
+        <label>
+          اختر بنكًا افتراضيًا
+          <select id="bankPresetSelect" disabled>
+            <option value="">جارٍ التحميل...</option>
+          </select>
+        </label>
+        <p id="bankPresetStatus" class="dataset-status muted">سيتم تعبئة بيانات البنك تلقائيًا عند اختيار قالب.</p>
+      </div>
+
+      <div class="panel-group">
+        <h3>بيانات البنك</h3>
+        <label>
+          اسم البنك
+          <input type="text" name="bankName" id="bankNameInput" />
+        </label>
+        <label>
+          المركز
+          <input type="text" name="bankCenter" id="bankCenterInput" />
+        </label>
+        <label>
+          صندوق البريد
+          <input type="text" name="bankPoBox" id="bankPoBoxInput" />
+        </label>
+        <label>
+          البريد الإلكتروني
+          <input type="email" name="bankEmail" id="bankEmailInput" />
+        </label>
+      </div>
+
+      <div class="panel-group">
+        <h3>الضمان</h3>
+        <label>
+          رقم الضمان
+          <input type="text" name="guaranteeNumber" id="guaranteeNumberInput" />
+        </label>
+        <label>
+          رقم العقد
+          <input type="text" name="contractNumber" id="contractNumberInput" />
+        </label>
+        <label>
+          قيمة الضمان
+          <input type="text" name="guaranteeAmount" id="guaranteeAmountInput" />
+        </label>
+        <label>
+          تاريخ التمديد
+          <input type="text" name="extensionDate" id="extensionDateInput" />
+        </label>
+      </div>
+
+      <div class="panel-group">
+        <h3>الشركة</h3>
+        <label>
+          اسم الشركة
+          <input type="text" name="companyName" id="companyNameInput" />
+        </label>
+      </div>
+
+      <div class="panel-actions">
+        <button type="button" id="resetDataBtn">استعادة الافتراضي</button>
+        <button type="button" id="closeAndSaveBtn">تم</button>
+      </div>
+    </form>
+  </aside>
+  <!-- مسرح الورقة بقياس A4 -->
+  <main class="letter-sheet" id="letterSheetCanvas" aria-label="ورقة الخطاب A4">
+    <div class="sheet-content" id="sheetContent">
+      <!-- المنطقة القابلة للتحرير الخاصة بنص الخطاب -->
+      <section class="writing-area" id="letterWritingArea" contenteditable="false" aria-label="منطقة الكتابة الرئيسة">
+        <div style="display:none;" aria-hidden="true">تنبيه داخلي: يرجى عدم تعديل خصائص هذا القسم، والتعديل يكون على العناصر أدناه فقط.</div>
+
+        <!-- قالب الخطاب الأساسي مستخدمًا نفس هيكلة preview لضمان توزيع النص -->
+        <article class="preview-container" id="primaryLetter">
+          <div class="preview-header">
+            <div class="preview-recipient-name" id="bank_name">
+              <div>السـادة / <span data-field="bankName">البنك الأهلي السعودي</span></div>
+            </div>
+            <div class="preview-salutation">
+              <div>المحترمين</div>
+            </div>
+          </div>
+          <div class="preview-recipient">
+            <div data-field="bankCenter">مركز خدمات التجارة</div>
+            <div>ص.ب. <span data-field="bankPoBox">3555 جده 21481</span></div>
+            <div>البريد الإلكتروني: <span data-field="bankEmail" lang="en">tradej-lg@alahli.com</span></div>
+          </div>
+
+          <div class="preview-greeting">
+            <div>السَّلام عليكُم ورحمَة الله وبركاتِه</div>
+          </div>
+
+          <div class="preview-subject">
+            <div class="preview-subject-label">الموضوع:</div>
+            <div class="preview-subject-text">
+              طلب تمديد الضمان البنكي رقم (<span data-field="guaranteeNumber" lang="en">M113528</span>) والعائد للعقد رقم (<span data-field="contractNumber" lang="en">434153</span>).
+            </div>
+          </div>
+
+          <div class="preview-content">
+            <p class="letter-paragraph">
+              إشارة إلى الضمان البنكي النهائي الموضح أعلاه، والصادر منكم لصالحنا على حساب شركة
+              <span data-field="companyName">رؤية القوى للمصاعد</span>
+              بمبلغ قدره (<span data-field="guaranteeAmount">20,000.00</span>) ريال، نأمل منكم تمديد فترة سريان الضمان حتى تاريخ
+              <span data-field="extensionDate">30 يوليو 2026</span>م مع بقاء
+              الشروط الأخرى دون تغيير، وإفادتنا بذلك من خلال البريد الإلكتروني المخصص للضمانات البنكية لدى
+              مستشفى الملك فيصل التخصصي ومركز الأبحاث بالرياض (<span lang="en">bgfinance@kfshrc.edu.sa</span>)، كما نأمل منكم إرسال أصل
+              تمديد الضمان إلى العنوان التالي:
+            </p>
+
+            <div class="preview-address-box">
+              <div class="preview-recipient">
+                <div>مستشفى الملك فيصل التخصصي ومركز الأبحاث - الرياض</div>
+                <div>ص.ب 3354 الرياض 11211</div>
+                <div>مكتب الخدمات الإدارية</div>
+              </div>
+            </div>
+
+            <p class="letter-paragraph">
+              علمًا بأنه في حال عدم تمكن البنك من تمديد الضمان المذكور قبل انتهاء مدة سريانه فيجب على البنك دفع
+              قيمة الضمان إلينا حسب النظام.
+            </p>
+          </div>
+
+          <div class="preview-clearfix">
+            <div class="letter-line preview-note">وَتفضَّلوا بِقبُول خَالِص تحيَّاتي</div>
+            <div class="preview-signature">
+              <div>مُدير الإدارة العامَّة للعمليَّات المحاسبيَّة</div>
+              <div class="signature-seal">سَامي بن عبَّاس الفايز</div>
+            </div>
+          </div>
+        </article>
+      </section>
+    </div>
+    <!-- توقيع أو تذييل داخلي ضمن نفس الورقة -->
+    <div class="sheet-footer" id="sheetFooter" aria-label="معلومات إضافية في التذييل">
+      <span class="footer-left" id="footerLeftField" contenteditable="false" lang="en">MBC: 9-2</span>
+      <span class="footer-right" id="footerRightField" contenteditable="false" lang="en">BAMZ</span>
+    </div>
+  </main>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    // ثابت يحول أي رقم لاتيني إلى نظيره الهندي
+    const EASTERN_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+
+    function toEasternDigits(text = '') {
+      return text.replace(/\d/g, digit => EASTERN_DIGITS[Number(digit)]);
+    }
+
+    // يجول داخل عقد النص ويحافظ على وسوم <script>/<style> دون تعديل
+    function convertDigitsInNode(root) {
+      if (!root) return;
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      while (walker.nextNode()) {
+        const current = walker.currentNode;
+        const parent = current.parentElement;
+        if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) {
+          continue;
+        }
+        if (parent && parent.closest('.sheet-footer')) {
+          continue;
+        }
+        if (/\d/.test(current.nodeValue)) {
+          current.nodeValue = toEasternDigits(current.nodeValue);
+        }
+      }
+    }
+
+    function applyEasternDigits() {
+      if (document.body?.dataset?.easternDigits === 'true') {
+        const target = document.getElementById('primaryLetter');
+        if (target) {
+          convertDigitsInNode(target);
+        }
+      }
+    }
+
+    // مراجع DOM الرئيسة التي نحتاجها للتصدير
+    const letterSheet = document.getElementById('letterSheetCanvas');
+    const btn = document.getElementById('downloadBtn');
+    const downloadAllBtn = document.getElementById('downloadAllBtn');
+    const DATASET_URL = 'assets/guarantees_nov_2025.json';
+    const BANK_PRESETS_URL = 'assets/bank-presets.json';
+
+    // تحديث نص الزر وحالته لعرض التغذية البصرية للمستخدم
+    function setButtonState(message, disabled = false) {
+      btn.textContent = message;
+      btn.disabled = disabled;
+      btn.style.opacity = disabled ? 0.5 : 1;
+    }
+
+    // يتحقق من جاهزية المكتبات والصورة قبل السماح بالتصدير
+    function evaluateReadyState() {
+      if (typeof html2canvas === 'undefined' || typeof window.jspdf === 'undefined') {
+        setButtonState('تعذر تحميل محرك PDF', true);
+        return false;
+      }
+
+      setButtonState('تحميل PDF');
+      return true;
+    }
+
+    evaluateReadyState();
+
+    downloadAllBtn?.addEventListener('click', async () => {
+      if (!datasetRecords.length) {
+        alert('لا توجد سجلات في ملف الضمانات.');
+        return;
+      }
+      if (!evaluateReadyState()) {
+        return;
+      }
+      try {
+        downloadAllBtn.disabled = true;
+        downloadAllBtn.textContent = 'جارٍ استخراج السجلات...';
+        await exportAllRecords();
+        downloadAllBtn.textContent = 'انتهى استخراج كل السجلات';
+        setTimeout(() => {
+          downloadAllBtn.textContent = 'استخراج كل السجلات';
+          downloadAllBtn.disabled = false;
+        }, 1500);
+      } catch (error) {
+        console.error('Bulk export failed', error);
+        alert('حدث خطأ أثناء استخراج كل السجلات. راجع وحدة التحكم للتفاصيل.');
+        downloadAllBtn.textContent = 'استخراج كل السجلات';
+        downloadAllBtn.disabled = false;
+      }
+    });
+
+    btn.addEventListener('click', async () => {
+      if (!evaluateReadyState()) {
+        return;
+      }
+
+      setButtonState('جاري التحويل...', true);
+      try {
+        await exportCurrentLetterPdf('letter.pdf');
+        setButtonState('تحميل PDF');
+      } catch (error) {
+        console.error(error);
+        setButtonState('حدث خطأ، أعد المحاولة', false);
+      }
+    });
+
+    // ----- إدارة البيانات الديناميكية -----
+    const DATA_STORAGE_KEY = 'letterBinderStateV1';
+    const cloneState = (obj) => (typeof structuredClone === 'function'
+      ? structuredClone(obj)
+      : JSON.parse(JSON.stringify(obj)));
+    const defaultState = {
+      bank: {
+        name: 'البنك الأهلي السعودي',
+        center: 'مركز خدمات التجارة',
+        poBox: '3555 جده 21481',
+        email: 'tradej-lg@alahli.com'
+      },
+      guarantee: {
+        number: 'M113528',
+        contract: '434153',
+        amount: '20,000.00',
+        extensionDate: '30 يوليو 2026'
+      },
+      company: {
+        name: 'شركة رؤية القوى للمصاعد'
+      }
+    };
+
+    const viewBindings = {
+      bankName: document.querySelector('[data-field="bankName"]'),
+      bankCenter: document.querySelector('[data-field="bankCenter"]'),
+      bankPoBox: document.querySelector('[data-field="bankPoBox"]'),
+      bankEmail: document.querySelector('[data-field="bankEmail"]'),
+      guaranteeNumber: document.querySelector('[data-field="guaranteeNumber"]'),
+      contractNumber: document.querySelector('[data-field="contractNumber"]'),
+      guaranteeAmount: document.querySelector('[data-field="guaranteeAmount"]'),
+      extensionDate: document.querySelector('[data-field="extensionDate"]'),
+      companyName: document.querySelector('[data-field="companyName"]')
+    };
+
+    const datasetSelect = document.getElementById('datasetSelect');
+    const datasetStatus = document.getElementById('datasetStatus');
+    const prevRecordBtn = document.getElementById('prevRecordBtn');
+    const nextRecordBtn = document.getElementById('nextRecordBtn');
+    const recordCounter = document.getElementById('recordCounter');
+    const excelUploadBtn = document.getElementById('excelUploadBtn');
+    const excelFileInput = document.getElementById('excelFileInput');
+    const excelUploadStatus = document.getElementById('excelUploadStatus');
+    const bankPresetSelect = document.getElementById('bankPresetSelect');
+    const bankPresetStatus = document.getElementById('bankPresetStatus');
+
+    const bindingPaths = {
+      bankName: ['bank', 'name'],
+      bankCenter: ['bank', 'center'],
+      bankPoBox: ['bank', 'poBox'],
+      bankEmail: ['bank', 'email'],
+      guaranteeNumber: ['guarantee', 'number'],
+      contractNumber: ['guarantee', 'contract'],
+      guaranteeAmount: ['guarantee', 'amount'],
+      extensionDate: ['guarantee', 'extensionDate'],
+      companyName: ['company', 'name']
+    };
+
+    let appState = loadState();
+    let datasetRecords = [];
+    let datasetCurrentIndex = -1;
+    let bankPresets = {};
+    applyStateToView();
+    setupDataPanel();
+    initializeDatasetPanel();
+    loadBankPresets();
+    if (downloadAllBtn) {
+      downloadAllBtn.disabled = true;
+    }
+
+    function loadState() {
+      try {
+        const stored = localStorage.getItem(DATA_STORAGE_KEY);
+        if (stored) {
+          return Object.assign({}, cloneState(defaultState), JSON.parse(stored));
+        }
+      } catch (error) {
+        console.warn('تعذر تحميل البيانات المحفوظة', error);
+      }
+      return cloneState(defaultState);
+    }
+
+    function saveState() {
+      try {
+        localStorage.setItem(DATA_STORAGE_KEY, JSON.stringify(appState));
+      } catch (error) {
+        console.warn('تعذر حفظ البيانات', error);
+      }
+    }
+
+    function setFieldValue(key, value) {
+      const el = viewBindings[key];
+      if (el) {
+        el.textContent = value ?? '';
+      }
+    }
+
+    function applyStateToView() {
+      setFieldValue('bankName', appState.bank.name);
+      setFieldValue('bankCenter', appState.bank.center);
+      setFieldValue('bankPoBox', appState.bank.poBox);
+      setFieldValue('bankEmail', appState.bank.email);
+      setFieldValue('guaranteeNumber', appState.guarantee.number);
+      setFieldValue('contractNumber', appState.guarantee.contract);
+      setFieldValue('guaranteeAmount', appState.guarantee.amount);
+      setFieldValue('extensionDate', appState.guarantee.extensionDate);
+      setFieldValue('companyName', appState.company.name);
+      applyEasternDigits();
+    }
+
+    function setupDataPanel() {
+      const panel = document.getElementById('dataPanel');
+      const toggleBtn = document.getElementById('toggleEditorBtn');
+      const closeBtn = document.getElementById('closeEditorBtn');
+      const doneBtn = document.getElementById('closeAndSaveBtn');
+      const resetBtn = document.getElementById('resetDataBtn');
+      const form = document.getElementById('letterDataForm');
+
+      if (!panel || !form) {
+        return;
+      }
+
+      populateForm(form);
+
+      const closePanel = () => {
+        panel.classList.remove('is-open');
+        panel.setAttribute('aria-hidden', 'true');
+      };
+
+      const openPanel = () => {
+        populateForm(form);
+        panel.classList.add('is-open');
+        panel.setAttribute('aria-hidden', 'false');
+      };
+
+      toggleBtn?.addEventListener('click', () => {
+        if (panel.classList.contains('is-open')) {
+          closePanel();
+        } else {
+          openPanel();
+        }
+      });
+
+      closeBtn?.addEventListener('click', closePanel);
+      doneBtn?.addEventListener('click', closePanel);
+
+      resetBtn?.addEventListener('click', () => {
+        appState = cloneState(defaultState);
+        saveState();
+        populateForm(form);
+        applyStateToView();
+      });
+
+      form.addEventListener('input', (event) => {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement)) {
+          return;
+        }
+        const key = input.name;
+        updateStateValue(key, input.value);
+        saveState();
+        applyStateToView();
+      });
+    }
+
+    function populateForm(form) {
+      form.bankName.value = appState.bank.name;
+      form.bankCenter.value = appState.bank.center;
+      form.bankPoBox.value = appState.bank.poBox;
+      form.bankEmail.value = appState.bank.email;
+      form.guaranteeNumber.value = appState.guarantee.number;
+      form.contractNumber.value = appState.guarantee.contract;
+      form.guaranteeAmount.value = appState.guarantee.amount;
+      form.extensionDate.value = appState.guarantee.extensionDate;
+      form.companyName.value = appState.company.name;
+    }
+
+    function syncFormWithState() {
+      const form = document.getElementById('letterDataForm');
+      if (!form) {
+        return;
+      }
+      populateForm(form);
+    }
+
+    function updateStateValue(key, value) {
+      const path = bindingPaths[key];
+      if (!path) {
+        return;
+      }
+      let cursor = appState;
+      for (let i = 0; i < path.length - 1; i += 1) {
+        cursor = cursor[path[i]];
+      }
+      cursor[path[path.length - 1]] = value;
+    }
+
+    async function initializeDatasetPanel() {
+      if (!datasetSelect || !datasetStatus) {
+        return;
+      }
+      datasetStatus.textContent = 'جاري تحميل البيانات...';
+      datasetSelect.disabled = true;
+      datasetSelect.innerHTML = '<option value="">انتظر التحميل...</option>';
+      updateRecordControls();
+      try {
+        const response = await fetch(DATASET_URL, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        const records = extractRecordsFromPayload(payload);
+        bindDatasetEvents();
+        setDatasetRecords(records, 'الملف الافتراضي');
+      } catch (error) {
+        setDatasetRecords([], '');
+        datasetStatus.textContent = 'تعذر تحميل ملف JSON. شغّل الصفحة عبر خادم محلي أو تأكد من المسار.';
+        console.error('Dataset load error:', error);
+        bindDatasetEvents();
+      }
+    }
+
+    async function loadBankPresets() {
+      if (!bankPresetSelect || !bankPresetStatus) {
+        return;
+      }
+      bankPresetSelect.disabled = true;
+      bankPresetSelect.innerHTML = '<option value="">جارٍ التحميل...</option>';
+      bankPresetStatus.textContent = 'جارٍ تحميل قوالب البنوك...';
+      try {
+        const response = await fetch(BANK_PRESETS_URL, { cache: 'no-store' });
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const payload = await response.json();
+        bankPresets = payload || {};
+        const entries = Object.entries(bankPresets);
+        if (!entries.length) {
+          bankPresetStatus.textContent = 'لا توجد قوالب بنوك متاحة.';
+          bankPresetSelect.innerHTML = '<option value="">لا توجد بيانات</option>';
+          return;
+        }
+        bankPresetSelect.innerHTML = [
+          '<option value="">اختر بنكًا</option>',
+          ...entries.map(([key, preset]) => `<option value="${key}">${preset?.label || preset?.name || key}</option>`)
+        ].join('');
+        bankPresetSelect.disabled = false;
+        bankPresetSelect.addEventListener('change', handleBankPresetChange);
+        bankPresetStatus.textContent = 'اختر بنكًا ليتم تعبئة بياناته تلقائيًا.';
+      } catch (error) {
+        console.error('Bank presets load error:', error);
+        bankPresetStatus.textContent = 'تعذر تحميل قوالب البنوك.';
+        bankPresetSelect.innerHTML = '<option value="">تعذر التحميل</option>';
+      }
+    }
+
+    function bindDatasetEvents() {
+      if (datasetSelect && !datasetSelect.dataset.bound) {
+        datasetSelect.addEventListener('change', handleDatasetSelection);
+        datasetSelect.dataset.bound = 'true';
+      }
+      if (prevRecordBtn && !prevRecordBtn.dataset.bound) {
+        prevRecordBtn.addEventListener('click', () => goToRecord(-1));
+        prevRecordBtn.dataset.bound = 'true';
+      }
+      if (nextRecordBtn && !nextRecordBtn.dataset.bound) {
+        nextRecordBtn.addEventListener('click', () => goToRecord(1));
+        nextRecordBtn.dataset.bound = 'true';
+      }
+    }
+
+    function handleDatasetSelection(event) {
+      const index = Number(event.target.value);
+      if (Number.isNaN(index) || !datasetRecords[index]) {
+        return;
+      }
+      datasetCurrentIndex = index;
+      updateRecordControls();
+      applyDatasetRecord(datasetRecords[index]);
+    }
+
+    function formatRecordLabel(record) {
+      const contractor = record?.['CONTRACTOR NAME'] ?? 'بدون اسم';
+      const guarantee = record?.['BANK GUARANTEE NUMBER'] ?? '';
+      const bank = record?.['BANK NAME'] ?? '';
+      const sheetLabel = record?.__sheetName ? ` - ${record.__sheetName}` : '';
+      return `${contractor} — ${guarantee} (${bank}${sheetLabel})`;
+    }
+
+    function handleBankPresetChange(event) {
+      const key = event.target.value;
+      if (!key || !bankPresets[key]) {
+        if (bankPresetStatus) {
+          bankPresetStatus.textContent = 'اختر بنكًا لتعبئة البيانات.';
+        }
+        return;
+      }
+      applyBankPreset(key);
+    }
+
+    function applyBankPreset(key) {
+      const preset = bankPresets[key];
+      if (!preset) {
+        return;
+      }
+      appState.bank.name = preset.name ?? appState.bank.name;
+      appState.bank.center = preset.center ?? appState.bank.center;
+      appState.bank.poBox = preset.address ?? appState.bank.poBox;
+      appState.bank.email = preset.email ?? appState.bank.email;
+      saveState();
+      applyStateToView();
+      syncFormWithState();
+      if (bankPresetStatus) {
+        bankPresetStatus.textContent = `تم تطبيق قالب ${preset.label || preset.name || key}.`;
+      }
+    }
+
+    function applyDatasetRecord(record) {
+      if (!record) {
+        return;
+      }
+
+      const formatted = {
+        bankName: record['BANK NAME'] ?? appState.bank.name,
+        contractorName: record['CONTRACTOR NAME'] ?? appState.company.name,
+        guaranteeNumber: record['BANK GUARANTEE NUMBER'] ?? appState.guarantee.number,
+        contractNumber: record['CONTRACT NO.'] ?? appState.guarantee.contract,
+        amount: formatAmount(record['AMOUNT']),
+        extensionDate: formatDateToArabic(record['VALIDITY DATE']),
+      };
+
+      appState.bank.name = formatted.bankName;
+      appState.guarantee.number = formatted.guaranteeNumber;
+      appState.guarantee.contract = formatted.contractNumber;
+      appState.guarantee.amount = formatted.amount;
+      appState.guarantee.extensionDate = formatted.extensionDate;
+      appState.company.name = formatted.contractorName;
+
+      saveState();
+      applyStateToView();
+      syncFormWithState();
+    }
+
+    function updateRecordControls() {
+      const total = datasetRecords.length;
+      if (recordCounter) {
+        const currentDisplay = datasetCurrentIndex >= 0 ? datasetCurrentIndex + 1 : 0;
+        recordCounter.textContent = `${currentDisplay} / ${total}`;
+      }
+      const disableNav = total === 0;
+      if (prevRecordBtn) {
+        prevRecordBtn.disabled = disableNav || datasetCurrentIndex <= 0;
+      }
+      if (nextRecordBtn) {
+        nextRecordBtn.disabled = disableNav || datasetCurrentIndex >= total - 1 || datasetCurrentIndex === -1;
+      }
+    }
+
+    function goToRecord(offset) {
+      if (!datasetRecords.length || datasetCurrentIndex === -1) {
+        return;
+      }
+      const target = datasetCurrentIndex + offset;
+      if (target < 0 || target >= datasetRecords.length) {
+        return;
+      }
+      datasetSelect.value = String(target);
+      datasetCurrentIndex = target;
+      updateRecordControls();
+      applyDatasetRecord(datasetRecords[target]);
+    }
+
+    excelUploadBtn?.addEventListener('click', () => {
+      excelFileInput?.click();
+    });
+
+    excelFileInput?.addEventListener('change', async (event) => {
+      const file = event.target.files?.[0];
+      if (!file) {
+        return;
+      }
+      await uploadExcelFile(file);
+      event.target.value = '';
+    });
+
+    async function uploadExcelFile(file) {
+      if (!excelUploadStatus) {
+        return;
+      }
+      excelUploadStatus.textContent = `جارٍ معالجة ${file.name}...`;
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('sheet', 'all');
+      formData.append('clean', 'true');
+      formData.append('optimize', 'true');
+      try {
+        const response = await fetch('/api/convert', {
+          method: 'POST',
+          body: formData
+        });
+        const result = await response.json();
+        if (!response.ok || result.error) {
+          throw new Error(result.error || 'تعذر تحويل الملف');
+        }
+        const records = extractRecordsFromPayload(result);
+        if (!records.length) {
+          throw new Error('لم يتم العثور على سجلات في الملف المرفوع');
+        }
+        setDatasetRecords(records, file.name);
+        excelUploadStatus.textContent = `تم تحميل ${records.length} سجلًا من ${file.name}`;
+        datasetStatus.textContent = `تم تحميل ${records.length} سجلًا من ${file.name}`;
+      } catch (error) {
+        console.error('Excel upload failed', error);
+        excelUploadStatus.textContent = `خطأ: ${error.message}`;
+      }
+    }
+
+    function setDatasetRecords(records, sourceLabel = '') {
+      bindDatasetEvents();
+      datasetRecords = Array.isArray(records) ? records : [];
+      datasetCurrentIndex = -1;
+      updateRecordControls();
+      const count = datasetRecords.length;
+      if (!count) {
+        datasetSelect.innerHTML = '<option value="">لا توجد سجلات</option>';
+        datasetSelect.disabled = true;
+        datasetStatus.textContent = 'لا توجد سجلات متاحة. يمكنك تحميل ملف Excel لتعبئة البيانات.';
+        if (downloadAllBtn) {
+          downloadAllBtn.disabled = true;
+        }
+        return;
+      }
+      datasetSelect.innerHTML = [
+        '<option value="">اختر سجلًا لتعبئة الحقول</option>',
+        ...datasetRecords.map((record, index) => `
+          <option value="${index}">
+            ${formatRecordLabel(record)}
+          </option>
+        `)
+      ].join('');
+      datasetSelect.disabled = false;
+      datasetStatus.textContent = `تم تحميل ${count} سجلًا من ${sourceLabel || 'الملف الحالي'}`;
+      if (downloadAllBtn) {
+        downloadAllBtn.disabled = false;
+      }
+    }
+
+    function extractRecordsFromPayload(payload) {
+      if (!payload || typeof payload !== 'object') {
+        return [];
+      }
+      if (Array.isArray(payload.records)) {
+        return payload.records;
+      }
+      if (payload.data) {
+        return extractRecordsFromPayload(payload.data);
+      }
+      if (payload.sheets && typeof payload.sheets === 'object') {
+        const result = [];
+        Object.entries(payload.sheets).forEach(([sheetName, sheet]) => {
+          const rows = Array.isArray(sheet?.records) ? sheet.records : [];
+          rows.forEach((record) => {
+            result.push({
+              ...record,
+              __sheetName: sheetName,
+            });
+          });
+        });
+        return result;
+      }
+      return [];
+    }
+
+    function formatDateToArabic(value) {
+      if (!value) {
+        return '';
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return new Intl.DateTimeFormat('ar-SA', {
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+      }).format(date);
+    }
+
+    function formatAmount(value) {
+      if (value === null || value === undefined || value === '') {
+        return '';
+      }
+      const numeric = Number(String(value).replace(/,/g, ''));
+      if (Number.isNaN(numeric)) {
+        return String(value);
+      }
+      return new Intl.NumberFormat('ar-SA', {
+        maximumFractionDigits: 2
+      }).format(numeric);
+    }
+
+    async function exportCurrentLetterPdf(filename = 'letter.pdf') {
+      const canvas = await html2canvas(letterSheet, {
+        scale: 2,
+        useCORS: true,
+        allowTaint: true,
+        scrollX: 0,
+        scrollY: -window.scrollY
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      pdf.addImage(imgData, 'PNG', 0, 0, pageWidth, pageHeight);
+      pdf.save(filename);
+    }
+
+    async function exportAllRecords() {
+      const total = datasetRecords.length;
+      if (!total) {
+        return;
+      }
+
+      const previousIndex = datasetCurrentIndex;
+      const previousSelection = datasetSelect?.value ?? '';
+
+      for (let i = 0; i < total; i += 1) {
+        datasetCurrentIndex = i;
+        if (datasetSelect) {
+          datasetSelect.value = String(i);
+        }
+        applyDatasetRecord(datasetRecords[i]);
+        updateRecordControls();
+        await waitForNextFrame();
+
+        const guarantee = sanitizeFilename(datasetRecords[i]['BANK GUARANTEE NUMBER']);
+        const contractor = sanitizeFilename(datasetRecords[i]['CONTRACTOR NAME']);
+        const filename = `letter_${String(i + 1).padStart(3, '0')}_${guarantee || contractor || 'record'}.pdf`;
+        await exportCurrentLetterPdf(filename);
+      }
+
+      if (previousIndex !== -1 && datasetRecords[previousIndex]) {
+        datasetCurrentIndex = previousIndex;
+        if (datasetSelect) {
+          datasetSelect.value = previousSelection;
+        }
+        applyDatasetRecord(datasetRecords[previousIndex]);
+      } else {
+        datasetCurrentIndex = -1;
+        if (datasetSelect) {
+          datasetSelect.value = '';
+        }
+      }
+      updateRecordControls();
+    }
+
+    function sanitizeFilename(value) {
+      if (!value) {
+        return '';
+      }
+      return String(value).replace(/[\\/:*?"<>|]/g, '_').trim();
+    }
+
+    function waitForNextFrame() {
+      return new Promise((resolve) => {
+        requestAnimationFrame(() => {
+          requestAnimationFrame(resolve);
+        });
+      });
+    }
+  </script>
+</body>
+</html>

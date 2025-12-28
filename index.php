@@ -358,6 +358,9 @@ $formattedSuppliers = array_map(function($s) {
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
+    <!-- Print Preview Styles -->
+    <link rel="stylesheet" href="assets/css/print-preview.css">
+    
     <!-- Alpine.js removed - using vanilla JavaScript instead -->
     
     <style>
@@ -1571,35 +1574,7 @@ $formattedSuppliers = array_map(function($s) {
             justify-content: center;
         }
         
-        .letter-paper {
-            background: white;
-            /* A4 actual size in mm */
-            width: 210mm;
-            min-height: 297mm;
-            padding: 20mm;
-            box-shadow: var(--shadow-lg);
-            font-size: 12pt;
-            line-height: 1.8;
-            color: #374151;
-            border-radius: var(--radius-sm);
-            margin: 0 auto;
-            /* Scale down to fit screen */
-            transform-origin: top center;
-            transform: scale(0.7);
-        }
-        
-        /* Reset scale for print */
-        @media print {
-            .letter-paper {
-                transform: scale(1) !important;
-                box-shadow: none;
-                border-radius: 0;
-                margin: 0;
-                width: 210mm;
-                min-height: 297mm;
-                padding: 20mm;
-            }
-        }
+        /* Letter paper styles moved to assets/css/print-preview.css */
         
         .letter-header {
             text-align: center;
@@ -2100,6 +2075,60 @@ $formattedSuppliers = array_map(function($s) {
             }
         `;
         document.head.appendChild(style);
+        
+        // ========================
+        // تحويل الأرقام إلى هندية
+        // ========================
+        const EASTERN_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+        
+        function toEasternDigits(text) {
+            if (!text) return text;
+            return String(text).replace(/\d/g, digit => EASTERN_DIGITS[Number(digit)]);
+        }
+        
+        function convertDigitsInNode(root) {
+            if (!root) return;
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const current = walker.currentNode;
+                const parent = current.parentElement;
+                // Skip script, style, and footer elements
+                if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) {
+                    continue;
+                }
+                if (parent && parent.closest('.sheet-footer')) {
+                    continue;
+                }
+                if (/\d/.test(current.nodeValue)) {
+                    current.nodeValue = toEasternDigits(current.nodeValue);
+                }
+            }
+        }
+        
+        function applyEasternDigitsToPreview() {
+            const target = document.getElementById('primaryLetter');
+            if (target) {
+                convertDigitsInNode(target);
+            }
+        }
+        
+        // Apply when preview is shown
+        document.addEventListener('DOMContentLoaded', function() {
+            const previewSection = document.getElementById('preview-section');
+            if (previewSection) {
+                const observer = new MutationObserver(function(mutations) {
+                    mutations.forEach(function(mutation) {
+                        if (mutation.attributeName === 'style') {
+                            const isVisible = previewSection.style.display !== 'none';
+                            if (isVisible) {
+                                setTimeout(applyEasternDigitsToPreview, 100);
+                            }
+                        }
+                    });
+                });
+                observer.observe(previewSection, { attributes: true });
+            }
+        });
     </script>
 
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
