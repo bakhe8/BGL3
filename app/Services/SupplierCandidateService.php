@@ -129,7 +129,7 @@ class SupplierCandidateService
                         'strength' => 'strong',
                         'supplier_id' => (int) $cached['supplier_id'],
                         'name' => $cached['display_name'],
-                        'score' => 0.90, // SAFE LEARNING: Reduced from 1.0 to prevent auto-approval
+                        'score' => (float) $this->settings->get('LEARNING_SCORE_CAP', 0.90), // From Settings
                         'score_raw' => (float) $cached['fuzzy_score'],
                         'is_learning' => true,
                         'usage_count' => (int) ($cached['usage_count'] ?? 0),

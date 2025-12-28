@@ -225,12 +225,10 @@ if (!window.TimelineController) {
                 input.style.cursor = 'not-allowed';
             });
 
-            // Disable action buttons
-            const buttons = document.querySelectorAll('.btn-extend, .btn-reduce, .btn-release, .btn-save');
+            // Hide action buttons (not just disable - prevent accidental interaction with history)
+            const buttons = document.querySelectorAll('[data-action="extend"], [data-action="reduce"], [data-action="release"], [data-action="save-next"], [data-action="saveAndNext"]');
             buttons.forEach(btn => {
-                btn.disabled = true;
-                btn.style.opacity = '0.5';
-                btn.style.cursor = 'not-allowed';
+                btn.style.display = 'none';
             });
         }
 
@@ -243,12 +241,10 @@ if (!window.TimelineController) {
                 input.style.cursor = '';
             });
 
-            // Enable action buttons
-            const buttons = document.querySelectorAll('.btn-extend, .btn-reduce, .btn-release, .btn-save');
+            // Show action buttons again
+            const buttons = document.querySelectorAll('[data-action="extend"], [data-action="reduce"], [data-action="release"], [data-action="save-next"], [data-action="saveAndNext"]');
             buttons.forEach(btn => {
-                btn.disabled = false;
-                btn.style.opacity = '1';
-                btn.style.cursor = 'pointer';
+                btn.style.display = '';
             });
         }
 

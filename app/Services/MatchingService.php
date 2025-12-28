@@ -299,10 +299,10 @@ class MatchingService
             }
         }
 
-        // Step 4: full name fuzzy on normalized_key OR normalized_en (>=0.95)
+        // Step 4: full name fuzzy on normalized_key OR normalized_en (>=threshold)
         $best = null;
         $bestScore = 0.0;
-        $threshold = 0.95; 
+        $threshold = (float) $this->settings->get('BANK_FUZZY_THRESHOLD', 0.95); 
         
         foreach ($this->cachedBanks as $row) {
             if (isset($result['_blocked_bank_id']) && $result['_blocked_bank_id'] === (int) $row['id']) {

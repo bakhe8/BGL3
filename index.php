@@ -51,14 +51,30 @@ if ($requestedId) {
     $currentRecord = $guaranteeRepo->find($requestedId);
 }
 
-// If not found or no ID specified, get first record
+// If not found or no ID specified, get first NON-RELEASED record
 if (!$currentRecord) {
-    $allGuarantees = $guaranteeRepo->getAll([], 1, 0); // Get just 1 record
-    $currentRecord = $allGuarantees[0] ?? null;
+    // Exclude released (is_locked=1) from default navigation
+    $stmt = $db->prepare('
+        SELECT g.id FROM guarantees g
+        LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+        WHERE d.is_locked IS NULL OR d.is_locked = 0
+        ORDER BY g.id ASC LIMIT 1
+    ');
+    $stmt->execute();
+    $firstId = $stmt->fetchColumn();
+    if ($firstId) {
+        $currentRecord = $guaranteeRepo->find($firstId);
+    }
 }
 
-// Get total count for progress
-$totalRecords = $guaranteeRepo->count();
+// Get total count for progress (excluding released)
+$stmtCount = $db->prepare('
+    SELECT COUNT(*) FROM guarantees g
+    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+    WHERE d.is_locked IS NULL OR d.is_locked = 0
+');
+$stmtCount->execute();
+$totalRecords = (int)$stmtCount->fetchColumn();
 
 // Calculate current index and find Previous/Next IDs
 $currentIndex = 1;
@@ -70,9 +86,9 @@ if ($currentRecord) {
     try {
         $stmt = $db->prepare('
             SELECT COUNT(*) as position
-            FROM guarantees
-            WHERE id < ?
-            ORDER BY id ASC
+            FROM guarantees g
+            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            WHERE g.id < ? AND (d.is_locked IS NULL OR d.is_locked = 0)
         ');
         $stmt->execute([$currentRecord->id]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
@@ -81,9 +97,14 @@ if ($currentRecord) {
         // Keep currentIndex = 1 if error
     }
     
-    // Get previous guarantee ID
+    // Get previous guarantee ID (excluding released)
     try {
-        $stmt = $db->prepare('SELECT id FROM guarantees WHERE id < ? ORDER BY id DESC LIMIT 1');
+        $stmt = $db->prepare('
+            SELECT g.id FROM guarantees g
+            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            WHERE g.id < ? AND (d.is_locked IS NULL OR d.is_locked = 0)
+            ORDER BY g.id DESC LIMIT 1
+        ');
         $stmt->execute([$currentRecord->id]);
         $prev = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($prev) $prevId = $prev['id'];
@@ -91,9 +112,14 @@ if ($currentRecord) {
         // No previous
     }
     
-    // Get next guarantee ID
+    // Get next guarantee ID (excluding released)
     try {
-        $stmt = $db->prepare('SELECT id FROM guarantees WHERE id > ? ORDER BY id ASC LIMIT 1');
+        $stmt = $db->prepare('
+            SELECT g.id FROM guarantees g
+            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            WHERE g.id > ? AND (d.is_locked IS NULL OR d.is_locked = 0)
+            ORDER BY g.id ASC LIMIT 1
+        ');
         $stmt->execute([$currentRecord->id]);
         $next = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($next) $nextId = $next['id'];
@@ -1895,6 +1921,57 @@ $formattedSuppliers = array_map(function($s) {
     <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
     <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
     
+    <?php if (!empty($mockRecord['is_locked'])): ?>
+    <!-- Released Guarantee: Read-Only Mode -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Show released banner
+            const banner = document.createElement('div');
+            banner.id = 'released-banner';
+            banner.innerHTML = `
+                <div style="display: flex; align-items: center; justify-content: space-between; 
+                            background: #fee2e2; border: 2px solid #ef4444; border-radius: 8px; 
+                            padding: 12px 16px; margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 20px;">🔒</span>
+                        <div>
+                            <div style="font-weight: 600; color: #991b1b;">ضمان مُفرج عنه</div>
+                            <div style="font-size: 12px; color: #7f1d1d;">هذا الضمان خارج التدفق التشغيلي - للعرض فقط</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            const recordForm = document.querySelector('.decision-card, .card');
+            if (recordForm && recordForm.parentNode) {
+                recordForm.parentNode.insertBefore(banner, recordForm);
+            }
+            
+            // Disable all inputs
+            const inputs = document.querySelectorAll('#supplierInput, #bankNameInput, #bankSelect');
+            inputs.forEach(input => {
+                input.disabled = true;
+                input.style.opacity = '0.7';
+                input.style.cursor = 'not-allowed';
+            });
+            
+            // Disable action buttons
+            const buttons = document.querySelectorAll('[data-action="extend"], [data-action="reduce"], [data-action="release"], [data-action="save-next"], [data-action="saveAndNext"]');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.5';
+                btn.style.cursor = 'not-allowed';
+            });
+            
+            // Hide suggestions
+            const suggestions = document.getElementById('supplier-suggestions');
+            if (suggestions) suggestions.style.display = 'none';
+            
+            console.log('🔒 Released guarantee - Read-only mode enabled');
+        });
+    </script>
+    <?php endif; ?>
+
     <script>
         // Toast notification system
         function showToast(message, type = 'info') {

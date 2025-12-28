@@ -38,6 +38,8 @@ class Settings
         'MATCH_AUTO_THRESHOLD' => Config::MATCH_AUTO_THRESHOLD,      // 0.90 - Auto-accept without review
         'MATCH_REVIEW_THRESHOLD' => Config::MATCH_REVIEW_THRESHOLD,  // 0.70 - Minimum to show in list
         'MATCH_WEAK_THRESHOLD' => 0.70,                              // Synced with Review Threshold
+        'BANK_FUZZY_THRESHOLD' => 0.95,                              // Bank fuzzy match threshold
+        'LEARNING_SCORE_CAP' => 0.90,                                // Max score for learning-based matches
 
         // Conflict Detection
         'CONFLICT_DELTA' => Config::CONFLICT_DELTA,                  // 0.1 - Score difference for conflicts

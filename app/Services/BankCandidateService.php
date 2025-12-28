@@ -107,7 +107,8 @@ class BankCandidateService
                     ];
                 } else {
                     $score = SimilarityCalculator::safeLevenshteinRatio($normalized, $key);
-                    if ($score >= 0.95) {
+                    $bankFuzzyTh = (float) $this->settings->get('BANK_FUZZY_THRESHOLD', 0.95);
+                    if ($score >= $bankFuzzyTh) {
                         $candidates[] = [
                             'source' => 'fuzzy_official',
                             'bank_id' => (int) $row['id'],
