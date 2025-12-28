@@ -6,8 +6,6 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
-use App\Services\ActionService;
-use App\Repositories\GuaranteeActionRepository;
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\GuaranteeRepository;
 use App\Support\Database;
@@ -26,10 +24,8 @@ try {
     
     // Initialize services
     $db = Database::connect();
-    $actionRepo = new GuaranteeActionRepository($db);
     $decisionRepo = new GuaranteeDecisionRepository($db);
     $guaranteeRepo = new GuaranteeRepository($db);
-    $service = new ActionService($actionRepo, $decisionRepo, $guaranteeRepo);
     
     // --------------------------------------------------------------------
     // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
@@ -39,16 +35,47 @@ try {
     $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
 
     // 2. UPDATE: Execute system changes
-    // Create release through Service
-    $result = $service->createRelease($guaranteeId, $reason);
-
-    // Issue immediately (locks the guarantee)
-    $service->issueRelease($result['action_id'], $guaranteeId);
+    // Validate that supplier and bank are selected
+    $decision = $decisionRepo->findByGuarantee($guaranteeId);
+    if (!$decision || empty($decision->supplierId) || empty($decision->bankId)) {
+        throw new \RuntimeException('لا يمكن تنفيذ الإفراج - يجب اختيار المورد والبنك أولاً');
+    }
+    
+    // Check if already released
+    if ($decision && $decision->status === 'released') {
+        throw new \RuntimeException('تم إفراج هذا الضمان مسبقاً');
+    }
+    
+    // Lock the guarantee (set status to 'released')
+    $decisionRepo->lock($guaranteeId, 'released');
 
     // 3. RECORD: Strict Event Recording (UE-04 Release)
     \App\Services\TimelineRecorder::recordReleaseEvent($guaranteeId, $oldSnapshot, $reason);
 
     // --------------------------------------------------------------------
+    
+    // Get updated guarantee info for display
+    $guarantee = $guaranteeRepo->find($guaranteeId);
+    $raw = $guarantee->rawData;
+    
+    // Prepare record data
+    $record = [
+        'id' => $guarantee->id,
+        'guarantee_number' => $guarantee->guaranteeNumber,
+        'supplier_name' => $raw['supplier'] ?? '',
+        'bank_name' => $raw['bank'] ?? '',
+        'bank_id' => null,
+        'amount' => $raw['amount'] ?? 0,
+        'expiry_date' => $raw['expiry_date'] ?? '',
+        'issue_date' => $raw['issue_date'] ?? '',
+        'contract_number' => $raw['contract_number'] ?? '',
+        'type' => $raw['type'] ?? 'Initial',
+        'status' => 'released'
+    ];
+    
+    // Get banks for dropdown
+    $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
+    $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Include partial template
     echo '<div id="record-form-section" class="decision-card">';

@@ -6,8 +6,6 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
-use App\Services\ActionService;
-use App\Repositories\GuaranteeActionRepository;
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\GuaranteeRepository;
 use App\Support\Database;
@@ -30,10 +28,8 @@ try {
     
     // Initialize services
     $db = Database::connect();
-    $actionRepo = new GuaranteeActionRepository($db);
     $decisionRepo = new GuaranteeDecisionRepository($db);
     $guaranteeRepo = new GuaranteeRepository($db);
-    $service = new ActionService($actionRepo, $decisionRepo, $guaranteeRepo);
     
     // --------------------------------------------------------------------
     // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
@@ -79,7 +75,7 @@ try {
     ];
     
     // Get banks for dropdown
-    $banksStmt = $db->query('SELECT id, official_name FROM banks ORDER BY official_name');
+    $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
     // Include partial template
