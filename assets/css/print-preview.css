@@ -46,7 +46,7 @@
   display: flex;
   flex-direction: column;
   /* خلفية الترويسة */
-  background-image: url('../External Form.svg');
+  background-image: url('../External-Form.svg');
   background-repeat: no-repeat;
   background-position: center center;
   background-size: contain;
@@ -196,12 +196,12 @@
   gap: 1mm;
 }
 
-.preview-signature > div {
+.preview-signature>div {
   font-weight: 900;
   font-size: 17px;
 }
 
-.preview-signature div + .signature-seal {
+.preview-signature div+.signature-seal {
   margin-top: 50px;
 }
 
@@ -254,7 +254,7 @@
     size: A4;
     margin: 0;
   }
-  
+
   .letter-paper {
     box-shadow: none;
     border-radius: 0;
@@ -265,7 +265,7 @@
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  
+
   .preview-subject {
     background: var(--subject-accent) !important;
     -webkit-print-color-adjust: exact;
