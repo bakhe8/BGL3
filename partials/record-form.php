@@ -213,7 +213,10 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                     <button class="chip <?= (isset($record['bank_id']) && $record['bank_id'] == $bank['id']) ? 'chip-selected' : '' ?>"
                             data-action="selectBank"
                             data-id="<?= $bank['id'] ?>"
-                            data-name="<?= htmlspecialchars($bank['official_name']) ?>">
+                            data-name="<?= htmlspecialchars($bank['official_name']) ?>"
+                            data-center="<?= htmlspecialchars($bank['department'] ?? 'مركز خدمات التجارة') ?>"
+                            data-po-box="<?= htmlspecialchars($bank['po_box'] ?? '3555') ?>"
+                            data-email="<?= htmlspecialchars($bank['email'] ?? 'info@bank.com') ?>">
                         <span><?= htmlspecialchars($bank['official_name']) ?></span>
                     </button>
                 <?php endforeach; ?>

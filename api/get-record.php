@@ -77,11 +77,21 @@ try {
         
         // Resolve Bank Name from ID
         if ($record['bank_id']) {
-            $bStmt = $db->prepare('SELECT arabic_name as official_name FROM banks WHERE id = ?');
+            $bStmt = $db->prepare('
+                SELECT 
+                    arabic_name as official_name,
+                    department,
+                    address_line1 as po_box,
+                    contact_email as email
+                FROM banks WHERE id = ?
+            ');
             $bStmt->execute([$record['bank_id']]);
-            $bName = $bStmt->fetchColumn();
-            if ($bName) {
-                $record['bank_name'] = $bName;
+            $bankDetails = $bStmt->fetch(PDO::FETCH_ASSOC);
+            if ($bankDetails) {
+                $record['bank_name'] = $bankDetails['official_name'];
+                $record['bank_center'] = $bankDetails['department'];
+                $record['bank_po_box'] = $bankDetails['po_box'];
+                $record['bank_email'] = $bankDetails['email'];
             }
         }
     }
@@ -131,7 +141,16 @@ try {
     }
     
     // Get banks for dropdown
-    $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
+    $banksStmt = $db->query('
+        SELECT 
+            id, 
+            arabic_name as official_name,
+            department,
+            address_line1 as po_box,
+            contact_email as email
+        FROM banks 
+        ORDER BY arabic_name
+    ');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
 
     // --- SMART LEARNING INTEGRATION ---

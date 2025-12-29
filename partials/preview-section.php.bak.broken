@@ -30,11 +30,10 @@ if (!isset($record)) {
         </div>
         
         <!-- معلومات البنك -->
-        <!-- معلومات البنك -->
         <div class="preview-recipient">
-            <div data-field="bankCenter"><?= htmlspecialchars($record['bank_center'] ?? 'مركز خدمات التجارة') ?></div>
-            <div>ص.ب. <span data-field="bankPoBox"><?= htmlspecialchars($record['bank_po_box'] ?? '3555') ?></span></div>
-            <div>البريد الإلكتروني: <span data-field="bankEmail" lang="en"><?= htmlspecialchars($record['bank_email'] ?? 'info@bank.com') ?></span></div>
+            <div data-field="bankCenter">مركز خدمات التجارة</div>
+            <div>ص.ب. <span data-field="bankPoBox">3555</span></div>
+            <div>البريد الإلكتروني: <span data-field="bankEmail" lang="en">info@bank.com</span></div>
         </div>
         
         <!-- السلام عليكم -->
@@ -82,7 +81,6 @@ if (!isset($record)) {
         
         $formattedExpiryDate = formatArabicDate($record['expiry_date'] ?? '', $arabicMonths);
         ?>
-        <div class="preview-content">
         <p class="letter-paragraph">
             <?php
             // Logic for the full introductory phrase

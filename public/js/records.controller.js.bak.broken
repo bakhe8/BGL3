@@ -103,7 +103,14 @@ if (!window.RecordsController) {
             const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
                 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
-
+            // Translation map for Guarantee Types
+            const typeTranslations = {
+                'Final': 'النهائي',
+                'Preliminary': 'الابتدائي',
+                'Performance': 'الأداء',
+                'Advance Payment': 'الدفعة المقدمة',
+                'Initial': 'الابتدائي'
+            };
 
             // Get all fields with data-preview-field
             const fields = document.querySelectorAll('[data-preview-field]');
@@ -258,9 +265,6 @@ if (!window.RecordsController) {
         selectBank(target) {
             const bankId = target.dataset.id;
             const bankName = target.dataset.name;
-            const bankCenter = target.dataset.center;
-            const bankPoBox = target.dataset.poBox;
-            const bankEmail = target.dataset.email;
 
             // Update input fields
             const bankNameInput = document.getElementById('bankNameInput');
@@ -272,23 +276,6 @@ if (!window.RecordsController) {
             if (bankSelect) {
                 bankSelect.value = bankId;
             }
-
-            // Update Preview Bank Details immediately
-            if (bankCenter) {
-                const centerEl = document.querySelector('[data-field="bankCenter"]');
-                if (centerEl) centerEl.textContent = bankCenter;
-            }
-            if (bankPoBox) {
-                const poBoxEl = document.querySelector('[data-field="bankPoBox"]');
-                if (poBoxEl) poBoxEl.textContent = bankPoBox;
-            }
-            if (bankEmail) {
-                const emailEl = document.querySelector('[data-field="bankEmail"]');
-                if (emailEl) emailEl.textContent = bankEmail;
-            }
-
-            // Trigger preview update (for other fields)
-            this.updatePreviewFromDOM();
         }
 
         // Save and proceed
