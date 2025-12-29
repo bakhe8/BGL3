@@ -15,11 +15,13 @@ if (!window.RecordsController) {
             this.bindEvents();
             this.bindGlobalEvents();
             this.initializeState();
+            // Initial update of preview
+            setTimeout(() => this.updatePreviewFromDOM(), 500);
         }
 
         initializeState() {
-            // Preview is hidden by default
-            this.previewVisible = false;
+            // Preview is ALWAYS visible now
+            this.previewVisible = true;
             this.printDropdownVisible = false;
         }
 
@@ -89,21 +91,17 @@ if (!window.RecordsController) {
         }
 
         // UI Actions
+        // UI Actions
         togglePreview() {
-            this.previewVisible = !this.previewVisible;
-            const previewEl = document.getElementById('preview-section');
-            if (!previewEl) return;
-
-            if (this.previewVisible) {
-                // Update preview content from current displayed data (Presentation Logic)
-                this.updatePreviewFromDOM();
-            }
-
-            previewEl.style.display = this.previewVisible ? 'block' : 'none';
+            // Deprecated: Preview is always visible
+            console.log('Preview toggle is disabled');
         }
 
         updatePreviewFromDOM() {
-            console.log('🔄 Updating preview from current DOM state');
+
+            // Arabic month names for date formatting
+            const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
             // Get all fields with data-preview-field
             const fields = document.querySelectorAll('[data-preview-field]');
@@ -112,10 +110,19 @@ if (!window.RecordsController) {
                 const fieldName = field.dataset.previewField;
                 let fieldValue = this.getFieldValue(field);
 
-                // خاص بالمبلغ: إزالة أي حروف غير رقمية (مثل ر.س)
+                // خاص بالمبلغ: إزالة أي حروف غير رقمية وتنظيف التنسيق
                 if (fieldName === 'amount') {
                     // الاحتفاظ بالأرقام، النقطة، والفاصلة فقط
                     fieldValue = fieldValue.replace(/[^\d.,]/g, '').trim();
+                    // إزالة النقاط المتكررة أو الزائدة في النهاية
+                    fieldValue = fieldValue.replace(/\.+$/, '');
+                    // إزالة الفاصلة الزائدة في النهاية
+                    fieldValue = fieldValue.replace(/,+$/, '');
+                }
+
+                // خاص بالتاريخ: تنسيق بالصيغة العربية
+                if (fieldName === 'expiry_date' && fieldValue) {
+                    fieldValue = this.formatArabicDate(fieldValue, arabicMonths);
                 }
 
                 // Update corresponding preview target
@@ -124,8 +131,38 @@ if (!window.RecordsController) {
                     target.textContent = fieldValue;
                 }
             });
+        }
 
-            console.log('✅ Preview updated from DOM');
+        formatArabicDate(dateStr, arabicMonths) {
+            if (!dateStr) return '';
+
+            // Try to parse the date
+            let date;
+            if (dateStr.includes('-')) {
+                // Format: YYYY-MM-DD or DD-MM-YYYY
+                const parts = dateStr.split('-');
+                if (parts[0].length === 4) {
+                    // YYYY-MM-DD
+                    date = new Date(parts[0], parseInt(parts[1]) - 1, parts[2]);
+                } else {
+                    // DD-MM-YYYY
+                    date = new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+                }
+            } else if (dateStr.includes('/')) {
+                // Format: DD/MM/YYYY or MM/DD/YYYY
+                const parts = dateStr.split('/');
+                date = new Date(parts[2], parseInt(parts[1]) - 1, parts[0]);
+            } else {
+                date = new Date(dateStr);
+            }
+
+            if (isNaN(date.getTime())) return dateStr;
+
+            const day = date.getDate();
+            const month = arabicMonths[date.getMonth()];
+            const year = date.getFullYear();
+
+            return `${day} ${month} ${year}`;
         }
 
         getFieldValue(element) {
@@ -157,18 +194,8 @@ if (!window.RecordsController) {
         }
 
         print(target) {
-            const recordIdEl = document.querySelector('[data-record-id]');
-            if (!recordIdEl) {
-                alert('لا يوجد سجل للطباعة');
-                return;
-            }
-
-            const recordId = recordIdEl.dataset.recordId;
-            const printType = target.dataset.printType || 'extension';
-
-            const url = `views/print.php?id=${recordId}&action=${printType}`;
-            window.open(url, '_blank', 'width=1000,height=1200');
-
+            // New Logic: Direct Browser Print
+            window.print();
             this.closePrintDropdown();
         }
 

@@ -212,7 +212,7 @@ $mockCandidates = [
                                 <div>
                                     <div class="info-label">المبلغ</div>
                                     <div class="info-value" style="color: var(--accent-success); font-size: 16px;">
-                                        <?= number_format($mockRecord['amount']) ?> ر.س
+                                        <?= number_format($mockRecord['amount'], 2, '.', ',') ?> ر.س
                                     </div>
                                 </div>
                                 <div>

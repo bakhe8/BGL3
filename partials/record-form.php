@@ -62,10 +62,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
             <button class="btn btn-secondary btn-sm" data-action="reduce">📉 تخفيض</button>
             <button class="btn btn-secondary btn-sm" data-action="release">📤 إفراج</button>
         </div>
-    <button class="btn btn-ghost btn-sm" data-action="togglePreview">
-        <span>👁️</span>
-        <span>معاينة الخطاب</span>
-    </button>
+
 </header>
 
 <div class="card-body">
@@ -254,7 +251,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
         <div class="info-item">
             <div class="info-label">المبلغ</div>
             <div class="info-value highlight" data-preview-field="amount">
-                <?= number_format($record['amount'], 0) ?> ر.س
+                <?= number_format($record['amount'], 2, '.', ',') ?> ر.س
             </div>
         </div>
         <div class="info-item">

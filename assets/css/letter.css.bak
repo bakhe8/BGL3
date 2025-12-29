@@ -1,0 +1,297 @@
+/**
+ * Letter Preview Styles
+ * Scoped with .letter-preview prefix to avoid conflicts
+ */
+
+/* Arabic font - AL-Mohanad for Arabic characters */
+@font-face {
+  font-family: 'LetterFont';
+  src: url('/assets/fonts/AL-Mohanad-Bold.ttf') format('truetype');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0600-06FF, U+0750-077F, U+08A0-08FF, U+FB50-FDFF, U+FE70-FEFF;
+}
+
+/* English font - Arial for Latin characters */
+@font-face {
+  font-family: 'LetterFont';
+  src: local('Arial');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0000-00FF, U+0100-017F, U+0180-024F;
+}
+
+/* Punctuation symbols - Arial for ( ) - . / */
+@font-face {
+  font-family: 'LetterFont';
+  src: local('Arial');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0028-0029, U+002D-002F, U+002E;
+}
+
+/* English Numbers font - Arial for 0-9 */
+@font-face {
+  font-family: 'LetterFont';
+  src: local('Arial');
+  font-weight: 400;
+  font-style: normal;
+  unicode-range: U+0030-0039;
+}
+
+/* Arabic Numbers font - AL-Mohanad for ٠-٩ */
+@font-face {
+  font-family: 'LetterFont';
+  src: url('/assets/fonts/AL-Mohanad-Bold.ttf') format('truetype');
+  font-weight: 400 900;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0660-0669;
+}
+
+.letter-preview {
+  font-family: 'Cairo', 'Segoe UI', sans-serif;
+  line-height: 23pt;
+  background: #f3f4f6;
+  padding: 20px;
+  direction: rtl;
+}
+
+.letter-preview .letter-paper * {
+  font-family: 'LetterFont', 'Arial', sans-serif;
+  line-height: 23pt !important;
+}
+
+.letter-preview .fw-800-sharp {
+  font-weight: 800;
+}
+
+.letter-preview .subject {
+  background: #f0f1f5;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #c8c9d1;
+  margin: 5px 0;
+  display: flex;
+  align-items: flex-start;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+.letter-preview .header-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0px;
+}
+
+.letter-preview .first-paragraph {
+  text-align: justify;
+  margin-top: 5px;
+}
+
+/* Watermark Styles */
+.letter-preview .watermark {
+  position: absolute;
+  top: 80px;
+  left: 50px;
+  transform: rotate(-25deg);
+  font-size: 48pt;
+  font-weight: bold;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 10;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.letter-preview .watermark.status-draft {
+  color: #ef4444;
+  /* Red */
+}
+
+.letter-preview .watermark.status-ready {
+  color: #22c55e;
+  /* Green */
+}
+
+.letter-preview .watermark.status-partial {
+  color: #f59e0b;
+  /* Orange */
+}
+
+/* Print-optimized @page rules */
+@page {
+  size: A4 portrait;
+  margin: 0;
+}
+
+/* Print Styles */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .letter-preview,
+  .letter-preview * {
+    visibility: visible;
+  }
+
+  .letter-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    background: white;
+    padding: 0;
+  }
+
+  .letter-preview .letter-paper {
+    box-shadow: none;
+    margin: 0;
+    page-break-after: always;
+  }
+
+  /* Hide watermark when printing */
+  .letter-preview .watermark {
+    display: none !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   COMPATIBILITY SELECTORS - For current HTML structure
+   Maps preview-* classes to letter-preview styles
+   ═══════════════════════════════════════════════════════════════ */
+
+/* Container compatibility */
+#preview-section.letter-preview .letter-paper,
+.letter-preview .letter-paper {
+  font-family: 'LetterFont', 'Arial', sans-serif;
+  font-size: 15pt;
+  line-height: 23pt;
+  font-weight: 800;
+  box-sizing: border-box;
+  background: #ffffff url("/assets/External-Form.svg") top center/contain no-repeat;
+  width: 210mm;
+  min-height: 297mm;
+  padding: 2.2in 1in 1in 1in;
+  margin: 0 auto;
+  position: relative;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  font-feature-settings: "anum";
+  /* Faux bold effect - sharp stroke only */
+  -webkit-text-stroke: 0.2px currentColor;
+}
+
+/* Map preview-subject to subject style */
+.letter-preview .preview-subject {
+  background: #f0f1f5;
+  padding: 0 10px;
+  border-radius: 6px;
+  border: 1px solid #c8c9d1;
+  margin: 5px 0;
+  display: flex;
+  align-items: flex-start;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+/* Map preview-header to header-line */
+.letter-preview .preview-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0px;
+}
+
+/* Map preview-content paragraphs */
+.letter-preview .preview-content .letter-paragraph {
+  text-align: justify;
+  margin-top: 5px;
+}
+
+/* Address box - shifted to left */
+.letter-preview .preview-address-box {
+  margin: 0;
+  padding-right: 50px;
+}
+
+/* Closing salutation - shifted left double the address box */
+.letter-preview .preview-note {
+  padding-right: 100px;
+  margin-bottom: 5px;
+}
+
+/* Signature styling - shifted to left */
+.letter-preview .preview-signature {
+  text-align: center;
+  margin-right: 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 1mm;
+}
+
+.letter-preview .preview-signature>div {
+  font-weight: 900;
+}
+
+.letter-preview .preview-signature .signature-seal {
+  margin-top: 2em;
+}
+
+/* Sheet footer styling - positioned at bottom of letter-paper */
+.letter-preview .sheet-footer,
+.letter-preview .sheet-footer * {
+  font-family: 'Segoe UI', 'Segoe UI Narrow', Tahoma, sans-serif !important;
+  font-feature-settings: normal;
+}
+
+.letter-preview .sheet-footer {
+  position: absolute;
+  bottom: 17mm;
+  left: 25mm;
+  right: 25mm;
+  border: none;
+  background: transparent;
+  outline: none;
+  font-size: 10px;
+  font-weight: 300;
+  line-height: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8mm;
+}
+
+.letter-preview .sheet-footer span {
+  flex: 1;
+  display: inline-block;
+  white-space: pre-wrap;
+}
+
+.letter-preview .sheet-footer .footer-left {
+  text-align: right;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+.letter-preview .sheet-footer .footer-right {
+  text-align: left;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+}
+
+/* Inherit fonts for all elements */
+.letter-preview .letter-paper * {
+  font-family: 'LetterFont', 'Arial', sans-serif;
+  line-height: 23pt !important;
+  font-feature-settings: "anum";
+}
+
+/* English text - normal weight for lang=en */
+.letter-preview .letter-paper [lang="en"],
+.letter-preview .letter-paper :lang(en) {
+  font-weight: normal !important;
+  text-shadow: none !important;
+  -webkit-text-stroke: 0 !important;
+}

@@ -358,8 +358,8 @@ $formattedSuppliers = array_map(function($s) {
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
-    <!-- Print Preview Styles -->
-    <link rel="stylesheet" href="assets/css/print-preview.css">
+    <!-- Letter Preview Styles (Classic Theme) -->
+    <link rel="stylesheet" href="assets/css/letter.css">
     
     <!-- Alpine.js removed - using vanilla JavaScript instead -->
     
@@ -1526,65 +1526,171 @@ $formattedSuppliers = array_map(function($s) {
         }
         
         /* Preview Section */
+        /* Preview Section - Card Removed as per user request */
         .preview-section {
             margin-top: var(--space-lg);
-            background: var(--bg-card);
+            background: transparent;
             border: none;
-            border-radius: 12px;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 2px 8px rgba(0, 0, 0, 0.04);
-            overflow: hidden;
-            transition: box-shadow 0.3s ease;
+            border-radius: 0;
+            box-shadow: none;
+            overflow: visible;
         }
         
         .preview-section:hover {
-            box-shadow: 0 8px 30px rgba(0, 0,0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06);
+            box-shadow: none;
         }
         
         .preview-header-bar {
-            height: 48px;
-            background: #ffffff;
-            border-bottom: 1px solid #e5e7eb;
+            height: auto;
+            min-height: 48px;
+            background: transparent;
+            border-bottom: none;
             display: flex;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-end; /* Align print button to the end */
             padding: 0 20px;
             position: relative;
+            margin-bottom: 20px;
         }
         
         .preview-title {
-            font-size: 15px;
-            font-weight: 700;
-            color: #1f2937;
+            display: none; /* Hidden as per request */
+        }
+        
+        /* Print Icon Button */
+        .print-icon-btn {
+            position: absolute;
+            top: 0;
+            left: 0; /* Exact Top-Left corner */
+            background: rgba(255, 255, 255, 0.5); /* Subtle overlay background */
+            border: none;
+            font-size: 20px; /* Slightly smaller for corner fit */
+            cursor: pointer;
+            color: #9ca3af;
+            width: 40px;
+            height: 40px;
             display: flex;
             align-items: center;
-            gap: 8px;
-        }
-        
-        .preview-print {
-            font-size: 14px;
-            color: #3b82f6;
-            font-weight: 600;
-            background: #eff6ff;
-            border: 1px solid #bfdbfe;
-            cursor: pointer;
-            padding: 8px 16px;
-            border-radius: 6px;
+            justify-content: center;
+            border-bottom-right-radius: 8px; /* Rounded inner corner */
             transition: all 0.2s ease;
+            z-index: 100;
         }
         
-        .preview-print:hover {
-            background: #dbeafe;
-            border-color: #93c5fd;
-            transform: translateY(-1px);
-            box-shadow: 0 2px 8px rgba(59, 130, 246, 0.2);
+        .print-icon-btn:hover {
+            color: #3b82f6; /* Blue on hover */
+            background: #f3f4f6;
+            transform: scale(1.1);
+        }
+
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+        }
+        
+        /* Preview Header Actions Container */
+        .preview-header-actions {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        /* Style Toggle Button */
+        .style-toggle-wrapper {
+            position: relative;
+        }
+        
+        .style-toggle-btn {
+            font-size: 13px;
+            font-weight: 600;
+            font-family: inherit;
+            color: #6b7280;
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 6px;
+            padding: 6px 12px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+        
+        .style-toggle-btn:hover {
+            background: #f3f4f6;
+            border-color: #d1d5db;
+            color: #374151;
+        }
+        
+        /* Style Toggle Menu */
+        .style-toggle-menu {
+            position: absolute;
+            top: calc(100% + 4px);
+            left: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+            overflow: hidden;
+        }
+        
+        .style-toggle-menu.show {
+            display: block;
+        }
+        
+        .style-option {
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 13px;
+            font-family: inherit;
+            color: #374151;
+            text-align: right;
+            transition: background 0.15s;
+        }
+        
+        .style-option:hover {
+            background: #f3f4f6;
+        }
+        
+        .style-option.active {
+            background: #eff6ff;
+            color: #1d4ed8;
+        }
+        
+        .style-option .option-icon {
+            font-size: 16px;
+        }
+        
+        .style-option .option-text {
+            flex: 1;
+        }
+        
+        .style-option .option-check {
+            color: #3b82f6;
+            font-weight: bold;
+            opacity: 0;
+        }
+        
+        .style-option.active .option-check {
+            opacity: 1;
         }
         
         .preview-body {
-            padding: 32px;
-            background: linear-gradient(180deg, #f8f9fa 0%, #ffffff 100%);
-            display: flex;
-            justify-content: center;
-            min-height: 400px;
+            padding: 0; /* Remove padding around the letter */
+            background: transparent;
+            display: block; /* Allow normal flow */
+            min-height: auto;
+            text-align: center; /* Center the letter */
         }
         
         /* Letter paper styles moved to assets/css/print-preview.css */
@@ -2102,6 +2208,9 @@ $formattedSuppliers = array_map(function($s) {
         function convertDigitsInNode(root) {
             if (!root) return;
             const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const elementsToConvert = [];
+            const elementsToKeepEnglish = new Set();
+            
             while (walker.nextNode()) {
                 const current = walker.currentNode;
                 const parent = current.parentElement;
@@ -2112,10 +2221,39 @@ $formattedSuppliers = array_map(function($s) {
                 if (parent && parent.closest('.sheet-footer')) {
                     continue;
                 }
+                
+                // Check if element has lang="en" and contains letters (mixed content)
+                if (parent && parent.getAttribute('lang') === 'en') {
+                    const fullText = parent.textContent.trim();
+                    // If contains any letters (A-Z), keep as English - don't convert digits
+                    if (/[A-Za-z]/.test(fullText)) {
+                        elementsToKeepEnglish.add(parent);
+                        continue;
+                    }
+                }
+                
                 if (/\d/.test(current.nodeValue)) {
-                    current.nodeValue = toEasternDigits(current.nodeValue);
+                    elementsToConvert.push({node: current, parent: parent});
                 }
             }
+            
+            // Convert digits for elements that should be Arabic
+            elementsToConvert.forEach(function(item) {
+                // Skip if parent is marked to keep English
+                if (item.parent && elementsToKeepEnglish.has(item.parent)) {
+                    return;
+                }
+                item.node.nodeValue = toEasternDigits(item.node.nodeValue);
+                
+                // Remove lang=en from parent if it was pure numbers
+                if (item.parent && item.parent.getAttribute('lang') === 'en') {
+                    const text = item.parent.textContent.trim();
+                    // If text is only Arabic numerals now, remove lang=en
+                    if (/^[٠-٩\s\.\-\/\(\)]+$/.test(text)) {
+                        item.parent.removeAttribute('lang');
+                    }
+                }
+            });
         }
         
         function applyEasternDigitsToPreview() {
@@ -2125,23 +2263,107 @@ $formattedSuppliers = array_map(function($s) {
             }
         }
         
+        // Function to detect and mark English text elements
+        function markEnglishText(root) {
+            if (!root) return;
+            
+            // Regex for detecting primarily English text (Latin characters)
+            const englishPattern = /^[A-Za-z0-9\s\.\,\-\_\@\#\$\%\&\*\(\)\[\]\{\}\:\;\"\'\<\>\/\\\+\=\!\?\|\~\`]+$/;
+            
+            // Get all text-containing elements
+            const elements = root.querySelectorAll('span, div, p');
+            elements.forEach(function(el) {
+                // Skip if already has lang attribute or is a container with mixed content
+                if (el.hasAttribute('lang')) return;
+                if (el.children.length > 0) return;
+                
+                const text = el.textContent.trim();
+                if (text && englishPattern.test(text)) {
+                    el.setAttribute('lang', 'en');
+                }
+            });
+            
+            // Also wrap punctuation symbols in mixed text
+            wrapPunctuationAsEnglish(root);
+        }
+        
+        // Function to wrap punctuation ( ) - . / in spans with lang=en
+        function wrapPunctuationAsEnglish(root) {
+            if (!root) return;
+            
+            const punctuationPattern = /([().\-\/:@,])/g;
+            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+            const nodesToProcess = [];
+            
+            while (walker.nextNode()) {
+                const node = walker.currentNode;
+                const parent = node.parentElement;
+                
+                // Skip if parent already has lang=en or is script/style
+                if (parent && parent.getAttribute('lang') === 'en') continue;
+                if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
+                
+                // Reset lastIndex to fix alternating behavior with global regex
+                punctuationPattern.lastIndex = 0;
+                if (punctuationPattern.test(node.nodeValue)) {
+                    nodesToProcess.push(node);
+                }
+            }
+            
+            nodesToProcess.forEach(function(node) {
+                const text = node.nodeValue;
+                const fragment = document.createDocumentFragment();
+                let lastIndex = 0;
+                
+                text.replace(punctuationPattern, function(match, p1, offset) {
+                    // Add text before punctuation
+                    if (offset > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, offset)));
+                    }
+                    // Add punctuation in span with lang=en
+                    const span = document.createElement('span');
+                    span.setAttribute('lang', 'en');
+                    span.textContent = match;
+                    fragment.appendChild(span);
+                    lastIndex = offset + match.length;
+                    return match;
+                });
+                
+                // Add remaining text
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                }
+                
+                node.parentNode.replaceChild(fragment, node);
+            });
+        }
+        
         // Apply when preview is shown
+        // Apply features when preview is shown - Enforcing Classic Theme
+        // Apply features on load - Preview is always visible
         document.addEventListener('DOMContentLoaded', function() {
             const previewSection = document.getElementById('preview-section');
             if (previewSection) {
-                const observer = new MutationObserver(function(mutations) {
-                    mutations.forEach(function(mutation) {
-                        if (mutation.attributeName === 'style') {
-                            const isVisible = previewSection.style.display !== 'none';
-                            if (isVisible) {
-                                setTimeout(applyEasternDigitsToPreview, 100);
-                            }
-                        }
-                    });
-                });
-                observer.observe(previewSection, { attributes: true });
+                // Permanently add letter-preview class for styling
+                previewSection.classList.add('letter-preview');
+
+                // Execute conversions immediately and after short delay (for any async content)
+                const runConversions = () => {
+                    const letterPaper = document.querySelector('.letter-paper');
+                    if (letterPaper) {
+                        convertDigitsInNode(letterPaper);
+                        markEnglishText(letterPaper);
+                    }
+                };
+                
+                runConversions();
+                // Run again after a slight delay to catch any dynamic updates
+                setTimeout(runConversions, 500);
             }
         });
+            
+
+
     </script>
 
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
