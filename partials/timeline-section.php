@@ -221,8 +221,16 @@ $eventCount = count($timeline);
                             <!-- Date and User -->
                             <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
                                 <span><?= htmlspecialchars($event['created_at'] ?? '') ?></span>
-                                <?php // UI LOGIC PROJECTION (Phase 4): Source badge ?>
-                                <span style="font-weight: 500;"><?= $event['source_badge'] ?? '🤖 نظام' ?></span>
+                                <?php 
+                                // ✅ Override created_by for bank-only events
+                                $displayCreator = $event['created_by'] ?? '🤖 نظام';
+                                
+                                // If event label is "تطابق تلقائي", show as system
+                                if ($eventLabel === 'تطابق تلقائي') {
+                                    $displayCreator = '🤖 نظام';
+                                }
+                                ?>
+                                <span style="font-weight: 500;"><?= $displayCreator ?></span>
                             </div>
                             
                             <!-- Click hint -->

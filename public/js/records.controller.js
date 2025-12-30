@@ -254,42 +254,6 @@ if (!window.RecordsController) {
             target.classList.add('chip-selected');
         }
 
-        // Bank Selection
-        selectBank(target) {
-            const bankId = target.dataset.id;
-            const bankName = target.dataset.name;
-            const bankCenter = target.dataset.center;
-            const bankPoBox = target.dataset.poBox;
-            const bankEmail = target.dataset.email;
-
-            // Update input fields
-            const bankNameInput = document.getElementById('bankNameInput');
-            if (bankNameInput) {
-                bankNameInput.value = bankName;
-            }
-
-            const bankSelect = document.getElementById('bankSelect');
-            if (bankSelect) {
-                bankSelect.value = bankId;
-            }
-
-            // Update Preview Bank Details immediately
-            if (bankCenter) {
-                const centerEl = document.querySelector('[data-field="bankCenter"]');
-                if (centerEl) centerEl.textContent = bankCenter;
-            }
-            if (bankPoBox) {
-                const poBoxEl = document.querySelector('[data-field="bankPoBox"]');
-                if (poBoxEl) poBoxEl.textContent = bankPoBox;
-            }
-            if (bankEmail) {
-                const emailEl = document.querySelector('[data-field="bankEmail"]');
-                if (emailEl) emailEl.textContent = bankEmail;
-            }
-
-            // Trigger preview update (for other fields)
-            this.updatePreviewFromDOM();
-        }
 
         // Save and proceed
         async saveAndNext() {
@@ -303,7 +267,6 @@ if (!window.RecordsController) {
                 guarantee_id: recordIdEl.dataset.recordId,
                 supplier_id: document.getElementById('supplierIdHidden')?.value || null,
                 supplier_name: document.getElementById('supplierInput')?.value || '',
-                bank_name: document.getElementById('bankNameInput')?.value || '',
                 current_index: document.querySelector('[data-record-index]')?.dataset.recordIndex || 1
             };
 

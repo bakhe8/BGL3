@@ -177,13 +177,7 @@ if (!window.TimelineController) {
                 console.log('✓ Updated supplier ID:', snapshot.supplier_id || '(cleared)');
             }
 
-            // Update bank name input (ID: bankNameInput)
-            // Always update to prevent "leakage" from previous events
-            const bankNameInput = document.getElementById('bankNameInput');
-            if (bankNameInput) {
-                bankNameInput.value = snapshot.bank_name || '';
-                console.log('✓ Updated bank name:', snapshot.bank_name || '(cleared)');
-            }
+            // Bank is now in Info Grid - updated via label matching below
 
             // Update hidden bank ID (ID: bankSelect)
             const bankSelect = document.getElementById('bankSelect');
@@ -229,6 +223,12 @@ if (!window.TimelineController) {
                 if (label.includes('تاريخ الإصدار') && snapshot.issue_date) {
                     valueEl.textContent = snapshot.issue_date;
                     console.log('✓ Updated issue date:', snapshot.issue_date);
+                }
+
+                // Bank name
+                if (label.includes('البنك') && snapshot.bank_name) {
+                    valueEl.textContent = snapshot.bank_name;
+                    console.log('✓ Updated bank:', snapshot.bank_name);
                 }
             });
 
@@ -304,7 +304,7 @@ if (!window.TimelineController) {
 
         disableEditing() {
             // Disable all input fields
-            const inputs = document.querySelectorAll('#supplierInput, #bankNameInput, #bankSelect');
+            const inputs = document.querySelectorAll('#supplierInput, #bankSelect');
             inputs.forEach(input => {
                 input.disabled = true;
                 input.style.opacity = '0.7';
@@ -320,7 +320,7 @@ if (!window.TimelineController) {
 
         enableEditing() {
             // Enable all input fields
-            const inputs = document.querySelectorAll('#supplierInput, #bankNameInput, #bankSelect');
+            const inputs = document.querySelectorAll('#supplierInput, #bankSelect');
             inputs.forEach(input => {
                 input.disabled = false;
                 input.style.opacity = '1';

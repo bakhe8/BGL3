@@ -406,6 +406,27 @@ class TimelineRecorder {
         $subtype = $event['event_subtype'] ?? '';
         $type = $event['event_type'] ?? '';
         
+        // ✅ CRITICAL: Parse event_details first to detect bank-only changes
+        $details = json_decode($event['event_details'] ?? '{}', true);
+        $changes = $details['changes'] ?? [];
+        
+        // Check if changes contain ONLY bank (not supplier)
+        $hasOnlyBank = false;
+        $hasSupplier = false;
+        foreach ($changes as $change) {
+            if (($change['field'] ?? '') === 'bank_id') {
+                $hasOnlyBank = true;
+            }
+            if (($change['field'] ?? '') === 'supplier_id') {
+                $hasSupplier = true;
+            }
+        }
+        
+        // ✅ If ONLY bank changed → always automatic (overrides subtype)
+        if ($hasOnlyBank && !$hasSupplier) {
+            return 'تطابق تلقائي';
+        }
+        
         // 🆕 Prioritize event_subtype if available (unified timeline)
         if ($subtype) {
             return match ($subtype) {
@@ -413,18 +434,17 @@ class TimelineRecorder {
                 'extension' => 'تمديد',
                 'reduction' => 'تخفيض',
                 'release' => 'إفراج',
-                'supplier_change', 'bank_change', 'manual_edit' => 'تطابق يدوي',
+                'supplier_change' => 'تطابق يدوي',  // Supplier only
+                'bank_change' => 'تطابق تلقائي',     // ✅ Bank is always auto now
+                'bank_match' => 'تطابق تلقائي',      // ✅ Bank auto-match event  
+                'manual_edit' => 'تطابق يدوي',       // Mixed or supplier-only events
                 'ai_match' => 'تطابق تلقائي',
                 'status_change' => 'تغيير حالة',
                 default => 'تحديث'
             };
         }
-        
-        // Fallback to old logic for legacy records without subtype
-        $details = json_decode($event['event_details'] ?? '{}', true);
-        $changes = $details['changes'] ?? [];
 
-        // Helper
+        // Helper functions for fallback logic
         $hasField = function($field) use ($changes) {
             foreach ($changes as $change) {
                 if (($change['field'] ?? '') === $field) return true;
@@ -448,8 +468,14 @@ class TimelineRecorder {
         if ($type === 'modified') {
             if ($hasField('expiry_date') || $hasTrigger('extension_action')) return 'تمديد';
             if ($hasField('amount') || $hasTrigger('reduction_action')) return 'تخفيض';
-            if ($hasField('supplier_id') || $hasField('bank_id')) return 'تطابق يدوي';
-            return 'تحديث'; 
+           // Decision event: Based on what changed
+        $categorizeDecision = function($data) use ($hasField) {
+            // If supplier changed = user selected supplier (manual action)
+            // البنك الآن تلقائي، فالقرار اليدوي = اختيار المورد فقط
+            if ($hasField('supplier_id') || $hasField('bank_id')) return 'اختيار القرار';
+            return 'تحديث';
+        };
+            return $categorizeDecision($changes); // Pass changes to the categorizer
         }
 
         if ($type === 'released' || $type === 'release') return 'إفراج';

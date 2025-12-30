@@ -66,8 +66,8 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 </header>
 
 <div class="card-body">
-    <!-- Side-by-Side Grid for Supplier and Bank -->
-    <div class="fields-grid">
+    <!-- Supplier Field Section -->
+    <div style="margin-bottom: 20px;">
     <!-- Supplier Field -->
     <div class="field-group">
         <div class="field-row">
@@ -136,100 +136,6 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
                     <?= htmlspecialchars($guarantee->rawData['supplier'] ?? '') ?>
                 </span>
             </div>
-            
-            <?php if (!empty($supplierMatch['score'])): ?>
-                <?php
-                    $score = $supplierMatch['score'];
-                    $color = $score >= 90 ? '#10b981' : ($score >= 70 ? '#f59e0b' : '#ef4444');
-                ?>
-                <div class="hint-divider">|</div>
-                <div class="hint-score" style="display: flex; align-items: center; gap: 6px;">
-                    <div class="hint-dot" style="background-color: <?= $color ?>;"></div>
-                    <span style="color: <?= $color ?>; font-weight: bold;">
-                        <?= $score ?>%
-                    </span>
-                </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- Bank Field (Updated to Text Input + Chips) -->
-    <div class="field-group">
-        <div class="field-row">
-            <label class="field-label">
-                البنك
-                <?php 
-                // Contextual status indicator for bank
-                $bankMissing = empty($record['bank_id']);
-                if ($bankMissing && ($record['status'] ?? 'pending') === 'pending'):
-                ?>
-                    <span class="field-status-indicator field-status-missing" title="البنك غير محدد - يحتاج قرار">⚠️</span>
-                <?php elseif (!$bankMissing): ?>
-                    <span class="field-status-indicator field-status-ok" title="البنك محدد">✓</span>
-                <?php endif; ?>
-            </label>
-            <input type="text" 
-                   class="field-input" 
-                   id="bankNameInput" 
-                   name="bank_name"
-                   data-preview-field="bank_name"
-                   value="<?= htmlspecialchars($record['bank_name'], ENT_QUOTES, 'UTF-8', false) ?>"
-                   placeholder="اسم البنك"
-                   <?= $isHistorical ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
-            <input type="hidden" id="bankSelect" name="bank_id" value="<?= $record['bank_id'] ?? '' ?>">
-        </div>
-        
-        <div class="chips-row">
-            <!-- Always show Best Bank Match with star if found AND not already selected/approved -->
-            <?php 
-                $isAlreadySelected = isset($record['bank_id']) && 
-                                   isset($bankMatch['id']) && 
-                                   $record['bank_id'] == $bankMatch['id'];
-                
-                if (!empty($bankMatch['id']) && !$isAlreadySelected): 
-            ?>
-                 <button class="chip <?= ($record['bank_name'] === $bankMatch['name']) ? 'chip-selected' : '' ?>"
-                        data-action="selectBank"
-                        data-id="<?= $bankMatch['id'] ?>"
-                        data-name="<?= htmlspecialchars($bankMatch['name']) ?>">
-                    <span>⭐ </span>
-                    <span><?= htmlspecialchars($bankMatch['name']) ?></span>
-                </button>
-            <?php endif; ?>
-
-            <!-- Only show generic banks list if confidence is low (<80%) or no match -->
-            <?php 
-                $showGenericBanks = empty($bankMatch['score']) || $bankMatch['score'] < 80;
-                if (isset($banks) && $showGenericBanks && !$isHistorical): 
-            ?>
-                <?php 
-                    $count = 0; 
-                    foreach ($banks as $bank): 
-                        // Skip if same as match to avoid duplicates
-                        if (isset($bankMatch['id']) && $bank['id'] == $bankMatch['id']) continue;
-                        if ($count > 5) break; // Limit to 5 generic banks
-                        $count++;
-                ?>
-                    <button class="chip <?= (isset($record['bank_id']) && $record['bank_id'] == $bank['id']) ? 'chip-selected' : '' ?>"
-                            data-action="selectBank"
-                            data-id="<?= $bank['id'] ?>"
-                            data-name="<?= htmlspecialchars($bank['official_name']) ?>"
-                            data-center="<?= htmlspecialchars($bank['department'] ?? 'مركز خدمات التجارة') ?>"
-                            data-po-box="<?= htmlspecialchars($bank['po_box'] ?? '3555') ?>"
-                            data-email="<?= htmlspecialchars($bank['email'] ?? 'info@bank.com') ?>">
-                        <span><?= htmlspecialchars($bank['official_name']) ?></span>
-                    </button>
-                <?php endforeach; ?>
-            <?php endif; ?>
-        </div>
-
-        <div class="field-hint">
-            <div class="hint-group">
-                <span class="hint-label">Excel:</span>
-                <span class="hint-value" id="excelBank">
-                    <?= htmlspecialchars($guarantee->rawData['bank'] ?? '') ?>
-                </span>
-            </div>
         </div>
     </div>
     </div>
@@ -264,6 +170,10 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
         <div class="info-item">
             <div class="info-label">النوع</div>
             <div class="info-value" data-preview-field="type"><?= htmlspecialchars($record['type']) ?></div>
+        </div>
+        <div class="info-item">
+            <div class="info-label">البنك</div>
+            <div class="info-value" data-preview-field="bank_name"><?= htmlspecialchars($record['bank_name'] ?? 'غير محدد') ?></div>
         </div>
     </div>
 </div>

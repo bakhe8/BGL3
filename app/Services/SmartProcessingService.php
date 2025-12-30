@@ -115,6 +115,9 @@ class SmartProcessingService
                 if ($bank) {
                     $bankId = $bank['id'];
                     $finalBankName = $bank['arabic_name'];
+                    
+                    // Update raw_data with matched bank name
+                    $this->updateBankNameInRawData($guaranteeId, $finalBankName);
                 }
             }
 
@@ -142,6 +145,9 @@ class SmartProcessingService
 
             // If BOTH matches have High Score AND No Conflicts -> Auto Approve!
             if ($supplierId && $bankId && empty($conflicts)) {
+                // Log bank match FIRST (happens during import, before supplier)
+                $this->logBankAutoMatchEvent($guaranteeId, $rawData['bank'], $finalBankName);
+                
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
                 $stats['auto_matched']++;
@@ -198,6 +204,55 @@ class SmartProcessingService
                 'action' => 'Auto-matched and approved',
                 'supplier' => ['raw' => $raw['supplier'], 'matched' => $supName, 'score' => $supScore],
                 'result' => 'Automatically approved based on high confidence match'
+            ]),
+            'System AI'
+        ]);
+    }
+    
+    /**
+     * Update Bank Name in raw_data
+     * Updates the guarantee's raw_data to use the matched bank name
+     */
+    private function updateBankNameInRawData(int $guaranteeId, string $matchedBankName): void
+    {
+        $stmt = $this->db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$guaranteeId]);
+        $rawData = json_decode($stmt->fetchColumn(), true);
+        
+        if ($rawData) {
+            // Update bank name with matched name
+            $rawData['bank'] = $matchedBankName;
+            
+            $updateStmt = $this->db->prepare("UPDATE guarantees SET raw_data = ? WHERE id = ?");
+            $updateStmt->execute([json_encode($rawData), $guaranteeId]);
+        }
+    }
+    
+    /**
+     * Log Bank Auto-Match Event
+     * Records bank matching as a separate timeline event
+     */
+    private function logBankAutoMatchEvent(int $guaranteeId, string $rawBankName, string $matchedBankName): void
+    {
+        $histStmt = $this->db->prepare("
+            INSERT INTO guarantee_history (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, NOW(), ?)
+        ");
+        
+        $histStmt->execute([
+            $guaranteeId,
+            'auto_matched',
+            'bank_match',
+            json_encode([
+                'field' => 'bank',
+                'from' => $rawBankName,
+                'to' => $matchedBankName,
+                'trigger' => 'auto'
+            ]),
+            json_encode([
+                'action' => 'Bank auto-matched',
+                'bank' => ['raw' => $rawBankName, 'matched' => $matchedBankName],
+                'result' => 'Automatically matched during import'
             ]),
             'System AI'
         ]);

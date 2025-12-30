@@ -18,9 +18,8 @@ try {
     
     $guaranteeId = $input['guarantee_id'] ?? null;
     $supplierId = $input['supplier_id'] ?? null;
-    $bankId = $input['bank_id'] ?? null;
     $supplierName = trim($input['supplier_name'] ?? '');
-    $bankName = trim($input['bank_name'] ?? '');
+    // Bank is no longer sent - it's set once during import/matching
     $currentIndex = $input['current_index'] ?? 1;
     
     if (!$guaranteeId) {
@@ -82,64 +81,11 @@ try {
         }
     }
 
-    // SAFEGUARD (Bank): Check for ID/Name Mismatch
-    // Trust User Input > Hidden ID
-    if ($bankId && $bankName) {
-        $chkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
-        $chkStmt->execute([$bankId]);
-        $dbName = $chkStmt->fetchColumn();
-        
-        if ($dbName && mb_strtolower(trim($dbName)) !== mb_strtolower(trim($bankName))) {
-            $bankId = null; // Mismatch! Reset ID to force new resolution/creation
-        }
-    }
-
-    // 2. Resolve Bank ID if missing
-    $bankError = '';
-    if (!$bankId && $bankName) {
-        $normStub = mb_strtolower($bankName);
-        
-        // Strategy A: Exact Match
-        $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
-        $stmt->execute([$bankName]);
-        $bankId = $stmt->fetchColumn();
-        
-        // Strategy B: Normalized Match
-        if (!$bankId) {
-             $stmt = $db->prepare('SELECT id FROM banks WHERE normalized_name = ?');
-             $stmt->execute([$normStub]);
-             $bankId = $stmt->fetchColumn();
-        }
-        
-        // If STILL not found, Auto-Create Bank
-        if (!$bankId) {
-            try {
-                // Generate short code (required by schema)
-                $shortCode = strtoupper(substr(preg_replace('/[^a-zA-Z0-9]/', '', $bankName), 0, 10));
-                if (strlen($shortCode) < 2) $shortCode = 'BNK_' . rand(100, 999);
-                
-                // Generate normalized name (required by schema)
-                $normName = mb_strtolower(trim($bankName));
-                
-                $stmt = $db->prepare('INSERT INTO banks (arabic_name, short_code, normalized_name) VALUES (?, ?, ?)');
-                $stmt->execute([$bankName, $shortCode, $normName]);
-                $bankId = $db->lastInsertId();
-            } catch (\Exception $e) {
-                $bankError = $e->getMessage();
-                // Retry fetch
-                $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
-                $stmt->execute([$bankName]);
-                $bankId = $stmt->fetchColumn();
-            }
-        }
-    }
-
-    // Now validate
-    if (!$guaranteeId || !$supplierId || !$bankId) {
+    // Validation
+    if (!$guaranteeId || !$supplierId) {
         $missing = [];
         if (!$guaranteeId) $missing[] = 'Guarantee ID';
         if (!$supplierId) $missing[] = "Supplier (Unknown" . ($supplierError ? ": $supplierError" : "") . ")";
-        if (!$bankId) $missing[] = "Bank (Unknown" . ($bankError ? ": $bankError" : "") . ")";
         
         http_response_code(400); // Bad Request
         echo json_encode(['success' => false, 'error' => 'Missing fields: ' . implode(', ', $missing)]);
@@ -150,12 +96,8 @@ try {
     $now = date('Y-m-d H:i:s');
     $changes = [];
     
-    // --- DETECT CHANGES ---
-    $now = date('Y-m-d H:i:s');
-    $changes = [];
-    
-    // Determine "Old State" (Last Decision > Raw Data)
-    $lastDecStmt = $db->prepare('SELECT supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
+    // Determine old state (last decision > raw data)
+    $lastDecStmt = $db->prepare('SELECT supplier_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
     $lastDecStmt->execute([$guaranteeId]);
     $prevDecision = $lastDecStmt->fetch(PDO::FETCH_ASSOC);
     
@@ -170,9 +112,15 @@ try {
     }
 
     // Resolve Old Bank Name
-    if ($prevDecision && $prevDecision['bank_id']) {
+    // Bank is set once during import/matching and not changed by this endpoint.
+    // We still need its ID for status evaluation.
+    $bankStmt = $db->prepare('SELECT bank_id FROM guarantee_decisions WHERE guarantee_id = ?');
+    $bankStmt->execute([$guaranteeId]);
+    $bankId = $bankStmt->fetchColumn() ?: null; // Get the existing bank_id
+
+    if ($bankId) {
         $stmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
-        $stmt->execute([$prevDecision['bank_id']]);
+        $stmt->execute([$bankId]);
         $oldBank = $stmt->fetchColumn() ?: '';
     } else {
         $oldBank = $currentGuarantee->rawData['bank'] ?? '';
@@ -190,9 +138,14 @@ try {
     }
     
     // 2. Check Bank Change
-    // Fetch new bank name
+    // Get current bank_id (never changes after auto-match)
+    $bankStmt = $db->prepare('SELECT bank_id FROM guarantee_decisions WHERE guarantee_id = ?');
+    $bankStmt->execute([$guaranteeId]);
+    $currentBankId = $bankStmt->fetchColumn() ?: null;
+    
+    // Fetch new bank name (which is the current bank name, as it's not being changed here)
     $bnkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
-    $bnkStmt->execute([$bankId]);
+    $bnkStmt->execute([$currentBankId]);
     $newBank = $bnkStmt->fetchColumn();
     
     if (trim($oldBank) !== trim($newBank)) {
@@ -211,26 +164,23 @@ try {
     // 2. UPDATE: Calculate status and save decision to DB
     $statusToSave = \App\Services\StatusEvaluator::evaluate($supplierId, $bankId);
     
+    // UPDATE supplier only (bank remains unchanged from initial auto-match)
     $stmt = $db->prepare('
-        REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        UPDATE guarantee_decisions 
+        SET supplier_id = ?, status = ?, decided_at = ?
+        WHERE guarantee_id = ?
     ');
     $stmt->execute([
-        $guaranteeId,
         $supplierId,
-        $bankId,
         $statusToSave,
         $now,
-        'manual',
-        $now
+        $guaranteeId
     ]);
 
     // 3. RECORD: Strict Event Recording (UE-01 Decision)
     $newData = [
         'supplier_id' => $supplierId,
-        'supplier_name' => $newSupplier,
-        'bank_id' => $bankId,
-        'bank_name' => $newBank
+        'supplier_name' => $newSupplier
     ];
 
     \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, false); // isAuto = false
