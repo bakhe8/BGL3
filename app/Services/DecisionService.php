@@ -47,7 +47,7 @@ class DecisionService
         $decision = new GuaranteeDecision(
             id: $existing?->id,
             guaranteeId: $guaranteeId,
-            status: $data['status'] ?? 'approved', // P3: Use canonical term 'approved' not 'ready'
+            status: $data['status'] ?? 'ready', // Use 'ready' as canonical term
             supplierId: $data['supplier_id'] ?? null,
             bankId: $data['bank_id'] ?? null,
             decisionSource: $data['decision_source'] ?? 'manual',

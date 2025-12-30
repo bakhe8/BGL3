@@ -343,8 +343,7 @@ $formattedSuppliers = array_map(function($s) {
         'id' => $s['id'],
         'name' => $s['official_name'],
         'score' => $s['score'],
-        // 'source' => $s['source'] === 'alias' ? 'learned' : 'search', // Matches frontend 'learned' string if needed
-        'usage_count' => 0 
+        'usage_count' => $s['usage_count'] ?? 0 
     ];
 }, $initialSupplierSuggestions);
 ?>

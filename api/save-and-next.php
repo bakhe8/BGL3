@@ -63,7 +63,7 @@ try {
         }
         
         if (!$supplierId) {
-            // Auto-create new supplier
+            // Auto-create new supplier with improved error handling
             try {
                 // Generate normalized name (required by schema)
                 $normName = $normStub;
@@ -71,12 +71,31 @@ try {
                 $stmt = $db->prepare('INSERT INTO suppliers (official_name, normalized_name) VALUES (?, ?)');
                 $stmt->execute([$supplierName, $normName]);
                 $supplierId = $db->lastInsertId();
-            } catch (\Exception $e) {
-                $supplierError = $e->getMessage(); 
-                // Retry fetch (Maybe race condition or created by normalized constraint?)
-                $stmt = $db->prepare('SELECT id FROM suppliers WHERE normalized_name = ?');
-                $stmt->execute([$normName]);
-                $supplierId = $stmt->fetchColumn();
+                
+                error_log("[AUTO-CREATE] Created supplier: $supplierName (ID: $supplierId)");
+                
+            } catch (\PDOException $e) {
+                // Check if it's duplicate key error specifically (race condition)
+                if ($e->getCode() == '23000') {
+                    // This is the race condition - another process created it
+                    error_log("[RACE-CONDITION] Supplier created by another process: $supplierName");
+                    
+                    $stmt = $db->prepare('SELECT id FROM suppliers WHERE normalized_name = ?');
+                    $stmt->execute([$normName]);
+                    $supplierId = $stmt->fetchColumn();
+                    
+                    if ($supplierId) {
+                        error_log("[RACE-CONDITION-RESOLVED] Found supplier after race: $supplierName (ID: $supplierId)");
+                    } else {
+                        // Still null? Something's very wrong
+                        error_log("[CRITICAL] Failed to create or find supplier after race condition: $supplierName - " . $e->getMessage());
+                        $supplierError = "فشل في إنشاء المورد. الرجاء المحاولة مرة أخرى.";
+                    }
+                } else {
+                    // Other database error - log and report
+                    error_log("[DB-ERROR] Failed to create supplier '$supplierName': " . $e->getMessage());
+                    $supplierError = "خطأ في قاعدة البيانات: " . $e->getMessage();
+                }
             }
         }
     }

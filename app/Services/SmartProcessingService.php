@@ -89,7 +89,8 @@ class SmartProcessingService
                 $supplierSource = $top['source'] ?? null;
                 
                 // SAFE LEARNING: Block auto-approval from learned aliases
-                if ($top['score'] >= 90 && $supplierSource !== 'alias') {
+                // Note: score is normalized to 0.0-1.0 range
+                if ($top['score'] >= 0.90 && $supplierSource !== 'alias') {
                     $supplierId = $top['id'];
                     $finalSupplierName = $top['official_name'];
                     $supplierConfidence = $top['score'];

@@ -30,12 +30,16 @@ class GuaranteeDecision
     ) {}
     
     /**
-     * Check if decision is approved (P3: Renamed from isReady, canonical term)
+     * Check if decision is ready (has both supplier and bank)
+     * 
+     * Status Values:
+     * - 'pending': Not yet decided
+     * - 'ready': Decision ready (has supplier_id AND bank_id)
      */
     public function isApproved(): bool
     {
-        // Check for 'approved' status (canonical) and both supplier & bank exist
-        return ($this->status === 'approved' || $this->status === 'ready') 
+        // Use 'ready' as the canonical term for completed decisions
+        return $this->status === 'ready' 
             && $this->supplierId !== null 
             && $this->bankId !== null;
     }

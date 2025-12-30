@@ -45,14 +45,14 @@ class Normalizer
     }
 
     /**
-     * تطبيع أسماء البنوك (نفس قواعد الأسماء العامة حالياً).
+     * تطبيع أسماء البنوك - يستخدم BankNormalizer المتخصص
+     * 
+     * @see App\Support\BankNormalizer For specialized bank normalization logic
      */
     public function normalizeBankName(string $value): string
     {
-        // نفس تطبيع الأسماء، مع إزالة الفراغات لجعل المفتاح متوافقاً مع normalized_key الرسمي (riyadbank بدلاً من riyad bank)
-        $val = $this->normalizeName($value);
-        $val = str_replace(' ', '', $val);
-        return $val;
+        // Delegate to specialized BankNormalizer for consistent bank matching
+        return BankNormalizer::normalize($value);
     }
 
     /**
