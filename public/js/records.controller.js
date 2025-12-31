@@ -102,13 +102,13 @@ if (!window.RecordsController) {
             // ===== LIFECYCLE GATE: Status Check =====
             // Only allow preview updates if guarantee is READY (approved)
             const statusBadge = document.querySelector('.status-badge, .badge');
-            
+
             if (statusBadge) {
-                const isPending = statusBadge.classList.contains('badge-pending') || 
-                                 statusBadge.classList.contains('status-pending') ||
-                                 statusBadge.textContent.includes('يحتاج قرار') ||
-                                 statusBadge.textContent.includes('pending');
-                
+                const isPending = statusBadge.classList.contains('badge-pending') ||
+                    statusBadge.classList.contains('status-pending') ||
+                    statusBadge.textContent.includes('يحتاج قرار') ||
+                    statusBadge.textContent.includes('pending');
+
                 if (isPending) {
                     console.log('⚠️ Preview update blocked: guarantee status is pending');
                     console.log('   Preview will be available once supplier and bank are selected');
@@ -148,12 +148,29 @@ if (!window.RecordsController) {
                 // خاص بالنوع: تحديث الجملة كاملة بدلاً من النوع فقط
                 if (fieldName === 'type') {
                     const typeRaw = fieldValue.trim();
+
+                    // ← NEW: قراءة event_subtype من timeline controller
+                    const eventSubtype = window.timelineController?.currentEventSubtype;
+                    const isHistoricalView = window.timelineController?.isHistoricalView;
+
                     let fullPhrase = 'إشارة إلى الضمان البنكي الموضح أعلاه'; // Default
 
-                    if (typeRaw.includes('Final')) {
-                        fullPhrase = 'إشارة إلى الضمان البنكي النهائي الموضح أعلاه';
-                    } else if (typeRaw.includes('Advance')) {
-                        fullPhrase = 'إشارة إلى ضمان الدفعة المقدمة البنكي الموضح أعلاه';
+                    // ← NEW: أولوية لـ event_subtype إذا كان في historical view
+                    if (isHistoricalView && eventSubtype) {
+                        if (eventSubtype === 'extension') {
+                            fullPhrase = 'طلب تمديد الضمان البنكي الموضح أعلاه';
+                        } else if (eventSubtype === 'reduction') {
+                            fullPhrase = 'طلب تخفيض الضمان البنكي الموضح أعلاه';
+                        } else if (eventSubtype === 'release') {
+                            fullPhrase = 'طلب الإفراج عن الضمان البنكي الموضح أعلاه';
+                        }
+                    } else {
+                        // Fallback إلى type-based logic
+                        if (typeRaw.includes('Final')) {
+                            fullPhrase = 'إشارة إلى الضمان البنكي النهائي الموضح أعلاه';
+                        } else if (typeRaw.includes('Advance')) {
+                            fullPhrase = 'إشارة إلى ضمان الدفعة المقدمة البنكي الموضح أعلاه';
+                        }
                     }
 
                     // Update corresponding preview target 'full_intro_phrase'

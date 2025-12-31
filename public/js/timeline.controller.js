@@ -84,11 +84,19 @@ if (!window.TimelineController) {
             // Update form fields with complete snapshot data
             this.updateFormFields(completeSnapshot);
 
+            // ← NEW: حفظ event_subtype من DOM
+            const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
+            this.currentEventSubtype = eventElement?.dataset.eventSubtype || null;
+            console.log('📋 Event subtype:', this.currentEventSubtype);
+
             // Show historical banner
             this.showHistoricalBanner();
 
             // Disable editing
             this.disableEditing();
+
+            // ← NEW: عرض event context badge
+            this.showEventContextBadge(this.currentEventSubtype);
 
             // Update preview if it's currently open (Derived View sync)
             if (window.recordsController?.previewVisible) {
@@ -357,6 +365,10 @@ if (!window.TimelineController) {
                     throw new Error(data.error || 'Failed to load current state');
                 }
 
+                // ← NEW: إزالة event context بشكل صريح
+                this.currentEventSubtype = null;
+                this.hideEventContextBadge();
+
                 // Update form fields with current state snapshot
                 this.updateFormFields(data.snapshot || {});
 
@@ -397,6 +409,28 @@ if (!window.TimelineController) {
 
         showError(message) {
             if (window.showToast) window.showToast(message, 'error');
+        }
+
+        showEventContextBadge(eventSubtype) {
+            if (!eventSubtype) return;
+            const labels = { 'extension': '📅 تمديد', 'reduction': '💰 تخفيض', 'release': '🔓 إفراج' };
+            if (!['extension', 'reduction', 'release'].includes(eventSubtype)) return;
+            let badge = document.getElementById('event-context-badge');
+            if (!badge) {
+                const cardBody = document.querySelector('.card-body');
+                if (!cardBody) return;
+                badge = document.createElement('div');
+                badge.id = 'event-context-badge';
+                badge.style.cssText = 'background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;margin:12px 0;display:flex;align-items:center;gap:8px;font-size:13px;color:#92400e;font-weight:600;';
+                cardBody.insertBefore(badge, cardBody.firstChild);
+            }
+            badge.textContent = `سياق الحدث: ${labels[eventSubtype]}`;
+            badge.style.display = 'flex';
+        }
+
+        hideEventContextBadge() {
+            const badge = document.getElementById('event-context-badge');
+            if (badge) badge.style.display = 'none';
         }
     };
 }
