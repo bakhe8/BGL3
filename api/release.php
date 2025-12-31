@@ -27,6 +27,24 @@ try {
     $decisionRepo = new GuaranteeDecisionRepository($db);
     $guaranteeRepo = new GuaranteeRepository($db);
     
+    // ===== LIFECYCLE GATE: Prevent release on pending guarantees =====
+    $statusCheck = $db->prepare("
+        SELECT status 
+        FROM guarantee_decisions 
+        WHERE guarantee_id = ?
+    ");
+    $statusCheck->execute([$guaranteeId]);
+    $currentStatus = $statusCheck->fetchColumn();
+    
+    if ($currentStatus !== 'approved') {
+        http_response_code(400);
+        echo '<div id="record-form-section" class="card" data-current-event-type="current">';
+        echo '<div class="card-body" style="color: red;">لا يمكن إفراج عن ضمان غير مكتمل. يجب اختيار المورد والبنك أولاً.</div>';
+        echo '</div>';
+        exit;
+    }
+    // ================================================================
+    
     // --------------------------------------------------------------------
     // STRICT TIMELINE DISCIPLINE: Snapshot -> Update -> Record
     // --------------------------------------------------------------------

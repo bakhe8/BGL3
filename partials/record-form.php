@@ -53,14 +53,39 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 <?php endif; ?>
 
 <!-- Record Form Content -->
+<?php 
+// ===== LIFECYCLE GATE: Determine if actions are allowed =====
+// Only allow actions (extend/reduce/release) on READY guarantees
+$isReady = ($record['status'] ?? 'pending') === 'approved';
+$disabledAttr = !$isReady ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
+$disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيانات الضمان"' : '';
+// ============================================================
+?>
 <header class="card-header">
     <div class="header-title" style="display: flex; align-items: center; width: 100%;">
         <div class="record-actions" style="display: flex; gap: 8px; flex: 1; align-items: center;">
             <button class="btn btn-secondary btn-sm" data-action="saveAndNext">💾 حفظ</button>
             <div style="width: 1px; height: 20px; background: #e2e8f0; margin: 0 4px;"></div>
-            <button class="btn btn-secondary btn-sm" data-action="extend">🔄 تمديد</button>
-            <button class="btn btn-secondary btn-sm" data-action="reduce">📉 تخفيض</button>
-            <button class="btn btn-secondary btn-sm" data-action="release">📤 إفراج</button>
+            
+            <!-- ⚠️ Actions disabled if not ready -->
+            <button class="btn btn-secondary btn-sm" 
+                    data-action="extend" 
+                    <?= $disabledAttr ?> 
+                    <?= $disabledTitle ?>>
+                🔄 تمديد
+            </button>
+            <button class="btn btn-secondary btn-sm" 
+                    data-action="reduce" 
+                    <?= $disabledAttr ?> 
+                    <?= $disabledTitle ?>>
+                📉 تخفيض
+            </button>
+            <button class="btn btn-secondary btn-sm" 
+                    data-action="release" 
+                    <?= $disabledAttr ?> 
+                    <?= $disabledTitle ?>>
+                📤 إفراج
+            </button>
         </div>
 
 </header>

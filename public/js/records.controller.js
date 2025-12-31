@@ -99,6 +99,24 @@ if (!window.RecordsController) {
 
         updatePreviewFromDOM() {
 
+            // ===== LIFECYCLE GATE: Status Check =====
+            // Only allow preview updates if guarantee is READY (approved)
+            const statusBadge = document.querySelector('.status-badge, .badge');
+            
+            if (statusBadge) {
+                const isPending = statusBadge.classList.contains('badge-pending') || 
+                                 statusBadge.classList.contains('status-pending') ||
+                                 statusBadge.textContent.includes('يحتاج قرار') ||
+                                 statusBadge.textContent.includes('pending');
+                
+                if (isPending) {
+                    console.log('⚠️ Preview update blocked: guarantee status is pending');
+                    console.log('   Preview will be available once supplier and bank are selected');
+                    return; // Exit early - no preview update
+                }
+            }
+            // =========================================
+
             // Arabic month names for date formatting
             const arabicMonths = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
                 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];

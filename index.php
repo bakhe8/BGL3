@@ -1741,6 +1741,112 @@ $formattedSuppliers = array_map(function($s) {
             gap: 12px;
         }
         
+        
+        /* ═══════════════════════════════════════════════════════════════
+           PREVIEW BLOCKED STATE
+           ═══════════════════════════════════════════════════════════════ */
+        .preview-blocked-section {
+            background: #f3f4f6;
+            padding: 20px;
+            direction: rtl;
+        }
+        
+        .preview-blocked-card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            max-width: 600px;
+            margin: 0 auto;
+            overflow: hidden;
+        }
+        
+        .blocked-header {
+            background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+            padding: 24px;
+            text-align: center;
+            border-bottom: 2px solid #f59e0b;
+        }
+        
+        .blocked-icon {
+            font-size: 48px;
+            margin-bottom: 12px;
+        }
+        
+        .blocked-header h3 {
+            margin: 0;
+            color: #92400e;
+            font-size: 20px;
+            font-weight: 600;
+        }
+        
+        .blocked-body {
+            padding: 24px;
+        }
+        
+        .blocked-message {
+            text-align: center;
+            color: #6b7280;
+            font-size: 15px;
+            margin-bottom: 24px;
+            line-height: 1.6;
+        }
+        
+        .requirements-section {
+            background: #fef3c7;
+            border: 1px solid #fbbf24;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .requirements-section h4 {
+            margin: 0 0 12px 0;
+            color: #92400e;
+            font-size: 14px;
+            font-weight: 600;
+        }
+        
+        .requirements-list {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        
+        .requirement-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 12px;
+            background: white;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+        
+        .requirement-icon {
+            font-size: 16px;
+        }
+        
+        .requirement-text {
+            color: #374151;
+            font-weight: 500;
+        }
+        
+        .blocked-hint {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px;
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            font-size: 13px;
+            color: #1e40af;
+        }
+        
+        .hint-icon {
+            font-size: 18px;
+        }
+        
         /* Loading state */
         .loading {
             display: none !important;
@@ -1892,8 +1998,46 @@ $formattedSuppliers = array_map(function($s) {
                         ?>
                     </div>
 
-                    <!-- Preview Section - Using Partial -->
-                    <?php require __DIR__ . '/partials/preview-section.php'; ?>
+                    <!-- Preview Section - Lifecycle Gate -->
+                    <?php if ($mockRecord['status'] === 'approved'): ?>
+                        <!-- ✅ Status: READY - Preview Allowed -->
+                        <?php require __DIR__ . '/partials/preview-section.php'; ?>
+                    <?php else: ?>
+                        <!-- 🔒 Status: PENDING - Preview Blocked -->
+                        <div class="preview-blocked-section" id="preview-section">
+                            <div class="preview-blocked-card">
+                                <div class="blocked-header">
+                                    <div class="blocked-icon">🔒</div>
+                                    <h3>المعاينة غير متاحة حالياً</h3>
+                                </div>
+                                
+                                <div class="blocked-body">
+                                    <p class="blocked-message">
+                                        لا يمكن معاينة الخطاب قبل اكتمال جميع متطلبات الضمان
+                                    </p>
+                                    
+                                    <div class="requirements-section">
+                                        <h4>المتطلبات الناقصة:</h4>
+                                        <div class="requirements-list">
+                                            <?php foreach ($statusReasons as $reason): ?>
+                                                <?php if ($reason['severity'] === 'error'): ?>
+                                                    <div class="requirement-item">
+                                                        <span class="requirement-icon">❌</span>
+                                                        <span class="requirement-text"><?= $reason['message_ar'] ?></span>
+                                                    </div>
+                                                <?php endif; ?>
+                                            <?php endforeach; ?>
+                                        </div>
+                                    </div>
+                                    
+                                    <div class="blocked-hint">
+                                        <span class="hint-icon">💡</span>
+                                        <span>بعد اكتمال البيانات، ستظهر المعاينة تلقائياً</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    <?php endif; ?>
                 </main>
 
             </div>
