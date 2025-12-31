@@ -139,6 +139,15 @@ try {
         // History table doesn't exist or query failed - timeline will be empty
         $timeline = [];
     }
+
+    // 🔥 NEW: Fetch Latest Event Subtype for Context Badge (Navigation)
+    try {
+        $stmtEvent = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
+        $stmtEvent->execute([$guaranteeId]);
+        $latestEventSubtype = $stmtEvent->fetchColumn();
+    } catch (\Throwable $e) { 
+        $latestEventSubtype = null; 
+    }
     
     // Get banks for dropdown
     $banksStmt = $db->query('

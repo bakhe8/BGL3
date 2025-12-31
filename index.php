@@ -173,6 +173,10 @@ if ($currentRecord) {
         $mockRecord['is_locked'] = (bool)$decision->isLocked;
         $mockRecord['locked_reason'] = $decision->lockedReason;
         
+        // Phase 4: Active Action State
+        $mockRecord['active_action'] = $decision->activeAction;
+        $mockRecord['active_action_set_at'] = $decision->activeActionSetAt;
+        
         // If supplier_id exists, get the official supplier name
         if ($decision->supplierId) {
             try {
@@ -303,6 +307,12 @@ if ($currentRecord) {
             $stmt = $db->prepare('SELECT * FROM guarantee_notes WHERE guarantee_id = ? ORDER BY created_at DESC');
             $stmt->execute([$currentRecord->id]);
             $mockNotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // 🔥 NEW: Fetch Latest Event Subtype for Context Badge (Initial Load)
+            $stmtEvent = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
+            $stmtEvent->execute([$currentRecord->id]);
+            $latestEventSubtype = $stmtEvent->fetchColumn(); 
+            // This variable $latestEventSubtype will be available in included partials
             
             // Load attachments
             $stmt = $db->prepare('SELECT * FROM guarantee_attachments WHERE guarantee_id = ? ORDER BY created_at DESC');

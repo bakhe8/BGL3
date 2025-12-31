@@ -46,7 +46,7 @@ if (!isset($record)) {
         <div class="preview-subject">
             <div class="preview-subject-label">الموضوع:</div>
             <div class="preview-subject-text">
-                طلب تمديد الضمان البنكي رقم (<span data-preview-target="guarantee_number" lang="en"><?= htmlspecialchars($record['guarantee_number'] ?? '') ?></span>) والعائد للعقد رقم (<span data-preview-target="contract_number" lang="en"><?= htmlspecialchars($record['contract_number'] ?? '') ?></span>).
+                <span data-preview-target="subject_action_type">طلب تمديد</span> الضمان البنكي رقم (<span data-preview-target="guarantee_number" lang="en"><?= htmlspecialchars($record['guarantee_number'] ?? '') ?></span>) والعائد للعقد رقم (<span data-preview-target="contract_number" lang="en"><?= htmlspecialchars($record['contract_number'] ?? '') ?></span>).
             </div>
         </div>
         

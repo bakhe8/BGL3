@@ -153,31 +153,36 @@ if (!window.RecordsController) {
                 }
 
                 // خاص بالنوع: تحديث الجملة كاملة بدلاً من النوع فقط
-                // خاص بالنوع: تحديث الجملة كاملة بدلاً من النوع فقط
                 if (fieldName === 'type') {
                     const typeRaw = fieldValue.trim();
 
-                    // 🔥 STRICT DATA FLOW: Read from HIDDEN INPUT (Data Card), NOT Controller
-                    // This ensures we only use data present in the form DOM.
-                    const eventSubtypeInput = document.getElementById('eventSubtype');
-                    const eventSubtype = eventSubtypeInput ? eventSubtypeInput.value : '';
-
-                    // Check if we are in historical mode (banner exists)
+                    // 🔥 Phase 4: Read from DB for CURRENT view, eventSubtype for HISTORICAL view
                     const isHistoricalView = !!document.getElementById('historical-banner');
+
+                    let eventSource;
+                    if (isHistoricalView) {
+                        // Historical view: read from temporary eventSubtype (set by timeline controller)
+                        const eventSubtypeInput = document.getElementById('eventSubtype');
+                        eventSource = eventSubtypeInput ? eventSubtypeInput.value : '';
+                    } else {
+                        // Current view: read from DB activeAction
+                        const activeActionInput = document.getElementById('activeAction');
+                        eventSource = activeActionInput ? activeActionInput.value : '';
+                    }
 
                     let fullPhrase = 'إشارة إلى الضمان البنكي الموضح أعلاه'; // Default
 
-                    // Logic based on DOM data only
-                    if (isHistoricalView && eventSubtype) {
-                        if (eventSubtype === 'extension') {
+                    // Logic based on action/event source
+                    if (eventSource) {
+                        if (eventSource === 'extension') {
                             fullPhrase = 'طلب تمديد الضمان البنكي الموضح أعلاه';
-                        } else if (eventSubtype === 'reduction') {
+                        } else if (eventSource === 'reduction') {
                             fullPhrase = 'طلب تخفيض الضمان البنكي الموضح أعلاه';
-                        } else if (eventSubtype === 'release') {
+                        } else if (eventSource === 'release') {
                             fullPhrase = 'طلب الإفراج عن الضمان البنكي الموضح أعلاه';
                         }
                     } else {
-                        // Fallback إلى type-based logic
+                        // Fallback to type-based logic
                         if (typeRaw.includes('Final')) {
                             fullPhrase = 'إشارة إلى الضمان البنكي النهائي الموضح أعلاه';
                         } else if (typeRaw.includes('Advance')) {
@@ -191,13 +196,23 @@ if (!window.RecordsController) {
                         target.textContent = fullPhrase;
                     }
 
-                    // Also update the hidden 'type' target if it still exists (legacy support)
-                    /*
-                    const legacyTarget = document.querySelector('[data-preview-target="type"]');
-                    if (legacyTarget) {
-                         legacyTarget.textContent = typeTranslations[typeRaw] || typeRaw;
+                    // 🔥 Update Subject Line Action Type
+                    const subjectTarget = document.querySelector('[data-preview-target="subject_action_type"]');
+                    const contextBadge = document.getElementById('event-context-badge');
+
+                    if (subjectTarget) {
+                        let subjectText = 'طلب تمديد'; // Default fallback
+
+                        if (contextBadge && contextBadge.style.display !== 'none') {
+                            const badgeText = contextBadge.textContent || '';
+                            if (badgeText.includes('تمديد')) subjectText = 'طلب تمديد';
+                            else if (badgeText.includes('تخفيض')) subjectText = 'طلب تخفيض';
+                            else if (badgeText.includes('إفراج')) subjectText = 'طلب الإفراج عن';
+                        }
+
+                        subjectTarget.textContent = subjectText;
                     }
-                    */
+
                     return; // Skip standard update for 'type' as we handled it specially
                 }
 

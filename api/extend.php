@@ -65,7 +65,10 @@ try {
     // Update raw_data through repository
     $guaranteeRepo->updateRawData($guaranteeId, json_encode($raw));
 
-    // 3. RECORD: Strict Event Recording (UE-02 Extend)
+    // 3. NEW (Phase 3): Set Active Action
+    $decisionRepo->setActiveAction($guaranteeId, 'extension');
+
+    // 4. RECORD: Strict Event Recording (UE-02 Extend)
     // 🆕 Record ONLY in guarantee_history (no guarantee_actions)
     \App\Services\TimelineRecorder::recordExtensionEvent(
         $guaranteeId, 

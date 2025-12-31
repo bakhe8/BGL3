@@ -118,9 +118,14 @@ try {
                 // Keep Excel name
             }
         }
+    // Get supplier suggestions (existing code omitted for brevity...)
+    // ...
     }
-    
-    // Get supplier suggestions
+
+    // 🔥 NEW: Fetch Latest Event to determine Context (Extension/Reduction/etc)
+    $latestEventStmt = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
+    $latestEventStmt->execute([$guaranteeId]);
+    $latestSubtype = $latestEventStmt->fetchColumn();
     $supplierMatch = [
         'suggestions' => [],
         'score' => 0
@@ -177,13 +182,15 @@ try {
         'guarantee_number' => $record['guarantee_number'],
         'contract_number' => $record['contract_number'],
         'type' => $record['type'],
-        'status' => $decision->status ?? 'pending'
+        'status' => $decision->status ?? 'pending',
+        'raw_supplier_name' => $raw['supplier'] ?? '' // Fallback for unmatched guarantees
     ];
     
     // Return success with snapshot data
     echo json_encode([
         'success' => true,
-        'snapshot' => $snapshot
+        'snapshot' => $snapshot,
+        'latest_event_subtype' => $latestSubtype // Send to frontend
     ]);
     
 } catch (\Exception $e) {

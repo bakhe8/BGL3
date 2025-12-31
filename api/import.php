@@ -58,12 +58,24 @@ try {
         $service = new ImportService();
         $result = $service->importFromExcel($tempPath, $_POST['imported_by'] ?? 'web_user');
 
+
+
         // --- RECORD IMPORT EVENTS (Before Smart Processing!) ---
         try {
-            if (!empty($result['imported_ids'])) {
-                foreach ($result['imported_ids'] as $gId) {
-                    \App\Services\TimelineRecorder::recordImportEvent($gId, 'excel');
+            if (!empty($result['imported_records'])) {
+                foreach ($result['imported_records'] as $record) {
+
+                    \App\Services\TimelineRecorder::recordImportEvent(
+                        $record['id'], 
+                        'excel', 
+                        $record['raw_data'] // Pass explicit data
+                    );
                 }
+            } elseif (!empty($result['imported_ids'])) { 
+                 // Fallback for older ImportService versions if somehow mixed
+                 foreach ($result['imported_ids'] as $gId) {
+                    \App\Services\TimelineRecorder::recordImportEvent($gId, 'excel');
+                 }
             }
         } catch (\Throwable $e) { 
             error_log("Failed to record import events: " . $e->getMessage());

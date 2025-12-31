@@ -100,6 +100,12 @@ if (!window.TimelineController) {
             this.currentEventSubtype = eventElement?.dataset.eventSubtype || null;
             console.log('📋 Event subtype:', this.currentEventSubtype);
 
+            // 🔥 CRITICAL FIX: Persist subtype to hidden input for RecordsController to see
+            const eventSubtypeInput = document.getElementById('eventSubtype');
+            if (eventSubtypeInput) {
+                eventSubtypeInput.value = this.currentEventSubtype || '';
+            }
+
             // Show historical banner
             this.showHistoricalBanner();
 
@@ -335,7 +341,7 @@ if (!window.TimelineController) {
                 // Update form fields with current state snapshot
                 this.updateFormFields(data.snapshot || {});
 
-                // Hide historical banner
+                // Hide historical banner (this is Current State)
                 this.removeHistoricalBanner();
 
                 // Enable editing (show buttons, enable inputs)
@@ -345,6 +351,13 @@ if (!window.TimelineController) {
                 this.isHistoricalView = false;
                 this.currentEventId = null;
                 this.currentGuaranteeId = null;
+
+                // 🔥 Show Context Badge even for Current State (if applicable)
+                if (data.latest_event_subtype) {
+                    this.showEventContextBadge(data.latest_event_subtype);
+                } else {
+                    this.hideEventContextBadge();
+                }
 
                 // Re-activate latest timeline event
                 document.querySelectorAll('.timeline-event-wrapper').forEach(card => {

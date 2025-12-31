@@ -186,29 +186,48 @@ class SmartProcessingService
      */
     private function logAutoMatchEvents(int $guaranteeId, array $raw, string $supName, int $supScore): void
     {
+        // 1. Fetch current data for Snapshot (State BEFORE approval)
+        // Since this runs immediately after creation, status was pending, supplier was null.
+        $snapshot = [
+            'guarantee_number' => $raw['bg_number'] ?? $raw['guarantee_number'] ?? '',
+            'contract_number' => $raw['contract_number'] ?? '',
+            'amount' => $raw['amount'] ?? 0,
+            'expiry_date' => $raw['expiry_date'] ?? '',
+            'issue_date' => $raw['issue_date'] ?? '',
+            'type' => $raw['type'] ?? '',
+            'supplier_id' => null,   // Before match
+            'supplier_name' => $raw['supplier'] ?? '',
+            'raw_supplier_name' => $raw['supplier'] ?? '',
+            'bank_id' => null,
+            'bank_name' => $raw['bank'] ?? '', 
+            'raw_bank_name' => $raw['bank'] ?? '',
+            'status' => 'pending'
+        ];
+
+        // 2. Prepare Event Details with 'changes'
+        $eventDetails = [
+            'action' => 'Auto-matched and approved',
+            'changes' => [[
+                'field' => 'supplier_id',
+                'old_value' => ['id' => null, 'name' => $raw['supplier']],
+                'new_value' => ['id' => 'matched', 'name' => $supName], // ID is technically the new ID, but name is what matters for display
+                'trigger' => 'ai_match'
+            ]],
+            'supplier' => ['raw' => $raw['supplier'], 'matched' => $supName, 'score' => $supScore],
+            'result' => 'Automatically approved based on high confidence match'
+        ];
+
         $histStmt = $this->db->prepare("
             INSERT INTO guarantee_history (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
 
-        // Single Auto-Match & Approval Event
-        // This represents both: supplier match + automatic approval in one logical action
         $histStmt->execute([
             $guaranteeId,
             'auto_matched',
             'ai_match',
-            json_encode([
-                'field' => 'supplier', 
-                'from' => $raw['supplier'],
-                'to' => $supName,
-                'confidence' => $supScore,
-                'status' => 'approved'
-            ]),
-            json_encode([
-                'action' => 'Auto-matched and approved',
-                'supplier' => ['raw' => $raw['supplier'], 'matched' => $supName, 'score' => $supScore],
-                'result' => 'Automatically approved based on high confidence match'
-            ]),
+            json_encode($snapshot),
+            json_encode($eventDetails),
             date('Y-m-d H:i:s'),
             'System AI'
         ]);

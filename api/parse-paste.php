@@ -257,9 +257,10 @@ function processTableRow($rowData, $text, $repo) {
     
     $saved = $repo->create($guaranteeModel);
     
-    // 🔔 RECORD HISTORY EVENT
+    // 🔔 RECORD HISTORY EVENT (Pass Post-Persist Data explicitly)
     try {
-        \App\Services\TimelineRecorder::recordImportEvent($saved->id, 'smart_paste');
+        // ✅ ARCHITECTURAL ENFORCEMENT: Use $saved->rawData (what was actually persisted)
+        \App\Services\TimelineRecorder::recordImportEvent($saved->id, 'smart_paste', $saved->rawData);
     } catch (\Throwable $t) {
         error_log("Failed to record history: " . $t->getMessage());
     }

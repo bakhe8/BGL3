@@ -72,9 +72,20 @@ class GuaranteeRepository
             $guarantee->importedBy
         ]);
         
-        $guarantee->id = (int)$this->db->lastInsertId();
+        $id = (int)$this->db->lastInsertId();
         
-        return $guarantee;
+        // ✅ STRICT INTEGRITY: Re-fetch from DB to ensure returned object 
+        // reflects exactly what was stored (Post-Persist State).
+        // This captures any DB-side normalization or encoding effects.
+        $persisted = $this->find($id);
+        
+        if (!$persisted) {
+             // Fallback (should never happen in normal operation)
+             $guarantee->id = $id;
+             return $guarantee;
+        }
+        
+        return $persisted;
     }
     
     /**

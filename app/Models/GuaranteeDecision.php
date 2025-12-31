@@ -27,6 +27,9 @@ class GuaranteeDecision
         public bool $manualOverride = false,
         public ?string $createdAt = null,
         public ?string $updatedAt = null,
+        // Phase 3: Active Action State
+        public ?string $activeAction = null,
+        public ?string $activeActionSetAt = null,
     ) {}
     
     /**

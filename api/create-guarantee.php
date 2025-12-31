@@ -66,7 +66,8 @@ try {
     
     // Record History Event (SmartProcessingService will handle all matching & decision creation!)
     $snapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
-    \App\Services\TimelineRecorder::recordImportEvent($guaranteeId, 'manual');
+    // ✅ ARCHITECTURAL ENFORCEMENT: Use $savedGuarantee->rawData (Post-Persist State)
+    \App\Services\TimelineRecorder::recordImportEvent($guaranteeId, 'manual', $savedGuarantee->rawData);
 
     // ✨ AUTO-MATCHING: Apply Smart Processing
     try {

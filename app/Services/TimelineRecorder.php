@@ -212,23 +212,31 @@ class TimelineRecorder {
             default => 'بواسطة النظام'
         };
 
+        error_log("🔍 recording event: Type=$type Subtype=$subtype GID=$guaranteeId");
+        
         $stmt = $db->prepare("
             INSERT INTO guarantee_history 
             (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         
-        $stmt->execute([
-            $guaranteeId,
-            $type,
-            $subtype,
-            json_encode($snapshot),
-            json_encode($eventDetails),
-            date('Y-m-d H:i:s'),
-            $creatorText
-        ]);
-
-        return $db->lastInsertId();
+        try {
+            $stmt->execute([
+                $guaranteeId,
+                $type,
+                $subtype,
+                json_encode($snapshot),
+                json_encode($eventDetails),
+                date('Y-m-d H:i:s'),
+                $creatorText
+            ]);
+            $id = $db->lastInsertId();
+            error_log("✅ Event recorded successfully. ID=$id");
+            return $id;
+        } catch (\PDOException $e) {
+            error_log("❌ DB Error recording event: " . $e->getMessage());
+            throw $e;
+        }
     }
 
     /**
@@ -262,9 +270,11 @@ class TimelineRecorder {
      * Record Import Event (LE-00)
      * The ONLY entry point.
      */
-    public static function recordImportEvent($guaranteeId, $source = 'excel') {
+    public static function recordImportEvent($guaranteeId, $source = 'excel', $explicitRawData = null) {
         global $db;
-        
+        if (!$db) {
+            $db = \App\Support\Database::connect();
+        }
         // Check if import event already exists (prevent duplicates)
         $stmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND event_type = 'import' LIMIT 1");
         $stmt->execute([$guaranteeId]);
@@ -272,32 +282,40 @@ class TimelineRecorder {
              return false; // Already has import event
         }
 
-        //  🔥 FIX: Fetch raw_data from guarantees to create proper snapshot
-        $stmt = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
-        $stmt->execute([$guaranteeId]);
-        $rawDataJson = $stmt->fetchColumn();
+        $rawData = [];
         
-        if (!$rawDataJson) {
-            // Fallback if no raw_data
-            $snapshot = [];
+        if ($explicitRawData) {
+            $rawData = $explicitRawData;
         } else {
-            $rawData = json_decode($rawDataJson, true) ?? [];
+            // Fallback: Fetch raw_data from guarantees
+            $stmt = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+            $stmt->execute([$guaranteeId]);
+            $rawDataJson = $stmt->fetchColumn();
             
-            // Create snapshot from RAW Excel/manual data (before any AI matching)
-            $snapshot = [
-                'supplier_name' => $rawData['supplier'] ?? '',
-                'bank_name' => $rawData['bank'] ?? '',
-                'supplier_id' => null,  // Not matched yet
-                'bank_id' => null,      // Not matched yet
-                'amount' => $rawData['amount'] ?? 0,
-                'expiry_date' => $rawData['expiry_date'] ?? '',
-                'issue_date' => $rawData['issue_date'] ?? '',
-                'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
-                'guarantee_number' => $rawData['guarantee_number'] ?? '',
-                'type' => $rawData['type'] ?? '',
-                'status' => 'pending'
-            ];
+            if (!$rawDataJson) {
+                // Keep error log for fallback cases
+                error_log("❌ TimelineRecorder: No raw_data found for guarantee ID $guaranteeId during import event creation.");
+                $snapshot = [];
+            } else {
+                $rawData = json_decode($rawDataJson, true) ?? [];
+            }
         }
+        
+        // Create snapshot from RAW data (whether explicit or from DB)
+        // Ensure keys exist to avoid warnings
+        $snapshot = [
+            'supplier_name' => $rawData['supplier'] ?? '',
+            'bank_name' => $rawData['bank'] ?? '',
+            'supplier_id' => null,  // Not matched yet
+            'bank_id' => null,      // Not matched yet
+            'amount' => $rawData['amount'] ?? 0,
+            'expiry_date' => $rawData['expiry_date'] ?? '',
+            'issue_date' => $rawData['issue_date'] ?? '',
+            'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
+            'guarantee_number' => $rawData['guarantee_number'] ?? $rawData['bg_number'] ?? '',
+            'type' => $rawData['type'] ?? '',
+            'status' => 'pending'
+        ];
 
         $eventDetails = ['source' => $source];
         

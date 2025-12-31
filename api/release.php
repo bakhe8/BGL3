@@ -67,7 +67,10 @@ try {
     // Lock the guarantee (set status to 'released')
     $decisionRepo->lock($guaranteeId, 'released');
 
-    // 3. RECORD: Strict Event Recording (UE-04 Release)
+    // 3. NEW (Phase 3): Set Active Action
+    $decisionRepo->setActiveAction($guaranteeId, 'release');
+
+    // 4. RECORD: Strict Event Recording (UE-04 Release)
     \App\Services\TimelineRecorder::recordReleaseEvent($guaranteeId, $oldSnapshot, $reason);
 
     // --------------------------------------------------------------------

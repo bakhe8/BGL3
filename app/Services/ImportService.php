@@ -78,6 +78,7 @@ class ImportService
         $skipped = [];
         $errors = [];
         $importedIds = []; // Track IDs for timeline events
+        $importedIdsWithData = []; // Track full records for timeline events
 
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2; // Excel row number (1-indexed + header)
@@ -138,6 +139,8 @@ class ImportService
 
                 $created = $this->guaranteeRepo->create($guarantee);
                 $importedIds[] = $created->id; // Track ID
+                // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
+                $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
                 $imported++;
 
             } catch (\Throwable $e) {
@@ -147,7 +150,9 @@ class ImportService
 
         return [
             'imported' => $imported,
-            'imported_ids' => $importedIds, // Add IDs to result
+            'imported_ids' => $importedIds, // Keep for backward compat
+            'imported_records' => $importedIdsWithData ?? [], // New full tracking
+
             'total_rows' => count($dataRows),
             'skipped' => $skipped,
             'errors' => $errors,
