@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 /**
  * V3 API - Save and Next (Server-Driven Partial HTML)
  * Saves current record decision and returns HTML for next record
@@ -142,7 +142,25 @@ try {
         $stmt->execute([$bankId]);
         $oldBank = $stmt->fetchColumn() ?: '';
     } else {
-        $oldBank = $currentGuarantee->rawData['bank'] ?? '';
+        // Fallback: Try to resolve Bank ID from raw_data (if SmartProcessing matched it)
+        $rawBankName = $currentGuarantee->rawData['bank'] ?? '';
+        $oldBank = $rawBankName;
+        
+        if ($rawBankName) {
+            // Try exact match on official name (SmartProcessing updates raw_data to official name)
+            $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
+            $stmt->execute([$rawBankName]);
+            $bankId = $stmt->fetchColumn();
+            
+            // If not found, try normalized match (fallback)
+            if (!$bankId) {
+                 require_once __DIR__ . '/../app/Support/BankNormalizer.php';
+                 $norm = \App\Support\BankNormalizer::normalize($rawBankName);
+                 $stmt = $db->prepare("SELECT b.id FROM banks b JOIN bank_alternative_names a ON b.id = a.bank_id WHERE a.normalized_name = ? LIMIT 1");
+                 $stmt->execute([$norm]);
+                 $bankId = $stmt->fetchColumn();
+            }
+        }
     }
     
     // 1. Check Supplier Change
@@ -184,24 +202,46 @@ try {
     $statusToSave = \App\Services\StatusEvaluator::evaluate($supplierId, $bankId);
     
     // UPDATE supplier only (bank remains unchanged from initial auto-match)
-    $stmt = $db->prepare('
-        UPDATE guarantee_decisions 
-        SET supplier_id = ?, status = ?, decided_at = ?
-        WHERE guarantee_id = ?
-    ');
-    $stmt->execute([
-        $supplierId,
-        $statusToSave,
-        $now,
-        $guaranteeId
-    ]);
+    // UPDATE supplier only (bank remains unchanged from initial auto-match)
+    // Check if decision exists
+    $chkDec = $db->prepare('SELECT id FROM guarantee_decisions WHERE guarantee_id = ?');
+    $chkDec->execute([$guaranteeId]);
+    $existingId = $chkDec->fetchColumn();
+
+    if ($existingId) {
+        $stmt = $db->prepare('
+            UPDATE guarantee_decisions 
+            SET supplier_id = ?, status = ?, decided_at = ?
+            WHERE guarantee_id = ?
+        ');
+        $stmt->execute([
+            $supplierId,
+            $statusToSave,
+            $now,
+            $guaranteeId
+        ]);
+    } else {
+        // Create new decision
+        $stmt = $db->prepare('
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([
+            $guaranteeId,
+            $supplierId,
+            $bankId, // Might be null if not auto-matched
+            $statusToSave,
+            $now,
+            $now
+        ]);
+    }
 
     // 3. RECORD: Strict Event Recording (UE-01 Decision)
     $newData = [
         'supplier_id' => $supplierId,
         'supplier_name' => $newSupplier
     ];
-
+    
     \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, false); // isAuto = false
     
     // 4. RECORD: Status Transition Event (SE-01/SE-02) - Separate Event

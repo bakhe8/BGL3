@@ -61,6 +61,13 @@ if (!window.RecordsController) {
                     console.warn(`No handler for action: ${action}`);
                 }
             });
+
+            // 🔥 NEW: Listen for remote updates (e.g. from Timeline Controller)
+            // This ensures preview updates ONLY after the Data Card is updated.
+            document.addEventListener('guarantee:updated', () => {
+                console.log('⚡ Guarantee Updated Event Received - Refreshing Preview...');
+                this.updatePreviewFromDOM();
+            });
         }
 
         bindEvents() {
@@ -146,16 +153,21 @@ if (!window.RecordsController) {
                 }
 
                 // خاص بالنوع: تحديث الجملة كاملة بدلاً من النوع فقط
+                // خاص بالنوع: تحديث الجملة كاملة بدلاً من النوع فقط
                 if (fieldName === 'type') {
                     const typeRaw = fieldValue.trim();
 
-                    // ← NEW: قراءة event_subtype من timeline controller
-                    const eventSubtype = window.timelineController?.currentEventSubtype;
-                    const isHistoricalView = window.timelineController?.isHistoricalView;
+                    // 🔥 STRICT DATA FLOW: Read from HIDDEN INPUT (Data Card), NOT Controller
+                    // This ensures we only use data present in the form DOM.
+                    const eventSubtypeInput = document.getElementById('eventSubtype');
+                    const eventSubtype = eventSubtypeInput ? eventSubtypeInput.value : '';
+
+                    // Check if we are in historical mode (banner exists)
+                    const isHistoricalView = !!document.getElementById('historical-banner');
 
                     let fullPhrase = 'إشارة إلى الضمان البنكي الموضح أعلاه'; // Default
 
-                    // ← NEW: أولوية لـ event_subtype إذا كان في historical view
+                    // Logic based on DOM data only
                     if (isHistoricalView && eventSubtype) {
                         if (eventSubtype === 'extension') {
                             fullPhrase = 'طلب تمديد الضمان البنكي الموضح أعلاه';

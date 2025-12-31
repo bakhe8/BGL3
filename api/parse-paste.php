@@ -331,6 +331,15 @@ try {
             }
         }
         
+        // ✨ AUTO-MATCHING: Apply Smart Processing to all new guarantees
+        try {
+            $processor = new \App\Services\SmartProcessingService();
+            $autoMatchStats = $processor->processNewGuarantees(count($results));
+            error_log("✅ Smart Paste auto-matched: {$autoMatchStats['auto_matched']} out of " . count($results));
+        } catch (\Throwable $e) {
+            error_log("Auto-matching failed (non-critical): " . $e->getMessage());
+        }
+        
         // Return multi-row success response
         echo json_encode([
             'success' => true,
@@ -632,6 +641,18 @@ try {
             \App\Services\TimelineRecorder::recordImportEvent($saved->id, 'smart_paste');
         } catch (\Throwable $t) {
             error_log("Failed to record history: " . $t->getMessage());
+        }
+        
+        // ✨ AUTO-MATCHING: Apply Smart Processing
+        try {
+            $processor = new \App\Services\SmartProcessingService();
+            $autoMatchStats = $processor->processNewGuarantees(1);
+            
+            if ($autoMatchStats['auto_matched'] > 0) {
+                error_log("✅ Smart Paste auto-matched: Guarantee #{$saved->id}");
+            }
+        } catch (\Throwable $e) {
+            error_log("Auto-matching failed (non-critical): " . $e->getMessage());
         }
     }
 

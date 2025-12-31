@@ -12,6 +12,9 @@ class Database
 
     public static function connect(): PDO
     {
+        // Set timezone to match Saudi Arabia (GMT+3)
+        date_default_timezone_set('Asia/Riyadh');
+        
         if (self::$instance === null) {
             $dbPath = __DIR__ . '/../../storage/database/app.sqlite';
             if (!file_exists($dbPath)) {

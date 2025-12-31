@@ -31,7 +31,11 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 <!-- Record Form Content -->
 <div id="record-form-sec" 
      data-record-index="<?= $index ?? 1 ?>" 
-     data-record-id="<?= $record['id'] ?? 0 ?>"></div>
+     data-record-id="<?= $record['id'] ?? 0 ?>">
+     
+    <!-- HIDDEN FIELD: Event Subtype (Bridge for Preview) -->
+    <input type="hidden" id="eventSubtype" data-preview-field="event_subtype" value="">
+</div>
 <?php if ($isHistorical): ?>
 <div style="background-color: #fffbeb; border: 1px solid #f59e0b; padding: 12px; border-radius: 8px; margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center;">
     <div style="display: flex; align-items: center; gap: 12px;">

@@ -132,6 +132,7 @@ $eventCount = count($timeline);
                                 if ($eventLabel === 'تمديد الضمان') $allowedFields = ['expiry_date'];
                                 elseif ($eventLabel === 'تخفيض قيمة الضمان') $allowedFields = ['amount'];
                                 elseif ($eventLabel === 'اعتماد بيانات المورد أو البنك') $allowedFields = ['supplier_id', 'bank_id'];
+                                elseif ($eventLabel === 'تطابق تلقائي') $allowedFields = ['bank_name', 'supplier_name', 'supplier_id', 'bank_id'];
                                 elseif ($eventLabel === 'إفراج الضمان') $allowedFields = ['status']; // Usually handled by status logic, but implicit change might exist
                                 elseif ($eventLabel === 'تحديث بيانات') $allowedFields = []; // Show nothing for generic updates to avoid noise
                                 else $allowedFields = ['supplier_id', 'bank_id', 'amount', 'expiry_date', 'status']; // Fallback for pure debug? Or restrict? Let's restrict.
@@ -147,6 +148,8 @@ $eventCount = count($timeline);
                                     $fieldLabels = [
                                         'supplier_id' => 'المورد',
                                         'bank_id' => 'البنك',
+                                        'bank_name' => 'البنك',
+                                        'supplier_name' => 'المورد',
                                         'amount' => 'المبلغ',
                                         'expiry_date' => 'تاريخ الانتهاء',
                                         'status' => 'الحالة'

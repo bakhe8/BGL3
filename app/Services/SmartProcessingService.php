@@ -61,7 +61,7 @@ class SmartProcessingService
         $stmt->execute([$limit]);
         $guarantees = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        $stats = ['processed' => 0, 'auto_matched' => 0];
+        $stats = ['processed' => 0, 'auto_matched' => 0, 'banks_matched' => 0];
 
         foreach ($guarantees as $row) {
             $stats['processed']++;
@@ -75,32 +75,12 @@ class SmartProcessingService
                 continue;
             }
 
-            // --- AI Matching ---
-            
-            // 1. Supplier Match
-            $supplierId = null;
-            $supplierSuggestions = $this->learningService->getSuggestions($supplierName);
-            $supplierConfidence = 0;
-            $finalSupplierName = '';
-            $supplierSource = null;
-            
-            if (!empty($supplierSuggestions)) {
-                $top = $supplierSuggestions[0];
-                $supplierSource = $top['source'] ?? null;
-                
-                // SAFE LEARNING: Block auto-approval from learned aliases
-                // Note: score is normalized to 0.0-1.0 range
-                if ($top['score'] >= 0.90 && $supplierSource !== 'alias') {
-                    $supplierId = $top['id'];
-                    $finalSupplierName = $top['official_name'];
-                    $supplierConfidence = $top['score'];
-                }
-            }
-
-            // 2. Bank Match - Direct matching with BankNormalizer
+            // =====================================================================
+            // STEP 1: BANK MATCHING (ALWAYS FIRST, INDEPENDENT)
+            // =====================================================================
             $bankId = null;
             $finalBankName = '';
-
+            
             if (!empty($bankName)) {
                 $normalized = BankNormalizer::normalize($bankName);
                 $stmt2 = $this->db->prepare("
@@ -117,20 +97,48 @@ class SmartProcessingService
                     $bankId = $bank['id'];
                     $finalBankName = $bank['arabic_name'];
                     
+                    // ✅ ALWAYS log bank match event (independent of supplier)
+                    $this->logBankAutoMatchEvent($guaranteeId, $rawData['bank'], $finalBankName);
+                    $stats['banks_matched']++;
+                    
                     // Update raw_data with matched bank name
                     $this->updateBankNameInRawData($guaranteeId, $finalBankName);
                 }
             }
 
-            // --- Conflict Detection (Strict Gate) ---
-            // Even if scores are high, we must ensure there are no ambiguities
+            // =====================================================================
+            // STEP 2: SUPPLIER MATCHING (INDEPENDENT)
+            // =====================================================================
+            $supplierId = null;
+            $supplierSuggestions = $this->learningService->getSuggestions($supplierName);
+            $supplierConfidence = 0;
+            $finalSupplierName = '';
+            $supplierSource = null;
+            
+            if (!empty($supplierSuggestions)) {
+                $top = $supplierSuggestions[0];
+                $supplierSource = $top['source'] ?? null;
+                
+                // SAFE LEARNING: Block auto-approval from learned aliases
+                if ($top['score'] >= 0.90 && $supplierSource !== 'alias') {
+                    $supplierId = $top['id'];
+                    $finalSupplierName = $top['official_name'];
+                    $supplierConfidence = $top['score'];
+                }
+            }
+
+            // =====================================================================
+            // STEP 3: DECISION CREATION (ONLY if BOTH succeeded)
+            // =====================================================================
+            
+            // Conflict Detection
             $candidates = [
                 'supplier' => [
                     'candidates' => $supplierSuggestions,
                     'normalized' => mb_strtolower(trim($supplierName)) 
                 ],
                 'bank' => [
-                    'candidates' => [],  // Banks now use direct matching
+                    'candidates' => [],  // Banks use direct matching
                     'normalized' => mb_strtolower(trim($bankName))
                 ]
             ];
@@ -142,13 +150,8 @@ class SmartProcessingService
             
             $conflicts = $this->conflictDetector->detect($candidates, $recordContext);
 
-            // --- Decision Making ---
-
-            // If BOTH matches have High Score AND No Conflicts -> Auto Approve!
+            // Auto-approve ONLY if BOTH supplier AND bank matched + No conflicts
             if ($supplierId && $bankId && empty($conflicts)) {
-                // Log bank match FIRST (happens during import, before supplier)
-                $this->logBankAutoMatchEvent($guaranteeId, $rawData['bank'], $finalBankName);
-                
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
                 $stats['auto_matched']++;
@@ -172,9 +175,9 @@ class SmartProcessingService
     {
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, created_at)
-            VALUES (?, ?, ?, 'approved', NOW())
+            VALUES (?, ?, ?, 'approved', ?)
         ");
-        $stmt->execute([$guaranteeId, $supplierId, $bankId]);
+        $stmt->execute([$guaranteeId, $supplierId, $bankId, date('Y-m-d H:i:s')]);
     }
 
     /**
@@ -185,7 +188,7 @@ class SmartProcessingService
     {
         $histStmt = $this->db->prepare("
             INSERT INTO guarantee_history (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, NOW(), ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
 
         // Single Auto-Match & Approval Event
@@ -206,6 +209,7 @@ class SmartProcessingService
                 'supplier' => ['raw' => $raw['supplier'], 'matched' => $supName, 'score' => $supScore],
                 'result' => 'Automatically approved based on high confidence match'
             ]),
+            date('Y-m-d H:i:s'),
             'System AI'
         ]);
     }
@@ -232,29 +236,55 @@ class SmartProcessingService
     /**
      * Log Bank Auto-Match Event
      * Records bank matching as a separate timeline event
+     * 
+     * CRITICAL: snapshot_data must contain the state BEFORE the change
      */
     private function logBankAutoMatchEvent(int $guaranteeId, string $rawBankName, string $matchedBankName): void
     {
+        // Get current guarantee data to build snapshot
+        $stmt = $this->db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$guaranteeId]);
+        $rawDataJson = $stmt->fetchColumn();
+        $rawData = json_decode($rawDataJson, true);
+        
+        // Create snapshot BEFORE bank update (state before this event)
+        $snapshot = [
+            'guarantee_number' => $rawData['bg_number'] ?? $rawData['guarantee_number'] ?? '',
+            'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
+            'amount' => $rawData['amount'] ?? 0,
+            'expiry_date' => $rawData['expiry_date'] ?? '',
+            'issue_date' => $rawData['issue_date'] ?? '',
+            'type' => $rawData['type'] ?? '',
+            'supplier_id' => null,  // Not matched yet
+            'supplier_name' => $rawData['supplier'] ?? '',  // Keep original supplier name
+            'raw_supplier_name' => $rawData['supplier'] ?? '', // 🟢 explicit raw
+            'bank_id' => null,      // Not matched yet (before this event)
+            'bank_name' => $rawBankName,  // BEFORE matching (original user input)
+            'raw_bank_name' => $rawBankName, // 🟢 explicit raw
+            'status' => 'pending'
+        ];
+        
         $histStmt = $this->db->prepare("
             INSERT INTO guarantee_history (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, NOW(), ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ");
         
         $histStmt->execute([
             $guaranteeId,
             'auto_matched',
             'bank_match',
-            json_encode([
-                'field' => 'bank',
-                'from' => $rawBankName,
-                'to' => $matchedBankName,
-                'trigger' => 'auto'
-            ]),
+            json_encode($snapshot),  // Full state BEFORE change
             json_encode([
                 'action' => 'Bank auto-matched',
-                'bank' => ['raw' => $rawBankName, 'matched' => $matchedBankName],
+                'changes' => [[
+                    'field' => 'bank_name',
+                    'old_value' => $rawBankName,
+                    'new_value' => $matchedBankName,
+                    'trigger' => 'auto'
+                ]],
                 'result' => 'Automatically matched during import'
             ]),
+            date('Y-m-d H:i:s'),
             'System AI'
         ]);
     }

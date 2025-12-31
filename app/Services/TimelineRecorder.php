@@ -63,8 +63,10 @@ class TimelineRecorder {
             'type' => $rawData['type'] ?? '',
             'supplier_id' => $data['supplier_id'],
             'supplier_name' => $supplierName,  // ← Always filled
+            'raw_supplier_name' => $rawData['supplier'] ?? '', // 🟢 explicit raw fallback
             'bank_id' => $data['bank_id'],
             'bank_name' => $bankName,          // ← Always filled
+            'raw_bank_name' => $rawData['bank'] ?? '',  // 🟢 explicit raw fallback
             'status' => $data['status'] ?? 'pending'
         ];
     }

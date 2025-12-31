@@ -64,52 +64,21 @@ try {
     $savedGuarantee = $repo->create($guaranteeModel);
     $guaranteeId = $savedGuarantee->id;
     
-    // 3. Learn Supplier (Direct Repository Logic)
-    try {
-        $rawSupplier = trim($input['supplier']);
-        if (!empty($rawSupplier)) {
-            // Normalize
-            $normalized = mb_strtolower($rawSupplier);
-            $normalized = preg_replace('/[^\p{L}\p{N}\s]/u', '', $normalized);
-            $normalized = preg_replace('/\s+/', ' ', $normalized);
-            $normalized = trim($normalized);
-            
-            if (!empty($normalized)) {
-                $existing = $supplierRepo->findByNormalizedName($normalized);
-                if (!$existing) {
-                    $supplierRepo->create([
-                        'official_name' => $rawSupplier,
-                        'normalized_name' => $normalized,
-                        'is_confirmed' => 1, // User manually entered it
-                        'display_name' => $rawSupplier
-                    ]);
-                }
-            }
-        }
-    } catch (\Throwable $e) {
-        error_log("Supplier learning failed: " . $e->getMessage());
-    }
-
-    // 4. Create Initial Decision (active status)
-    $decision = new GuaranteeDecision(
-        id: null,
-        guaranteeId: $guaranteeId,
-        status: 'active',
-        isLocked: false,
-        lockedReason: null,
-        supplierId: null, // Initial manual entry might not link ID immediately
-        bankId: null,
-        decisionSource: 'manual',
-        confidenceScore: 1.0,
-        decidedAt: date('Y-m-d H:i:s'),
-        decidedBy: 'Web User'
-    );
-
-    $decisionRepo->createOrUpdate($decision);
-    
-    // 5. Create History Event
+    // Record History Event (SmartProcessingService will handle all matching & decision creation!)
     $snapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
     \App\Services\TimelineRecorder::recordImportEvent($guaranteeId, 'manual');
+
+    // ✨ AUTO-MATCHING: Apply Smart Processing
+    try {
+        $processor = new \App\Services\SmartProcessingService();
+        $autoMatchStats = $processor->processNewGuarantees(1);
+        
+        if ($autoMatchStats['auto_matched'] > 0) {
+            error_log("✅ Manual entry auto-matched: Guarantee #$guaranteeId");
+        }
+    } catch (\Throwable $e) {
+        error_log("Auto-matching failed (non-critical): " . $e->getMessage());
+    }
 
     echo json_encode(['success' => true, 'id' => $guaranteeId, 'message' => 'تم إنشاء الضمان بنجاح']);
 

@@ -56,7 +56,7 @@ class Settings
 
     public function __construct(string $path = '')
     {
-        $this->path = $path ?: storage_path('settings.json');
+        $this->path = $path ?: (__DIR__ . '/../../storage/settings.json');
     }
 
     public function all(): array

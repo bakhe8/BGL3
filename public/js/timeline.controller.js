@@ -27,6 +27,11 @@ if (!window.TimelineController) {
         }
 
         processTimelineClick(element) {
+            // DEBOUNCE: Prevent rapid double-clicks
+            if (this.isProcessing) return;
+            this.isProcessing = true;
+            setTimeout(() => { this.isProcessing = false; }, 300);
+
             const eventId = element.dataset.eventId;
             const snapshotData = element.dataset.snapshot;
 
@@ -43,6 +48,12 @@ if (!window.TimelineController) {
 
                 // All events (including latest) show historical snapshot
                 this.displayHistoricalState(snapshot, eventId);
+
+                // 🔥 DISPATCH EVENT: Notify system that Data Card has been updated
+                // This triggers the preview update via records.controller.js
+                // strictly complying with "Preview reads from Data Card" rule.
+                document.dispatchEvent(new CustomEvent('guarantee:updated'));
+
             } catch (error) {
                 console.error('Error handling timeline click:', error);
                 this.showError('حدث خطأ في عرض الحالة التاريخية');
@@ -77,12 +88,12 @@ if (!window.TimelineController) {
             this.currentGuaranteeId = snapshotData.guarantee_id ||
                 document.querySelector('[data-record-id]')?.dataset.recordId;
 
-            // 🔥 BACKWARD COMPATIBILITY: Fill missing fields from previous snapshots
-            // (for old events created before createSnapshot() fix)
-            const completeSnapshot = this.fillMissingFields(eventId, snapshotData);
+            // 🔥 BACKWARD COMPATIBILITY: Fill missing fields removed.
+            // Snapshots are now self-contained with raw_data fallback.
+            // This prevents "future state leakage" in historical views.
 
-            // Update form fields with complete snapshot data
-            this.updateFormFields(completeSnapshot);
+            // Update form fields with snapshot data directly
+            this.updateFormFields(snapshotData);
 
             // ← NEW: حفظ event_subtype من DOM
             const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
@@ -104,68 +115,7 @@ if (!window.TimelineController) {
             }
         }
 
-        /**
-         * Fill missing snapshot fields from previous snapshots
-         * For backward compatibility with old events (before createSnapshot fix)
-         */
-        fillMissingFields(currentEventId, snapshot) {
-            const merged = { ...snapshot };
 
-            // Check if any critical field is missing
-            const hasMissingFields = !merged.bank_name || !merged.supplier_name;
-
-            if (!hasMissingFields) {
-                return merged; // All fields present
-            }
-
-            console.log('⚠️ Snapshot has missing fields, inheriting from previous events...');
-
-            // Find previous events in timeline
-            const allEvents = document.querySelectorAll('.timeline-event-wrapper');
-            let foundCurrent = false;
-
-            for (const eventWrapper of allEvents) {
-                const eventId = eventWrapper.dataset.eventId;
-
-                if (eventId === currentEventId) {
-                    foundCurrent = true;
-                    continue;
-                }
-
-                if (!foundCurrent) {
-                    // This is a previous event (before current in timeline)
-                    const prevSnapshotJson = eventWrapper.dataset.snapshot;
-                    if (!prevSnapshotJson) continue;
-
-                    try {
-                        const prevSnapshot = JSON.parse(prevSnapshotJson);
-
-                        // Inherit missing bank_name
-                        if (!merged.bank_name && prevSnapshot.bank_name) {
-                            merged.bank_name = prevSnapshot.bank_name;
-                            merged.bank_id = prevSnapshot.bank_id;
-                            console.log(`✓ Inherited bank_name: ${prevSnapshot.bank_name}`);
-                        }
-
-                        // Inherit missing supplier_name
-                        if (!merged.supplier_name && prevSnapshot.supplier_name) {
-                            merged.supplier_name = prevSnapshot.supplier_name;
-                            merged.supplier_id = prevSnapshot.supplier_id;
-                            console.log(`✓ Inherited supplier_name: ${prevSnapshot.supplier_name}`);
-                        }
-
-                        // Stop if all fields filled
-                        if (merged.bank_name && merged.supplier_name) {
-                            break;
-                        }
-                    } catch (e) {
-                        console.error('Failed to parse previous snapshot:', e);
-                    }
-                }
-            }
-
-            return merged;
-        }
 
         updateFormFields(snapshot) {
             console.log('🔄 Updating fields with snapshot:', snapshot);
@@ -174,8 +124,10 @@ if (!window.TimelineController) {
             // Always update to prevent "leakage" from previous events
             const supplierInput = document.getElementById('supplierInput');
             if (supplierInput) {
-                supplierInput.value = snapshot.supplier_name || '';
-                console.log('✓ Updated supplier:', snapshot.supplier_name || '(cleared)');
+                // Use official name OR raw name fallback
+                const nameToShow = snapshot.supplier_name || snapshot.raw_supplier_name || '';
+                supplierInput.value = nameToShow;
+                console.log('✓ Updated supplier:', nameToShow || '(cleared)');
             }
 
             // Update hidden supplier ID (ID: supplierIdHidden)
@@ -244,7 +196,18 @@ if (!window.TimelineController) {
             const statusBadge = document.querySelector('.status-badge');
             if (statusBadge && snapshot.status) {
                 this.updateStatusBadge(statusBadge, snapshot.status);
+                this.updateStatusBadge(statusBadge, snapshot.status);
                 console.log('✓ Updated status:', snapshot.status);
+            }
+
+            // 🔥 Update Hidden Event Context (Bridge to RecordsController)
+            const eventSubtypeInput = document.getElementById('eventSubtype');
+            if (eventSubtypeInput) {
+                // If snapshot has event_subtype, use it. Otherwise clear it.
+                // Note: snapshot.event_subtype comes from backend createSnapshot or logEvent
+                const subtype = snapshot.event_subtype || '';
+                eventSubtypeInput.value = subtype;
+                console.log('✓ Updated event context:', subtype || '(none)');
             }
         }
 

@@ -329,6 +329,8 @@ if ($currentRecord) {
     ];
     
     $mockTimeline = [];
+    $statusReasons = []; // Initialize empty array for loop
+    $mockRecord['status_reasons'] = [];
 }
 
 // Get initial suggestions for the current record
