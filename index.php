@@ -29,8 +29,12 @@ use App\Repositories\BankRepository;
 
 header('Content-Type: text/html; charset=utf-8');
 
-// Connect to database
-$db = Database::connect();
+// Database Connection
+$db = \App\Support\Database::connect();
+
+// Get filter parameter for status filtering (Defined EARLY)
+$statusFilter = $_GET['filter'] ?? 'all'; // all, ready, pending
+
 $guaranteeRepo = new GuaranteeRepository($db);
 $decisionRepo = new GuaranteeDecisionRepository($db);
 
@@ -67,14 +71,47 @@ if (!$currentRecord) {
     }
 }
 
-// Get total count for progress (excluding released)
-$stmtCount = $db->prepare('
+// Get total count for progress (excluding released unless filtered)
+$totalRecordsQuery = '
     SELECT COUNT(*) FROM guarantees g
     LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-    WHERE d.is_locked IS NULL OR d.is_locked = 0
-');
+    WHERE 1=1
+';
+
+// Default: exclude released unless specifically filtering for them
+if ($statusFilter === 'released') {
+    $totalRecordsQuery .= ' AND d.is_locked = 1';
+} else {
+    // Normal view: Exclude released
+    $totalRecordsQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+    
+    // Apply status filter within normal view
+    if ($statusFilter === 'ready') {
+        $totalRecordsQuery .= ' AND d.id IS NOT NULL';
+    } elseif ($statusFilter === 'pending') {
+        $totalRecordsQuery .= ' AND d.id IS NULL';
+    }
+}
+
+$stmtCount = $db->prepare($totalRecordsQuery);
 $stmtCount->execute();
 $totalRecords = (int)$stmtCount->fetchColumn();
+
+// Get import statistics (ready vs pending vs released)
+// Note: Stats always show ALL counts regardless of filter
+$statsQuery = $db->prepare('
+    SELECT 
+        COUNT(*) as total,
+        SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NOT NULL THEN 1 ELSE 0 END) as ready,
+        SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NULL THEN 1 ELSE 0 END) as pending,
+        SUM(CASE WHEN d.is_locked = 1 THEN 1 ELSE 0 END) as released
+    FROM guarantees g
+    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+');
+$statsQuery->execute();
+$importStats = $statsQuery->fetch(PDO::FETCH_ASSOC);
+// Update total to exclude released for display consistency with filters
+$displayTotal = $importStats['ready'] + $importStats['pending'];
 
 // Calculate current index and find Previous/Next IDs
 $currentIndex = 1;
@@ -84,12 +121,25 @@ $nextId = null;
 if ($currentRecord) {
     // Find position of this guarantee in sorted list
     try {
-        $stmt = $db->prepare('
+        $positionQuery = '
             SELECT COUNT(*) as position
             FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id < ? AND (d.is_locked IS NULL OR d.is_locked = 0)
-        ');
+            WHERE g.id < ?
+        ';
+        
+        if ($statusFilter === 'released') {
+            $positionQuery .= ' AND d.is_locked = 1';
+        } else {
+            $positionQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+            if ($statusFilter === 'ready') {
+                $positionQuery .= ' AND d.id IS NOT NULL';
+            } elseif ($statusFilter === 'pending') {
+                $positionQuery .= ' AND d.id IS NULL';
+            }
+        }
+        
+        $stmt = $db->prepare($positionQuery);
         $stmt->execute([$currentRecord->id]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         $currentIndex = ($result['position'] ?? 0) + 1;
@@ -97,14 +147,28 @@ if ($currentRecord) {
         // Keep currentIndex = 1 if error
     }
     
-    // Get previous guarantee ID (excluding released)
+    // Get previous guarantee ID
     try {
-        $stmt = $db->prepare('
+        $prevQuery = '
             SELECT g.id FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id < ? AND (d.is_locked IS NULL OR d.is_locked = 0)
-            ORDER BY g.id DESC LIMIT 1
-        ');
+            WHERE g.id < ?
+        ';
+        
+        if ($statusFilter === 'released') {
+            $prevQuery .= ' AND d.is_locked = 1';
+        } else {
+            $prevQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+            if ($statusFilter === 'ready') {
+                $prevQuery .= ' AND d.id IS NOT NULL';
+            } elseif ($statusFilter === 'pending') {
+                $prevQuery .= ' AND d.id IS NULL';
+            }
+        }
+        
+        $prevQuery .= ' ORDER BY g.id DESC LIMIT 1';
+        
+        $stmt = $db->prepare($prevQuery);
         $stmt->execute([$currentRecord->id]);
         $prev = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($prev) $prevId = $prev['id'];
@@ -112,14 +176,28 @@ if ($currentRecord) {
         // No previous
     }
     
-    // Get next guarantee ID (excluding released)
+    // Get next guarantee ID
     try {
-        $stmt = $db->prepare('
+        $nextQuery = '
             SELECT g.id FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id > ? AND (d.is_locked IS NULL OR d.is_locked = 0)
-            ORDER BY g.id ASC LIMIT 1
-        ');
+            WHERE g.id > ?
+        ';
+        
+        if ($statusFilter === 'released') {
+            $nextQuery .= ' AND d.is_locked = 1';
+        } else {
+            $nextQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+            if ($statusFilter === 'ready') {
+                $nextQuery .= ' AND d.id IS NOT NULL';
+            } elseif ($statusFilter === 'pending') {
+                $nextQuery .= ' AND d.id IS NULL';
+            }
+        }
+        
+        $nextQuery .= ' ORDER BY g.id ASC LIMIT 1';
+        
+        $stmt = $db->prepare($nextQuery);
         $stmt->execute([$currentRecord->id]);
         $next = $stmt->fetch(PDO::FETCH_ASSOC);
         if ($next) $nextId = $next['id'];
@@ -163,7 +241,10 @@ if ($currentRecord) {
     // Get decision if exists - Load ALL decision data
     $decision = $decisionRepo->findByGuarantee($currentRecord->id);
     if ($decision) {
-        $mockRecord['status'] = $decision->status;
+        // Map decision status to display status
+        // Decision status: 'ready' or 'rejected'
+        // Display status: 'ready' (has decision) or 'pending' (no decision)
+        $mockRecord['status'] = 'ready'; // Any decision = ready for action
         $mockRecord['supplier_id'] = $decision->supplierId;
         $mockRecord['bank_id'] = $decision->bankId;
         $mockRecord['decision_source'] = $decision->decisionSource;
@@ -1893,12 +1974,14 @@ $formattedSuppliers = array_map(function($s) {
             <header class="record-header">
                 <div class="record-title">
                     <h1>ضمان رقم <span id="guarantee-number-display"><?= htmlspecialchars($mockRecord['guarantee_number']) ?></span></h1>
-                    <?php
-                        // Display status badge based on actual status
-                        $statusClass = ($mockRecord['status'] === 'approved') ? 'badge-approved' : 'badge-pending';
-                        $statusText = ($mockRecord['status'] === 'approved') ? 'جاهز' : 'يحتاج قرار';
-                    ?>
-                    <span class="badge <?= $statusClass ?>"><?= $statusText ?></span>
+                    <?php if ($currentRecord): ?>
+                        <?php
+                            // Display status badge based on actual status
+                            $statusClass = ($mockRecord['status'] === 'ready') ? 'badge-approved' : 'badge-pending';
+                            $statusText = ($mockRecord['status'] === 'ready') ? 'جاهز' : 'يحتاج قرار';
+                        ?>
+                        <span class="badge <?= $statusClass ?>"><?= $statusText ?></span>
+                    <?php endif; ?>
                 </div>
                 
                 <!-- Navigation Controls -->
@@ -1925,6 +2008,9 @@ $formattedSuppliers = array_map(function($s) {
 
 
                     
+
+
+
 
 
 
@@ -2011,45 +2097,10 @@ $formattedSuppliers = array_map(function($s) {
                     </div>
 
                     <!-- Preview Section - Lifecycle Gate -->
-                    <?php if ($mockRecord['status'] === 'approved'): ?>
-                        <!-- ✅ Status: READY - Preview Allowed -->
+                    <?php if ($mockRecord['status'] === 'ready'): ?>
                         <?php require __DIR__ . '/partials/preview-section.php'; ?>
-                    <?php else: ?>
-                        <!-- 🔒 Status: PENDING - Preview Blocked -->
-                        <div class="preview-blocked-section" id="preview-section">
-                            <div class="preview-blocked-card">
-                                <div class="blocked-header">
-                                    <div class="blocked-icon">🔒</div>
-                                    <h3>المعاينة غير متاحة حالياً</h3>
-                                </div>
-                                
-                                <div class="blocked-body">
-                                    <p class="blocked-message">
-                                        لا يمكن معاينة الخطاب قبل اكتمال جميع متطلبات الضمان
-                                    </p>
-                                    
-                                    <div class="requirements-section">
-                                        <h4>المتطلبات الناقصة:</h4>
-                                        <div class="requirements-list">
-                                            <?php foreach ($statusReasons as $reason): ?>
-                                                <?php if ($reason['severity'] === 'error'): ?>
-                                                    <div class="requirement-item">
-                                                        <span class="requirement-icon">❌</span>
-                                                        <span class="requirement-text"><?= $reason['message_ar'] ?></span>
-                                                    </div>
-                                                <?php endif; ?>
-                                            <?php endforeach; ?>
-                                        </div>
-                                    </div>
-                                    
-                                    <div class="blocked-hint">
-                                        <span class="hint-icon">💡</span>
-                                        <span>بعد اكتمال البيانات، ستظهر المعاينة تلقائياً</span>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     <?php endif; ?>
+
                 </main>
 
             </div>
@@ -2060,7 +2111,37 @@ $formattedSuppliers = array_map(function($s) {
             
             <!-- Input Actions (New Proposal) -->
             <div class="input-toolbar">
+                <!-- Import Stats (Interactive Filter) -->
+                <?php if (isset($importStats) && ($importStats['total'] > 0)): ?>
+                <div style="font-size: 11px; margin-bottom: 10px; display: flex; gap: 16px; align-items: center;">
+                    <a href="/?filter=all" 
+                       style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; text-decoration: none; transition: all 0.2s; <?= $statusFilter === 'all' ? 'background: #e0e7ff; font-weight: 600;' : '' ?>"
+                       onmouseover="if('<?= $statusFilter ?>' !== 'all') this.style.background='#f1f5f9'"
+                       onmouseout="if('<?= $statusFilter ?>' !== 'all') this.style.background='transparent'">
+                        <span style="color: #334155;">📊 <?= $displayTotal ?? $importStats['total'] ?></span>
+                    </a>
+                    <a href="/?filter=ready" 
+                       style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; text-decoration: none; transition: all 0.2s; <?= $statusFilter === 'ready' ? 'background: #dcfce7; font-weight: 600;' : '' ?>"
+                       onmouseover="if('<?= $statusFilter ?>' !== 'ready') this.style.background='#f1f5f9'"
+                       onmouseout="if('<?= $statusFilter ?>' !== 'ready') this.style.background='transparent'">
+                        <span style="color: #059669;">✅ <?= $importStats['ready'] ?? 0 ?></span>
+                    </a>
+                    <a href="/?filter=pending" 
+                       style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; text-decoration: none; transition: all 0.2s; <?= $statusFilter === 'pending' ? 'background: #fef3c7; font-weight: 600;' : '' ?>"
+                       onmouseover="if('<?= $statusFilter ?>' !== 'pending') this.style.background='#f1f5f9'"
+                       onmouseout="if('<?= $statusFilter ?>' !== 'pending') this.style.background='transparent'">
+                        <span style="color: #d97706;">⚠️ <?= $importStats['pending'] ?? 0 ?></span>
+                    </a>
+                    <a href="/?filter=released" 
+                       style="display: flex; align-items: center; gap: 4px; padding: 4px 8px; border-radius: 4px; text-decoration: none; transition: all 0.2s; <?= $statusFilter === 'released' ? 'background: #fee2e2; font-weight: 600;' : '' ?>"
+                       onmouseover="if('<?= $statusFilter ?>' !== 'released') this.style.background='#f1f5f9'"
+                       onmouseout="if('<?= $statusFilter ?>' !== 'released') this.style.background='transparent'">
+                        <span style="color: #dc2626;">🔓 <?= $importStats['released'] ?? 0 ?></span>
+                    </a>
+                </div>
+                <?php else: ?>
                 <div class="toolbar-label">إدخال جديد</div>
+                <?php endif; ?>
                 <div class="toolbar-actions">
                     <button class="btn-input" title="إدخال يدوي" data-action="showManualInput">
                         <span>&#x270D;</span>

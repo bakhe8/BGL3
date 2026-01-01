@@ -80,7 +80,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
 <?php 
 // ===== LIFECYCLE GATE: Determine if actions are allowed =====
 // Only allow actions (extend/reduce/release) on READY guarantees
-$isReady = ($record['status'] ?? 'pending') === 'approved';
+$isReady = ($record['status'] ?? 'pending') === 'ready';
 $disabledAttr = !$isReady ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : '';
 $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيانات الضمان"' : '';
 // ============================================================
@@ -150,7 +150,7 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
                 <?php foreach ($supplierMatch['suggestions'] as $sugg): 
                     // Skip if this suggestion is already the selected & approved supplier
                     $isSelected = ($record['supplier_id'] == ($sugg['id'] ?? 0));
-                    $isApproved = ($record['status'] ?? '') === 'approved' || ($record['status'] ?? '') === 'issued'; // "Ready" or "Issued"
+                    $isApproved = ($record['status'] ?? '') === 'ready' || ($record['status'] ?? '') === 'issued'; // "Ready" or "Issued"
                     
                     if ($isSelected && $isApproved) continue;
                 ?>

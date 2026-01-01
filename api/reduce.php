@@ -40,7 +40,7 @@ try {
     $statusCheck->execute([$guaranteeId]);
     $currentStatus = $statusCheck->fetchColumn();
     
-    if ($currentStatus !== 'approved') {
+    if ($currentStatus !== 'ready') {
         http_response_code(400);
         echo '<div id="record-form-section" class="card" data-current-event-type="current">';
         echo '<div class="card-body" style="color: red;">لا يمكن تخفيض ضمان غير مكتمل. يجب اختيار المورد والبنك أولاً.</div>';

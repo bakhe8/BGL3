@@ -187,6 +187,12 @@ $eventCount = count($timeline);
                                             <?php
                                             $oldVal = $change['old_value'] ?? null;
                                             $newVal = $change['new_value'] ?? null;
+                                            
+                                            // Map 'approved' to 'ready' for display (backward compatibility)
+                                            if ($change['field'] === 'status') {
+                                                if ($oldVal === 'approved') $oldVal = 'ready';
+                                                if ($newVal === 'approved') $newVal = 'ready';
+                                            }
                                             ?>
                                             
                                             <?php if ($oldVal): ?>
@@ -207,7 +213,11 @@ $eventCount = count($timeline);
                                 <div style="margin-top: 6px; padding-top: 6px; border-top: 1px solid #e2e8f0;">
                                     <strong style="color: #1e293b;">• الحالة:</strong>
                                     <span style="color: #059669; font-weight: 500;">
-                                        <?= htmlspecialchars($statusChange) ?>
+                                        <?php
+                                        // Map old 'approved' to 'ready' for display
+                                        $displayStatus = ($statusChange === 'approved') ? 'ready' : $statusChange;
+                                        echo htmlspecialchars($displayStatus);
+                                        ?>
                                     </span>
                                 </div>
                                 <?php endif; ?>

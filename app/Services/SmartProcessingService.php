@@ -8,6 +8,8 @@ use App\Repositories\GuaranteeRepository;
 use App\Repositories\SupplierLearningRepository;
 use App\Repositories\SupplierRepository;
 use App\Support\BankNormalizer;
+use App\Models\TrustDecision;
+use App\Services\ConflictDetector;
 use PDO;
 
 /**
@@ -113,17 +115,28 @@ class SmartProcessingService
             $supplierSuggestions = $this->learningService->getSuggestions($supplierName);
             $supplierConfidence = 0;
             $finalSupplierName = '';
-            $supplierSource = null;
+            $trustDecision = null;
             
             if (!empty($supplierSuggestions)) {
                 $top = $supplierSuggestions[0];
-                $supplierSource = $top['source'] ?? null;
                 
-                // SAFE LEARNING: Block auto-approval from learned aliases
-                if ($top['score'] >= 0.90 && $supplierSource !== 'alias') {
+                // Evaluate trust using new Explainable Trust Gate
+                $trustDecision = $this->evaluateTrust(
+                    $top['id'],
+                    $top['source'] ?? null,
+                    $top['score'],
+                    $supplierName
+                );
+                
+                if ($trustDecision->allowed) {
                     $supplierId = $top['id'];
                     $finalSupplierName = $top['official_name'];
                     $supplierConfidence = $top['score'];
+                    
+                    // PHASE 2: Apply Targeted Negative Learning if Override occurred
+                    if ($trustDecision->shouldApplyTargetedPenalty()) {
+                        $this->learningService->applyTargetedPenalty($trustDecision->blockingAlias);
+                    }
                 }
             }
 
@@ -154,14 +167,38 @@ class SmartProcessingService
             if ($supplierId && $bankId && empty($conflicts)) {
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
-                $stats['auto_matched']++;
-            } else if ($supplierSource === 'alias' && !empty($supplierSuggestions)) {
-                // SAFE LEARNING: Log blocked auto-approval from learned alias
-                error_log(sprintf(
-                    "[SAFE_LEARNING] Auto-approval blocked for guarantee #%d - supplier match from learned alias (score: %d)",
+                
+                // Record status transition event for timeline visibility
+                $oldSnapshot = [
+                    'status' => 'pending',
+                    'supplier_id' => null,
+                    'bank_id' => null
+                ];
+                \App\Services\TimelineRecorder::recordStatusTransitionEvent(
                     $guaranteeId,
-                    $supplierSuggestions[0]['score'] ?? 0
+                    $oldSnapshot,
+                    'ready',
+                    'auto_match_completion'
+                );
+                
+                $stats['auto_matched']++;
+            } else if ($trustDecision && !$trustDecision->allowed) {
+                // EXPLAINABLE TRUST GATE: Log why auto-approval was blocked
+                error_log(sprintf(
+                    "[TRUST_GATE] Auto-approval blocked for guarantee #%d - Reason: %s, Confidence: %d",
+                    $guaranteeId,
+                    $trustDecision->reason,
+                    $trustDecision->confidence
                 ));
+                
+                if ($trustDecision->blockingAlias) {
+                    error_log(sprintf(
+                        "[TRUST_GATE] Blocking alias: '%s' (source: %s, usage: %d)",
+                        $trustDecision->blockingAlias['alternative_name'],
+                        $trustDecision->blockingAlias['source'],
+                        $trustDecision->blockingAlias['usage_count']
+                    ));
+                }
             }
         }
 
@@ -175,7 +212,7 @@ class SmartProcessingService
     {
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, created_at)
-            VALUES (?, ?, ?, 'approved', ?)
+            VALUES (?, ?, ?, 'ready', ?)
         ");
         $stmt->execute([$guaranteeId, $supplierId, $bankId, date('Y-m-d H:i:s')]);
     }
@@ -186,21 +223,31 @@ class SmartProcessingService
      */
     private function logAutoMatchEvents(int $guaranteeId, array $raw, string $supName, int $supScore): void
     {
+        // CRITICAL FIX: Re-fetch raw_data to get updated bank name
+        // Bank matching happens BEFORE this, and updates raw_data in DB
+        // We need fresh data to ensure snapshot has the matched bank name
+        $stmt = $this->db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$guaranteeId]);
+        $freshRaw = json_decode($stmt->fetchColumn(), true);
+        
+        // Use fresh data if available, fallback to passed data
+        $dataForSnapshot = $freshRaw ?: $raw;
+        
         // 1. Fetch current data for Snapshot (State BEFORE approval)
         // Since this runs immediately after creation, status was pending, supplier was null.
         $snapshot = [
-            'guarantee_number' => $raw['bg_number'] ?? $raw['guarantee_number'] ?? '',
-            'contract_number' => $raw['contract_number'] ?? '',
-            'amount' => $raw['amount'] ?? 0,
-            'expiry_date' => $raw['expiry_date'] ?? '',
-            'issue_date' => $raw['issue_date'] ?? '',
-            'type' => $raw['type'] ?? '',
+            'guarantee_number' => $dataForSnapshot['bg_number'] ?? $dataForSnapshot['guarantee_number'] ?? '',
+            'contract_number' => $dataForSnapshot['contract_number'] ?? '',
+            'amount' => $dataForSnapshot['amount'] ?? 0,
+            'expiry_date' => $dataForSnapshot['expiry_date'] ?? '',
+            'issue_date' => $dataForSnapshot['issue_date'] ?? '',
+            'type' => $dataForSnapshot['type'] ?? '',
             'supplier_id' => null,   // Before match
-            'supplier_name' => $raw['supplier'] ?? '',
+            'supplier_name' => $raw['supplier'] ?? '',  // Use original for "before" state
             'raw_supplier_name' => $raw['supplier'] ?? '',
             'bank_id' => null,
-            'bank_name' => $raw['bank'] ?? '', 
-            'raw_bank_name' => $raw['bank'] ?? '',
+            'bank_name' => $dataForSnapshot['bank'] ?? '',  // ✅ FIXED: Now gets matched bank name!
+            'raw_bank_name' => $dataForSnapshot['bank'] ?? '',
             'status' => 'pending'
         ];
 
@@ -307,4 +354,98 @@ class SmartProcessingService
             'System AI'
         ]);
     }
+
+    /**
+     * Evaluate trust for a supplier match (Explainable Trust Gate)
+     * 
+     * This method implements the core Trust Gate logic, transforming it from
+     * a simple Boolean check to an explainable decision with context.
+     * 
+     * @param int $supplierId The matched supplier ID
+     * @param string|null $source The source of the match ('alias', 'search', etc.)
+     * @param int $score The confidence score
+     * @param string $rawName The raw input name
+     * @return TrustDecision The trust decision with reasoning
+     */
+    private function evaluateTrust(
+        int $supplierId,
+        ?string $source,
+        int $score,
+        string $rawName
+    ): TrustDecision {
+        // Rule 1: Low confidence - block
+        if ($score < 90) {
+            return TrustDecision::block(
+                TrustDecision::REASON_LOW_CONFIDENCE,
+                $score
+            );
+        }
+
+        // Rule 2: Alias source - check for conflicts AND check alias trust
+        if ($source === 'alias') {
+            // For alias matches, we need to check:
+            // 1. The actual source of THIS alias (is it trusted?)
+            // 2. Are there OTHER conflicting aliases?
+            
+            $learningRepo = new SupplierLearningRepository($this->db);
+            $normalized = \App\Utils\ArabicNormalizer::normalize($rawName);
+            
+            // Get the ACTUAL source of the current alias match
+            $currentAliasStmt = $learningRepo->db->prepare("
+                SELECT source, usage_count
+                FROM supplier_alternative_names
+                WHERE supplier_id = ? AND normalized_name = ?
+                LIMIT 1
+            ");
+            $currentAliasStmt->execute([$supplierId, $normalized]);
+            $currentAlias = $currentAliasStmt->fetch(PDO::FETCH_ASSOC);
+            
+            $aliasSource = $currentAlias['source'] ?? 'unknown';
+            
+            // Check for OTHER conflicting aliases
+            $conflicts = $learningRepo->findConflictingAliases($supplierId, $normalized);
+            
+            // If THIS alias is from a trusted source (import_official, manual, seed)
+            // AND there are conflicts, we OVERRIDE (trust this, penalize others)
+            $trustedSources = ['import_official', 'manual', 'seed'];
+            
+            if (in_array($aliasSource, $trustedSources) && !empty($conflicts)) {
+                // Trust Override scenario
+                $culprit = $conflicts[0];
+                return TrustDecision::override($score, $culprit);
+            }
+            
+            // If THIS alias is from learning AND there are conflicts, BLOCK
+            if (!empty($conflicts)) {
+                $culprit = $conflicts[0];
+                return TrustDecision::block(
+                    TrustDecision::REASON_ALIAS_CONFLICT,
+                    $score,
+                    $culprit
+                );
+            }
+            
+            // Alias match with no conflicts - allow
+            return TrustDecision::allow(TrustDecision::REASON_HIGH_CONFIDENCE, $score);
+        }
+
+        // Rule 3: High confidence search/import - check for conflicts
+        // This is the critical case: we have a good match, but need to check
+        // if there are conflicting aliases that would have blocked trust
+        $learningRepo = new SupplierLearningRepository($this->db);
+        $normalized = \App\Utils\ArabicNormalizer::normalize($rawName);
+        $conflicts = $learningRepo->findConflictingAliases($supplierId, $normalized);
+        
+        if (!empty($conflicts)) {
+            // We have a high-confidence match BUT there are conflicting aliases
+            // This is a Trust Override scenario - we trust the current match
+            // but identify the culprit for targeted negative learning
+            $culprit = $conflicts[0]; // Highest priority conflict
+            return TrustDecision::override($score, $culprit);
+        }
+
+        // Clean high-confidence match with no conflicts
+        return TrustDecision::allow(TrustDecision::REASON_HIGH_CONFIDENCE, $score);
+    }
 }
+

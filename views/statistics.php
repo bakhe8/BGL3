@@ -52,10 +52,10 @@ try {
     $statusData = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $pending = 0;
-    $approved = 0;
+    $ready = 0;
     foreach ($statusData as $row) {
         if ($row['has_supplier'] && $row['has_bank']) {
-            $approved += $row['count'];
+            $ready += $row['count'];
         } else {
             $pending += $row['count'];
         }
@@ -133,7 +133,7 @@ try {
     $activeCount = 0;
     $expiredCount = 0;
     $pending = 0;
-    $approved = 0;
+    $ready = 0;
     $topSuppliers = [];
     $topBanks = [];
     $uniqueSuppliers = 0;
@@ -433,7 +433,7 @@ function formatMoney($num) {
                         <div class="status-label">قيد المعالجة</div>
                     </div>
                     <div class="status-item approved">
-                        <div class="status-value"><?= formatNumber($approved) ?></div>
+                        <div class="status-value"><?= formatNumber($ready) ?></div>
                         <div class="status-label">معتمد</div>
                     </div>
                 </div>

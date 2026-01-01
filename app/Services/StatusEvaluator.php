@@ -10,7 +10,7 @@ namespace App\Services;
  * Replaces duplicate status calculation logic across the codebase.
  * 
  * Status Authority Rules:
- * - READY (approved): Both supplier_id AND bank_id are present
+ * - READY: Both supplier_id AND bank_id are present
  * - NEEDS_DECISION (pending): Either supplier_id OR bank_id is missing
  * 
  * @version 3.0
@@ -22,13 +22,13 @@ class StatusEvaluator
      * 
      * @param int|null $supplierId Supplier ID (nullable)
      * @param int|null $bankId Bank ID (nullable)
-     * @return string Status: 'approved' if both exist, 'pending' otherwise
+     * @return string Status: 'ready' if both exist, 'pending' otherwise
      */
     public static function evaluate(?int $supplierId, ?int $bankId): string
     {
         // Status authority: Both supplier AND bank must exist for approval
         if ($supplierId && $bankId) {
-            return 'approved';
+            return 'ready';
         }
         
         return 'pending';
@@ -38,7 +38,7 @@ class StatusEvaluator
      * Evaluate status from database decision record
      * 
      * @param int $guaranteeId Guarantee ID
-     * @return string Status: 'approved' or 'pending'
+     * @return string Status: 'ready' or 'pending'
      */
     public static function evaluateFromDatabase(int $guaranteeId): string
     {
@@ -76,7 +76,7 @@ class StatusEvaluator
     {
         $reasons = [];
         
-        // If approved, explain why complete
+        // If ready, explain why complete
         if ($supplierId && $bankId) {
             $reasons[] = [
                 'type' => 'complete',

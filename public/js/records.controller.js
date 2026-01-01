@@ -76,6 +76,11 @@ if (!window.RecordsController) {
                 if (e.target.dataset.model) {
                     this.handleInputChange(e.target);
                 }
+
+                // Handle supplier input specifically
+                if (e.target.id === 'supplierInput') {
+                    this.handleSupplierInput(e.target);
+                }
             });
 
             // Close dropdowns
@@ -354,7 +359,14 @@ if (!window.RecordsController) {
                         window.location.reload();
                     }
                 } else {
-                    this.showToast('خطأ: ' + (data.error || 'فشل الحفظ'), 'error');
+                    // Handle supplier_required error specially
+                    if (data.error === 'supplier_required') {
+                        this.showToast(data.message || 'يجب اختيار مورد من الاقتراحات أو إضافة مورد جديد', 'error');
+                        // Show the add supplier button with the name
+                        this.showAddSupplierButton(data.supplier_name || '');
+                    } else {
+                        this.showToast('خطأ: ' + (data.message || data.error || 'فشل الحفظ'), 'error');
+                    }
                 }
             } catch (error) {
                 console.error('Save error:', error);
@@ -586,13 +598,130 @@ if (!window.RecordsController) {
         }
 
         handleSupplierInput(target) {
-            // Could implement debounced suggestion fetching here
-            console.log('Supplier input changed:', target.value);
+            // Debounced suggestion fetching
+            clearTimeout(this.supplierSearchTimeout);
+            const value = target.value.trim();
+
+            // Clear supplier ID when user types (they're changing it)
+            const supplierIdHidden = document.getElementById('supplierIdHidden');
+            if (supplierIdHidden) {
+                supplierIdHidden.value = '';
+            }
+
+            if (value.length < 2) {
+                this.hideAddSupplierButton();
+                return;
+            }
+
+            this.supplierSearchTimeout = setTimeout(async () => {
+                try {
+                    const response = await fetch(`/api/suggestions.php?raw=${encodeURIComponent(value)}&format=json`);
+                    const data = await response.json();
+
+                    if (data.success && data.suggestions) {
+                        // Update suggestions chips
+                        this.updateSupplierChips(data.suggestions, value);
+
+                        // Show add button if no exact match found
+                        const hasExactMatch = data.suggestions.some(s =>
+                            s.official_name.toLowerCase() === value.toLowerCase()
+                        );
+
+                        if (!hasExactMatch && data.suggestions.length === 0) {
+                            this.showAddSupplierButton(value);
+                        } else {
+                            this.hideAddSupplierButton();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Suggestions fetch error:', error);
+                }
+            }, 300);
         }
 
-        createSupplier() {
-            // TODO: Implement create supplier functionality
-            alert('إضافة مورد جديد قيد التطوير');
+        updateSupplierChips(suggestions, rawName) {
+            const container = document.getElementById('supplier-suggestions');
+            if (!container) return;
+
+            if (suggestions.length === 0) {
+                container.innerHTML = '<div style="font-size: 11px; color: #94a3b8; padding: 4px;">لا توجد اقتراحات</div>';
+                return;
+            }
+
+            container.innerHTML = suggestions.map(sugg => `
+                <button 
+                    type="button" 
+                    class="chip${sugg.is_learning ? ' chip-warning' : ''}"
+                    data-action="selectSupplier"
+                    data-id="${sugg.id}"
+                    data-name="${sugg.official_name.replace(/"/g, '&quot;')}"
+                >
+                    <span class="chip-text">
+                        ${sugg.official_name}
+                        ${sugg.is_learning ? '<span class="badge badge-learning">تعلم آلي</span>' : ''}
+                    </span>
+                    ${sugg.star_rating ? '<span class="chip-stars">' + '⭐'.repeat(sugg.star_rating) + '</span>' : ''}
+                </button>
+            `).join('');
+        }
+
+        showAddSupplierButton(supplierName) {
+            const container = document.getElementById('addSupplierContainer');
+            const nameSpan = document.getElementById('newSupplierName');
+            if (container) {
+                container.style.display = 'block';
+                if (nameSpan) nameSpan.textContent = supplierName;
+            }
+        }
+
+        hideAddSupplierButton() {
+            const container = document.getElementById('addSupplierContainer');
+            if (container) {
+                container.style.display = 'none';
+            }
+        }
+
+        async createSupplier() {
+            const supplierInput = document.getElementById('supplierInput');
+            const supplierName = supplierInput?.value?.trim();
+
+            if (!supplierName) {
+                this.showToast('الرجاء إدخال اسم المورد أولاً', 'error');
+                return;
+            }
+
+            const recordIdEl = document.querySelector('[data-record-id]');
+            const guaranteeId = recordIdEl?.dataset?.recordId;
+
+            try {
+                const response = await fetch('/api/create-supplier.php', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        name: supplierName,
+                        guarantee_id: guaranteeId
+                    })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    // Update the hidden ID and input
+                    const supplierIdHidden = document.getElementById('supplierIdHidden');
+                    if (supplierIdHidden) supplierIdHidden.value = data.supplier_id;
+                    if (supplierInput) supplierInput.value = data.official_name || supplierName;
+
+                    // Hide add button
+                    this.hideAddSupplierButton();
+
+                    this.showToast(`تم إضافة المورد: ${data.official_name || supplierName}`, 'success');
+                } else {
+                    this.showToast('خطأ: ' + (data.message || data.error || 'فشل إضافة المورد'), 'error');
+                }
+            } catch (error) {
+                console.error('Create supplier error:', error);
+                this.showToast('فشل إضافة المورد', 'error');
+            }
         }
 
         // Modal handlers

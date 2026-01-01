@@ -3,60 +3,79 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Utils\ArabicNormalizer;
+
+/**
+ * Normalizer - Unified normalization utility
+ * 
+ * All supplier text normalization now uses ArabicNormalizer as the base.
+ * This ensures consistency across the entire system.
+ */
 class Normalizer
 {
+    /**
+     * Normalize general names using ArabicNormalizer
+     * 
+     * @param string $value Input text
+     * @return string Normalized text
+     */
     public function normalizeName(string $value): string
     {
-        $value = trim(mb_strtolower($value));
-        // توحيد مسافات
-        $value = preg_replace('/\s+/u', ' ', $value);
-        // توحيد بعض الحروف العربية الشائعة
-        $value = str_replace(
-            ['أ', 'إ', 'آ', 'ة', 'ى', 'ئ', 'ؤ'],
-            ['ا', 'ا', 'ا', 'ه', 'ي', 'ي', 'و'],
-            $value
-        );
-        // إزالة رموز زائدة
-        $value = preg_replace('/[^\p{L}\p{N}\s]/u', '', $value);
-        return trim($value);
+        return ArabicNormalizer::normalize($value);
     }
 
     /**
-     * تطبيع أسماء الموردين مع إزالة الكلمات العامة الخاصة بالشركات.
+     * Normalize supplier names
+     * 
+     * Uses ArabicNormalizer for base normalization, then optionally
+     * removes common company words (disabled for better matching)
+     * 
+     * @param string $value Supplier name
+     * @return string Normalized supplier name
      */
     public function normalizeSupplierName(string $value): string
     {
-        $value = $this->normalizeName($value);
-        if ($value === '') {
-            return '';
-        }
-        // كلمات عامة للموردين تُزال لتقليل الضوضاء
-        $stop = [
-            'شركة', 'شركه', 'مؤسسة', 'مؤسسه', 'مؤسسة', 'مؤسسه', 'مكتب', 'مصنع', 'مقاولات',
-            'trading', 'est', 'est.', 'establishment', 'company', 'co', 'co.', 'ltd', 'ltd.',
-            'limited', 'llc', 'inc', 'inc.', 'international', 'global'
+        // Use ArabicNormalizer for complete normalization
+        $normalized = ArabicNormalizer::normalize($value);
+        
+        // Optional: Remove common company words
+        // DISABLED for now - better to keep full name for accuracy
+        // If you need this, uncomment the code below:
+        
+        /*
+        $stopWords = [
+            'شركة', 'شركه', 'مؤسسة', 'مؤسسه', 'مكتب', 'مصنع',
+            'trading', 'est', 'establishment', 'company', 'co', 'ltd',
+            'limited', 'llc', 'inc', 'international', 'global'
         ];
-        $parts = preg_split('/\s+/u', $value);
-        $filtered = array_filter($parts, fn($p) => $p !== '' && !in_array($p, $stop, true));
-        $clean = implode(' ', $filtered);
-        // دمج المسافات مجدداً ثم إزالة التكرارات
-        $clean = preg_replace('/\s+/u', ' ', $clean ?? '');
-        return trim($clean);
+        
+        $parts = preg_split('/\s+/u', $normalized);
+        $filtered = array_filter($parts, fn($p) => $p !== '' && !in_array($p, $stopWords, true));
+        $normalized = implode(' ', $filtered);
+        $normalized = preg_replace('/\s+/u', ' ', $normalized);
+        $normalized = trim($normalized);
+        */
+        
+        return $normalized;
     }
 
     /**
-     * تطبيع أسماء البنوك - يستخدم BankNormalizer المتخصص
+     * Normalize bank names - delegates to specialized BankNormalizer
      * 
-     * @see App\Support\BankNormalizer For specialized bank normalization logic
+     * @param string $value Bank name
+     * @return string Normalized bank name
+     * @see BankNormalizer For specialized bank normalization logic
      */
     public function normalizeBankName(string $value): string
     {
-        // Delegate to specialized BankNormalizer for consistent bank matching
         return BankNormalizer::normalize($value);
     }
 
     /**
-     * تطبيع مختصرات البنوك (short_code): تحويل للحروف الكبيرة وإزالة الرموز والمسافات.
+     * Normalize bank short codes (e.g., SAIB → SAIB)
+     * 
+     * @param string $code Bank short code
+     * @return string Normalized short code
      */
     public function normalizeBankShortCode(string $code): string
     {
@@ -65,13 +84,12 @@ class Normalizer
     }
 
     /**
-     * إنشاء مفتاح هوية ثابت للمورد (normalized بدون مسافات).
+     * Make supplier key (normalized without spaces)
      * 
-     * ⚠️ SYNC WARNING: This logic is duplicated in JavaScript!
-     * @see www/assets/js/decision.js - makeSupplierKey() function (line ~159)
+     * Used for deduplication and matching purposes.
      * 
-     * السبب: نحتاج التحقق الفوري (client-side) قبل إرسال الطلب للخادم.
-     * إذا عدّلت هذه الدالة، يجب تحديث نسخة JS أيضاً!
+     * @param string $value Supplier name
+     * @return string Normalized key without spaces
      */
     public function makeSupplierKey(string $value): string
     {

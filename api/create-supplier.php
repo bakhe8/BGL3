@@ -37,6 +37,8 @@ try {
     
     echo json_encode([
         'success' => true,
+        'supplier_id' => $id,
+        'official_name' => $name,
         'supplier' => [
             'id' => $id,
             'name' => $name

@@ -161,12 +161,55 @@ class SupplierLearningRepository
         ]);
     }
 
+    /**
+     * Find conflicting aliases for a supplier
+     * 
+     * Returns aliases that are registered for this supplier but differ
+     * from the current input. Used to identify potential "culprits" that
+     * block auto-matching despite high confidence.
+     * 
+     * @param int $supplierId The supplier ID
+     * @param string $currentNormalized The current normalized input
+     * @return array List of conflicting aliases, ordered by priority
+     */
+    public function findConflictingAliases(int $supplierId, string $currentNormalized): array
+    {
+        $sql = "
+            SELECT 
+                id,
+                supplier_id,
+                alternative_name,
+                normalized_name,
+                source,
+                usage_count,
+                created_at
+            FROM supplier_alternative_names
+            WHERE supplier_id = ?
+            AND normalized_name != ?
+            AND usage_count > 0
+            ORDER BY 
+                CASE 
+                    WHEN source = 'learning' THEN 1
+                    WHEN source = 'manual' THEN 2
+                    ELSE 3
+                END,
+                usage_count DESC,
+                created_at ASC
+        ";
+        
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute([$supplierId, $currentNormalized]);
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * Normalize text for matching
+     * 
+     * Uses ArabicNormalizer for consistent normalization across the system
+     */
     private function normalize(string $text): string
     {
-        // Simple normalization
-        $text = mb_strtolower($text);
-        $text = preg_replace('/[^\p{L}\p{N}\s]/u', '', $text);
-        $text = preg_replace('/\s+/', ' ', $text);
-        return trim($text);
+        return \App\Utils\ArabicNormalizer::normalize($text);
     }
 }

@@ -94,12 +94,61 @@ class LearningService
         return $this->learningRepo->findSuggestions($normalized);
     }
 
+    /**
+     * Normalize text for matching
+     * 
+     * PHASE 1: Using ArabicNormalizer for improved Unicode handling
+     */
     private function normalize(string $text): string
     {
-        $text = mb_strtolower($text);
-        $text = preg_replace('/[^\p{L}\p{N}\s]/u', '', $text);
-        $text = preg_replace('/\s+/', ' ', $text);
-        return trim($text);
+        return \App\Utils\ArabicNormalizer::normalize($text);
+    }
+
+    /**
+     * Apply Targeted Negative Learning Penalty
+     * 
+     * This is Phase 2 of the Explainable Trust Gate architecture.
+     * When we override Trust Gate due to a high-confidence match,
+     * we penalize the specific conflicting alias that was blocking trust.
+     * 
+     * CRITICAL SAFEGUARDS:
+     * - Only penalizes if culprit exists
+     * - Protects import_official sources from penalty
+     * - Logs all penalties for audit trail
+     * 
+     * @param array $culprit The blocking alias identified by evaluateTrust
+     */
+    public function applyTargetedPenalty(array $culprit): void
+    {
+        // Safeguard: Require valid culprit data
+        if (empty($culprit) || empty($culprit['supplier_id']) || empty($culprit['alternative_name'])) {
+            error_log('[TARGETED_PENALTY] Invalid culprit data, skipping penalty');
+            return;
+        }
+
+        // Safeguard: Protect import_official sources from penalty
+        // These are historical truths that should not be degraded
+        if (($culprit['source'] ?? '') === 'import_official') {
+            error_log(sprintf(
+                "[TARGETED_PENALTY] Skipping penalty for import_official alias: '%s'",
+                $culprit['alternative_name']
+            ));
+            return;
+        }
+
+        // Apply the penalty
+        $this->learningRepo->decrementUsage(
+            $culprit['supplier_id'],
+            $culprit['alternative_name']
+        );
+
+        // Audit log
+        error_log(sprintf(
+            "[TARGETED_PENALTY] Penalized alias '%s' (source: %s, usage_count: %d) due to Trust Override",
+            $culprit['alternative_name'],
+            $culprit['source'] ?? 'unknown',
+            $culprit['usage_count'] ?? 0
+        ));
     }
 }
 

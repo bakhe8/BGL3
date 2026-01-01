@@ -212,7 +212,7 @@ try {
                             $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
                             $bankId = $currentDec['bank_id'] ?? null;
                             
-                            $newStatus = ($top['id'] && $bankId) ? 'approved' : 'pending';
+                            $newStatus = ($top['id'] && $bankId) ? 'ready' : 'pending';
 
                             $stmt = $db->prepare('
                                 INSERT OR REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
@@ -289,7 +289,7 @@ try {
                             $currentDec = $decStmt->fetch(PDO::FETCH_ASSOC);
                             $supplierId = $currentDec['supplier_id'] ?? null;
                             
-                            $newStatus = ($supplierId && $bank['id']) ? 'approved' : 'pending';
+                            $newStatus = ($supplierId && $bank['id']) ? 'ready' : 'pending';
                             
                             $stmt = $db->prepare('
                                 INSERT OR REPLACE INTO guarantee_decisions 

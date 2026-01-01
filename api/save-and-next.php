@@ -63,40 +63,18 @@ try {
         }
         
         if (!$supplierId) {
-            // Auto-create new supplier with improved error handling
-            try {
-                // Generate normalized name (required by schema)
-                $normName = $normStub;
-                
-                $stmt = $db->prepare('INSERT INTO suppliers (official_name, normalized_name) VALUES (?, ?)');
-                $stmt->execute([$supplierName, $normName]);
-                $supplierId = $db->lastInsertId();
-                
-                error_log("[AUTO-CREATE] Created supplier: $supplierName (ID: $supplierId)");
-                
-            } catch (\PDOException $e) {
-                // Check if it's duplicate key error specifically (race condition)
-                if ($e->getCode() == '23000') {
-                    // This is the race condition - another process created it
-                    error_log("[RACE-CONDITION] Supplier created by another process: $supplierName");
-                    
-                    $stmt = $db->prepare('SELECT id FROM suppliers WHERE normalized_name = ?');
-                    $stmt->execute([$normName]);
-                    $supplierId = $stmt->fetchColumn();
-                    
-                    if ($supplierId) {
-                        error_log("[RACE-CONDITION-RESOLVED] Found supplier after race: $supplierName (ID: $supplierId)");
-                    } else {
-                        // Still null? Something's very wrong
-                        error_log("[CRITICAL] Failed to create or find supplier after race condition: $supplierName - " . $e->getMessage());
-                        $supplierError = "فشل في إنشاء المورد. الرجاء المحاولة مرة أخرى.";
-                    }
-                } else {
-                    // Other database error - log and report
-                    error_log("[DB-ERROR] Failed to create supplier '$supplierName': " . $e->getMessage());
-                    $supplierError = "خطأ في قاعدة البيانات: " . $e->getMessage();
-                }
-            }
+            // NO AUTO-CREATE: Require explicit supplier selection or creation
+            // User must either:
+            // 1. Select from suggestions (chips)
+            // 2. Use "Add New Supplier" button
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'error' => 'supplier_required',
+                'message' => 'يجب اختيار مورد من الاقتراحات أو إضافة مورد جديد عبر الزر المخصص',
+                'supplier_name' => $supplierName
+            ]);
+            exit;
         }
     }
 
@@ -236,16 +214,30 @@ try {
         ]);
     }
 
+    // NOTE: guarantees table has NO status column
+    // Status is derived from guarantee_decisions table in index.php
+    // We set $mockRecord['status'] = 'ready' when decision exists (see index.php line 169)
+
     // 3. RECORD: Strict Event Recording (UE-01 Decision)
     $newData = [
         'supplier_id' => $supplierId,
         'supplier_name' => $newSupplier
     ];
     
-    \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, false); // isAuto = false
+    try {
+        \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, false); // isAuto = false
+        error_log("[TIMELINE] Decision event recorded for guarantee #$guaranteeId");
+    } catch (\Throwable $e) {
+        error_log("[TIMELINE ERROR] Failed to record decision event: " . $e->getMessage());
+    }
     
     // 4. RECORD: Status Transition Event (SE-01/SE-02) - Separate Event
-    \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $statusToSave, 'data_completeness_check');
+    try {
+        \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $statusToSave, 'data_completeness_check');
+        error_log("[TIMELINE] Status transition event recorded for guarantee #$guaranteeId: $statusToSave");
+    } catch (\Throwable $e) {
+        error_log("[TIMELINE ERROR] Failed to record status transition: " . $e->getMessage());
+    }
     
     // --- SMART LEARNING FEEDBACK LOOP ---
     try {
