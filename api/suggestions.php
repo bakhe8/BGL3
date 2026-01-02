@@ -10,6 +10,7 @@ use App\Support\Database;
 use App\Services\LearningService;
 use App\Repositories\SupplierLearningRepository;
 use App\Repositories\SupplierRepository;
+use App\Services\Suggestions\ArabicLevelBSuggestions;
 
 // Detect format: check for 'format=json' parameter or Accept header
 $format = $_GET['format'] ?? 'html';
@@ -27,10 +28,41 @@ try {
         $suggestions = [];
     } else {
         $db = Database::connect();
-        $learningRepo = new SupplierLearningRepository($db);
-        $supplierRepo = new SupplierRepository();
-        $service = new LearningService($learningRepo, $supplierRepo);
-        $suggestions = $service->getSuggestions($raw);
+        
+        // Normalize input
+        $normalized = mb_strtolower(trim($raw));
+        $normalized = preg_replace('/\s+/', ' ', $normalized);
+        $normalized = preg_replace('/[\x{064B}-\x{065F}]/u', '', $normalized);
+        
+        // Check if Arabic
+        $hasArabic = preg_match('/[\x{0600}-\x{06FF}]/u', $raw);
+        
+        if ($hasArabic) {
+            // Use ADR-007 Arabic Level B System
+            $arabicService = new ArabicLevelBSuggestions($db);
+            $levelBSuggestions = $arabicService->find($normalized);
+            
+            // Convert to expected format
+            $suggestions = array_map(function($sugg) {
+                return [
+                    'id' => $sugg['supplier_id'],
+                    'official_name' => $sugg['official_name'],
+                    'english_name' => $sugg['english_name'],
+                    'level' => $sugg['level'],
+                    'confidence' => $sugg['confidence'],
+                    'matched_anchor' => $sugg['matched_anchor'],
+                    'reason' => $sugg['reason_ar'],
+                    'requires_confirmation' => $sugg['requires_confirmation'],
+                    'is_unique_anchor' => $sugg['is_unique_anchor']
+                ];
+            }, $levelBSuggestions);
+        } else {
+            // Use existing Level A logic for English
+            $learningRepo = new SupplierLearningRepository($db);
+            $supplierRepo = new SupplierRepository();
+            $service = new LearningService($learningRepo, $supplierRepo);
+            $suggestions = $service->getSuggestions($raw);
+        }
     }
 
     // Return format based on caller

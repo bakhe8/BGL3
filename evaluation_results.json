@@ -1,0 +1,947 @@
+{
+    "timestamp": "2026-01-02 19:59:11",
+    "total_evaluated": 195,
+    "metrics": {
+        "coverage": {
+            "level_A": 24,
+            "level_B": 128,
+            "level_C_only": 0,
+            "no_suggestions": 43
+        },
+        "by_name_type": {
+            "acronym": {
+                "total": 0,
+                "level_A": 0,
+                "level_B": 0,
+                "no_sugg": 0
+            },
+            "english": {
+                "total": 149,
+                "level_A": 24,
+                "level_B": 83,
+                "no_sugg": 42
+            },
+            "arabic": {
+                "total": 46,
+                "level_A": 0,
+                "level_B": 45,
+                "no_sugg": 1
+            },
+            "mixed": {
+                "total": 0,
+                "level_A": 0,
+                "level_B": 0,
+                "no_sugg": 0
+            },
+            "other": {
+                "total": 0,
+                "level_A": 0,
+                "level_B": 0,
+                "no_sugg": 0
+            }
+        }
+    },
+    "examples": {
+        "level_A": [
+            {
+                "id": 255,
+                "number": "DLG6601648",
+                "input": "NAIZAK GLOBAL ENGINEERING SYSTEMS",
+                "suggestions": [
+                    {
+                        "supplier_id": 55,
+                        "official_name": "مؤسسة أنظمة النيزك الهندسية العالمية",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "NAIZAK GLOBAL ENGINEERING SYSTEMS"
+                    }
+                ]
+            },
+            {
+                "id": 314,
+                "number": "074806K",
+                "input": "NAIZAK GLOBAL ENGINEERING SYSTEMS",
+                "suggestions": [
+                    {
+                        "supplier_id": 55,
+                        "official_name": "مؤسسة أنظمة النيزك الهندسية العالمية",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "NAIZAK GLOBAL ENGINEERING SYSTEMS"
+                    }
+                ]
+            },
+            {
+                "id": 324,
+                "number": "MD2334500020",
+                "input": "GULF GATE TECHNOLOGIES COMPANY LIMITED",
+                "suggestions": [
+                    {
+                        "supplier_id": 60,
+                        "official_name": "شركة بوابة الخليج لتقنية المعلومات",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "GULF GATE TECHNOLOGIES COMPANY LIMITED"
+                    }
+                ]
+            },
+            {
+                "id": 332,
+                "number": "LG2434700022",
+                "input": "ARAB BUILDERS",
+                "suggestions": [
+                    {
+                        "supplier_id": 64,
+                        "official_name": "شركة المعمرون العرب للاتصالات وخدمات السلامة",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "ARAB BUILDERS"
+                    }
+                ]
+            },
+            {
+                "id": 333,
+                "number": "MD2301700019",
+                "input": "Nytrogin Company",
+                "suggestions": [
+                    {
+                        "supplier_id": 65,
+                        "official_name": "شركة نيتروجين",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "Nytrogin Company"
+                    }
+                ]
+            },
+            {
+                "id": 334,
+                "number": "MD2435200008",
+                "input": "INTERCONTINENTAL HOTEL RIYADH",
+                "suggestions": [
+                    {
+                        "supplier_id": 66,
+                        "official_name": "شركة فندق انتركونتال الرياض",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "INTERCONTINENTAL HOTEL RIYADH"
+                    }
+                ]
+            },
+            {
+                "id": 349,
+                "number": "MD2500500005",
+                "input": "Integrated Networks Company",
+                "suggestions": [
+                    {
+                        "supplier_id": 1,
+                        "official_name": "شركة الشبكات المتكاملة",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "Integrated Networks Company"
+                    }
+                ]
+            },
+            {
+                "id": 350,
+                "number": "APNGCU420012",
+                "input": "Axelerated Solutions CO",
+                "suggestions": [
+                    {
+                        "supplier_id": 45,
+                        "official_name": "شركة الحلول المتسارعة للاتصالات وتقنية المعلومات",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "Axelerated Solutions CO"
+                    }
+                ]
+            },
+            {
+                "id": 352,
+                "number": "128750R",
+                "input": "HADANIA CORPORATION",
+                "suggestions": [
+                    {
+                        "supplier_id": 79,
+                        "official_name": "شركة هدانيا للتجارة والمقاولات",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "HADANIA CORPORATION"
+                    }
+                ]
+            },
+            {
+                "id": 353,
+                "number": "APNGCU420330",
+                "input": "Axelerated Solutions CO",
+                "suggestions": [
+                    {
+                        "supplier_id": 45,
+                        "official_name": "شركة الحلول المتسارعة للاتصالات وتقنية المعلومات",
+                        "english_name": null,
+                        "level": "A",
+                        "confidence": 100,
+                        "score": 100,
+                        "source": "exact_alias_used",
+                        "usage_count": 1,
+                        "matched_value": "Axelerated Solutions CO"
+                    }
+                ]
+            }
+        ],
+        "level_B_good": [
+            {
+                "id": 205,
+                "number": "23OGTE49100962",
+                "input": "AL-KAMAL IMPORT OFFICE CO. LTD.",
+                "suggestions": [
+                    {
+                        "supplier_id": 57,
+                        "official_name": "Branch Office of Mercer Consulting Limited",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Branch Office of Mercer Consulting Limited"
+                    }
+                ]
+            },
+            {
+                "id": 211,
+                "number": "C222704",
+                "input": "SAUDI INT'L. TRADING CO. LTD (SITCO).",
+                "suggestions": [
+                    {
+                        "supplier_id": 38,
+                        "official_name": "HAY GROUP SAUDI ARABIA LTD",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "HAY GROUP SAUDI ARABIA LTD"
+                    },
+                    {
+                        "supplier_id": 47,
+                        "official_name": "DIVERSEY SAUDI ARABIA LIMITED CO",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "DIVERSEY SAUDI ARABIA LIMITED CO"
+                    },
+                    {
+                        "supplier_id": 77,
+                        "official_name": "VEOLIA WATER TECHNOLOGIES - SAUDI CONTRACTING",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "VEOLIA WATER TECHNOLOGIES - SAUDI CONTRACTING"
+                    },
+                    {
+                        "supplier_id": 54,
+                        "official_name": "SAMA MASA TRADING COMPANY.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "SAMA MASA TRADING COMPANY."
+                    },
+                    {
+                        "supplier_id": 95,
+                        "official_name": "Tamam for Trading & Contracting Co.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Tamam for Trading & Contracting Co."
+                    }
+                ]
+            },
+            {
+                "id": 214,
+                "number": "C222703",
+                "input": "SAUDI INT'L. TRADING CO. LTD (SITCO).",
+                "suggestions": [
+                    {
+                        "supplier_id": 38,
+                        "official_name": "HAY GROUP SAUDI ARABIA LTD",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "HAY GROUP SAUDI ARABIA LTD"
+                    },
+                    {
+                        "supplier_id": 47,
+                        "official_name": "DIVERSEY SAUDI ARABIA LIMITED CO",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "DIVERSEY SAUDI ARABIA LIMITED CO"
+                    },
+                    {
+                        "supplier_id": 77,
+                        "official_name": "VEOLIA WATER TECHNOLOGIES - SAUDI CONTRACTING",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "VEOLIA WATER TECHNOLOGIES - SAUDI CONTRACTING"
+                    },
+                    {
+                        "supplier_id": 54,
+                        "official_name": "SAMA MASA TRADING COMPANY.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "SAMA MASA TRADING COMPANY."
+                    },
+                    {
+                        "supplier_id": 95,
+                        "official_name": "Tamam for Trading & Contracting Co.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Tamam for Trading & Contracting Co."
+                    }
+                ]
+            },
+            {
+                "id": 215,
+                "number": "OG\/WW052343",
+                "input": "ZIMMO TRADING COMPANY LTD.",
+                "suggestions": [
+                    {
+                        "supplier_id": 54,
+                        "official_name": "SAMA MASA TRADING COMPANY.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "SAMA MASA TRADING COMPANY."
+                    },
+                    {
+                        "supplier_id": 95,
+                        "official_name": "Tamam for Trading & Contracting Co.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Tamam for Trading & Contracting Co."
+                    },
+                    {
+                        "supplier_id": 96,
+                        "official_name": "Technology Corner Trading Est.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Technology Corner Trading Est."
+                    },
+                    {
+                        "supplier_id": 72,
+                        "official_name": "Mckinsey and Company Lme Limted",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Mckinsey and Company Lme Limted"
+                    },
+                    {
+                        "supplier_id": 78,
+                        "official_name": "Thabat Construction Company ltd.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Thabat Construction Company ltd."
+                    }
+                ]
+            },
+            {
+                "id": 221,
+                "number": "ELGSA000947",
+                "input": "MEDICAL SUPPLIES & SERVICES CO. LTD (MEDISERV)",
+                "suggestions": [
+                    {
+                        "supplier_id": 99,
+                        "official_name": "Al-Falak Electronic Equipment & Supplies Co.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Al-Falak Electronic Equipment & Supplies Co."
+                    },
+                    {
+                        "supplier_id": 40,
+                        "official_name": "Ernst & Young Professional Services",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "Ernst & Young Professional Services"
+                    },
+                    {
+                        "supplier_id": 49,
+                        "official_name": "ALSALEM - YORK SERVICES LTD.",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "ALSALEM - YORK SERVICES LTD."
+                    },
+                    {
+                        "supplier_id": 58,
+                        "official_name": "ERNST AND YOUNG PROFISSIONAL SERVICES",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "ERNST AND YOUNG PROFISSIONAL SERVICES"
+                    },
+                    {
+                        "supplier_id": 38,
+                        "official_name": "HAY GROUP SAUDI ARABIA LTD",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "HAY GROUP SAUDI ARABIA LTD"
+                    }
+                ]
+            },
+            {
+                "id": 224,
+                "number": "RLG6800213",
+                "input": "شركة جنات العرب",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 2,
+                        "official_name": "الشركة العربية للوازم الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة العربية للوازم الطبية"
+                    },
+                    {
+                        "supplier_id": 26,
+                        "official_name": "شركة المعمور العربي للاتصالات وخدمات السلامة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة المعمور العربي للاتصالات وخدمات السلامة"
+                    }
+                ]
+            },
+            {
+                "id": 225,
+                "number": "LG2413400017",
+                "input": "شركة أجال السعودية للخدمات الصحية",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 31,
+                        "official_name": "شركة هود فون وين للخدمات العربية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة هود فون وين للخدمات العربية المحدودة"
+                    }
+                ]
+            },
+            {
+                "id": 228,
+                "number": "B307566",
+                "input": "شركة مكتب الكمال للاستيراد المحدودة",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    }
+                ]
+            },
+            {
+                "id": 229,
+                "number": "B305301",
+                "input": "شركة مصنع جمجوم للصناعات الطبية المحدودة",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 117,
+                        "official_name": "شركة الجيل الطبية والتجارية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة الجيل الطبية والتجارية"
+                    }
+                ]
+            },
+            {
+                "id": 230,
+                "number": "LGI-0917-24-1674",
+                "input": "شركة الجراحة المتقدمة للمستلزمات الطبية",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 117,
+                        "official_name": "شركة الجيل الطبية والتجارية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة الجيل الطبية والتجارية"
+                    }
+                ]
+            },
+            {
+                "id": 231,
+                "number": "RLG6806216",
+                "input": "شركة جنات العرب",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 2,
+                        "official_name": "الشركة العربية للوازم الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة العربية للوازم الطبية"
+                    },
+                    {
+                        "supplier_id": 26,
+                        "official_name": "شركة المعمور العربي للاتصالات وخدمات السلامة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة المعمور العربي للاتصالات وخدمات السلامة"
+                    }
+                ]
+            },
+            {
+                "id": 232,
+                "number": "M112504",
+                "input": "شركة عبدالله فؤاد للوازم والخدمات الطبية",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 2,
+                        "official_name": "الشركة العربية للوازم الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة العربية للوازم الطبية"
+                    },
+                    {
+                        "supplier_id": 8,
+                        "official_name": "مؤسسة وافد للتجهيزات والخدمات الطبية العامة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "مؤسسة وافد للتجهيزات والخدمات الطبية العامة"
+                    }
+                ]
+            },
+            {
+                "id": 233,
+                "number": "094554J",
+                "input": "مؤسسات سقالة التجارية",
+                "suggestions": [
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 115,
+                        "official_name": "شركة الصالحية التجارية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة الصالحية التجارية"
+                    },
+                    {
+                        "supplier_id": 117,
+                        "official_name": "شركة الجيل الطبية والتجارية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة الجيل الطبية والتجارية"
+                    }
+                ]
+            },
+            {
+                "id": 234,
+                "number": "RLG6900004",
+                "input": "شركة عصر التقنية الطبية",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 117,
+                        "official_name": "شركة الجيل الطبية والتجارية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة الجيل الطبية والتجارية"
+                    }
+                ]
+            },
+            {
+                "id": 235,
+                "number": "OG\/CC052013",
+                "input": "شركة ريم الوسط للتجارة",
+                "suggestions": [
+                    {
+                        "supplier_id": 112,
+                        "official_name": "شركة جنات العرب",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة جنات العرب"
+                    },
+                    {
+                        "supplier_id": 113,
+                        "official_name": "الشركة الوطنية للمنتجات الطبية",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "الشركة الوطنية للمنتجات الطبية"
+                    },
+                    {
+                        "supplier_id": 114,
+                        "official_name": "شركة زمو التجارية المحدودة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة زمو التجارية المحدودة"
+                    },
+                    {
+                        "supplier_id": 116,
+                        "official_name": "شركة البيت العربي للتجارة",
+                        "english_name": null,
+                        "level": "B",
+                        "confidence": 75,
+                        "source": "official_name_keyword",
+                        "matched_value": "شركة البيت العربي للتجارة"
+                    }
+                ]
+            }
+        ],
+        "level_B_bad": [],
+        "level_C": [],
+        "no_suggestions": [
+            {
+                "id": 206,
+                "number": "LGI-0917-23-9002",
+                "input": "TREATMENT OCEAN MEDICAL CO."
+            },
+            {
+                "id": 212,
+                "number": "APNGCU440038",
+                "input": "NAGHI  BROTHERS"
+            },
+            {
+                "id": 239,
+                "number": "LG2123500014",
+                "input": "Integrated Gulf Biosystems LLC"
+            },
+            {
+                "id": 241,
+                "number": "OG\/IC046794",
+                "input": "SCHINDLER OLAYAN ELEVATOR CO. LTD."
+            },
+            {
+                "id": 256,
+                "number": "DLG6801343",
+                "input": "Green Dimension"
+            },
+            {
+                "id": 257,
+                "number": "RLG\/6211034",
+                "input": "Riyadh Capital"
+            },
+            {
+                "id": 268,
+                "number": "LGI-0840-23-9388",
+                "input": "FAROUK, MAAMOUN TAMER & CO."
+            },
+            {
+                "id": 269,
+                "number": "094540J",
+                "input": "GULF MEDICAL CO. LTD."
+            },
+            {
+                "id": 270,
+                "number": "LGI-0858-22-6268",
+                "input": "Health Links"
+            },
+            {
+                "id": 271,
+                "number": "MD2421800034",
+                "input": "JERAISY OF RIYADH HOUSE"
+            }
+        ]
+    }
+}

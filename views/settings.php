@@ -220,6 +220,7 @@ $currentSettings = $settings->all();
             <button class="tab-btn active" onclick="switchTab('general')">🛠️ الإعدادات العامة</button>
             <button class="tab-btn" onclick="switchTab('banks')">🏦 البنوك</button>
             <button class="tab-btn" onclick="switchTab('suppliers')">📦 الموردين</button>
+            <button class="tab-btn" onclick="switchTab('learning')">🧠 التعلم الآلي</button>
         </div>
         
         <!-- Tab 1: General Settings -->
@@ -302,8 +303,41 @@ $currentSettings = $settings->all();
                 <div id="suppliersTableContainer">جاري التحميل...</div>
             </div>
         </div>
+
+        <!-- Tab 4: Machine Learning -->
+        <div id="learning" class="tab-content">
+            <!-- Learning Stats -->
+            <div class="card">
+                <h2 class="card-title">🧠 حالة نظام التعلم</h2>
+                <div class="grid-2">
+                    <div class="form-group">
+                        <label class="form-label">عدد الأنماط المكتسبة (Confirmations)</label>
+                        <div id="confirmsCount" style="font-size: 24px; font-weight: bold; color: var(--accent-success);">...</div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">عدد حالات الحظر/العقاب (Rejections)</label>
+                        <div id="rejectsCount" style="font-size: 24px; font-weight: bold; color: var(--accent-danger);">...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blocked/Penalized Table -->
+            <div class="card">
+                <h2 class="card-title" style="color: var(--accent-danger);">🚫 قائمة العقوبات (Lowest Confidence)</h2>
+                <p class="form-help">هذه القائمة تحتوي على الاقتراحات التي رفضها المستخدمون. يتم تطبيق عقوبة 33.4% لكل رفض.</p>
+                <div id="rejectionsTableContainer">جاري التحميل...</div>
+            </div>
+
+            <!-- Learned Patterns Table -->
+            <div class="card">
+                <h2 class="card-title" style="color: var(--accent-success);">✅ الأنماط المؤكدة (Learned Patterns)</h2>
+                <p class="form-help">هذه الاقتراحات تم تأكيدها من قبل المستخدمين وتظهر بثقة عالية.</p>
+                <div id="confirmationsTableContainer">جاري التحميل...</div>
+            </div>
+        </div>
     </div>
     
+    <!-- Modals (AddBank, AddSupplier, Confirm) remain unchanged -->
     <!-- Add Bank Modal -->
     <div id="addBankModal" class="modal-overlay">
         <div class="modal">
@@ -466,6 +500,9 @@ $currentSettings = $settings->all();
             if (tabId === 'suppliers' && document.getElementById('suppliersTableContainer').innerText === 'جاري التحميل...') {
                 loadSuppliers();
             }
+            if (tabId === 'learning') {
+                loadLearningData();
+            }
         }
 
 
@@ -500,6 +537,87 @@ $currentSettings = $settings->all();
                 showAlert('error', 'فشل تحميل الموردين: ' + e.message);
                 container.classList.remove('loading');
             }
+        }
+        
+        async function loadLearningData() {
+            const cContainer = document.getElementById('confirmationsTableContainer');
+            const rContainer = document.getElementById('rejectionsTableContainer');
+            
+            try {
+                const res = await fetch('../api/learning-data.php');
+                const data = await res.json();
+                
+                if (data.success) {
+                    // Update Stats
+                    document.getElementById('confirmsCount').textContent = data.confirmations.length;
+                    document.getElementById('rejectsCount').textContent = data.rejections.length;
+                    
+                    // Render Tables
+                    cContainer.innerHTML = renderLearningTable(data.confirmations, 'confirm');
+                    rContainer.innerHTML = renderLearningTable(data.rejections, 'reject');
+                } else {
+                    showAlert('error', 'فشل تحميل بيانات التعلم');
+                }
+            } catch (e) {
+                showAlert('error', 'خطأ في الاتصال: ' + e.message);
+            }
+        }
+        
+        function renderLearningTable(items, type) {
+            if (items.length === 0) return '<p style="padding:10px; color:#666;">لا توجد بيانات.</p>';
+            
+            const actionBtnClass = type === 'confirm' ? 'btn-secondary' : 'btn-success';
+            const actionBtnText = type === 'confirm' ? '🗑️ نسيان' : '✅ إلغاء العقوبة';
+            
+            let html = `
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>النص المدخل (Pattern)</th>
+                        <th>المورد المقترح (Supplier)</th>
+                        <th>العدد</th>
+                        <th>آخر تحديث</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+                
+            items.forEach(item => {
+                html += `
+                <tr>
+                    <td>${item.pattern}</td>
+                    <td>${item.official_name}</td>
+                    <td>${item.count}</td>
+                    <td>${item.updated_at}</td>
+                    <td>
+                        <button class="btn ${actionBtnClass}" style="padding: 4px 8px; font-size: 12px;" onclick="deleteLearningItem(${item.id})">${actionBtnText}</button>
+                    </td>
+                </tr>`;
+            });
+            
+            html += '</tbody></table>';
+            return html;
+        }
+        
+        async function deleteLearningItem(id) {
+            showConfirm('هل أنت متأكد من حذف هذا السجل؟ سيقوم النظام بنسيان ما تعلمه هنا.', async () => {
+                try {
+                    const response = await fetch('../api/learning-action.php', {
+                        method: 'POST',
+                        body: JSON.stringify({ id: id, action: 'delete' }),
+                        headers: {'Content-Type': 'application/json'}
+                    });
+                     const result = await response.json();
+                     if (result.success) {
+                         showAlert('success', 'تم الحذف بنجاح');
+                         loadLearningData(); // Refresh
+                     } else {
+                         showAlert('error', 'فشل الحذف');
+                     }
+                } catch (e) {
+                     showAlert('error', 'خطأ في الاتصال');
+                }
+            });
         }
 
         /* Existing JS for Settings Form */
@@ -608,6 +726,7 @@ $currentSettings = $settings->all();
                     btn.classList.add('btn-success');
                     setTimeout(() => {
                         btn.innerHTML = originalText;
+                        btn.classList.remove('btn-success');
                         btn.classList.remove('btn-success');
                         btn.disabled = false;
                     }, 2000);

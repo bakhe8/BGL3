@@ -55,15 +55,35 @@ if ($requestedId) {
     $currentRecord = $guaranteeRepo->find($requestedId);
 }
 
-// If not found or no ID specified, get first NON-RELEASED record
+// If not found or no ID specified, get first record matching the filter
 if (!$currentRecord) {
-    // Exclude released (is_locked=1) from default navigation
-    $stmt = $db->prepare('
+    // Build query based on status filter
+    $defaultRecordQuery = '
         SELECT g.id FROM guarantees g
         LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-        WHERE d.is_locked IS NULL OR d.is_locked = 0
-        ORDER BY g.id ASC LIMIT 1
-    ');
+        WHERE 1=1
+    ';
+    
+    // Apply filter conditions
+    if ($statusFilter === 'released') {
+        // Show only released
+        $defaultRecordQuery .= ' AND d.is_locked = 1';
+    } else {
+        // Exclude released for other filters
+        $defaultRecordQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+        
+        // Apply specific status filter
+        if ($statusFilter === 'ready') {
+            $defaultRecordQuery .= ' AND d.id IS NOT NULL';
+        } elseif ($statusFilter === 'pending') {
+            $defaultRecordQuery .= ' AND d.id IS NULL';
+        }
+        // 'all' filter has no additional conditions
+    }
+    
+    $defaultRecordQuery .= ' ORDER BY g.id ASC LIMIT 1';
+    
+    $stmt = $db->prepare($defaultRecordQuery);
     $stmt->execute();
     $firstId = $stmt->fetchColumn();
     if ($firstId) {
@@ -2468,6 +2488,12 @@ $formattedSuppliers = array_map(function($s) {
 
     </script>
 
+    
+    <?php include __DIR__ . '/partials/level-b-confirmation-modal.php'; ?>
+    
+    <script src="/public/js/pilot-auto-load.js?v=<?= time() ?>"></script>
+    <script src="/public/js/pilot-metrics.js?v=<?= time() ?>"></script>
+    <script src="/public/js/level-b-handler.js?v=<?= time() ?>"></script>
     <script src="/public/js/preview-formatter.js?v=<?= time() ?>"></script>
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
     <script src="/public/js/input-modals.controller.js?v=<?= time() ?>"></script>

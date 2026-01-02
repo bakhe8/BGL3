@@ -707,7 +707,9 @@ if (!window.RecordsController) {
 
             this.supplierSearchTimeout = setTimeout(async () => {
                 try {
-                    const response = await fetch(`/api/suggestions.php?raw=${encodeURIComponent(value)}&format=json`);
+                    // Phase 6: Use Learning System API
+                    const guaranteeId = document.getElementById('record-form-sec')?.dataset?.recordId || 0;
+                    const response = await fetch(`/api/suggestions-learning.php?raw=${encodeURIComponent(value)}&guarantee_id=${guaranteeId}`);
                     const data = await response.json();
 
                     if (data.success && data.suggestions) {
@@ -740,21 +742,27 @@ if (!window.RecordsController) {
                 return;
             }
 
-            container.innerHTML = suggestions.map(sugg => `
-                <button 
-                    type="button" 
-                    class="chip${sugg.is_learning ? ' chip-warning' : ''}"
-                    data-action="selectSupplier"
-                    data-id="${sugg.id}"
-                    data-name="${sugg.official_name.replace(/"/g, '&quot;')}"
-                >
-                    <span class="chip-text">
-                        ${sugg.official_name}
-                        ${sugg.is_learning ? '<span class="badge badge-learning">تعلم آلي</span>' : ''}
-                    </span>
-                    ${sugg.star_rating ? '<span class="chip-stars">' + '⭐'.repeat(sugg.star_rating) + '</span>' : ''}
-                </button>
-            `).join('');
+            // Phase 5: Use Level B Handler for rendering (supports both Level A and Level B)
+            if (window.renderSupplierSuggestions) {
+                window.renderSupplierSuggestions(suggestions);
+            } else {
+                // Fallback: Manual HTML rendering if Level B handler not loaded
+                container.innerHTML = suggestions.map(sugg => `
+                    <button 
+                        type="button" 
+                        class="chip${sugg.is_learning ? ' chip-warning' : ''}"
+                        data-action="selectSupplier"
+                        data-id="${sugg.id}"
+                        data-name="${sugg.official_name.replace(/"/g, '&quot;')}"
+                    >
+                        <span class="chip-text">
+                            ${sugg.official_name}
+                            ${suggis_learning ? '<span class="badge badge-learning">تعلم آلي</span>' : ''}
+                        </span>
+                        ${sugg.star_rating ? '<span class="chip-stars">' + '⭐'.repeat(sugg.star_rating) + '</span>' : ''}
+                    </button>
+                `).join('');
+            }
         }
 
         showAddSupplierButton(supplierName) {

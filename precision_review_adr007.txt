@@ -1,0 +1,140 @@
+=== ADR-007 Precision Review ===
+
+Review the following 8 cases:
+
+CASE #1
+------------------------------------------------------------
+Guarantee ID: 224
+Number: RLG6800213
+Input: شركة جنات العرب
+
+Top-3 Suggestions:
+  1. شركة جنات العرب
+     Confidence: 85%, Anchor: جنات
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #2
+------------------------------------------------------------
+Guarantee ID: 231
+Number: RLG6806216
+Input: شركة جنات العرب
+
+Top-3 Suggestions:
+  1. شركة جنات العرب
+     Confidence: 85%, Anchor: جنات
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #3
+------------------------------------------------------------
+Guarantee ID: 282
+Number: J095501
+Input: شركة فاروق مامون تامر وشركائه
+
+Top-3 Suggestions:
+  1. شركة فاروق ومأمون تمر وشركاهما
+     Confidence: 95%, Anchor: فاروق
+  2. شركة فاروق وصموئيل تمر وشركاؤها
+     Confidence: 85%, Anchor: فاروق
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #4
+------------------------------------------------------------
+Guarantee ID: 284
+Number: J095647
+Input: شركة فاروق مأمون تمر
+
+Top-3 Suggestions:
+  1. شركة فاروق وصموئيل تمر وشركاؤها
+     Confidence: 85%, Anchor: فاروق
+  2. شركة فاروق ومأمون تمر وشركاهما
+     Confidence: 85%, Anchor: فاروق
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #5
+------------------------------------------------------------
+Guarantee ID: 294
+Number: ILGSA031438
+Input: شركة عبدالرحمن القصيبي للتجارة
+
+Top-3 Suggestions:
+  1. شركة عبدالرحمن القصيبي للتجارة العامة
+     Confidence: 95%, Anchor: عبدالرحمن
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #6
+------------------------------------------------------------
+Guarantee ID: 300
+Number: C230972
+Input: شركة عبدالرحمن القصبي
+
+Top-3 Suggestions:
+  1. شركة عبدالرحمن القصيبي للتجارة العامة
+     Confidence: 85%, Anchor: عبدالرحمن
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #7
+------------------------------------------------------------
+Guarantee ID: 396
+Number: RLG6510812
+Input: شركة جنرال الكتريك العربيه للرعايه الصحيه المحدوده
+
+Top-3 Suggestions:
+  1. الشركة العربية للوازم الطبية
+     Confidence: 70%, Anchor: العربيه
+  2. شركة هود فون وين للخدمات العربية المحدودة
+     Confidence: 70%, Anchor: العربيه
+  3. مؤسسة السالمية العربية للتجارة
+     Confidence: 70%, Anchor: العربيه
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
+CASE #8
+------------------------------------------------------------
+Guarantee ID: 399
+Number: OGCC036167
+Input: شركة الجيل الطبية التجاريه
+
+Top-3 Suggestions:
+  1. شركة الجيل الطبية والتجارية
+     Confidence: 90%, Anchor: الجيل
+
+CORRECT SUPPLIER: _______________________
+✓ Is Top-1 correct? [ ] Yes  [ ] No
+✓ Does Top-3 contain correct? [ ] Yes  [ ] No
+
+============================================================
+
