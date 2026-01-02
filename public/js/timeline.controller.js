@@ -433,10 +433,9 @@ if (!window.TimelineController) {
                     latestEvent.querySelector('.timeline-event-card')?.classList.add('active-event');
                 }
 
-                // Update preview if it's currently open (Derived View sync)
-                if (window.recordsController?.previewVisible) {
-                    window.recordsController.updatePreviewFromDOM();
-                }
+                // Note: Preview HTML already exists from server-side rendering in index.php
+                // We only need to apply formatting, not rebuild the preview
+                // updatePreviewFromDOM() would hide preview if no activeAction exists (ADR-007)
 
                 console.log('✅ Current state loaded from server');
             } catch (error) {
