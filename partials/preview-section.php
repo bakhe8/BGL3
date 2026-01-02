@@ -58,7 +58,7 @@ if (!isset($record)) {
         <!-- معلومات البنك -->
         <div class="preview-recipient">
             <div data-field="bankCenter"><?= htmlspecialchars($record['bank_center'] ?? 'مركز خدمات التجارة') ?></div>
-            <div>ص.ب. <span data-field="bankPoBox"><?= htmlspecialchars($arabicPoBox ?? '٣٥٥٥') ?></span></div>
+            <div><span data-field="bankPoBox"><?= htmlspecialchars($arabicPoBox ?? 'ص.ب. ٣٥٥٥') ?></span></div>
             <div>البريد الإلكتروني: <span data-field="bankEmail" lang="en"><?= htmlspecialchars($record['bank_email'] ?? 'info@bank.com') ?></span></div>
         </div>
         
