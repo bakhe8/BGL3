@@ -125,7 +125,7 @@ try {
     
 } catch (Exception $e) {
     // Set defaults on error
-    $errorMessage = $e->getMessage();  // Capture error
+    $errorMessage = $e->getMessage();
     error_log("Statistics error: " . $errorMessage);
     
     $totalGuarantees = 0;
@@ -145,6 +145,70 @@ try {
     $maxAmount = 0;
     $minAmount = 0;
 }
+
+error_log("=== After main try-catch: ready=" . ($ready ?? 'UNDEF') . ", total=" . ($totalGuarantees ?? 'UNDEF'));
+
+// ============================================
+// 🚀 PHASE 1: INTELLIGENT KPIs
+// ============================================
+
+// DEBUG: Log variable values
+error_log("KPI Calc - ready: " . ($ready ?? 'NULL') . ", total: " . ($totalGuarantees ?? 'NULL'));
+
+// 1. Completion Rate (Ready vs Total)
+$completionRate = $totalGuarantees > 0 ? round(((float)$ready / $totalGuarantees) * 100, 1) : 0;
+error_log("KPI Calc - completionRate: " . $completionRate);
+
+// 2. Processing Rate (guarantees processed per week)
+// Get date of first guarantee import
+$stmt = $db->query("SELECT MIN(imported_at) as first_import FROM guarantees");
+$firstImport = $stmt->fetch(PDO::FETCH_ASSOC)['first_import'];
+
+if ($firstImport) {
+    $daysSinceStart = max(1, (strtotime('now') - strtotime($firstImport)) / 86400);
+    $weeksSinceStart = max(1, $daysSinceStart / 7);
+    $processingRate = round($ready / $weeksSinceStart, 1);
+} else {
+    $processingRate = 0;
+}
+
+// 3. AI Matching Success Rate
+// Count guarantees with AI-matched suppliers or banks
+$stmt = $db->query("
+    SELECT COUNT(*) as ai_matched 
+    FROM guarantee_decisions 
+    WHERE decision_source IN ('ai_quick', 'direct_match', 'ai_match')
+");
+$aiMatched = $stmt->fetch(PDO::FETCH_ASSOC)['ai_matched'];
+$aiSuccessRate = $totalGuarantees > 0 ? round(((float)$aiMatched / $totalGuarantees) * 100, 1) : 0;
+
+// 4. Time Savings Calculation
+// Assumption: Manual processing = 30 min/guarantee, AI processing = 4 min/guarantee
+$manualTimePerGuarantee = 30; // minutes
+$aiTimePerGuarantee = 4; // minutes
+$timeSavedPerGuarantee = $manualTimePerGuarantee - $aiTimePerGuarantee; // 26 minutes
+$totalTimeSaved = $aiMatched * $timeSavedPerGuarantee; // in minutes
+$timeSavedHours = round($totalTimeSaved / 60, 1);
+$timeSavedPercentage = round((1 - ($aiTimePerGuarantee / $manualTimePerGuarantee)) * 100, 0);
+
+// 5. Average Response Time (from timeline events)
+// NOTE: LAG() window function not properly supported in this SQLite version
+// Commenting out for now - can be added later if needed
+// $stmt = $db->query("
+//     SELECT AVG(
+//         CAST((julianday(created_at) - julianday(
+//             LAG(created_at) OVER (PARTITION BY guarantee_id ORDER BY created_at)
+//         )) * 24 AS REAL)
+//     ) as avg_response_hours
+//     FROM guarantee_history
+//     WHERE event_type IN ('extension', 'reduction', 'release')
+// ");
+// $avgResponseHours = $stmt->fetch(PDO::FETCH_ASSOC)['avg_response_hours'];
+$avgResponseDays = 0; // Placeholder until we implement alternative calculation
+
+error_log("=== After KPI calculations: completionRate=$completionRate, processingRate=$processingRate, aiSuccessRate=$aiSuccessRate");
+
+
 
 // Format number function
 function formatNumber($num) {
@@ -421,6 +485,52 @@ function formatMoney($num) {
                     <div class="stat-icon">⏰</div>
                     <div class="stat-value"><?= formatNumber($expiredCount) ?></div>
                     <div class="stat-label">ضمانات منتهية</div>
+                </div>
+            </div>
+            
+            <!-- 🚀 INTELLIGENT PERFORMANCE METRICS -->
+            <div class="card" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; margin-bottom: 24px;">
+                <h2 style="font-size: 20px; font-weight: 700; margin-bottom: 20px; border-bottom: 2px solid rgba(255,255,255,0.3); padding-bottom: 12px;">
+                    ⚡ مؤشرات الأداء الذكية
+                </h2>
+                <div class="grid grid-4">
+                    <div style="text-align: center; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
+                            <?= $completionRate ?>%
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.9;">نسبة الإنجاز</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+                            <?= formatNumber($ready) ?> من <?= formatNumber($totalGuarantees) ?>
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
+                            <?= $processingRate ?>
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.9;">ضمان/أسبوع</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">معدل المعالجة</div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
+                            <?= $aiSuccessRate ?>%
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.9;">نجاح الذكاء الاصطناعي</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+                            <?= formatNumber($aiMatched) ?> مطابقة تلقائية
+                        </div>
+                    </div>
+                    
+                    <div style="text-align: center; padding: 16px; background: rgba(255,255,255,0.1); border-radius: 8px;">
+                        <div style="font-size: 36px; font-weight: 700; margin-bottom: 8px;">
+                            <?= $timeSavedPercentage ?>%
+                        </div>
+                        <div style="font-size: 13px; opacity: 0.9;">توفير الوقت</div>
+                        <div style="font-size: 11px; opacity: 0.7; margin-top: 4px;">
+                            ~<?= $timeSavedHours ?> ساعة موفرة
+                        </div>
+                    </div>
                 </div>
             </div>
             
