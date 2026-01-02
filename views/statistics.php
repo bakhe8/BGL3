@@ -73,17 +73,30 @@ try {
     ");
     $topSuppliers = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
-    // Top Banks
+    // Top Banks with Performance Metrics
     $stmt = $db->query("
-        SELECT b.arabic_name as bank_name, COUNT(*) as count
+        SELECT 
+            b.arabic_name as bank_name,
+            COUNT(*) as count,
+            SUM(CAST(json_extract(g.raw_data, '$.amount') AS REAL)) as total_amount,
+            COUNT(CASE WHEN d.supplier_id IS NOT NULL AND d.bank_id IS NOT NULL THEN 1 END) as approved_count
         FROM guarantee_decisions d
         JOIN banks b ON d.bank_id = b.id
+        JOIN guarantees g ON d.guarantee_id = g.id
         WHERE d.bank_id IS NOT NULL
         GROUP BY b.id, b.arabic_name
         ORDER BY count DESC
         LIMIT 10
     ");
     $topBanks = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    
+    // Calculate approval rates for top banks
+    foreach ($topBanks as &$bank) {
+        $bank['approval_rate'] = $bank['count'] > 0 
+            ? round(($bank['approved_count'] / $bank['count']) * 100, 1) 
+            : 0;
+    }
+    unset($bank); // Break reference
     
     // Unique counts
     $stmt = $db->query("SELECT COUNT(DISTINCT supplier_id) as count FROM guarantee_decisions WHERE supplier_id IS NOT NULL");
@@ -569,16 +582,59 @@ function formatMoney($num) {
                     <?php endif; ?>
                 </div>
                 
-                <!-- Top Banks -->
+                <!-- Top Banks with Performance Metrics -->
                 <div class="card">
-                    <h2 class="card-title">أكثر 10 بنوك</h2>
+                    <h2 class="card-title">📊 مقارنة أداء البنوك</h2>
                     <?php if (empty($topBanks)): ?>
                         <p style="color: var(--text-muted); text-align: center; padding: 20px 0;">لا توجد بيانات بنوك</p>
                     <?php else: ?>
-                        <?php foreach ($topBanks as $bank): ?>
-                            <div class="list-item">
-                                <span class="list-item-name"><?= htmlspecialchars($bank['bank_name']) ?></span>
-                                <span class="list-item-value"><?= formatNumber($bank['count']) ?> ضمان</span>
+                        <?php foreach ($topBanks as $index => $bank): ?>
+                            <div style="margin-bottom: 16px; padding: 16px; background: <?= $index === 0 ? 'linear-gradient(135deg, #ffeaa7 0%, #fdcb6e 100%)' : 'var(--bg-secondary)' ?>; border-radius: 8px; border-left: 4px solid <?= $index === 0 ? '#fdcb6e' : '#94a3b8' ?>;">
+                                <!-- Bank Name & Rank -->
+                                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                                    <div style="display: flex; align-items: center; gap: 8px;">
+                                        <?php if ($index === 0): ?>
+                                            <span style="font-size: 20px;">🏆</span>
+                                        <?php endif; ?>
+                                        <span style="font-weight: 700; color: var(--text-primary); font-size: 16px;">
+                                            <?= htmlspecialchars($bank['bank_name']) ?>
+                                        </span>
+                                    </div>
+                                    <span style="background: <?= $bank['approval_rate'] >= 90 ? '#16a34a' : ($bank['approval_rate'] >= 70 ? '#d97706' : '#dc2626') ?>; color: white; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                        معدل القبول: <?= $bank['approval_rate'] ?>%
+                                    </span>
+                                </div>
+                                
+                                <!-- Performance Metrics Grid -->
+                                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px;">
+                                    <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
+                                        <div style="font-size: 18px; font-weight: 700; color: var(--accent-primary);">
+                                            <?= formatNumber($bank['count']) ?>
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">ضمانات</div>
+                                    </div>
+                                    
+                                    <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
+                                        <div style="font-size: 14px; font-weight: 700; color: var(--accent-success);">
+                                            <?= formatMoney($bank['total_amount']) ?>
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">إجمالي المبالغ</div>
+                                    </div>
+                                    
+                                    <div style="text-align: center; padding: 8px; background: rgba(255,255,255,0.5); border-radius: 6px;">
+                                        <div style="font-size: 18px; font-weight: 700; color: var(--accent-warning);">
+                                            <?= formatNumber($bank['approved_count']) ?>
+                                        </div>
+                                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">معتمد</div>
+                                    </div>  
+                                </div>
+                                
+                                <!-- Performance Bar -->
+                                <div style="margin-top: 12px;">
+                                    <div style="background: rgba(0,0,0,0.1); height: 6px; border-radius: 3px; overflow: hidden;">
+                                        <div style="background: <?= $bank['approval_rate'] >= 90 ? '#16a34a' : ($bank['approval_rate'] >= 70 ? '#d97706' : '#dc2626') ?>; height: 100%; width: <?= $bank['approval_rate'] ?>%; transition: width 0.3s;"></div>
+                                    </div>
+                                </div>
                             </div>
                         <?php endforeach; ?>
                         <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border-primary); color: var(--text-secondary); font-size: 13px;">
