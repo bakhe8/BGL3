@@ -659,14 +659,22 @@ if (!window.RecordsController) {
         previousRecord(target) {
             const prevId = target.dataset.id;
             if (prevId) {
-                window.location.href = `?id=${prevId}`;
+                // Preserve filter parameter when navigating
+                const urlParams = new URLSearchParams(window.location.search);
+                const filter = urlParams.get('filter');
+                const url = filter ? `?id=${prevId}&filter=${filter}` : `?id=${prevId}`;
+                window.location.href = url;
             }
         }
 
         nextRecord(target) {
             const nextId = target.dataset.id;
             if (nextId) {
-                window.location.href = `?id=${nextId}`;
+                // Preserve filter parameter when navigating
+                const urlParams = new URLSearchParams(window.location.search);
+                const filter = urlParams.get('filter');
+                const url = filter ? `?id=${nextId}&filter=${filter}` : `?id=${nextId}`;
+                window.location.href = url;
             }
         }
 
