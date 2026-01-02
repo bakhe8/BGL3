@@ -340,6 +340,7 @@ if ($currentRecord) {
                     'user' => $event['created_by'] ?? 'النظام',
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
                     'snapshot_data' => $event['snapshot_data'] ?? '{}',
+                    'letter_snapshot' => $event['letter_snapshot'] ?? null,  // ✨ ADR-007: After State for Actions
                     'source_badge' => in_array($event['created_by'] ?? 'system', ['system', 'System', 'System AI', 'النظام', 'بواسطة النظام']) ? '🤖 نظام' : '👤 مستخدم'
                 ];
             }
@@ -389,11 +390,9 @@ if ($currentRecord) {
             $stmt->execute([$currentRecord->id]);
             $mockNotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // 🔥 NEW: Fetch Latest Event Subtype for Context Badge (Initial Load)
-            $stmtEvent = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
-            $stmtEvent->execute([$currentRecord->id]);
-            $latestEventSubtype = $stmtEvent->fetchColumn(); 
-            // This variable $latestEventSubtype will be available in included partials
+            // ADR-007: Timeline is audit-only, not UI data source
+            // active_action (from guarantee_decisions) is the display pointer
+            $latestEventSubtype = null; // Removed Timeline read
             
             // Load attachments
             $stmt = $db->prepare('SELECT * FROM guarantee_attachments WHERE guarantee_id = ? ORDER BY created_at DESC');
@@ -2431,164 +2430,22 @@ $formattedSuppliers = array_map(function($s) {
         `;
         document.head.appendChild(style);
         
+        
         // ========================
-        // تحويل الأرقام إلى هندية
+        // Preview Formatting moved to preview-formatter.js
         // ========================
-        const EASTERN_DIGITS = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
         
-        function toEasternDigits(text) {
-            if (!text) return text;
-            return String(text).replace(/\d/g, digit => EASTERN_DIGITS[Number(digit)]);
-        }
-        
-        function convertDigitsInNode(root) {
-            if (!root) return;
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-            const elementsToConvert = [];
-            const elementsToKeepEnglish = new Set();
-            
-            while (walker.nextNode()) {
-                const current = walker.currentNode;
-                const parent = current.parentElement;
-                // Skip script, style, and footer elements
-                if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) {
-                    continue;
-                }
-                if (parent && parent.closest('.sheet-footer')) {
-                    continue;
-                }
-                
-                // Check if element has lang="en" and contains letters (mixed content)
-                if (parent && parent.getAttribute('lang') === 'en') {
-                    const fullText = parent.textContent.trim();
-                    // If contains any letters (A-Z), keep as English - don't convert digits
-                    if (/[A-Za-z]/.test(fullText)) {
-                        elementsToKeepEnglish.add(parent);
-                        continue;
-                    }
-                }
-                
-                if (/\d/.test(current.nodeValue)) {
-                    elementsToConvert.push({node: current, parent: parent});
-                }
-            }
-            
-            // Convert digits for elements that should be Arabic
-            elementsToConvert.forEach(function(item) {
-                // Skip if parent is marked to keep English
-                if (item.parent && elementsToKeepEnglish.has(item.parent)) {
-                    return;
-                }
-                item.node.nodeValue = toEasternDigits(item.node.nodeValue);
-                
-                // Remove lang=en from parent if it was pure numbers
-                if (item.parent && item.parent.getAttribute('lang') === 'en') {
-                    const text = item.parent.textContent.trim();
-                    // If text is only Arabic numerals now, remove lang=en
-                    if (/^[٠-٩\s\.\-\/\(\)]+$/.test(text)) {
-                        item.parent.removeAttribute('lang');
-                    }
-                }
-            });
-        }
-        
-        function applyEasternDigitsToPreview() {
-            const target = document.getElementById('primaryLetter');
-            if (target) {
-                convertDigitsInNode(target);
-            }
-        }
-        
-        // Function to detect and mark English text elements
-        function markEnglishText(root) {
-            if (!root) return;
-            
-            // Regex for detecting primarily English text (Latin characters)
-            const englishPattern = /^[A-Za-z0-9\s\.\,\-\_\@\#\$\%\&\*\(\)\[\]\{\}\:\;\"\'\<\>\/\\\+\=\!\?\|\~\`]+$/;
-            
-            // Get all text-containing elements
-            const elements = root.querySelectorAll('span, div, p');
-            elements.forEach(function(el) {
-                // Skip if already has lang attribute or is a container with mixed content
-                if (el.hasAttribute('lang')) return;
-                if (el.children.length > 0) return;
-                
-                const text = el.textContent.trim();
-                if (text && englishPattern.test(text)) {
-                    el.setAttribute('lang', 'en');
-                }
-            });
-            
-            // Also wrap punctuation symbols in mixed text
-            wrapPunctuationAsEnglish(root);
-        }
-        
-        // Function to wrap punctuation ( ) - . / in spans with lang=en
-        function wrapPunctuationAsEnglish(root) {
-            if (!root) return;
-            
-            const punctuationPattern = /([().\-\/:@,])/g;
-            const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-            const nodesToProcess = [];
-            
-            while (walker.nextNode()) {
-                const node = walker.currentNode;
-                const parent = node.parentElement;
-                
-                // Skip if parent already has lang=en or is script/style
-                if (parent && parent.getAttribute('lang') === 'en') continue;
-                if (parent && (parent.tagName === 'SCRIPT' || parent.tagName === 'STYLE')) continue;
-                
-                // Reset lastIndex to fix alternating behavior with global regex
-                punctuationPattern.lastIndex = 0;
-                if (punctuationPattern.test(node.nodeValue)) {
-                    nodesToProcess.push(node);
-                }
-            }
-            
-            nodesToProcess.forEach(function(node) {
-                const text = node.nodeValue;
-                const fragment = document.createDocumentFragment();
-                let lastIndex = 0;
-                
-                text.replace(punctuationPattern, function(match, p1, offset) {
-                    // Add text before punctuation
-                    if (offset > lastIndex) {
-                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, offset)));
-                    }
-                    // Add punctuation in span with lang=en
-                    const span = document.createElement('span');
-                    span.setAttribute('lang', 'en');
-                    span.textContent = match;
-                    fragment.appendChild(span);
-                    lastIndex = offset + match.length;
-                    return match;
-                });
-                
-                // Add remaining text
-                if (lastIndex < text.length) {
-                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-                }
-                
-                node.parentNode.replaceChild(fragment, node);
-            });
-        }
-        
-        // Apply when preview is shown
-        // Apply features when preview is shown - Enforcing Classic Theme
-        // Apply features on load - Preview is always visible
+        // Apply formatting on load - Preview is always visible
         document.addEventListener('DOMContentLoaded', function() {
             const previewSection = document.getElementById('preview-section');
             if (previewSection) {
                 // Permanently add letter-preview class for styling
                 previewSection.classList.add('letter-preview');
 
-                // Execute conversions immediately and after short delay (for any async content)
+                // Execute conversions using centralized PreviewFormatter
                 const runConversions = () => {
-                    const letterPaper = document.querySelector('.letter-paper');
-                    if (letterPaper) {
-                        convertDigitsInNode(letterPaper);
-                        markEnglishText(letterPaper);
+                    if (window.PreviewFormatter) {
+                        window.PreviewFormatter.applyFormatting();
                     }
                 };
                 
@@ -2599,9 +2456,9 @@ $formattedSuppliers = array_map(function($s) {
         });
             
 
-
     </script>
 
+    <script src="/public/js/preview-formatter.js?v=<?= time() ?>"></script>
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
     <script src="/public/js/input-modals.controller.js?v=<?= time() ?>"></script>
     <script src="/public/js/timeline.controller.js?v=<?= time() ?>"></script>

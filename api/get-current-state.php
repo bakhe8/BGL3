@@ -122,10 +122,9 @@ try {
     // ...
     }
 
-    // 🔥 NEW: Fetch Latest Event to determine Context (Extension/Reduction/etc)
-    $latestEventStmt = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
-    $latestEventStmt->execute([$guaranteeId]);
-    $latestSubtype = $latestEventStmt->fetchColumn();
+    // ADR-007: Timeline is audit-only, not UI data source
+    $latestSubtype = null; // Removed Timeline read
+    
     $supplierMatch = [
         'suggestions' => [],
         'score' => 0

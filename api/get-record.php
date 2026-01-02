@@ -140,14 +140,8 @@ try {
         $timeline = [];
     }
 
-    // 🔥 NEW: Fetch Latest Event Subtype for Context Badge (Navigation)
-    try {
-        $stmtEvent = $db->prepare("SELECT event_subtype FROM guarantee_history WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
-        $stmtEvent->execute([$guaranteeId]);
-        $latestEventSubtype = $stmtEvent->fetchColumn();
-    } catch (\Throwable $e) { 
-        $latestEventSubtype = null; 
-    }
+    // ADR-007: Timeline is audit-only, not UI data source
+    $latestEventSubtype = null; // Removed Timeline read
     
     // Get banks for dropdown
     $banksStmt = $db->query('

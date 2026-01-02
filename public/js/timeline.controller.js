@@ -92,15 +92,78 @@ if (!window.TimelineController) {
             // Snapshots are now self-contained with raw_data fallback.
             // This prevents "future state leakage" in historical views.
 
-            // Update form fields with snapshot data directly
-            this.updateFormFields(snapshotData);
-
-            // ← NEW: حفظ event_subtype من DOM
+            // ✨ NEW: Conditional Snapshot Selection (After State for Actions)
             const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
             this.currentEventSubtype = eventElement?.dataset.eventSubtype || null;
             console.log('📋 Event subtype:', this.currentEventSubtype);
 
+            let dataToDisplay = snapshotData;
+            let htmlSnapshotUsed = false;  // Track if we used HTML snapshot
+
+            // For Action Events: use letter_snapshot (After State - Final Values)
+            if (this.currentEventSubtype === 'extension' ||
+                this.currentEventSubtype === 'reduction' ||
+                this.currentEventSubtype === 'release') {
+
+                const letterSnapshotRaw = eventElement?.dataset.letterSnapshot;
+
+                if (letterSnapshotRaw && letterSnapshotRaw !== 'null') {
+                    // Check if it's HTML (not JSON)
+                    if (!letterSnapshotRaw.trim().startsWith('{')) {
+                        console.log('✨ Using HTML letter_snapshot (After State) for action event');
+
+                        // Replace preview section with pre-rendered HTML
+                        const previewSection = document.getElementById('preview-section');
+                        if (previewSection) {
+                            previewSection.innerHTML = letterSnapshotRaw;
+
+                            // ✨ Apply unified formatting layer (digits, text direction)
+                            if (window.PreviewFormatter) {
+                                window.PreviewFormatter.applyFormatting();
+                            }
+
+                            htmlSnapshotUsed = true;
+                        }
+                    } else {
+                        // Fallback: old JSON snapshot
+                        try {
+                            const letterSnapshot = JSON.parse(letterSnapshotRaw);
+                            if (letterSnapshot && Object.keys(letterSnapshot).length > 0) {
+                                console.log('📦 Using JSON letter_snapshot (legacy)');
+                                dataToDisplay = letterSnapshot;
+                            }
+                        } catch (e) {
+                            console.warn('⚠️ Failed to parse letter_snapshot, using snapshot_data');
+                        }
+                    }
+                }
+            }
+
+            // Update form fields with selected snapshot (only if not using HTML)
+            if (!htmlSnapshotUsed) {
+                this.updateFormFields(dataToDisplay);
+
+                // ✨ Apply formatting AFTER fields are updated
+                if (window.PreviewFormatter) {
+                    window.PreviewFormatter.applyFormatting();
+                }
+            } else {
+                // Still update Data Card for context
+                this.updateFormFields(snapshotData);
+
+                // ✨ Apply formatting AFTER fields are updated  
+                if (window.PreviewFormatter) {
+                    window.PreviewFormatter.applyFormatting();
+                }
+            }
+
             // 🔥 CRITICAL FIX: Persist subtype to hidden input for RecordsController to see
+            // ✅ Update activeAction in Data Card (source of truth)
+            const activeActionInput = document.getElementById('activeAction');
+            if (activeActionInput) {
+                activeActionInput.value = this.currentEventSubtype || '';
+            }
+
             const eventSubtypeInput = document.getElementById('eventSubtype');
             if (eventSubtypeInput) {
                 eventSubtypeInput.value = this.currentEventSubtype || '';
@@ -112,11 +175,9 @@ if (!window.TimelineController) {
             // Disable editing
             this.disableEditing();
 
-            // ← NEW: عرض event context badge
-            this.showEventContextBadge(this.currentEventSubtype);
-
-            // Update preview if it's currently open (Derived View sync)
-            if (window.recordsController?.previewVisible) {
+            // ⚠️ CRITICAL: Skip updatePreviewFromDOM if HTML snapshot was used!
+            // updatePreviewFromDOM rebuilds letter from fields → loses Arabic formatting
+            if (!htmlSnapshotUsed && window.recordsController?.previewVisible) {
                 window.recordsController.updatePreviewFromDOM();
             }
         }
@@ -170,7 +231,7 @@ if (!window.TimelineController) {
 
                     // Validate number
                     if (!isNaN(amountValue) && isFinite(amountValue)) {
-                        const formattedAmount = new Intl.NumberFormat('ar-SA').format(amountValue);
+                        const formattedAmount = new Intl.NumberFormat('en-US').format(amountValue);
                         valueEl.textContent = formattedAmount + ' ر.س';
                         console.log('✓ Updated amount:', formattedAmount);
                     } else {
@@ -336,10 +397,20 @@ if (!window.TimelineController) {
 
                 // ← NEW: إزالة event context بشكل صريح
                 this.currentEventSubtype = null;
-                this.hideEventContextBadge();
+
+                // ✅ Update activeAction in Data Card from server snapshot
+                const activeActionInput = document.getElementById('activeAction');
+                if (activeActionInput && data.snapshot) {
+                    activeActionInput.value = data.snapshot.active_action || '';
+                }
 
                 // Update form fields with current state snapshot
                 this.updateFormFields(data.snapshot || {});
+
+                // ✨ Apply formatting AFTER fields are updated
+                if (window.PreviewFormatter) {
+                    window.PreviewFormatter.applyFormatting();
+                }
 
                 // Hide historical banner (this is Current State)
                 this.removeHistoricalBanner();
@@ -351,13 +422,6 @@ if (!window.TimelineController) {
                 this.isHistoricalView = false;
                 this.currentEventId = null;
                 this.currentGuaranteeId = null;
-
-                // 🔥 Show Context Badge even for Current State (if applicable)
-                if (data.latest_event_subtype) {
-                    this.showEventContextBadge(data.latest_event_subtype);
-                } else {
-                    this.hideEventContextBadge();
-                }
 
                 // Re-activate latest timeline event
                 document.querySelectorAll('.timeline-event-wrapper').forEach(card => {
@@ -387,27 +451,7 @@ if (!window.TimelineController) {
             if (window.showToast) window.showToast(message, 'error');
         }
 
-        showEventContextBadge(eventSubtype) {
-            if (!eventSubtype) return;
-            const labels = { 'extension': '📅 تمديد', 'reduction': '💰 تخفيض', 'release': '🔓 إفراج' };
-            if (!['extension', 'reduction', 'release'].includes(eventSubtype)) return;
-            let badge = document.getElementById('event-context-badge');
-            if (!badge) {
-                const cardBody = document.querySelector('.card-body');
-                if (!cardBody) return;
-                badge = document.createElement('div');
-                badge.id = 'event-context-badge';
-                badge.style.cssText = 'background:#fef3c7;border:1px solid #f59e0b;border-radius:6px;padding:8px 12px;margin:12px 0;display:flex;align-items:center;gap:8px;font-size:13px;color:#92400e;font-weight:600;';
-                cardBody.insertBefore(badge, cardBody.firstChild);
-            }
-            badge.textContent = `سياق الحدث: ${labels[eventSubtype]}`;
-            badge.style.display = 'flex';
-        }
-
-        hideEventContextBadge() {
-            const badge = document.getElementById('event-context-badge');
-            if (badge) badge.style.display = 'none';
-        }
+        // Badge methods removed - using #activeAction in Data Card instead
     };
 }
 

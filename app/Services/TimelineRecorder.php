@@ -72,18 +72,97 @@ class TimelineRecorder {
     }
     
     /**
+     * ADR-007: Generate Immutable Letter HTML Snapshot
+     * Renders the complete formatted letter HTML for historical accuracy
+     * 
+     * @param int $guaranteeId
+     * @param string $actionType 'extension', 'reduction', or 'release'
+     * @param array $actionData Additional action-specific data (e.g., new_expiry, new_amount)
+     * @return string|null Complete letter HTML or null if guarantee not found
+     */
+    public static function generateLetterSnapshot($guaranteeId, $actionType, $actionData = []) {
+        global $db;
+        
+        error_log("🔍 generateLetterSnapshot (HTML): GID=$guaranteeId Type=$actionType");
+        
+        // Fetch current guarantee state
+        $stmt = $db->prepare("
+            SELECT 
+                g.raw_data,
+                g.guarantee_number,
+                d.supplier_id,
+                d.bank_id,
+                s.official_name as supplier_name,
+                b.arabic_name as bank_name
+            FROM guarantees g
+            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            LEFT JOIN suppliers s ON d.supplier_id = s.id
+            LEFT JOIN banks b ON d.bank_id = b.id
+            WHERE g.id = ?
+        ");
+        $stmt->execute([$guaranteeId]);
+        $data = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$data) {
+            error_log("❌ generateLetterSnapshot: Guarantee not found! GID=$guaranteeId");
+            return null;
+        }
+        
+        $rawData = json_decode($data['raw_data'], true);
+        
+        // Build record array with AFTER state (new values)
+        $record = [
+            'id' => $guaranteeId,
+            'guarantee_number' => $data['guarantee_number'] ?? $rawData['guarantee_number'] ?? '',
+            'supplier_name' => $data['supplier_name'] ?? $rawData['supplier'] ?? '',
+            'bank_name' => $data['bank_name'] ?? $rawData['bank'] ?? '',
+            'amount' => $actionData['new_amount'] ?? ($rawData['amount'] ?? 0),
+            'expiry_date' => $actionData['new_expiry'] ?? ($rawData['expiry_date'] ?? ''),
+            'issue_date' => $rawData['issue_date'] ?? '',
+            'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
+            'type' => $rawData['type'] ?? '',
+            'active_action' => $actionType,  // Critical: tells template which letter to render
+            'bank_center' => 'مركز خدمات التجارة',
+            'bank_po_box' => '3555',
+            'bank_email' => 'info@bank.com'
+        ];
+        
+        // ✨ Render preview-section.php to capture formatted HTML
+        ob_start();
+        include __DIR__ . '/../../partials/preview-section.php';
+        $letterHtml = ob_get_clean();
+        
+        error_log("✅ generateLetterSnapshot: HTML generated (" . strlen($letterHtml) . " bytes)");
+        return $letterHtml;
+    }
+
+    /**
      * Detect changes between old and new data
      * Returns array of changes with field, old_value, new_value, trigger
      */
     /**
      * Record Extension Event (UE-02)
      * Strictly monitors expiry_date change
+     * 
+     * @param int $guaranteeId
+     * @param array $oldSnapshot
+     * @param string $newExpiry
+     * @param int|null $actionId
+     * @param array|null $letterSnapshot Optional letter snapshot (generated if not provided)
      */
-    public static function recordExtensionEvent($guaranteeId, $oldSnapshot, $newExpiry, $actionId = null) {
+    public static function recordExtensionEvent($guaranteeId, $oldSnapshot, $newExpiry, $actionId = null, $letterSnapshot = null) {
         // Validate change
         $oldExpiry = $oldSnapshot['expiry_date'] ?? null;
         if ($oldExpiry === $newExpiry) {
             return false; // No actual change
+        }
+        
+        // ADR-007: Generate letter snapshot if not provided
+        if (!$letterSnapshot) {
+            // ✨ FIX: Pass actionData as array with proper key
+            $letterSnapshot = self::generateLetterSnapshot($guaranteeId, 'extension', [
+                'new_expiry' => $newExpiry
+            ]);
         }
 
         $changes = [[
@@ -94,19 +173,30 @@ class TimelineRecorder {
             'action_id' => $actionId
         ]];
 
-        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'extension');
+        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'extension', $letterSnapshot);
     }
 
     /**
      * Record Reduction Event (UE-03)
      * Strictly monitors amount change
+     * 
+     * @param int $guaranteeId
+     * @param array $oldSnapshot
+     * @param float $newAmount
+     * @param float|null $previousAmount
+     * @param array|null $letterSnapshot Optional letter snapshot
      */
-    public static function recordReductionEvent($guaranteeId, $oldSnapshot, $newAmount, $previousAmount = null) {
+    public static function recordReductionEvent($guaranteeId, $oldSnapshot, $newAmount, $previousAmount = null, $letterSnapshot = null) {
         // Use previousAmount if explicitly passed (for restore hacks), otherwise from snapshot
         $oldAmount = $previousAmount ?? ($oldSnapshot['amount'] ?? 0);
         
         if ((float)$oldAmount === (float)$newAmount) {
             return false; 
+        }
+        
+        // ADR-007: Generate letter snapshot if not provided
+        if (!$letterSnapshot) {
+            $letterSnapshot = self::generateLetterSnapshot($guaranteeId, 'reduction', ['new_amount' => $newAmount]);
         }
 
         $changes = [[
@@ -116,14 +206,24 @@ class TimelineRecorder {
             'trigger' => 'reduction_action'
         ]];
 
-        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'reduction');
+        return self::recordEvent($guaranteeId, 'modified', $oldSnapshot, $changes, 'User', [], 'reduction', $letterSnapshot);
     }
 
     /**
      * Record Release Event (UE-04)
      * Strictly monitors status change to released
+     * 
+     * @param int $guaranteeId
+     * @param array $oldSnapshot
+     * @param string|null $reason
+     * @param array|null $letterSnapshot Optional letter snapshot
      */
-    public static function recordReleaseEvent($guaranteeId, $oldSnapshot, $reason = null) {
+    public static function recordReleaseEvent($guaranteeId, $oldSnapshot, $reason = null, $letterSnapshot = null) {
+        // ADR-007: Generate letter snapshot if not provided
+        if (!$letterSnapshot) {
+            $letterSnapshot = self::generateLetterSnapshot($guaranteeId, 'release', []);
+        }
+        
         $changes = [[
             'field' => 'status',
             'old_value' => $oldSnapshot['status'] ?? 'pending',
@@ -134,7 +234,7 @@ class TimelineRecorder {
         // Add reason to event details if present
         $extraDetails = $reason ? ['reason_text' => $reason] : [];
 
-        return self::recordEvent($guaranteeId, 'release', $oldSnapshot, $changes, 'User', $extraDetails, 'release');
+        return self::recordEvent($guaranteeId, 'release', $oldSnapshot, $changes, 'User', $extraDetails, 'release', $letterSnapshot);
     }
 
     /**
@@ -194,7 +294,8 @@ class TimelineRecorder {
         $changes, 
         $creator, 
         $extraDetails = [],
-        $subtype = null  // 🆕 event_subtype
+        $subtype = null,  // 🆕 event_subtype
+        $letterSnapshot = null  // ADR-007: letter snapshot
     ) {
         global $db;
         
@@ -216,8 +317,8 @@ class TimelineRecorder {
         
         $stmt = $db->prepare("
             INSERT INTO guarantee_history 
-            (guarantee_id, event_type, event_subtype, snapshot_data, event_details, created_at, created_by)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            (guarantee_id, event_type, event_subtype, snapshot_data, event_details, letter_snapshot, created_at, created_by)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ");
         
         try {
@@ -227,6 +328,7 @@ class TimelineRecorder {
                 $subtype,
                 json_encode($snapshot),
                 json_encode($eventDetails),
+                $letterSnapshot,  // ✨ Store HTML directly (no json_encode)
                 date('Y-m-d H:i:s'),
                 $creatorText
             ]);

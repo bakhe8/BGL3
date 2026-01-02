@@ -65,6 +65,7 @@ $eventCount = count($timeline);
                          data-event-type="<?= $event['event_type'] ?? 'unknown' ?>"
                          data-event-subtype="<?= $event['event_subtype'] ?? '' ?>"
                          data-snapshot='<?= htmlspecialchars($event['snapshot_data'] ?? '{}', ENT_QUOTES, 'UTF-8') ?>'
+                         data-letter-snapshot='<?= htmlspecialchars($event['letter_snapshot'] ?? 'null', ENT_QUOTES, 'UTF-8') ?>'
                          data-is-latest="<?= $isLatest ? '1' : '0' ?>"
                          style="position: relative; padding-right: 12px; margin-bottom: 10px; cursor: pointer;">
                         

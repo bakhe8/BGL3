@@ -36,24 +36,9 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <!-- Phase 4: Hidden Inputs from DB (Current View) -->
     <input type="hidden" id="decisionStatus" value="<?= htmlspecialchars($record['status'] ?? 'pending') ?>">
     <input type="hidden" id="activeAction" value="<?= htmlspecialchars($record['active_action'] ?? '') ?>">
-    
+     
     <!-- Legacy: Keep for backward compatibility during transition -->
     <input type="hidden" id="eventSubtype" data-preview-field="event_subtype" value="<?= htmlspecialchars($latestEventSubtype ?? '') ?>">
-
-    <!-- 🔥 VISIBLE BADGE: Server-Side Rendered Context Badge -->
-    <?php 
-    // Display badge only if there's an active action from DB
-    $showBadge = !empty($record['active_action']);
-    $badgeLabel = 'سياق الحدث: ';
-    if ($showBadge) {
-        if ($record['active_action'] === 'extension') $badgeLabel .= 'تمديد 🔄';
-        else if ($record['active_action'] === 'reduction') $badgeLabel .= 'تخفيض 📉';
-        else if ($record['active_action'] === 'release') $badgeLabel .= 'إفراج 📤';
-    }
-    ?>
-    <div id="event-context-badge" class="event-context-badge" style="display: <?= $showBadge ? 'inline-block' : 'none' ?>; background: #fffbeb; color: #b45309; padding: 4px 12px; border-radius: 99px; font-size: 12px; font-weight: bold; border: 1px solid #f59e0b; margin-bottom: 12px;">
-        <?= $showBadge ? $badgeLabel : '' ?>
-    </div>
 
 </div>
 <?php if ($isHistorical): ?>

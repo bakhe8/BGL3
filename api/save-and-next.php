@@ -218,6 +218,26 @@ try {
     // Status is derived from guarantee_decisions table in index.php
     // We set $mockRecord['status'] = 'ready' when decision exists (see index.php line 169)
 
+    // Clear active_action logic
+    if (!empty($changes)) {
+        // ADR-007: Clear active_action when data changes
+        // Rationale: Data changed → old letter snapshot no longer reflects current state
+        $statusStmt = $db->prepare('SELECT status FROM guarantee_decisions WHERE guarantee_id = ?');
+        $statusStmt->execute([$guaranteeId]);
+        $currentStatus = $statusStmt->fetchColumn();
+        
+        if ($currentStatus === 'ready') {
+            // Clear active_action since data has changed
+            $clearActiveStmt = $db->prepare('
+                UPDATE guarantee_decisions
+                SET active_action = NULL, active_action_set_at = NULL
+                WHERE guarantee_id = ?
+            ');
+            $clearActiveStmt->execute([$guaranteeId]);
+            error_log("📝 ADR-007: Cleared active_action for guarantee {$guaranteeId} due to data changes");
+        }
+    }
+    
     // 3. RECORD: Strict Event Recording (UE-01 Decision)
     $newData = [
         'supplier_id' => $supplierId,

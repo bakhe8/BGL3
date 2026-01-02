@@ -15,8 +15,7 @@ if (!window.RecordsController) {
             this.bindEvents();
             this.bindGlobalEvents();
             this.initializeState();
-            // Initial update of preview
-            setTimeout(() => this.updatePreviewFromDOM(), 500);
+            // ADR-007: No auto-preview. Preview only shows after explicit action.
         }
 
         initializeState() {
@@ -67,6 +66,11 @@ if (!window.RecordsController) {
             document.addEventListener('guarantee:updated', () => {
                 console.log('⚡ Guarantee Updated Event Received - Refreshing Preview...');
                 this.updatePreviewFromDOM();
+
+                // ✨ Apply formatting AFTER refresh (fix race condition)
+                if (window.PreviewFormatter) {
+                    window.PreviewFormatter.applyFormatting();
+                }
             });
         }
 
@@ -126,6 +130,18 @@ if (!window.RecordsController) {
                     console.log('   Preview will be available once supplier and bank are selected');
                     return; // Exit early - no preview update
                 }
+            }
+
+            // ===== ADR-007: Action Check =====
+            // Only show preview if an action has been taken
+            const activeActionInput = document.getElementById('activeAction');
+            const hasAction = activeActionInput && activeActionInput.value;
+
+            if (!hasAction) {
+                console.log('⚠️ Preview update blocked: no action taken');
+                console.log('   User must execute an action (extend/reduce/release) to generate a letter');
+                this.showNoActionState();
+                return; // Exit early - no preview without action
             }
             // =========================================
 
@@ -203,17 +219,17 @@ if (!window.RecordsController) {
 
                     // 🔥 Update Subject Line Action Type
                     const subjectTarget = document.querySelector('[data-preview-target="subject_action_type"]');
-                    const contextBadge = document.getElementById('event-context-badge');
 
                     if (subjectTarget) {
-                        let subjectText = 'طلب تمديد'; // Default fallback
+                        let subjectText = ''; // ADR-007: No default, action determines subject
 
-                        if (contextBadge && contextBadge.style.display !== 'none') {
-                            const badgeText = contextBadge.textContent || '';
-                            if (badgeText.includes('تمديد')) subjectText = 'طلب تمديد';
-                            else if (badgeText.includes('تخفيض')) subjectText = 'طلب تخفيض';
-                            else if (badgeText.includes('إفراج')) subjectText = 'طلب الإفراج عن';
-                        }
+                        // ✅ Read from Data Card (activeAction input)
+                        const activeActionInput = document.getElementById('activeAction');
+                        const actionType = activeActionInput ? activeActionInput.value : '';
+
+                        if (actionType === 'extension') subjectText = 'طلب تمديد';
+                        else if (actionType === 'reduction') subjectText = 'طلب تخفيض';
+                        else if (actionType === 'release') subjectText = 'طلب الإفراج عن';
 
                         subjectTarget.textContent = subjectText;
                     }
@@ -227,6 +243,42 @@ if (!window.RecordsController) {
                     target.textContent = fieldValue;
                 }
             });
+
+            // ✨ Apply letter formatting after all updates (Arabic numerals, etc.)
+            this.applyLetterFormatting();
+        }
+
+        /**
+         * Convert Western numerals (0-9) to Arabic-Indic numerals (٠-٩)
+         * Applied to letter preview to maintain consistent formatting
+         */
+        convertToArabicNumerals(text) {
+            if (!text) return text;
+            const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
+            return text.toString().replace(/\d/g, d => arabicNumerals[parseInt(d)]);
+        }
+
+        /**
+         * Apply Arabic numeral formatting to letter preview
+         * Called after updatePreviewFromDOM to ensure consistent formatting
+         */
+        applyLetterFormatting() {
+            // Convert numerals in amount field
+            const amountEl = document.querySelector('[data-preview-target="amount"]');
+            if (amountEl && amountEl.textContent) {
+                const formatted = this.convertToArabicNumerals(amountEl.textContent);
+                amountEl.textContent = formatted;
+            }
+
+            // Convert numerals in PO Box
+            const poBox = document.querySelector('[data-field="bankPoBox"]');
+            if (poBox && poBox.textContent) {
+                const formatted = this.convertToArabicNumerals(poBox.textContent);
+                poBox.textContent = formatted;
+            }
+
+            // Note: Dates intentionally use Western numerals as per design
+            // Example: "1 يونيو 2030" is correct
         }
 
         formatArabicDate(dateStr, arabicMonths) {
@@ -288,6 +340,38 @@ if (!window.RecordsController) {
                 }
             }
         }
+
+        /**
+         * ADR-007: Show No-Action State
+         * Display friendly message when guarantee is ready but no action taken
+         */
+        showNoActionState() {
+            const previewSection = document.getElementById('preview-section');
+            if (!previewSection) return;
+
+            previewSection.innerHTML = `
+                <div class="preview-no-action-state" style="
+                    display: flex;
+                    flex-direction: column;
+                    align-items: center;
+                    justify-content: center;
+                    min-height: 400px;
+                    text-align: center;
+                    padding: 40px;
+                    color: var(--text-muted);
+                ">
+                    <div style="font-size: 64px; margin-bottom: 24px; opacity: 0.6;">📋</div>
+                    <h3 style="color: var(--text-primary); margin-bottom: 12px; font-size: 20px; font-weight: 600;">ضمان بنكي جاهز</h3>
+                    <p style="margin-bottom: 8px; font-size: 14px; color: var(--text-secondary);">
+                        لم يتم اتخاذ أي إجراء على هذا الضمان حتى الآن.
+                    </p>
+                    <p style="font-size: 13px; color: var(--text-light);">
+                        يمكنك تنفيذ إجراء (تمديد، تخفيض، إفراج) عند الحاجة.
+                    </p>
+                </div>
+            `;
+        }
+
 
         print(target) {
             // New Logic: Direct Browser Print
