@@ -102,6 +102,10 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
 <div class="card-body">
     <!-- Supplier Field Section -->
     <div style="margin-bottom: 20px;">
+        <?php 
+        $isDecisionMade = ($record['status'] ?? 'pending') === 'ready' || ($record['status'] ?? 'pending') === 'issued';
+        $hideSuggestions = $isHistorical || $isDecisionMade;
+        ?>
     <!-- Supplier Field -->
     <div class="field-group">
         <div class="field-row">
@@ -124,13 +128,13 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
                    data-preview-field="supplier_name"
                    value="<?= htmlspecialchars($record['supplier_name'], ENT_QUOTES, 'UTF-8', false) ?>"
                    data-record-id="<?= $record['id'] ?>"
-                   data-action="handleSupplierInput"
-                   <?= $isHistorical ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
+                   data-action="processSupplierInput"
+                   <?= ($isHistorical || $isDecisionMade) ? 'readonly disabled style="background:#f9fafb;cursor:not-allowed;"' : '' ?>>
             <input type="hidden" id="supplierIdHidden" name="supplier_id" value="<?= $record['supplier_id'] ?? '' ?>">
         </div>
         
         <!-- Suggestions Chips -->
-        <div class="chips-row" id="supplier-suggestions" <?= $isHistorical ? 'style="display:none"' : '' ?>>
+        <div class="chips-row" id="supplier-suggestions" <?= $hideSuggestions ? 'style="display:none"' : '' ?>>
             <?php if (!empty($supplierMatch['suggestions'])): ?>
                 <?php foreach ($supplierMatch['suggestions'] as $sugg): 
                     // Skip if this suggestion is already the selected & approved supplier

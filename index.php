@@ -487,6 +487,13 @@ $formattedSuppliers = array_map(function($s) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>BGL System v3.0</title>
     
+    <!-- ✅ COMPLIANCE: Server-Driven Partials (Hidden) -->
+    <?php include __DIR__ . '/partials/confirm-modal.php'; ?>
+    
+    <div id="preview-no-action-template" style="display:none">
+        <?php include __DIR__ . '/partials/preview-placeholder.php'; ?>
+    </div>
+
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
@@ -2092,7 +2099,12 @@ $formattedSuppliers = array_map(function($s) {
 
                 <!-- Main Content -->
                 <main class="main-content">
-                    <!-- Decision Card -->
+                    <!-- ✅ HISTORICAL BANNER: Server-driven partial (Hidden by default) -->
+        <div id="historical-banner-container" style="display:none">
+            <?php include __DIR__ . '/partials/historical-banner.php'; ?>
+        </div>
+
+        <!-- Decision Cards -->
                     <div class="decision-card">
                         
                         <?php

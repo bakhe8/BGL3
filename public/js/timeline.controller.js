@@ -297,46 +297,18 @@ if (!window.TimelineController) {
         }
 
         showHistoricalBanner() {
-            // Remove existing banner if any
-            this.removeHistoricalBanner();
-
-            // Create banner
-            const banner = document.createElement('div');
-            banner.id = 'historical-banner';
-            banner.className = 'historical-banner';
-            banner.innerHTML = `
-                <div style="display: flex; align-items: center; justify-content: space-between; 
-                            background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; 
-                            padding: 12px 16px; margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <span style="font-size: 20px;">🕰️</span>
-                        <div>
-                            <div style="font-weight: 600; color: #92400e;">نسخة تاريخية</div>
-                            <div style="font-size: 12px; color: #78350f;">تعرض الحالة قبل حدوث التغيير</div>
-                        </div>
-                    </div>
-                    <button data-action="timeline-load-current" 
-                            style="background: #f59e0b; color: white; border: none; 
-                                   padding: 8px 16px; border-radius: 6px; font-weight: 600; 
-                                   cursor: pointer; transition: background 0.2s;"
-                            onmouseover="this.style.background='#d97706'"
-                            onmouseout="this.style.background='#f59e0b'">
-                        ↩️ العودة للوضع الحالي
-                    </button>
-                </div>
-            `;
-
-            // Insert before record form
-            const recordForm = document.querySelector('.decision-card, .card');
-            if (recordForm && recordForm.parentNode) {
-                recordForm.parentNode.insertBefore(banner, recordForm);
+            // ✅ COMPLIANCE: Toggle Server-Side Element
+            const bannerContainer = document.getElementById('historical-banner-container');
+            if (bannerContainer) {
+                bannerContainer.style.display = 'block';
             }
         }
 
         removeHistoricalBanner() {
-            const banner = document.getElementById('historical-banner');
-            if (banner) {
-                banner.remove();
+            // ✅ COMPLIANCE: Toggle Server-Side Element
+            const bannerContainer = document.getElementById('historical-banner-container');
+            if (bannerContainer) {
+                bannerContainer.style.display = 'none';
             }
         }
 

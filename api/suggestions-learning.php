@@ -9,7 +9,7 @@
  * Returns canonical SuggestionDTO[] in JSON format.
  */
 
-header('Content-Type: application/json');
+header('Content-Type: text/html; charset=utf-8');
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Services\Learning\AuthorityFactory;
@@ -27,7 +27,10 @@ try {
     $authority = AuthorityFactory::create();
     $suggestionDTOs = $authority->getSuggestions($rawInput);
     
-    // Convert DTOs to array format for JSON
+    // 🔥 LIMIT: Show only top 10 highest confidence suggestions
+    $suggestionDTOs = array_slice($suggestionDTOs, 0, 10);
+    
+    // Convert DTOs to array format for view
     $suggestions = array_map(function($dto) {
         return [
             'id' => $dto->supplier_id,
@@ -43,19 +46,10 @@ try {
         ];
     }, $suggestionDTOs);
     
-    echo json_encode([
-        'success' => true,
-        'count' => count($suggestions),
-        'suggestions' => $suggestions,
-        'source' => 'unified_authority',
-        'version' => '4.0'
-    ]);
+    // Return HTML Fragment
+    include __DIR__ . '/../partials/suggestions.php';
     
 } catch (\Exception $e) {
     http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Failed to get suggestions',
-        'message' => $e->getMessage()
-    ]);
+    echo '<div style="color:red">Error: ' . htmlspecialchars($e->getMessage()) . '</div>';
 }
