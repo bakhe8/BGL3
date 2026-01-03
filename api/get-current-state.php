@@ -17,7 +17,6 @@ use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\SupplierLearningRepository;
 use App\Repositories\SupplierRepository;
 use App\Repositories\BankRepository;
-use App\Services\LearningService;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -34,12 +33,13 @@ if (!$guaranteeId || !is_numeric($guaranteeId)) {
 
 try {
     // Connect to database
+    // Connect to database
     $db = Database::connect();
     $guaranteeRepo = new GuaranteeRepository($db);
     $decisionRepo = new GuaranteeDecisionRepository($db);
     $learningRepo = new SupplierLearningRepository($db);
     $supplierRepo = new SupplierRepository();
-    $learningService = new LearningService($learningRepo, $supplierRepo);
+    // Removed deprecated LearningService
     $bankRepo = new BankRepository();
     
     // Load guarantee
@@ -118,8 +118,6 @@ try {
                 // Keep Excel name
             }
         }
-    // Get supplier suggestions (existing code omitted for brevity...)
-    // ...
     }
 
     // ADR-007: Timeline is audit-only, not UI data source
@@ -130,16 +128,21 @@ try {
         'score' => 0
     ];
     if ($record['supplier_name']) {
-        $suggestions = $learningService->getSuggestions($record['supplier_name']);
-        $supplierMatch['suggestions'] = array_map(function($s) {
+        // ✅ PHASE 4: Using UnifiedLearningAuthority
+        $authority = \App\Services\Learning\AuthorityFactory::create();
+        $suggestionDTOs = $authority->getSuggestions($record['supplier_name']);
+        
+        $supplierMatch['suggestions'] = array_map(function($dto) {
             return [
-                'id' => $s['id'],
-                'name' => $s['official_name'],
-                'score' => $s['score']
+                'id' => $dto->supplier_id,
+                'name' => $dto->official_name,
+                'score' => $dto->confidence
             ];
-        }, $suggestions);
+        }, $suggestionDTOs);
+
         if (!empty($suggestions)) {
-            $supplierMatch['score'] = $suggestions[0]['score'] ?? 0;
+            // Note: In DTOs, score is 'confidence'
+            $supplierMatch['score'] = $suggestionDTOs[0]->confidence ?? 0;
         }
     }
     

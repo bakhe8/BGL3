@@ -190,6 +190,38 @@ class GuaranteeDecisionRepository
     }
     
     /**
+     * Get historical supplier selections aggregated by supplier
+     * Used by HistoricalSignalFeeder
+     * 
+     * Note: Currently uses JSON search in guarantees table (fragile)
+     * TODO Phase 6: Update after schema improvement
+     * 
+     * @param string $normalizedInput Normalized supplier name
+     * @return array<int, array{supplier_id:int, count:int}>
+     */
+    public function getHistoricalSelections(string $normalizedInput): array
+    {
+        // Query guarantee_decisions joined with guarantees
+        // Looking for guarantees where raw_data contains the supplier name
+        // This is the fragile JSON LIKE query from Query Pattern Audit #3
+        
+        $stmt = $this->db->prepare("
+            SELECT gd.supplier_id, COUNT(*) as count
+            FROM guarantees g
+            JOIN guarantee_decisions gd ON g.id = gd.guarantee_id
+            WHERE g.raw_data LIKE :pattern
+            GROUP BY gd.supplier_id
+        ");
+        
+        // Pattern: matches JSON field containing the supplier name
+        // Example: '%\"supplier\":\"شركة النورس\"%'
+        $pattern = '%"supplier":"' . $normalizedInput . '"%';
+        $stmt->execute(['pattern' => $pattern]);
+        
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
      * Get all decisions with filters
      */
     public function getAll(array $filters = [], int $limit = 50, int $offset = 0): array

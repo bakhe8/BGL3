@@ -20,17 +20,17 @@ header("Pragma: no-cache");
 require_once __DIR__ . '/app/Support/autoload.php';
 
 use App\Support\Database;
+use App\Services\Learning\AuthorityFactory;
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeDecisionRepository;
-use App\Services\LearningService;
-use App\Repositories\SupplierLearningRepository;
+// LearningService removed - deprecated in Phase 4
 use App\Repositories\SupplierRepository;
 use App\Repositories\BankRepository;
 
 header('Content-Type: text/html; charset=utf-8');
 
-// Database Connection
-$db = \App\Support\Database::connect();
+// Initialize database connection
+$db = Database::connect();
 
 // Get filter parameter for status filtering (Defined EARLY)
 $statusFilter = $_GET['filter'] ?? 'all'; // all, ready, pending
@@ -38,9 +38,8 @@ $statusFilter = $_GET['filter'] ?? 'all'; // all, ready, pending
 $guaranteeRepo = new GuaranteeRepository($db);
 $decisionRepo = new GuaranteeDecisionRepository($db);
 
-$learningRepo = new SupplierLearningRepository($db);
+// ✅ PHASE 4: LearningService removed - using UnifiedLearningAuthority directly where needed
 $supplierRepo = new SupplierRepository();
-$learningService = new LearningService($learningRepo, $supplierRepo);
 
 // Load Bank Repository
 $bankRepo = new BankRepository();
@@ -456,7 +455,19 @@ if ($currentRecord) {
 // Get initial suggestions for the current record
 $initialSupplierSuggestions = [];
 if ($mockRecord['supplier_name']) {
-    $initialSupplierSuggestions = $learningService->getSuggestions($mockRecord['supplier_name']);
+    // ✅ PHASE 4: Using UnifiedLearningAuthority
+    $authority = AuthorityFactory::create();
+    $suggestionDTOs = $authority->getSuggestions($mockRecord['supplier_name']);
+    
+    // Convert DTOs to legacy format for compatibility
+    $initialSupplierSuggestions = array_map(function($dto) {
+        return [
+            'id' => $dto->supplier_id,
+            'official_name' => $dto->official_name,
+            'score' => $dto->confidence,
+            'usage_count' => $dto->usage_count
+        ];
+    }, $suggestionDTOs);
 }
 
 // Map suggestions to frontend format
@@ -1477,28 +1488,50 @@ $formattedSuppliers = array_map(function($s) {
             font-family: inherit;
         }
         
-        .chip-selected {
-            background: #dcfce7;
-            color: var(--accent-success);
-            border-color: #86efac;
-        }
         
-        .chip-candidate {
+        /* ✅ UX UNIFICATION: All chips identical - no visual differentiation */
+        .chip-unified {
             background: var(--bg-secondary);
-            color: var(--text-muted);
+            color: var(--text-primary);
             border-color: var(--border-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            opacity: 1.0; /* Default: high confidence */
         }
         
-        .chip-candidate:hover {
+        /* ✅ APPROVED EXCEPTION: Subtle opacity for confidence levels */
+        .chip-unified[data-confidence="medium"] {
+            opacity: 0.85;
+        }
+        
+        .chip-unified[data-confidence="low"] {
+            opacity: 0.70;
+        }
+        
+        .chip-unified:hover {
             background: #eff6ff;
             border-color: #93c5fd;
             color: var(--accent-primary);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+            opacity: 1.0 !important; /* Full opacity on hover */
         }
         
-        .chip-source {
-            font-size: var(--font-size-xs);
-            opacity: 0.8;
+        .chip-name {
+            flex: 1;
+            font-weight: var(--font-weight-semibold);
         }
+        
+        .chip-confidence {
+            font-size: var(--font-size-xs);
+            font-weight: var(--font-weight-bold);
+            color: var(--accent-primary);
+            background: rgba(59, 130, 246, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+        
         
         .field-hint {
             display: flex;
@@ -2489,11 +2522,13 @@ $formattedSuppliers = array_map(function($s) {
     </script>
 
     
-    <?php include __DIR__ . '/partials/level-b-confirmation-modal.php'; ?>
-    
     <script src="/public/js/pilot-auto-load.js?v=<?= time() ?>"></script>
-    <script src="/public/js/pilot-metrics.js?v=<?= time() ?>"></script>
-    <script src="/public/js/level-b-handler.js?v=<?= time() ?>"></script>
+
+    
+    <!-- ✅ UX UNIFICATION: Old Level B handler and modal removed -->
+    <!-- Level B handler disabled by UX_UNIFICATION_ENABLED flag -->
+    <!-- Modal no longer needed - Selection IS the confirmation -->
+    
     <script src="/public/js/preview-formatter.js?v=<?= time() ?>"></script>
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
     <script src="/public/js/input-modals.controller.js?v=<?= time() ?>"></script>

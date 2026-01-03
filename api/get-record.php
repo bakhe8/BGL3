@@ -160,13 +160,25 @@ try {
     
     // 1. Supplier Matching
     $supplierMatch = ['score' => 0, 'id' => null, 'name' => '', 'suggestions' => []];
+    // 1. Supplier Matching
+    $supplierMatch = ['score' => 0, 'id' => null, 'name' => '', 'suggestions' => []];
     try {
-        $learningRepo = new \App\Repositories\SupplierLearningRepository($db);
-        $supplierRepo = new \App\Repositories\SupplierRepository();
-        $learningService = new \App\Services\LearningService($learningRepo, $supplierRepo);
+        // ✅ PHASE 4: Using UnifiedLearningAuthority
+        $authority = \App\Services\Learning\AuthorityFactory::create();
         
         if (!empty($record['supplier_name'])) {
-            $suggestions = $learningService->getSuggestions($record['supplier_name']);
+            $suggestionDTOs = $authority->getSuggestions($record['supplier_name']);
+            
+            // Map to array format for compatibility
+            $suggestions = array_map(function($dto) {
+                return [
+                    'id' => $dto->supplier_id,
+                    'official_name' => $dto->official_name, // Key used by template logic below
+                    'name' => $dto->official_name,          // Standard key
+                    'score' => $dto->confidence
+                ];
+            }, $suggestionDTOs);
+
             if (!empty($suggestions)) {
                 $top = $suggestions[0];
                 $supplierMatch = [
@@ -197,7 +209,6 @@ try {
                         // 4. Detect changes
                         $changes = \App\Services\TimelineRecorder::detectChanges($oldSnapshot, $newData);
                         
-                        // 5. Save to guarantee_decisions
                         // 5. Save to guarantee_decisions
                         if (!empty($changes)) {
                             // Check if Bank implies status change

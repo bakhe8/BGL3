@@ -20,7 +20,7 @@ class DecisionService
     public function __construct(
         private GuaranteeDecisionRepository $decisions,
         private GuaranteeRepository $guarantees,
-        private ?LearningService $learningService = null,
+        private ?\App\Repositories\LearningRepository $learningRepo = null, // Inject Repo directly
         private ?GuaranteeHistoryRepository $history = null,
         private ?SupplierRepository $suppliers = null,
         private ?BankRepository $banks = null,
@@ -61,16 +61,16 @@ class DecisionService
         $saved = $this->decisions->createOrUpdate($decision);
 
         // Trigger Learning
-        if ($this->learningService) {
-            // Prepare learning data
-            $learningData = [
-                'supplier_id' => $data['supplier_id'] ?? null,
-                'raw_supplier_name' => $guarantee->rawData['supplier'] ?? '', // Get raw name from guarantee
-                'source' => $data['decision_source'] ?? 'manual',
-                'confidence' => $data['confidence_score'] ?? 0,
-                'was_top' => $data['was_top_suggestion'] ?? 0
-            ];
-            $this->learningService->learnFromDecision($guaranteeId, $learningData);
+        if ($this->learningRepo && isset($data['supplier_id'])) {
+            // Log the manual decision
+            $this->learningRepo->logDecision([
+                'guarantee_id' => $guaranteeId,
+                'raw_supplier_name' => $guarantee->rawData['supplier'] ?? '',
+                'supplier_id' => $data['supplier_id'],
+                'action' => 'confirm', 
+                'confidence' => $data['confidence_score'] ?? 100,
+                'decision_time_seconds' => 0
+            ]);
         }
 
         // Snapshot Logic

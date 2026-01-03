@@ -50,6 +50,37 @@ class SupplierAlternativeNameRepository
     }
     
     /**
+     * Find all alternative names by normalized name
+     * 
+     * Returns ALL matches (no LIMIT) for Authority to process
+     * Used by AliasSignalFeeder
+     * 
+     * @param string $normalizedName
+     * @return array
+     */
+    public function findAllByNormalizedName(string $normalizedName): array
+    {
+        $stmt = $this->db->prepare('
+            SELECT 
+                san.id,
+                san.supplier_id,
+                san.alternative_name,
+                san.normalized_name,
+                san.source,
+                san.usage_count,
+                s.official_name,
+                s.english_name
+            FROM supplier_alternative_names san
+            JOIN suppliers s ON san.supplier_id = s.id
+            WHERE san.normalized_name = ?
+            ORDER BY san.usage_count DESC, san.id ASC
+        ');
+        
+        $stmt->execute([$normalizedName]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+    
+    /**
      * Find all alternative names matching normalized name (for exact matching)
      * Used by SupplierCandidateService line 215
      * @return array Array of associative arrays with supplier_id, raw_name, etc.

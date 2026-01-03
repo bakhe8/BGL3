@@ -742,27 +742,34 @@ if (!window.RecordsController) {
                 return;
             }
 
-            // Phase 5: Use Level B Handler for rendering (supports both Level A and Level B)
-            if (window.renderSupplierSuggestions) {
-                window.renderSupplierSuggestions(suggestions);
-            } else {
-                // Fallback: Manual HTML rendering if Level B handler not loaded
-                container.innerHTML = suggestions.map(sugg => `
-                    <button 
-                        type="button" 
-                        class="chip${sugg.is_learning ? ' chip-warning' : ''}"
-                        data-action="selectSupplier"
-                        data-id="${sugg.id}"
-                        data-name="${sugg.official_name.replace(/"/g, '&quot;')}"
-                    >
-                        <span class="chip-text">
-                            ${sugg.official_name}
-                            ${suggis_learning ? '<span class="badge badge-learning">تعلم آلي</span>' : ''}
-                        </span>
-                        ${sugg.star_rating ? '<span class="chip-stars">' + '⭐'.repeat(sugg.star_rating) + '</span>' : ''}
-                    </button>
-                `).join('');
-            }
+            // ✅ UX UNIFIED: Render all suggestions uniformly
+            container.innerHTML = suggestions.map(sugg => {
+                const score = sugg.score || 0;
+
+                // Determine tooltip
+                let tooltipText = 'ثقة عالية';
+                if (score < 70) tooltipText = 'ثقة متوسطة';
+                if (score < 50) tooltipText = 'ثقة منخفضة';
+
+                // Determine confidence level for CSS
+                let confidenceLevel = 'high';
+                if (score < 85) confidenceLevel = 'medium';
+                if (score < 65) confidenceLevel = 'low';
+
+                return `
+                <button 
+                    type="button" 
+                    class="chip chip-unified"
+                    data-action="selectSupplier"
+                    data-id="${sugg.id}"
+                    data-name="${sugg.official_name.replace(/"/g, '&quot;')}"
+                    data-confidence="${confidenceLevel}"
+                    title="${tooltipText}">
+                    <span class="chip-name">${sugg.official_name}</span>
+                    <span class="chip-confidence">${score}%</span>
+                </button>
+            `;
+            }).join('');
         }
 
         showAddSupplierButton(supplierName) {

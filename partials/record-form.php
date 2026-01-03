@@ -139,13 +139,27 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
                     
                     if ($isSelected && $isApproved) continue;
                 ?>
-                    <button class="chip <?= ($record['supplier_name'] === ($sugg['name'] ?? '')) ? 'chip-selected' : 'chip-candidate' ?>" 
+                    <?php
+                    // Determine confidence level for tooltip
+                    $score = $sugg['score'] ?? 0;
+                    $tooltipText = 'ثقة عالية';
+                    if ($score < 70) $tooltipText = 'ثقة متوسطة';
+                    if ($score < 50) $tooltipText = 'ثقة منخفضة';
+                    
+                    // Determine confidence level for CSS (high/medium/low)
+                    $confidenceLevel = 'high';
+                    if ($score < 85) $confidenceLevel = 'medium';
+                    if ($score < 65) $confidenceLevel = 'low';
+                    ?>
+                    <!-- ✅ UX UNIFICATION: Uniform display with subtle opacity + tooltip -->
+                    <button class="chip chip-unified" 
                             data-action="selectSupplier"
                             data-id="<?= $sugg['id'] ?? 0 ?>"
-                            data-name="<?= htmlspecialchars($sugg['name'] ?? '') ?>">
-                        <?php if (($sugg['score'] ?? 0) > 90): ?><span>⭐ </span><?php endif; ?>
-                        <span><?= htmlspecialchars($sugg['name'] ?? '') ?></span>
-                        <span class="chip-source"><?= $sugg['score'] ?? 0 ?>%</span>
+                            data-name="<?= htmlspecialchars($sugg['name'] ?? '') ?>"
+                            data-confidence="<?= $confidenceLevel ?>"
+                            title="<?= $tooltipText ?>">
+                        <span class="chip-name"><?= htmlspecialchars($sugg['name'] ?? '') ?></span>
+                        <span class="chip-confidence"><?= $sugg['score'] ?? 0 ?>%</span>
                     </button>
                 <?php endforeach; ?>
             <?php else: ?>

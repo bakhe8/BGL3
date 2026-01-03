@@ -260,41 +260,35 @@ try {
     }
     
     // --- SMART LEARNING FEEDBACK LOOP ---
+    // --- SMART LEARNING FEEDBACK LOOP ---
     try {
         // We need the raw data to learn the mapping (Raw Name -> Chosen ID)
         $guaranteeRepo = new GuaranteeRepository($db);
         $currentGuarantee = $guaranteeRepo->find($guaranteeId);
         
-        if ($currentGuarantee && isset($currentGuarantee->rawData['supplier'])) {
-            $learningRepo = new \App\Repositories\SupplierLearningRepository($db);
-            $supplierRepo = new \App\Repositories\SupplierRepository();
-            $learningService = new \App\Services\LearningService($learningRepo, $supplierRepo);
+        if ($currentGuarantee && isset($currentGuarantee->rawData['supplier']) && $supplierId) {
+            $learningRepo = new \App\Repositories\LearningRepository($db);
             
-            $learningService->learnFromDecision($guaranteeId, [
-                'supplier_id' => $supplierId,
+            // Log the manual decision (Confirmation)
+            // This feeds the LearningSignalFeeder
+            $learningRepo->logDecision([
+                'guarantee_id' => $guaranteeId,
                 'raw_supplier_name' => $currentGuarantee->rawData['supplier'],
-                'source' => 'manual', // User manually saved this
-                'confidence' => 100
+                'supplier_id' => $supplierId,
+                'action' => 'confirm',
+                'confidence' => 100, // Manual = 100%
+                'decision_time_seconds' => 0 // Not tracked here
             ]);
 
-            // --- NEGATIVE LEARNING (Penalize Ignored Suggestions) ---
-            // If the user chose a supplier DIFFERENT from what we strongly suggested
-            if ($supplierId) {
-                $rawName = $currentGuarantee->rawData['supplier'];
-                $suggestions = $learningService->getSuggestions($rawName);
-                
-                foreach ($suggestions as $suggestion) {
-                    // Calculate score (it might be in 'score' or we assume high for aliases)
-                    $score = $suggestion['score'] ?? 0;
-                    
-                    // If suggestion was Strong (>80) AND was NOT chosen
-                    if ($suggestion['id'] != $supplierId && $score > 80) {
-                        $learningService->penalizeIgnoredSuggestion($suggestion['id'], $rawName);
-                    }
-                }
-            }
+            // Note: Negative learning (penalties) is now handled implicitly by the Authority
+            // signals (Unified Scoring) rather than explicit "penalty" records,
+            // or we rely on 'reject' actions which are typically explicit user rejections.
+            // For simple "saved X instead of Y", a confirmation for X increases X's score.
+            // Explicit rejection of Y is not strictly required unless user clicked "Reject".
         }
-    } catch (\Throwable $e) { /* Ignore learning errors to not block save */ }
+    } catch (\Throwable $e) { 
+        error_log("Learning log error: " . $e->getMessage());
+    }
     
     // Get next record index
     $nextIndex = $currentIndex + 1;
