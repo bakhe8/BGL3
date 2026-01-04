@@ -1,0 +1,399 @@
+<?php
+declare(strict_types=1);
+
+namespace App\Services;
+
+use PDO;
+use App\Repositories\GuaranteeRepository;
+use App\Models\Guarantee;
+
+/**
+ * ParseCoordinatorService
+ * 
+ * Orchestrates the parsing workflow:
+ * 1. Detect if table or single row
+ * 2. Extract fields using appropriate method
+ * 3. Validate completeness
+ * 4. Create guarantees in database
+ * 5. Trigger auto-matching
+ * 
+ * @version 1.0
+ */
+class ParseCoordinatorService
+{
+    /**
+     * Parse text and create guarantees
+     * Main entry point for parse-paste functionality
+     * 
+     * @param string $text Input text from user
+     * @param PDO $db Database connection
+     * @return array Result with success status and created guarantees
+     */
+    public static function parseText(string $text, PDO $db): array
+    {
+        // Try table detection first
+        $tableRows = TableDetectionService::detectTable($text);
+        
+        if ($tableRows && is_array($tableRows) && count($tableRows) > 1) {
+            // Multi-row table detected
+            return self::processMultiRow($tableRows, $text, $db);
+        } elseif ($tableRows && is_array($tableRows) && count($tableRows) === 1) {
+            // Single row from table
+            return self::processSingleTableRow($tableRows[0], $text, $db);
+        } else {
+            // Non-table text - use regex extraction
+            return self::processSingleText($text, $db);
+        }
+    }
+    
+    /**
+     * Process multiple table rows
+     */
+    private static function processMultiRow(array $tableRows, string $text, PDO $db): array
+    {
+        error_log("🎯 [MULTI] Processing " . count($tableRows) . " guarantees from multi-row table");
+        
+        $repo = new GuaranteeRepository($db);
+        $results = [];
+        
+        foreach ($tableRows as $rowData) {
+            try {
+                // Remove confidence score (internal field)
+                unset($rowData['_confidence']);
+                
+                // Process row
+                $result = self::createGuaranteeFromRow($rowData, $text, $repo, 'smart_paste_multi');
+                $results[] = $result;
+                
+                error_log(sprintf(
+                    "✅ [MULTI] Processed G#: %s - %s",
+                    $result['guarantee_number'],
+                    $result['exists_before'] ? 'Exists' : 'Created'
+                ));
+            } catch (\Exception $e) {
+                error_log("❌ [MULTI] Failed to process G#: {$rowData['guarantee_number']} - " . $e->getMessage());
+                $results[] = [
+                    'guarantee_number' => $rowData['guarantee_number'],
+                    'error' => $e->getMessage(),
+                    'failed' => true
+                ];
+            }
+        }
+        
+        // Trigger auto-matching for all new guarantees
+        self::triggerAutoMatching($results);
+        
+        return [
+            'success' => true,
+            'multi' => true,
+            'count' => count($results),
+            'results' => $results,
+            'message' => "تم استيراد " . count($results) . " ضمان بنجاح"
+        ];
+    }
+    
+    /**
+     * Process single row from table
+     */
+    private static function processSingleTableRow(array $rowData, string $text, PDO $db): array
+    {
+        error_log("🎯 [TABLE] Using single row from table");
+        
+        // Remove confidence score
+        unset($rowData['_confidence']);
+        
+        // Convert amount if present
+        if ($rowData['amount']) {
+            $amountStr = str_replace(',', '', $rowData['amount']);
+            $rowData['amount'] = (float)$amountStr;
+        }
+        
+        // Extract additional fields from text if missing
+        $extracted = self::extractFieldsFromText($text);
+        
+        // Merge table data with extracted data (table data takes priority)
+        $extracted = array_merge($extracted, array_filter($rowData));
+        
+        // Validate and create
+        return self::validateAndCreate($extracted, $text, $db);
+    }
+    
+    /**
+     * Process single non-table text
+     */
+    private static function processSingleText(string $text, PDO $db): array
+    {
+        // Extract all fields using regex patterns
+        $extracted = self::extractFieldsFromText($text);
+        
+        // Validate and create
+        return self::validateAndCreate($extracted, $text, $db);
+    }
+    
+    /**
+     * Extract fields from text using FieldExtractionService
+     */
+    private static function extractFieldsFromText(string $text): array
+    {
+        return [
+            'guarantee_number' => FieldExtractionService::extractGuaranteeNumber($text),
+            'amount' => FieldExtractionService::extractAmount($text),
+            'expiry_date' => FieldExtractionService::extractExpiryDate($text),
+            'issue_date' => FieldExtractionService::extractIssueDate($text),
+            'supplier' => FieldExtractionService::extractSupplier($text),
+            'bank' => FieldExtractionService::extractBank($text),
+            'contract_number' => FieldExtractionService::extractContractNumber($text),
+            'type' => FieldExtractionService::detectType($text),
+            'intent' => FieldExtractionService::detectIntent($text),
+            'currency' => 'SAR',
+            'source_text' => $text
+        ];
+    }
+    
+    /**
+     * Validate fields and create guarantee
+     */
+    private static function validateAndCreate(array $extracted, string $text, PDO $db): array
+    {
+        // Check for mandatory fields
+        $missing = [];
+        if (!$extracted['guarantee_number']) $missing[] = "رقم الضمان";
+        if (!$extracted['supplier']) $missing[] = "اسم المورد";
+        if (!$extracted['bank']) $missing[] = "اسم البنك";
+        if (!$extracted['amount']) $missing[] = "القيمة";
+        if (!$extracted['expiry_date']) $missing[] = "تاريخ الانتهاء";
+        if (!$extracted['contract_number']) $missing[] = "رقم العقد";
+        
+        // Field status for user feedback
+        $fieldStatus = [
+            'guarantee_number' => $extracted['guarantee_number'] ? '✅' : '❌',
+            'amount' => $extracted['amount'] ? '✅' : '❌',
+            'supplier' => $extracted['supplier'] ? '✅' : '❌',
+            'bank' => $extracted['bank'] ? '✅' : '❌',
+            'expiry_date' => $extracted['expiry_date'] ? '✅' : '❌',
+            'contract_number' => $extracted['contract_number'] ? '✅' : '❌',
+            'issue_date' => $extracted['issue_date'] ? '✅' : '⚠️',
+        ];
+        
+        // Log the attempt
+        self::logPasteAttempt($text, $extracted, $fieldStatus, empty($missing));
+        
+        if (!empty($missing)) {
+            return [
+                'success' => false,
+                'error' => "بيانات غير مكتملة. الحقول الناقصة: " . implode(', ', $missing),
+                'extracted' => $extracted,
+                'field_status' => $fieldStatus,
+                'missing_fields' => $missing
+            ];
+        }
+        
+        // Create guarantee
+        $repo = new GuaranteeRepository($db);
+        $result = self::createGuaranteeFromExtracted($extracted, $text, $repo);
+        
+        // Trigger auto-matching for single guarantee
+        if (!$result['exists_before']) {
+            self::triggerAutoMatching([$result]);
+        }
+        
+        return [
+            'success' => true,
+            'id' => $result['id'],
+            'extracted' => $extracted,
+            'field_status' => $fieldStatus,
+            'exists_before' => $result['exists_before'],
+            'intent' => $extracted['intent'],
+            'message' => $result['exists_before'] ? 'تم العثور على الضمان' : 'تم إنشاء ضمان جديد بنجاح'
+        ];
+    }
+    
+    /**
+     * Create guarantee from table row data
+     */
+    private static function createGuaranteeFromRow(
+        array $rowData, 
+        string $text, 
+        GuaranteeRepository $repo,
+        string $source = 'smart_paste'
+    ): array {
+        // Convert date format if needed
+        $expiryDate = $rowData['expiry_date'];
+        if ($expiryDate && preg_match('/([0-9]{1,2})[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/]([0-9]{4})/i', $expiryDate, $m)) {
+            $months = [
+                'jan'=>'01', 'feb'=>'02', 'mar'=>'03', 'apr'=>'04',
+                'may'=>'05', 'jun'=>'06', 'jul'=>'07', 'aug'=>'08',
+                'sep'=>'09', 'oct'=>'10', 'nov'=>'11', 'dec'=>'12'
+            ];
+            $month = $months[strtolower($m[2])];
+            $expiryDate = $m[3] . '-' . $month . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+        }
+        
+        // Parse amount
+        $amount = null;
+        if ($rowData['amount']) {
+            $amountStr = str_replace(',', '', $rowData['amount']);
+            $amount = (float)$amountStr;
+        }
+        
+        // Check if exists
+        $existing = $repo->findByNumber($rowData['guarantee_number']);
+        if ($existing) {
+            // Record duplicate import event
+            try {
+                \App\Services\TimelineRecorder::recordDuplicateImportEvent($existing->id, $source);
+            } catch (\Throwable $t) {
+                error_log("Failed to record duplicate import: " . $t->getMessage());
+            }
+            
+            return [
+                'id' => $existing->id,
+                'guarantee_number' => $rowData['guarantee_number'],
+                'exists_before' => true
+            ];
+        }
+        
+        // Create new
+        $rawData = [
+            'bg_number' => $rowData['guarantee_number'],
+            'supplier' => $rowData['supplier'],
+            'bank' => $rowData['bank'],
+            'amount' => $amount,
+            'expiry_date' => $expiryDate,
+            'contract_number' => $rowData['contract_number'],
+            'type' => 'ابتدائي',
+            'source' => $source,
+            'original_text' => $text
+        ];
+        
+        $guaranteeModel = new Guarantee(
+            id: null,
+            guaranteeNumber: $rowData['guarantee_number'],
+            rawData: $rawData,
+            importSource: $source === 'smart_paste_multi' ? 'Smart Paste (Multi)' : 'Smart Paste',
+            importedAt: date('Y-m-d H:i:s'),
+            importedBy: 'Web User'
+        );
+        
+        $saved = $repo->create($guaranteeModel);
+        
+        // Record history event
+        try {
+            \App\Services\TimelineRecorder::recordImportEvent($saved->id, $source, $saved->rawData);
+        } catch (\Throwable $t) {
+            error_log("Failed to record history: " . $t->getMessage());
+        }
+        
+        return [
+            'id' => $saved->id,
+            'guarantee_number' => $rowData['guarantee_number'],
+            'supplier' => $rowData['supplier'],
+            'amount' => $amount,
+            'exists_before' => false
+        ];
+    }
+    
+    /**
+     * Create guarantee from extracted fields
+     */
+    private static function createGuaranteeFromExtracted(
+        array $extracted, 
+        string $text, 
+        GuaranteeRepository $repo
+    ): array {
+        // Check if exists
+        $existing = $repo->findByNumber($extracted['guarantee_number']);
+        
+        if ($existing) {
+            // Record duplicate
+            try {
+                \App\Services\TimelineRecorder::recordDuplicateImportEvent($existing->id, 'smart_paste');
+            } catch (\Throwable $t) {
+                error_log("Failed to record duplicate: " . $t->getMessage());
+            }
+            
+            return [
+                'id' => $existing->id,
+                'exists_before' => true
+            ];
+        }
+        
+        // Create new
+        $rawData = [
+            'bg_number' => $extracted['guarantee_number'],
+            'supplier' => $extracted['supplier'],
+            'bank' => $extracted['bank'],
+            'amount' => $extracted['amount'],
+            'expiry_date' => $extracted['expiry_date'],
+            'issue_date' => $extracted['issue_date'],
+            'contract_number' => $extracted['contract_number'],
+            'type' => $extracted['type'],
+            'source' => 'smart_paste',
+            'original_text' => $text,
+            'detected_intent' => $extracted['intent']
+        ];
+        
+        $guaranteeModel = new Guarantee(
+            id: null,
+            guaranteeNumber: $extracted['guarantee_number'],
+            rawData: $rawData,
+            importSource: 'Smart Paste',
+            importedAt: date('Y-m-d H:i:s'),
+            importedBy: 'Web User'
+        );
+        
+        $saved = $repo->create($guaranteeModel);
+        
+        // Record history
+        try {
+            \App\Services\TimelineRecorder::recordImportEvent($saved->id, 'smart_paste');
+        } catch (\Throwable $t) {
+            error_log("Failed to record history: " . $t->getMessage());
+        }
+        
+        return [
+            'id' => $saved->id,
+            'exists_before' => false
+        ];
+    }
+    
+    /**
+     * Trigger auto-matching for created guarantees
+     */
+    private static function triggerAutoMatching(array $results): void
+    {
+        try {
+            $newCount = count(array_filter($results, function($r) {
+                return !($r['exists_before'] ?? false) && !($r['failed'] ?? false);
+            }));
+            
+            if ($newCount > 0) {
+                $processor = new \App\Services\SmartProcessingService();
+                $autoMatchStats = $processor->processNewGuarantees($newCount);
+                error_log("✅ Smart Paste auto-matched: {$autoMatchStats['auto_matched']} out of {$newCount}");
+            }
+        } catch (\Throwable $e) {
+            error_log("Auto-matching failed (non-critical): " . $e->getMessage());
+        }
+    }
+    
+    /**
+     * Log paste attempt for debugging
+     */
+    private static function logPasteAttempt(string $text, array $extracted, array $fieldStatus, bool $success): void
+    {
+        $logFile = __DIR__ . '/../../storage/paste_debug.log';
+        $timestamp = date('Y-m-d H:i:s');
+        
+        $logEntry = "\n" . str_repeat("=", 80) . "\n";
+        $logEntry .= "PASTE ATTEMPT @ {$timestamp}\n";
+        $logEntry .= str_repeat("=", 80) . "\n";
+        $logEntry .= "STATUS: " . ($success ? "✅ SUCCESS" : "❌ FAILED") . "\n";
+        $logEntry .= "\n--- ORIGINAL TEXT ---\n{$text}\n";
+        $logEntry .= "\n--- EXTRACTED DATA ---\n";
+        $logEntry .= json_encode(array_merge($extracted, ['field_status' => $fieldStatus]), JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE) . "\n";
+        $logEntry .= str_repeat("=", 80) . "\n";
+        
+        file_put_contents($logFile, $logEntry, FILE_APPEND);
+    }
+}
