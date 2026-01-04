@@ -90,31 +90,17 @@ if (!$currentRecord) {
     }
 }
 
-// Get total count for progress (excluding released unless filtered)
-$totalRecordsQuery = '
-    SELECT COUNT(*) FROM guarantees g
-    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-    WHERE 1=1
-';
+// Get navigation information using NavigationService
+$navInfo = \App\Services\NavigationService::getNavigationInfo(
+    $db,
+    $currentRecord ? $currentRecord->id : null,
+    $statusFilter
+);
 
-// Default: exclude released unless specifically filtering for them
-if ($statusFilter === 'released') {
-    $totalRecordsQuery .= ' AND d.is_locked = 1';
-} else {
-    // Normal view: Exclude released
-    $totalRecordsQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
-    
-    // Apply status filter within normal view
-    if ($statusFilter === 'ready') {
-        $totalRecordsQuery .= ' AND d.id IS NOT NULL';
-    } elseif ($statusFilter === 'pending') {
-        $totalRecordsQuery .= ' AND d.id IS NULL';
-    }
-}
-
-$stmtCount = $db->prepare($totalRecordsQuery);
-$stmtCount->execute();
-$totalRecords = (int)$stmtCount->fetchColumn();
+$totalRecords = $navInfo['totalRecords'];
+$currentIndex = $navInfo['currentIndex'];
+$prevId = $navInfo['prevId'];
+$nextId = $navInfo['nextId'];
 
 // Get import statistics (ready vs pending vs released)
 // Note: Stats always show ALL counts regardless of filter
@@ -122,99 +108,6 @@ $importStats = \App\Services\StatsService::getImportStats($db);
 // Update total to exclude released for display consistency with filters
 $displayTotal = $importStats['ready'] + $importStats['pending'];
 
-
-// Calculate current index and find Previous/Next IDs
-$currentIndex = 1;
-$prevId = null;
-$nextId = null;
-
-if ($currentRecord) {
-    // Find position of this guarantee in sorted list
-    try {
-        $positionQuery = '
-            SELECT COUNT(*) as position
-            FROM guarantees g
-            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id < ?
-        ';
-        
-        if ($statusFilter === 'released') {
-            $positionQuery .= ' AND d.is_locked = 1';
-        } else {
-            $positionQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
-            if ($statusFilter === 'ready') {
-                $positionQuery .= ' AND d.id IS NOT NULL';
-            } elseif ($statusFilter === 'pending') {
-                $positionQuery .= ' AND d.id IS NULL';
-            }
-        }
-        
-        $stmt = $db->prepare($positionQuery);
-        $stmt->execute([$currentRecord->id]);
-        $result = $stmt->fetch(PDO::FETCH_ASSOC);
-        $currentIndex = ($result['position'] ?? 0) + 1;
-    } catch (\Exception $e) {
-        // Keep currentIndex = 1 if error
-    }
-    
-    // Get previous guarantee ID
-    try {
-        $prevQuery = '
-            SELECT g.id FROM guarantees g
-            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id < ?
-        ';
-        
-        if ($statusFilter === 'released') {
-            $prevQuery .= ' AND d.is_locked = 1';
-        } else {
-            $prevQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
-            if ($statusFilter === 'ready') {
-                $prevQuery .= ' AND d.id IS NOT NULL';
-            } elseif ($statusFilter === 'pending') {
-                $prevQuery .= ' AND d.id IS NULL';
-            }
-        }
-        
-        $prevQuery .= ' ORDER BY g.id DESC LIMIT 1';
-        
-        $stmt = $db->prepare($prevQuery);
-        $stmt->execute([$currentRecord->id]);
-        $prev = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($prev) $prevId = $prev['id'];
-    } catch (\Exception $e) {
-        // No previous
-    }
-    
-    // Get next guarantee ID
-    try {
-        $nextQuery = '
-            SELECT g.id FROM guarantees g
-            LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.id > ?
-        ';
-        
-        if ($statusFilter === 'released') {
-            $nextQuery .= ' AND d.is_locked = 1';
-        } else {
-            $nextQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
-            if ($statusFilter === 'ready') {
-                $nextQuery .= ' AND d.id IS NOT NULL';
-            } elseif ($statusFilter === 'pending') {
-                $nextQuery .= ' AND d.id IS NULL';
-            }
-        }
-        
-        $nextQuery .= ' ORDER BY g.id ASC LIMIT 1';
-        
-        $stmt = $db->prepare($nextQuery);
-        $stmt->execute([$currentRecord->id]);
-        $next = $stmt->fetch(PDO::FETCH_ASSOC);
-        if ($next) $nextId = $next['id'];
-    } catch (\Exception $e) {
-        // No next
-    }
-}
 
 // If we have a record, prepare it
 if ($currentRecord) {
