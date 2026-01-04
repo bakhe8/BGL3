@@ -350,6 +350,21 @@ $currentSettings = $settings->all();
                     <div class="form-group"><label class="form-label">الاسم العربي *</label><input required name="arabic_name" class="form-input"></div>
                     <div class="form-group"><label class="form-label">الاسم الإنجليزي</label><input name="english_name" class="form-input"></div>
                     <div class="form-group"><label class="form-label">الاسم المختصر</label><input name="short_name" class="form-input"></div>
+                    
+                    <!-- Aliases Section -->
+                    <div class="form-group">
+                        <label class="form-label">الصيغ البديلة (اختياري)</label>
+                        <small class="form-help">أضف الصيغ التي قد تظهر في ملفات Excel (عربي، إنجليزي، اختصارات)</small>
+                        <div id="aliases-container-settings">
+                            <input type="text" class="form-input alias-input" placeholder='مثال: "الراجحي"' style="margin-bottom: 10px;">
+                            <input type="text" class="form-input alias-input" placeholder='مثال: "alrajhi"' style="margin-bottom: 10px;">
+                            <input type="text" class="form-input alias-input" placeholder='مثال: "rajhi"' style="margin-bottom: 10px;">
+                        </div>
+                        <button type="button" onclick="addAliasFieldSettings()" class="btn btn-secondary" style="margin-top: 8px; font-size: 12px; padding: 6px 12px;">
+                            + إضافة صيغة أخرى
+                        </button>
+                    </div>
+                    
                     <div class="form-group"><label class="form-label">إدارة الضمانات</label><input name="department" class="form-input"></div>
                     <div class="form-group"><label class="form-label">صندوق البريد</label><input name="address_line1" class="form-input"></div>
                     <div class="form-group"><label class="form-label">البريد الإلكتروني</label><input type="email" name="contact_email" class="form-input"></div>
@@ -451,18 +466,37 @@ $currentSettings = $settings->all();
             const form = document.getElementById('addBankForm');
             const data = Object.fromEntries(new FormData(form));
             
+            // Collect aliases
+            const aliasInputs = document.querySelectorAll('#aliases-container-settings .alias-input');
+            const aliases = Array.from(aliasInputs)
+                .map(input => input.value.trim())
+                .filter(val => val !== '');
+            
+            // Add aliases to data
+            data.aliases = aliases;
+            
             try {
                 const response = await fetch('../api/create-bank.php', {
                     method: 'POST', body: JSON.stringify(data), headers: {'Content-Type': 'application/json'}
                 });
                 const result = await response.json();
                 if(result.success) {
-                    showAlert('success', '✅ تم إضافة البنك بنجاح');
+                    showAlert('success', '✅ تمت إضافة البنك بنجاح');
                     closeModal('addBankModal');
                     form.reset();
                     loadBanks(); // Refresh table
                 } else throw new Error(result.error);
             } catch(e) { showAlert('error', '❌ فشل الإضافة: ' + e.message); }
+        }
+        
+        function addAliasFieldSettings() {
+            const container = document.getElementById('aliases-container-settings');
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.className = 'form-input alias-input';
+            input.placeholder = 'صيغة بديلة أخرى';
+            input.style.marginBottom = '10px';
+            container.appendChild(input);
         }
 
         async function createSupplier() {
