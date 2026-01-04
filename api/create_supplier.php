@@ -12,30 +12,12 @@ try {
         throw new Exception('الاسم الرسمي مطلوب');
     }
 
-    // Auto-normalize
-    $normalizer = new Normalizer();
-    $normalizedName = $normalizer->normalizeSupplierName($data['official_name']);
-
     $db = Database::connect();
     
-    $stmt = $db->prepare("
-        INSERT INTO suppliers (
-            official_name, english_name, normalized_name, is_confirmed, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    ");
+    // Use unified service
+    \App\Services\SupplierManagementService::create($db, $data);
     
-    $result = $stmt->execute([
-        $data['official_name'],
-        $data['english_name'] ?? null,
-        $normalizedName, // Use generated normalized name
-        $data['is_confirmed'] ? 1 : 0
-    ]);
-    
-    if ($result) {
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception('Create failed');
-    }
+    echo json_encode(['success' => true]);
 
 } catch (Exception $e) {
     http_response_code(500);

@@ -20,28 +20,19 @@ try {
     
     $db = Database::connect();
     
-    // Check duplicates
-    $stmt = $db->prepare('SELECT id FROM suppliers WHERE official_name = ?');
-    $stmt->execute([$name]);
-    if ($stmt->fetchColumn()) {
-        throw new \RuntimeException('المورد موجود بالفعل');
-    }
+    // Use unified service
+    $result = \App\Services\SupplierManagementService::create($db, [
+        'official_name' => $name
+    ]);
     
-    // Generate normalized name
-    $normName = mb_strtolower($name);
-    
-    // Insert
-    $stmt = $db->prepare('INSERT INTO suppliers (official_name, normalized_name) VALUES (?, ?)');
-    $stmt->execute([$name, $normName]);
-    $id = $db->lastInsertId();
-    
+    // Return response in expected format for Decision Flow
     echo json_encode([
         'success' => true,
-        'supplier_id' => $id,
-        'official_name' => $name,
+        'supplier_id' => $result['supplier_id'],
+        'official_name' => $result['official_name'],
         'supplier' => [
-            'id' => $id,
-            'name' => $name
+            'id' => $result['supplier_id'],
+            'name' => $result['official_name']
         ]
     ]);
     
