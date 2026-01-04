@@ -15,23 +15,8 @@ use PDO;
  */
 class TimelineDisplayService
 {
-    /**
-     * Icon mapping for different event types
-     */
-    private static array $iconMap = [
-        'import' => '📥',
-        'decision' => '✅',
-        'extension' => '🔄',
-        'release' => '🔓',
-        'reduction' => '📉',
-        'manual_edit' => '✏️',
-        'approve' => '✔️',
-        'approved' => '✔️',
-        'auto_matched' => '🤖',
-        'modified' => '📝',
-        'status_change' => '🔄',
-        'update' => '📝'
-    ];
+    // Note: Timeline icons are managed by TimelineRecorder::getEventIcon()
+    // The iconMap was removed as dead code (never reached in practice)
     
     /**
      * Get formatted timeline events for display
@@ -69,7 +54,7 @@ class TimelineDisplayService
                     'event_type' => $event['event_type'] ?? 'unknown',
                     'event_subtype' => $event['event_subtype'] ?? null,
                     'type' => $event['event_type'] ?? 'unknown',
-                    'icon' => self::$iconMap[$event['event_type'] ?? 'unknown'] ?? '📋',
+                    'icon' => '📋',  // Fallback; actual icons from TimelineRecorder::getEventIcon()
                     'action' => $event['event_type'] ?? 'unknown',
                     'date' => $event['created_at'],
                     'created_at' => $event['created_at'],
