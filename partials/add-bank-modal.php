@@ -270,7 +270,7 @@ document.getElementById('add-bank-form').addEventListener('submit', async (e) =>
         .filter(val => val !== '');
     
     try {
-        const response = await fetch('api/add-bank.php', {
+        const response = await fetch('api/create-bank.php', {
             method: 'POST',
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({

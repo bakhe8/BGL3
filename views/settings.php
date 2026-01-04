@@ -452,7 +452,7 @@ $currentSettings = $settings->all();
             const data = Object.fromEntries(new FormData(form));
             
             try {
-                const response = await fetch('../api/create_bank.php', {
+                const response = await fetch('../api/create-bank.php', {
                     method: 'POST', body: JSON.stringify(data), headers: {'Content-Type': 'application/json'}
                 });
                 const result = await response.json();
