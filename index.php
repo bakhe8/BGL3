@@ -498,7 +498,7 @@ $formattedSuppliers = array_map(function($s) {
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- Letter Preview Styles (Classic Theme) -->
-    <link rel="stylesheet" href="assets/css/letter.css">
+    <link rel="stylesheet" href="public/css/letter.css">
     
     <!-- Alpine.js removed - using vanilla JavaScript instead -->
     

@@ -114,6 +114,24 @@ class GuaranteeRepository
         ');
         $stmt->execute([$rawData, $guaranteeId]);
     }    
+
+    /**
+     * Find next guarantee (Sequential)
+     * Used for "Save & Next" navigation
+     */
+    public function findNextPending(int $currentId): ?Guarantee
+    {
+        $stmt = $this->db->prepare("
+            SELECT * FROM guarantees 
+            WHERE id > ? 
+            ORDER BY id ASC 
+            LIMIT 1
+        ");
+        $stmt->execute([$currentId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        return $row ? $this->hydrate($row) : null;
+    }
     
     /**
      * Get all guarantees with filters
