@@ -56,6 +56,33 @@ class BankRepository
             null  // contact_email removed
         );
     }
+    
+    /**
+     * Get bank details for display (used in guarantee view)
+     * 
+     * @param int $bankId Bank ID
+     * @return array|null Bank details array or null if not found
+     */
+    public function getBankDetails(int $bankId): ?array
+    {
+        try {
+            $pdo = Database::connection();
+            $stmt = $pdo->prepare('
+                SELECT 
+                    arabic_name as official_name,
+                    department,
+                    address_line1 as po_box,
+                    contact_email as email
+                FROM banks WHERE id = ?
+            ');
+            $stmt->execute([$bankId]);
+            $bank = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $bank ?: null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
 
     public function allNormalized(): array
     {
