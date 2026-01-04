@@ -173,27 +173,14 @@ if ($currentRecord) {
             }
         }
         
-        // If bank_id exists, load bank details
+        // If bank_id exists, load bank details using Repository
         if ($decision->bankId) {
-            try {
-                $stmt = $db->prepare('
-                    SELECT 
-                        arabic_name as official_name,
-                        department,
-                        address_line1 as po_box,
-                        contact_email as email
-                    FROM banks WHERE id = ?
-                ');
-                $stmt->execute([$decision->bankId]);
-                $bank = $stmt->fetch(PDO::FETCH_ASSOC);
-                if ($bank) {
-                    $mockRecord['bank_name'] = $bank['official_name'];
-                    $mockRecord['bank_center'] = $bank['department'];
-                    $mockRecord['bank_po_box'] = $bank['po_box'];
-                    $mockRecord['bank_email'] = $bank['email'];
-                }
-            } catch (\Exception $e) {
-                // Keep Excel name if bank not found
+            $bank = $bankRepo->getBankDetails($decision->bankId);
+            if ($bank) {
+                $mockRecord['bank_name'] = $bank['official_name'];
+                $mockRecord['bank_center'] = $bank['department'];
+                $mockRecord['bank_po_box'] = $bank['po_box'];
+                $mockRecord['bank_email'] = $bank['email'];
             }
         }
     }
