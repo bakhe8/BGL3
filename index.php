@@ -118,19 +118,10 @@ $totalRecords = (int)$stmtCount->fetchColumn();
 
 // Get import statistics (ready vs pending vs released)
 // Note: Stats always show ALL counts regardless of filter
-$statsQuery = $db->prepare('
-    SELECT 
-        COUNT(*) as total,
-        SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NOT NULL THEN 1 ELSE 0 END) as ready,
-        SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NULL THEN 1 ELSE 0 END) as pending,
-        SUM(CASE WHEN d.is_locked = 1 THEN 1 ELSE 0 END) as released
-    FROM guarantees g
-    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-');
-$statsQuery->execute();
-$importStats = $statsQuery->fetch(PDO::FETCH_ASSOC);
+$importStats = \App\Services\StatsService::getImportStats($db);
 // Update total to exclude released for display consistency with filters
 $displayTotal = $importStats['ready'] + $importStats['pending'];
+
 
 // Calculate current index and find Previous/Next IDs
 $currentIndex = 1;
