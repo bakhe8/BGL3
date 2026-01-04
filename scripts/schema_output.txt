@@ -1,0 +1,443 @@
+
+================================================================================
+TABLE: bank_alternative_names
+================================================================================
+
+CREATE TABLE bank_alternative_names (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            bank_id INTEGER NOT NULL,
+            alternative_name TEXT NOT NULL,
+            normalized_name TEXT NOT NULL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE
+        );
+
+INDEXES:
+  - idx_bank_alt_normalized
+    CREATE INDEX idx_bank_alt_normalized ON bank_alternative_names(normalized_name);
+  - idx_bank_alt_bank_id
+    CREATE INDEX idx_bank_alt_bank_id ON bank_alternative_names(bank_id);
+
+ROW COUNT: 262
+
+================================================================================
+TABLE: banks
+================================================================================
+
+CREATE TABLE "banks" (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            arabic_name TEXT NOT NULL,
+            english_name TEXT NOT NULL,
+            short_name TEXT NOT NULL,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        , department TEXT DEFAULT NULL, address_line1 TEXT DEFAULT NULL, contact_email TEXT DEFAULT NULL);
+
+INDEXES:
+  - idx_banks_arabic_name
+    CREATE INDEX idx_banks_arabic_name ON banks(arabic_name);
+  - idx_banks_short_name
+    CREATE INDEX idx_banks_short_name ON banks(short_name);
+
+ROW COUNT: 36
+
+================================================================================
+TABLE: guarantee_attachments
+================================================================================
+
+CREATE TABLE guarantee_attachments (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_id INTEGER NOT NULL,
+    file_name TEXT NOT NULL,
+    file_path TEXT NOT NULL,
+    file_size INTEGER,
+    file_type TEXT,
+    uploaded_by TEXT DEFAULT 'system',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE
+);
+
+INDEXES:
+  - idx_attachments_guarantee
+    CREATE INDEX idx_attachments_guarantee ON guarantee_attachments(guarantee_id);
+
+ROW COUNT: 0
+
+================================================================================
+TABLE: guarantee_decisions
+================================================================================
+
+CREATE TABLE guarantee_decisions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_id INTEGER NOT NULL,
+    
+    -- Status & Lock
+    status TEXT NOT NULL DEFAULT 'pending',  -- 'pending', 'ready', 'approved', 'locked'
+    is_locked BOOLEAN DEFAULT 0,
+    locked_reason TEXT,  -- 'released', 'extended', 'manual_override'
+    
+    -- Decisions
+    supplier_id INTEGER,
+    bank_id INTEGER,
+    
+    -- Decision Metadata
+    decision_source TEXT DEFAULT 'manual',  -- 'manual', 'ai_quick', 'ai_assisted', 'propagated', 'auto_match'
+    confidence_score REAL,
+    decided_at DATETIME,
+    decided_by TEXT,
+    
+    -- Last modification (distinct from decision)
+    last_modified_at DATETIME,
+    last_modified_by TEXT,
+    manual_override BOOLEAN DEFAULT 0,  -- Prevents auto-matching
+    
+    -- Timestamps
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP, amount REAL DEFAULT NULL, active_action TEXT NULL, active_action_set_at TEXT NULL,
+    
+    -- Foreign Keys
+    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,
+    FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE SET NULL,
+    
+    -- Constraints
+    UNIQUE(guarantee_id)
+);
+
+INDEXES:
+  - idx_decisions_guarantee
+    CREATE INDEX idx_decisions_guarantee ON guarantee_decisions(guarantee_id);
+  - idx_decisions_status
+    CREATE INDEX idx_decisions_status ON guarantee_decisions(status);
+  - idx_decisions_locked
+    CREATE INDEX idx_decisions_locked ON guarantee_decisions(is_locked) WHERE is_locked = 1;
+  - idx_decisions_source
+    CREATE INDEX idx_decisions_source ON guarantee_decisions(decision_source);
+  - idx_decisions_decided_at
+    CREATE INDEX idx_decisions_decided_at ON guarantee_decisions(decided_at DESC);
+  - idx_decisions_status_decided
+    CREATE INDEX idx_decisions_status_decided 
+ON guarantee_decisions(status, decided_at DESC);
+  - idx_decisions_status_supplier
+    CREATE INDEX idx_decisions_status_supplier 
+ON guarantee_decisions(status, supplier_id) WHERE supplier_id IS NOT NULL;
+  - idx_decisions_supplier_bank
+    CREATE INDEX idx_decisions_supplier_bank 
+ON guarantee_decisions(supplier_id, bank_id);
+  - idx_active_action
+    CREATE INDEX idx_active_action ON guarantee_decisions(active_action);
+  - idx_guarantee_decisions_supplier
+    CREATE INDEX idx_guarantee_decisions_supplier
+ON guarantee_decisions(supplier_id) 
+WHERE supplier_id IS NOT NULL;
+
+ROW COUNT: 73
+
+================================================================================
+TABLE: guarantee_history
+================================================================================
+
+CREATE TABLE "guarantee_history" (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_id INTEGER NOT NULL,
+    event_type TEXT NOT NULL,
+    event_subtype TEXT,
+    snapshot_data TEXT,
+    event_details TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_by TEXT, letter_snapshot TEXT NULL,
+    
+    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE
+);
+
+INDEXES:
+  - idx_history_guarantee
+    CREATE INDEX idx_history_guarantee ON guarantee_history(guarantee_id);
+  - idx_history_subtype
+    CREATE INDEX idx_history_subtype ON guarantee_history(event_subtype);
+  - idx_history_created_at
+    CREATE INDEX idx_history_created_at ON guarantee_history(created_at DESC);
+
+ROW COUNT: 664
+
+================================================================================
+TABLE: guarantee_notes
+================================================================================
+
+CREATE TABLE guarantee_notes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    created_by TEXT DEFAULT 'system',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP,
+    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE
+);
+
+INDEXES:
+  - idx_notes_guarantee
+    CREATE INDEX idx_notes_guarantee ON guarantee_notes(guarantee_id);
+
+ROW COUNT: 0
+
+================================================================================
+TABLE: guarantees
+================================================================================
+
+CREATE TABLE guarantees (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_number TEXT NOT NULL,
+    
+    -- Raw Data (JSON - immutable source of truth)
+    raw_data JSON NOT NULL,
+    /*
+    Example structure:
+    {
+      "supplier": "K.F.S.H",
+      "bank": "الراجحي",
+      "amount": "500000.00",
+      "issue_date": "2024-01-15",
+      "expiry_date": "2025-01-15",
+      "document_reference": "C-2024-100",
+      "related_to": "contract",  -- or "purchase_order"
+      "type": "FINAL",
+      "comment": null
+    }
+    */
+    
+    -- Import Tracking (per guarantee)
+    import_source TEXT NOT NULL,  -- 'excel', 'smart_paste', 'manual'
+    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    imported_by TEXT, normalized_supplier_name TEXT,  -- Future: username
+    
+    -- Constraints
+    UNIQUE(guarantee_number)
+);
+
+INDEXES:
+  - idx_guarantees_number
+    CREATE INDEX idx_guarantees_number ON guarantees(guarantee_number);
+  - idx_guarantees_import_source
+    CREATE INDEX idx_guarantees_import_source ON guarantees(import_source);
+  - idx_guarantees_imported_at
+    CREATE INDEX idx_guarantees_imported_at ON guarantees(imported_at DESC);
+  - idx_guarantees_date_source
+    CREATE INDEX idx_guarantees_date_source ON guarantees(DATE(imported_at), import_source);
+  - idx_guarantees_expiry
+    CREATE INDEX idx_guarantees_expiry 
+ON guarantees(JSON_EXTRACT(raw_data, '$.expiry_date'));
+  - idx_guarantees_type
+    CREATE INDEX idx_guarantees_type 
+ON guarantees(JSON_EXTRACT(raw_data, '$.type'));
+  - idx_guarantees_related_to
+    CREATE INDEX idx_guarantees_related_to 
+ON guarantees(JSON_EXTRACT(raw_data, '$.related_to'));
+  - idx_guarantees_normalized_supplier
+    CREATE INDEX idx_guarantees_normalized_supplier 
+ON guarantees(normalized_supplier_name);
+
+ROW COUNT: 248
+
+================================================================================
+TABLE: learning_confirmations
+================================================================================
+
+CREATE TABLE learning_confirmations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    raw_supplier_name TEXT NOT NULL,
+    supplier_id INTEGER NOT NULL,
+    confidence INTEGER,
+    matched_anchor TEXT,
+    anchor_type TEXT,
+    action TEXT CHECK(action IN ('confirm', 'reject')),
+    decision_time_seconds REAL,
+    guarantee_id INTEGER,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, count INTEGER DEFAULT 1, updated_at DATETIME, normalized_supplier_name TEXT,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id)
+);
+
+INDEXES:
+  - idx_learning_raw_name
+    CREATE INDEX idx_learning_raw_name ON learning_confirmations(raw_supplier_name);
+  - idx_learning_action
+    CREATE INDEX idx_learning_action ON learning_confirmations(action);
+  - idx_learning_confirmations_raw_supplier
+    CREATE INDEX idx_learning_confirmations_raw_supplier 
+ON learning_confirmations(raw_supplier_name);
+  - idx_learning_confirmations_normalized
+    CREATE INDEX idx_learning_confirmations_normalized 
+ON learning_confirmations(normalized_supplier_name, action);
+
+ROW COUNT: 14
+
+================================================================================
+TABLE: sqlite_sequence
+================================================================================
+
+CREATE TABLE sqlite_sequence(name,seq);
+
+
+ROW COUNT: 9
+
+================================================================================
+TABLE: supplier_alternative_names
+================================================================================
+
+CREATE TABLE supplier_alternative_names (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    supplier_id INTEGER NOT NULL,
+    alternative_name TEXT NOT NULL,
+    normalized_name TEXT,
+    source TEXT DEFAULT 'manual',
+    usage_count INTEGER DEFAULT 1,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+);
+
+INDEXES:
+  - idx_alt_names_norm
+    CREATE INDEX idx_alt_names_norm ON supplier_alternative_names(normalized_name);
+  - idx_supplier_norm_name
+    CREATE INDEX idx_supplier_norm_name ON supplier_alternative_names(normalized_name);
+
+ROW COUNT: 205
+
+================================================================================
+TABLE: supplier_decisions_log
+================================================================================
+
+CREATE TABLE supplier_decisions_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    guarantee_id INTEGER NOT NULL,
+    
+    -- Input
+    raw_input TEXT NOT NULL,
+    normalized_input TEXT NOT NULL,
+    
+    -- Decision
+    chosen_supplier_id INTEGER NOT NULL,
+    chosen_supplier_name TEXT NOT NULL,
+    
+    -- Context
+    decision_source TEXT NOT NULL CHECK(decision_source IN ('manual', 'ai_quick', 'ai_assisted', 'propagated', 'auto_match')),
+    confidence_score REAL,
+    was_top_suggestion BOOLEAN DEFAULT 0,  -- For analysis
+    
+    -- Timestamps
+    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE,
+    FOREIGN KEY (chosen_supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE
+);
+
+INDEXES:
+  - idx_supplier_log_normalized
+    CREATE INDEX idx_supplier_log_normalized 
+ON supplier_decisions_log(normalized_input);
+  - idx_supplier_log_source
+    CREATE INDEX idx_supplier_log_source 
+ON supplier_decisions_log(decision_source);
+  - idx_supplier_log_decided_at
+    CREATE INDEX idx_supplier_log_decided_at 
+ON supplier_decisions_log(decided_at DESC);
+  - idx_supplier_log_guarantee
+    CREATE INDEX idx_supplier_log_guarantee 
+ON supplier_decisions_log(guarantee_id);
+  - idx_supplier_log_supplier
+    CREATE INDEX idx_supplier_log_supplier 
+ON supplier_decisions_log(chosen_supplier_id);
+  - idx_supplier_log_normalized_supplier
+    CREATE INDEX idx_supplier_log_normalized_supplier 
+ON supplier_decisions_log(normalized_input, chosen_supplier_id);
+
+ROW COUNT: 73
+
+================================================================================
+TABLE: supplier_learning_cache
+================================================================================
+
+CREATE TABLE supplier_learning_cache (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    normalized_input TEXT NOT NULL,
+    supplier_id INTEGER NOT NULL,
+    
+    -- Scoring Components (from ScoringConfig)
+    fuzzy_score REAL DEFAULT 0.0 CHECK(fuzzy_score >= 0.0 AND fuzzy_score <= 1.0),
+    source_weight INTEGER DEFAULT 0,
+    usage_count INTEGER DEFAULT 0,
+    block_count INTEGER DEFAULT 0,
+    
+    -- Computed Scores (GENERATED columns for performance)
+    total_score REAL GENERATED ALWAYS AS (
+        (fuzzy_score * 100) + 
+        source_weight + 
+        CASE 
+            WHEN (usage_count * 15) > 75 THEN 75
+            ELSE (usage_count * 15)
+        END
+    ) STORED,
+    
+    effective_score REAL GENERATED ALWAYS AS (
+        (fuzzy_score * 100) + 
+        source_weight + 
+        CASE 
+            WHEN (usage_count * 15) > 75 THEN 75
+            ELSE (usage_count * 15)
+        END - 
+        (block_count * 50)
+    ) STORED,
+    
+    star_rating INTEGER GENERATED ALWAYS AS (
+        CASE
+            WHEN ((fuzzy_score * 100) + source_weight + 
+                  CASE WHEN (usage_count * 15) > 75 THEN 75 ELSE (usage_count * 15) END) >= 200
+            THEN 3
+            WHEN ((fuzzy_score * 100) + source_weight + 
+                  CASE WHEN (usage_count * 15) > 75 THEN 75 ELSE (usage_count * 15) END) >= 120
+            THEN 2
+            ELSE 1
+        END
+    ) STORED,
+    
+    -- Metadata
+    last_used_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    
+    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE CASCADE,
+    UNIQUE(normalized_input, supplier_id)
+);
+
+INDEXES:
+  - idx_learning_normalized_score
+    CREATE INDEX idx_learning_normalized_score 
+ON supplier_learning_cache(normalized_input, effective_score DESC) 
+WHERE effective_score > 0;
+  - idx_learning_supplier
+    CREATE INDEX idx_learning_supplier 
+ON supplier_learning_cache(supplier_id);
+  - idx_learning_last_used
+    CREATE INDEX idx_learning_last_used 
+ON supplier_learning_cache(last_used_at DESC);
+
+ROW COUNT: 0
+
+================================================================================
+TABLE: suppliers
+================================================================================
+
+CREATE TABLE suppliers (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    official_name TEXT NOT NULL,
+    display_name TEXT,
+    normalized_name TEXT NOT NULL UNIQUE,
+    supplier_normalized_key TEXT UNIQUE,
+    is_confirmed INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+, english_name TEXT DEFAULT NULL);
+
+INDEXES:
+  - idx_suppliers_normalized
+    CREATE INDEX idx_suppliers_normalized ON suppliers(normalized_name);
+  - idx_suppliers_key
+    CREATE INDEX idx_suppliers_key ON suppliers(supplier_normalized_key);
+
+ROW COUNT: 115

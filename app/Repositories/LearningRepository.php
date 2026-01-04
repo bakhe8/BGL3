@@ -24,10 +24,12 @@ class LearningRepository
 
     public function getUserFeedback(string $rawName): array
     {
+        // Use normalized_supplier_name for consistent matching
+        // UPDATED: Learning Merge 2026-01-04
         $stmt = $this->db->prepare("
             SELECT supplier_id, action, count(*) as count
             FROM learning_confirmations
-            WHERE raw_supplier_name = ?
+            WHERE normalized_supplier_name = ?
             GROUP BY supplier_id, action
         ");
         $stmt->execute([$rawName]);
@@ -65,15 +67,21 @@ class LearningRepository
 
     public function logDecision(array $data): void
     {
+        // Normalize supplier name for consistent querying
+        // UPDATED: Learning Merge 2026-01-04
+        $normalized = \App\Utils\ArabicNormalizer::normalize($data['raw_supplier_name']);
+        
         $stmt = $this->db->prepare("
             INSERT INTO learning_confirmations (
-                raw_supplier_name, supplier_id, confidence, matched_anchor, 
-                anchor_type, action, decision_time_seconds, guarantee_id
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                raw_supplier_name, normalized_supplier_name, supplier_id, confidence, matched_anchor, 
+                anchor_type, action, decision_time_seconds, guarantee_id,
+                created_at, updated_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         ");
         
         $stmt->execute([
             $data['raw_supplier_name'],
+            $normalized,
             $data['supplier_id'],
             $data['confidence'],
             $data['matched_anchor'] ?? null,

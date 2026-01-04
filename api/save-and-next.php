@@ -260,7 +260,7 @@ try {
     }
     
     // --- SMART LEARNING FEEDBACK LOOP ---
-    // --- SMART LEARNING FEEDBACK LOOP ---
+    // 🧠 Learn from this decision (both confirmations AND rejections)
     try {
         // We need the raw data to learn the mapping (Raw Name -> Chosen ID)
         $guaranteeRepo = new GuaranteeRepository($db);
@@ -268,23 +268,39 @@ try {
         
         if ($currentGuarantee && isset($currentGuarantee->rawData['supplier']) && $supplierId) {
             $learningRepo = new \App\Repositories\LearningRepository($db);
+            $rawSupplierName = $currentGuarantee->rawData['supplier'];
             
-            // Log the manual decision (Confirmation)
-            // This feeds the LearningSignalFeeder
+            // ✅ Step 1: Log CONFIRMATION for chosen supplier
             $learningRepo->logDecision([
                 'guarantee_id' => $guaranteeId,
-                'raw_supplier_name' => $currentGuarantee->rawData['supplier'],
+                'raw_supplier_name' => $rawSupplierName,
                 'supplier_id' => $supplierId,
                 'action' => 'confirm',
                 'confidence' => 100, // Manual = 100%
-                'decision_time_seconds' => 0 // Not tracked here
+                'decision_time_seconds' => 0
             ]);
 
-            // Note: Negative learning (penalties) is now handled implicitly by the Authority
-            // signals (Unified Scoring) rather than explicit "penalty" records,
-            // or we rely on 'reject' actions which are typically explicit user rejections.
-            // For simple "saved X instead of Y", a confirmation for X increases X's score.
-            // Explicit rejection of Y is not strictly required unless user clicked "Reject".
+            // ✅ Step 2: Log REJECTION for ignored top suggestion (implicit learning)
+            // Get current suggestions to identify what user ignored
+            $authority = \App\Services\Learning\AuthorityFactory::create();
+            $suggestions = $authority->getSuggestions($rawSupplierName);
+            
+            if (!empty($suggestions)) {
+                $topSuggestion = $suggestions[0];
+                
+                // If user chose DIFFERENT supplier than top suggestion → implicit rejection
+                if ($topSuggestion->supplier_id != $supplierId) {
+                    $learningRepo->logDecision([
+                        'guarantee_id' => $guaranteeId,
+                        'raw_supplier_name' => $rawSupplierName,
+                        'supplier_id' => $topSuggestion->supplier_id,
+                        'action' => 'reject',
+                        'confidence' => $topSuggestion->confidence,
+                        'matched_anchor' => $topSuggestion->official_name,
+                        'decision_time_seconds' => 0
+                    ]);
+                }
+            }
         }
     } catch (\Throwable $e) { 
         error_log("Learning log error: " . $e->getMessage());

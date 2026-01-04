@@ -23,6 +23,29 @@
             return;
         }
 
+        // 🔧 FIX: Don't overwrite supplier name if record is already "ready"
+        const decisionStatus = document.getElementById('decisionStatus');
+        if (decisionStatus && decisionStatus.value === 'ready') {
+            console.log('[Pilot] Skipping auto-load - record already ready with matched supplier');
+            return;
+        }
+
+        // 🔧 FIX: Skip if suggestions already exist from PHP (prevent duplicate loading)
+        const existingChips = document.querySelectorAll('#supplier-suggestions .chip');
+        if (existingChips.length > 0) {
+            // Check if there's a high-confidence match (>= 95%)
+            const hasHighConfidence = Array.from(existingChips).some(chip => {
+                const confidenceText = chip.querySelector('.chip-confidence')?.textContent;
+                const confidence = parseInt(confidenceText);
+                return confidence >= 95;
+            });
+
+            if (hasHighConfidence) {
+                console.log('[Pilot] Skipping auto-load - PHP already provided high-confidence suggestions');
+                return;
+            }
+        }
+
         // Get the Excel supplier name from UI
         const excelSupplierEl = document.getElementById('excelSupplier');
         if (!excelSupplierEl) {

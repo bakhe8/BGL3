@@ -54,19 +54,26 @@ class GuaranteeRepository
      */
     public function create(Guarantee $guarantee): Guarantee
     {
+        // Extract and normalize supplier name for indexed column
+        // UPDATED: Learning Merge 2026-01-04
+        $supplierName = $guarantee->rawData['supplier'] ?? null;
+        $normalized = $supplierName ? \App\Utils\ArabicNormalizer::normalize($supplierName) : null;
+        
         $stmt = $this->db->prepare("
             INSERT INTO guarantees (
                 guarantee_number,
                 raw_data,
+                normalized_supplier_name,
                 import_source,
                 imported_at,
                 imported_by
-            ) VALUES (?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?)
         ");
         
         $stmt->execute([
             $guarantee->guaranteeNumber,
             json_encode($guarantee->rawData),
+            $normalized,
             $guarantee->importSource,
             $guarantee->importedAt ?? date('Y-m-d H:i:s'),
             $guarantee->importedBy

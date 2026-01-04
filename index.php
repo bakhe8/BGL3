@@ -233,13 +233,13 @@ if ($currentRecord) {
         'id' => $currentRecord->id,
         'session_id' => $raw['session_id'] ?? 0,
         'guarantee_number' => $currentRecord->guaranteeNumber ?? 'N/A',
-        'supplier_name' => htmlspecialchars($raw['supplier'] ?? '', ENT_QUOTES),
-        'bank_name' => htmlspecialchars($raw['bank'] ?? '', ENT_QUOTES),
+        'supplier_name' => $raw['supplier'] ?? '',
+        'bank_name' => $raw['bank'] ?? '',
         'amount' => is_numeric($raw['amount'] ?? 0) ? floatval($raw['amount'] ?? 0) : 0,
         'expiry_date' => $raw['expiry_date'] ?? '',
         'issue_date' => $raw['issue_date'] ?? '',
-        'contract_number' => htmlspecialchars($raw['contract_number'] ?? '', ENT_QUOTES),
-        'type' => htmlspecialchars($raw['type'] ?? 'ابتدائي', ENT_QUOTES),
+        'contract_number' => $raw['contract_number'] ?? '',
+        'type' => $raw['type'] ?? 'ابتدائي',
         'status' => 'pending',
         
         // Excel Raw Data (for hints display)

@@ -1,0 +1,587 @@
+{
+    "alkamal import office co ltd": {
+        "raw_input": "AL-KAMAL IMPORT OFFICE CO. LTD.",
+        "normalized_input": "alkamal import office co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "treatment ocean medical co": {
+        "raw_input": "TREATMENT OCEAN MEDICAL CO.",
+        "normalized_input": "treatment ocean medical co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه الوطنيه للمنتجات الطبيه": {
+        "raw_input": "الشركة الوطنية للمنتجات الطبية",
+        "normalized_input": "الشركه الوطنيه للمنتجات الطبيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه زمو التجاريه المحدوده": {
+        "raw_input": "شركة زمو التجارية المحدودة",
+        "normalized_input": "شركه زمو التجاريه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه فاروق ومامون تمر وشركاهما": {
+        "raw_input": "شركة فاروق ومأمون تمر وشركاهما ",
+        "normalized_input": "شركه فاروق ومامون تمر وشركاهما",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه عبدالرحمن القصيبي للتجاره العامه": {
+        "raw_input": "شركة  عبدالرحمن القصيبي للتجارة العامة",
+        "normalized_input": "شركه عبدالرحمن القصيبي للتجاره العامه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "saudi int'l trading co ltd sitco": {
+        "raw_input": "SAUDI INT'L. TRADING CO. LTD (SITCO).",
+        "normalized_input": "saudi int'l trading co ltd sitco",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "naghi brothers": {
+        "raw_input": "NAGHI  BROTHERS",
+        "normalized_input": "naghi brothers",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الصالحيه التجاريه": {
+        "raw_input": "شركة الصالحية التجارية",
+        "normalized_input": "شركه الصالحيه التجاريه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "zimmo trading company ltd": {
+        "raw_input": "ZIMMO TRADING COMPANY LTD.",
+        "normalized_input": "zimmo trading company ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه البيت العربي للتجاره": {
+        "raw_input": "شركة البيت العربي للتجارة",
+        "normalized_input": "شركه البيت العربي للتجاره",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه العربيه لتصنيع المنتجات الطبيه عنايه": {
+        "raw_input": "الشركة العربية لتصنيع المنتجات الطبية عناية",
+        "normalized_input": "الشركه العربيه لتصنيع المنتجات الطبيه عنايه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه ميدترونيك العربيه السعوديه": {
+        "raw_input": "شركة ميدترونيك العربية السعودية",
+        "normalized_input": "شركه ميدترونيك العربيه السعوديه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه العربيه للوازم الطبيه": {
+        "raw_input": "الشركة العربية للوازم الطبية",
+        "normalized_input": "الشركه العربيه للوازم الطبيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "farouk maamoun tamer & co": {
+        "raw_input": "FAROUK, MAAMOUN TAMER & CO.",
+        "normalized_input": "farouk maamoun tamer & co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "medical supplies & services co ltd mediserv": {
+        "raw_input": "MEDICAL SUPPLIES & SERVICES CO. LTD (MEDISERV)",
+        "normalized_input": "medical supplies & services co ltd mediserv",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الجيل الطبيه والتجاريه": {
+        "raw_input": "شركة الجيل الطبية والتجارية",
+        "normalized_input": "شركه الجيل الطبيه والتجاريه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه جنات العرب": {
+        "raw_input": "شركة جنات العرب",
+        "normalized_input": "شركه جنات العرب",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه اجال السعوديه للخدمات الصحيه": {
+        "raw_input": "شركة أجال السعودية للخدمات الصحية",
+        "normalized_input": "شركه اجال السعوديه للخدمات الصحيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه التوريدات والخدمات الطبيه المحدوده": {
+        "raw_input": "شركة التوريدات والخدمات الطبية المحدودة",
+        "normalized_input": "شركه التوريدات والخدمات الطبيه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه مكتب الكمال للاستيراد المحدوده": {
+        "raw_input": "شركة مكتب الكمال للاستيراد المحدودة",
+        "normalized_input": "شركه مكتب الكمال للاستيراد المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه مصنع جمجوم للصناعات الطبيه المحدوده": {
+        "raw_input": "شركة مصنع جمجوم للصناعات الطبية المحدودة",
+        "normalized_input": "شركه مصنع جمجوم للصناعات الطبيه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الجراحه المتقدمه للمستلزمات الطبيه": {
+        "raw_input": "شركة الجراحة المتقدمة للمستلزمات الطبية",
+        "normalized_input": "شركه الجراحه المتقدمه للمستلزمات الطبيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه عبدالله فواد للوازم والخدمات الطبيه": {
+        "raw_input": "شركة عبدالله فؤاد للوازم والخدمات الطبية",
+        "normalized_input": "شركه عبدالله فواد للوازم والخدمات الطبيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "موسسات سقاله التجاريه": {
+        "raw_input": "مؤسسات سقالة التجارية ",
+        "normalized_input": "موسسات سقاله التجاريه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه عصر التقنيه الطبيه": {
+        "raw_input": "شركة عصر التقنية الطبية",
+        "normalized_input": "شركه عصر التقنيه الطبيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه ريم الوسط للتجاره": {
+        "raw_input": "شركة ريم الوسط للتجارة",
+        "normalized_input": "شركه ريم الوسط للتجاره",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "integrated gulf biosystems llc": {
+        "raw_input": "Integrated Gulf Biosystems LLC",
+        "normalized_input": "integrated gulf biosystems llc",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "موسسه نخبه الحلول الذكيه للمعدات": {
+        "raw_input": "مؤسسة نخبة الحلول الذكية للمعدات",
+        "normalized_input": "موسسه نخبه الحلول الذكيه للمعدات",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "schindler olayan elevator co ltd": {
+        "raw_input": "SCHINDLER OLAYAN ELEVATOR CO. LTD.",
+        "normalized_input": "schindler olayan elevator co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "al hada contracting co ltd": {
+        "raw_input": "AL HADA CONTRACTING CO. LTD",
+        "normalized_input": "al hada contracting co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "alfaisaliah medical systems co": {
+        "raw_input": "AL-FAISALIAH MEDICAL SYSTEMS CO.",
+        "normalized_input": "alfaisaliah medical systems co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "saudi naffco for fire fighting systems": {
+        "raw_input": "SAUDI NAFFCO FOR FIRE FIGHTING SYSTEMS.",
+        "normalized_input": "saudi naffco for fire fighting systems",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "dar al zahrawi co": {
+        "raw_input": "DAR Al Zahrawi Co.",
+        "normalized_input": "dar al zahrawi co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "alhada contracting co ltd": {
+        "raw_input": "ALHADA CONTRACTING CO. LTD",
+        "normalized_input": "alhada contracting co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "promedic saudi arabia": {
+        "raw_input": "PROMEDIC SAUDI ARABIA",
+        "normalized_input": "promedic saudi arabia",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "jamal jaroudi co for contracting": {
+        "raw_input": "JAMAL JAROUDI CO. FOR CONTRACTING.",
+        "normalized_input": "jamal jaroudi co for contracting",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "mohammed m al rumaih co for trading ltd": {
+        "raw_input": "MOHAMMED M. AL RUMAIH CO. FOR TRADING LTD",
+        "normalized_input": "mohammed m al rumaih co for trading ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "saudi international travel company": {
+        "raw_input": "SAUDI INTERNATIONAL TRAVEL COMPANY",
+        "normalized_input": "saudi international travel company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الحلول الصحيه المتقدمه المحدوده": {
+        "raw_input": "شركة الحلول الصحيه المتقدمه المحدوده",
+        "normalized_input": "شركه الحلول الصحيه المتقدمه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "assr medical technology company": {
+        "raw_input": "Assr Medical Technology Company",
+        "normalized_input": "assr medical technology company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "riyadh house est": {
+        "raw_input": "RIYADH HOUSE EST",
+        "normalized_input": "riyadh house est",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "jeel for trade company": {
+        "raw_input": "JEEL FOR TRADE COMPANY",
+        "normalized_input": "jeel for trade company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "naizak global engineering systems": {
+        "raw_input": "NAIZAK GLOBAL ENGINEERING SYSTEMS",
+        "normalized_input": "naizak global engineering systems",
+        "selections": [
+            {
+                "supplier_id": 55,
+                "count": 1
+            }
+        ],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "green dimension": {
+        "raw_input": "Green Dimension",
+        "normalized_input": "green dimension",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "riyadh capital": {
+        "raw_input": "Riyadh Capital",
+        "normalized_input": "riyadh capital",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "saudi business machines ltd co": {
+        "raw_input": "Saudi Business Machines Ltd. Co.",
+        "normalized_input": "saudi business machines ltd co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "zimmo trading co ltd": {
+        "raw_input": "ZIMMO TRADING CO. LTD.",
+        "normalized_input": "zimmo trading co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "lana medical company": {
+        "raw_input": "LANA MEDICAL COMPANY",
+        "normalized_input": "lana medical company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "ernst & young": {
+        "raw_input": "ERNST & YOUNG",
+        "normalized_input": "ernst & young",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه ابراهيم محمد العبود للتنميه": {
+        "raw_input": "شركة ابراهيم محمد العبود للتنمية",
+        "normalized_input": "شركه ابراهيم محمد العبود للتنميه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "samnan for operation and maintenance": {
+        "raw_input": "SAMNAN FOR OPERATION AND MAINTENANCE",
+        "normalized_input": "samnan for operation and maintenance",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "care & planning for hospital co ltd": {
+        "raw_input": "CARE & PLANNING FOR HOSPITAL CO. LTD",
+        "normalized_input": "care & planning for hospital co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "abdulrahman algosaibi for trading": {
+        "raw_input": "Abdulrahman algosaibi for trading",
+        "normalized_input": "abdulrahman algosaibi for trading",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "adwaa alrahma for safety": {
+        "raw_input": "ADWAA ALRAHMA FOR SAFETY",
+        "normalized_input": "adwaa alrahma for safety",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "gulf medical co ltd": {
+        "raw_input": "GULF MEDICAL CO., LTD.",
+        "normalized_input": "gulf medical co ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "health links": {
+        "raw_input": "Health Links",
+        "normalized_input": "health links",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "jeraisy of riyadh house": {
+        "raw_input": "JERAISY OF RIYADH HOUSE",
+        "normalized_input": "jeraisy of riyadh house",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الامين للتجهيزات الطبيه والعلميه": {
+        "raw_input": "شركة الأمين للتجهيزات الطبيه والعلميه",
+        "normalized_input": "شركه الامين للتجهيزات الطبيه والعلميه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "saudi company for elecrtonic computer": {
+        "raw_input": "SAUDI COMPANY FOR ELECRTONIC COMPUTER",
+        "normalized_input": "saudi company for elecrtonic computer",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه السعوديه للحاسبات الالكترونيه المحدوده": {
+        "raw_input": "الشركة السعوديه للحاسبات الالكترونية المحدوده",
+        "normalized_input": "الشركه السعوديه للحاسبات الالكترونيه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "axelerated solutions co": {
+        "raw_input": "Axelerated solutions Co.",
+        "normalized_input": "axelerated solutions co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "boston oncology arabia limited": {
+        "raw_input": " BOSTON ONCOLOGY ARABIA LIMITED",
+        "normalized_input": "boston oncology arabia limited",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه سقاله الرعايه الصحيه": {
+        "raw_input": "شركة سقالة الرعاية الصحية",
+        "normalized_input": "شركه سقاله الرعايه الصحيه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه المهند للاجهزهه الطبيه المخبريه": {
+        "raw_input": "شركة المهند للأجهزةة الطبية المخبرية",
+        "normalized_input": "شركه المهند للاجهزهه الطبيه المخبريه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه فاروق مامون تامر وشركايه": {
+        "raw_input": "شركة فاروق مامون تامر وشركائه",
+        "normalized_input": "شركه فاروق مامون تامر وشركايه",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه فاروق مامون تمر": {
+        "raw_input": "شركة فاروق مأمون تمر",
+        "normalized_input": "شركه فاروق مامون تمر",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الخليج الطبيه المحدوده": {
+        "raw_input": "شركة الخليج الطبيه المحدوده",
+        "normalized_input": "شركه الخليج الطبيه المحدوده",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "arabian health care supply co": {
+        "raw_input": "ARABIAN HEALTH CARE SUPPLY CO.",
+        "normalized_input": "arabian health care supply co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "aljeel medical & trading company limited": {
+        "raw_input": "AL-JEEL MEDICAL & TRADING COMPANY LIMITED",
+        "normalized_input": "aljeel medical & trading company limited",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "samir trading & marketing": {
+        "raw_input": "SAMIR TRADING & MARKETING",
+        "normalized_input": "samir trading & marketing",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه السعوديه المتطوره لخدمات الكلي": {
+        "raw_input": "الشركة السعودية المتطورة لخدمات الكلى ",
+        "normalized_input": "الشركه السعوديه المتطوره لخدمات الكلي",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "taaml company": {
+        "raw_input": "TAAML COMPANY",
+        "normalized_input": "taaml company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه عبدالرحمن القصيبي للتجاره": {
+        "raw_input": "شركة عبدالرحمن القصيبي للتجارة",
+        "normalized_input": "شركه عبدالرحمن القصيبي للتجاره",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "abdulla fouad for medical supplies and services company": {
+        "raw_input": "ABDULLA FOUAD FOR MEDICAL SUPPLIES AND SERVICES COMPANY",
+        "normalized_input": "abdulla fouad for medical supplies and services company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "alasgmary trading est": {
+        "raw_input": "ALASGMARY TRADING EST.",
+        "normalized_input": "alasgmary trading est",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه عبدالرحمن القصبي": {
+        "raw_input": "شركة عبدالرحمن القصبي",
+        "normalized_input": "شركه عبدالرحمن القصبي",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "الشركه السعوديه العالميه للتجاره المحدوده ستكو فارما": {
+        "raw_input": "الشركة السعودية العالمية للتجارة المحدودة ستكو فارما",
+        "normalized_input": "الشركه السعوديه العالميه للتجاره المحدوده ستكو فارما",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه كومل": {
+        "raw_input": "شركة كومل",
+        "normalized_input": "شركه كومل",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "cure development international ltd": {
+        "raw_input": "CURE DEVELOPMENT INTERNATIONAL LTD.",
+        "normalized_input": "cure development international ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه الحلول المتسارعه للاتصالات و تقنيه المعلومات": {
+        "raw_input": "شركة الحلول المتسارعة للاتصالات و تقنية المعلومات",
+        "normalized_input": "شركه الحلول المتسارعه للاتصالات و تقنيه المعلومات",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "diversey saudi arabia limited co": {
+        "raw_input": "DIVERSEY SAUDI ARABIA LIMITED CO,",
+        "normalized_input": "diversey saudi arabia limited co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "sama masa trading company": {
+        "raw_input": "SAMA MASA TRADING COMPANY.",
+        "normalized_input": "sama masa trading company",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه جيل الاداره الحديثه للتجاره": {
+        "raw_input": "شركة جيل الاداره الحديثه للتجاره",
+        "normalized_input": "شركه جيل الاداره الحديثه للتجاره",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "شركه المثلث التقني الكامل": {
+        "raw_input": "شركة المثلث التقني الكامل",
+        "normalized_input": "شركه المثلث التقني الكامل",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "branch office of mercer consulting limited": {
+        "raw_input": "Branch Office of Mercer Consulting Limited",
+        "normalized_input": "branch office of mercer consulting limited",
+        "selections": [
+            {
+                "supplier_id": 57,
+                "count": 1
+            }
+        ],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "ernst and young profissional services": {
+        "raw_input": "ERNST AND YOUNG PROFISSIONAL SERVICES",
+        "normalized_input": "ernst and young profissional services",
+        "selections": [
+            {
+                "supplier_id": 58,
+                "count": 1
+            }
+        ],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "abdulrehman algosaibi gtc": {
+        "raw_input": "ABDULREHMAN ALGOSAIBI G.T.C.",
+        "normalized_input": "abdulrehman algosaibi gtc",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "samir trading & marketing  cjsc": {
+        "raw_input": "SAMIR TRADING & MARKETING - CJSC.",
+        "normalized_input": "samir trading & marketing  cjsc",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "gulf gate technologies company limited": {
+        "raw_input": "GULF GATE TECHNOLOGIES COMPANY LIMITED",
+        "normalized_input": "gulf gate technologies company limited",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "accumed saudi company ltd": {
+        "raw_input": "ACCUMED SAUDI COMPANY LTD.",
+        "normalized_input": "accumed saudi company ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "abdullatif jameel co": {
+        "raw_input": "ABDULLATIF JAMEEL CO.",
+        "normalized_input": "abdullatif jameel co",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "reda trading & development comachinery and equipment ltd": {
+        "raw_input": "REDA TRADING & DEVELOPMENT CO.MACHINERY AND EQUIPMENT LTD.",
+        "normalized_input": "reda trading & development comachinery and equipment ltd",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "honeywell turki arabia limited": {
+        "raw_input": "HONEYWELL (TURKI ARABIA LIMITED)",
+        "normalized_input": "honeywell turki arabia limited",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    },
+    "arab builders": {
+        "raw_input": "ARAB BUILDERS",
+        "normalized_input": "arab builders",
+        "selections": [],
+        "timestamp": "2026-01-04 02:53:57"
+    }
+}

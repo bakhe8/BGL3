@@ -171,8 +171,11 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
             <?php endif; ?>
         </div>
         
-        <!-- Add Supplier Button (Hidden by default) -->
-        <div id="addSupplierContainer" style="display:none; margin-top: 8px;">
+        <!-- Add Supplier Button (Hidden by default OR when status is ready) -->
+        <?php 
+        $hideAddButton = $isHistorical || $isDecisionMade || ($record['status'] ?? 'pending') === 'ready';
+        ?>
+        <div id="addSupplierContainer" style="display:<?= $hideAddButton ? 'none' : 'none' ?>; margin-top: 8px;">
             <button class="btn btn-sm btn-outline-primary" 
                     data-action="createSupplier"
                     style="width: 100%; justify-content: center; gap: 8px; border-style: dashed;">

@@ -71,17 +71,18 @@ class ConfidenceCalculatorV2
         // 3. Calculate confirmation boost
         $confirmBoost = $this->calculateConfirmationBoost($confirmationCount);
 
-        // 4. Calculate rejection penalty
-        $rejectionPenalty = $this->calculateRejectionPenalty($rejectionCount);
-
-        // 5. Apply signal strength modifier (for fuzzy signals)
+        // 4. Apply signal strength modifier (for fuzzy signals)
         $strengthModifier = $this->calculateStrengthModifier($primarySignal);
 
-        // 6. Compute final confidence
-        $confidence = $baseScore + $confirmBoost - $rejectionPenalty + $strengthModifier;
+        // 5. Compute base confidence (before rejection penalty)
+        $baseConfidence = $baseScore + $confirmBoost + $strengthModifier;
+        $baseConfidence = max(0, min(100, $baseConfidence));
+
+        // 6. Apply rejection penalty (25% per rejection)
+        $finalConfidence = $this->calculateRejectionPenalty($rejectionCount, $baseConfidence);
 
         // 7. Clamp to valid range
-        return max(0, min(100, $confidence));
+        return max(0, min(100, $finalConfidence));
     }
 
     /**
@@ -175,13 +176,29 @@ class ConfidenceCalculatorV2
     }
 
     /**
-     * Calculate rejection penalty (Charter Part 2, Section 4.2)
+     * Calculate rejection penalty (User Requirement: 25% per rejection)
      * 
-     * Formula: -10 per rejection
+     * Formula: 25% penalty per rejection (multiplicative)
+     * - 1 rejection: 75% of original confidence
+     * - 2 rejections: 56.25% of original confidence  
+     * - 3 rejections: 42.2% of original confidence
+     * - 4+ rejections: 31.6% of original confidence (effectively hidden)
+     * 
+     * @param int $count Number of rejections
+     * @param int $baseConfidence Base confidence before penalty
+     * @return int Final confidence after penalty
      */
-    private function calculateRejectionPenalty(int $count): int
+    private function calculateRejectionPenalty(int $count, int $baseConfidence): int
     {
-        return $count * 10;
+        if ($count === 0) {
+            return $baseConfidence;
+        }
+        
+        // Apply 25% penalty per rejection (multiplicative)
+        // Formula: confidence × (0.75)^rejectionCount
+        $penaltyFactor = pow(0.75, $count);
+        
+        return (int) ($baseConfidence * $penaltyFactor);
     }
 
     /**
