@@ -204,29 +204,14 @@ if ($currentRecord) {
     );
     
     
-    // Load notes and attachments for this guarantee
-    $mockNotes = [];
-    $mockAttachments = [];
+    // Load notes and attachments using GuaranteeDataService
+    $relatedData = \App\Services\GuaranteeDataService::getRelatedData($db, $currentRecord->id);
+    $mockNotes = $relatedData['notes'];
+    $mockAttachments = $relatedData['attachments'];
     
-    if ($currentRecord) {
-        try {
-            // Load notes
-            $stmt = $db->prepare('SELECT * FROM guarantee_notes WHERE guarantee_id = ? ORDER BY created_at DESC');
-            $stmt->execute([$currentRecord->id]);
-            $mockNotes = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // ADR-007: Timeline is audit-only, not UI data source
-            // active_action (from guarantee_decisions) is the display pointer
-            $latestEventSubtype = null; // Removed Timeline read
-            
-            // Load attachments
-            $stmt = $db->prepare('SELECT * FROM guarantee_attachments WHERE guarantee_id = ? ORDER BY created_at DESC');
-            $stmt->execute([$currentRecord->id]);
-            $mockAttachments = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (\Exception $e) {
-            // If error, keep empty arrays
-        }
-    }
+    // ADR-007: Timeline is audit-only, not UI data source
+    // active_action (from guarantee_decisions) is the display pointer
+    $latestEventSubtype = null; // Removed Timeline read
 } else {
     // No data in database - use empty state with no confusing values
     $mockRecord = [
