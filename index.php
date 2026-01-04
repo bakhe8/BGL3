@@ -207,90 +207,15 @@ if ($currentRecord) {
     );
     $mockRecord['status_reasons'] = $statusReasons;
     
-    // Load timeline/history for this guarantee
-    $mockTimeline = [];
-    if ($currentRecord) {
-        // Icon mapping for events
-        $iconMap = [
-            'import' => '📥',
-            'decision' => '✅',
-            'extension' => '🔄',
-            'release' => '🔓',
-            'reduction' => '📉',
-            'manual_edit' => '✏️',
-            'approve' => '✔️',
-            'approved' => '✔️',
-            'auto_matched' => '🤖',
-            'modified' => '📝',
-            'status_change' => '🔄',
-            'update' => '📝'
-        ];
-        
-        try {
-            // 🆕 Load from guarantee_history table ONLY (unified timeline)
-            $stmt = $db->prepare('
-                SELECT * FROM guarantee_history 
-                WHERE guarantee_id = ? 
-                ORDER BY created_at DESC, id DESC
-            ');
-            $stmt->execute([$currentRecord->id]);
-            $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            foreach ($history as $event) {
-                $mockTimeline[] = [
-                    'id' => 'history_' . $event['id'],
-                    'event_id' => $event['id'],
-                    'event_type' => $event['event_type'] ?? 'unknown',
-                    'event_subtype' => $event['event_subtype'] ?? null,  // 🆕
-                    'type' => $event['event_type'] ?? 'unknown',
-                    'icon' => $iconMap[$event['event_type'] ?? 'unknown'] ?? '📋',
-                    'action' => $event['event_type'] ?? 'unknown',
-                    'date' => $event['created_at'],
-                    'created_at' => $event['created_at'],
-                    'event_details' => $event['event_details'] ?? null,
-                    'change_reason' => '',
-                    'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
-                    'user' => $event['created_by'] ?? 'النظام',
-                    'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
-                    'snapshot_data' => $event['snapshot_data'] ?? '{}',
-                    'letter_snapshot' => $event['letter_snapshot'] ?? null,  // ✨ ADR-007: After State for Actions
-                    'source_badge' => in_array($event['created_by'] ?? 'system', ['system', 'System', 'System AI', 'النظام', 'بواسطة النظام']) ? '🤖 نظام' : '👤 مستخدم'
-                ];
-            }
-        } catch (\Exception $e) {
-            // If error, keep empty array
-        }
-        
-        // Sort timeline by date (most recent first)
-        usort($mockTimeline, function($a, $b) {
-            return strtotime($b['created_at']) - strtotime($a['created_at']);
-        });
-        
-        // Sort all timeline events by date descending
-        usort($mockTimeline, function($a, $b) {
-            $dateA = $a['date'] ?? $a['created_at'] ?? '1970-01-01';
-            $dateB = $b['date'] ?? $b['created_at'] ?? '1970-01-01';
-            return strtotime($dateB) - strtotime($dateA);
-        });
-        
-        // Add import event if no events found
-        if (empty($mockTimeline)) {
-            $mockTimeline[] = [
-                'id' => 'import_1',
-                'type' => 'import',
-                'event_type' => 'import',
-                'icon' => '📥',
-                'action' => 'import',
-                'date' => $currentRecord->importedAt,
-                'created_at' => $currentRecord->importedAt,
-                'change_reason' => 'استيراد من ' . $currentRecord->importSource,
-                'description' => 'استيراد من ' . $currentRecord->importSource,
-                'user' => htmlspecialchars($currentRecord->importedBy ?? 'النظام', ENT_QUOTES),
-                'source_badge' => '🤖 نظام',
-                'changes' => []
-            ];
-        }
-    }
+    // Load timeline/history for this guarantee using TimelineDisplayService
+    $mockTimeline = \App\Services\TimelineDisplayService::getEventsForDisplay(
+        $db,
+        $currentRecord->id,
+        $currentRecord->importedAt,
+        $currentRecord->importSource,
+        $currentRecord->importedBy
+    );
+    
     
     // Load notes and attachments for this guarantee
     $mockNotes = [];
