@@ -28,6 +28,11 @@ try {
                 $result = $service->extendBatch($importSource, $newExpiry, $_POST['user_id'] ?? 'web_user');
                 break;
                 
+            case 'release':
+                $reason = $_POST['reason'] ?? null;
+                $result = $service->releaseBatch($importSource, $reason, $_POST['user_id'] ?? 'web_user');
+                break;
+                
             case 'close':
                 $result = $service->closeBatch($importSource, $_POST['closed_by'] ?? 'web_user');
                 break;

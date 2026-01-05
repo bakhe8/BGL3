@@ -101,16 +101,137 @@ class BatchService
             ];
         }
         
-        // All ready - extend using INDIVIDUAL logic
-        // TODO: Find and use existing GuaranteeService or similar
-        // For now, return success placeholder
-        $extended = array_column($guarantees, 'id');
+        // All ready - extend using INDIVIDUAL logic from extend.php
+        $extended = [];
+        $errors = [];
+        
+        $guaranteeRepo = new \App\Repositories\GuaranteeRepository($this->db);
+        $decisionRepo = new \App\Repositories\GuaranteeDecisionRepository($this->db);
+        
+        foreach ($guarantees as $g) {
+            try {
+                // Reuse extend.php logic (lines 53-77)
+                // 1. Snapshot
+                $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
+                
+                // 2. Update - Calculate new expiry (+1 year)
+                $guarantee = $guaranteeRepo->find($g['id']);
+                $raw = $guarantee->rawData;
+                $oldExpiry = $raw['expiry_date'] ?? '';
+                $newExpiry = $newExpiryDate; // Use the date passed from batch operation
+                
+                // Update raw_data
+                $raw['expiry_date'] = $newExpiry;
+                $guaranteeRepo->updateRawData($g['id'], json_encode($raw));
+                
+                // 3. Set Active Action
+                $decisionRepo->setActiveAction($g['id'], 'extension');
+                
+                // 4. Record in Timeline
+                \App\Services\TimelineRecorder::recordExtensionEvent(
+                    $g['id'],
+                    $oldSnapshot,
+                    $newExpiry
+                );
+                
+                $extended[] = $g['id'];
+                
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'guarantee_id' => $g['id'],
+                    'guarantee_number' => $g['guarantee_number'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
         
         return [
-            'success' => true,
+            'success' => count($errors) === 0,
             'extended_count' => count($extended),
             'extended_ids' => $extended,
-            'message' => 'TODO: Integrate with real extend logic'
+            'errors' => $errors
+        ];
+    }
+    
+    /**
+     * Release all guarantees in batch
+     * Decision #4: All-or-nothing policy, reuse release.php logic
+     */
+    public function releaseBatch(string $importSource, ?string $reason = null, string $userId = 'system'): array
+    {
+        // Check if closed
+        if ($this->isBatchClosed($importSource)) {
+            return [
+                'success' => false,
+                'error' => 'الدفعة مغلقة - لا يمكن الإفراج الجماعي'
+            ];
+        }
+        
+        // Get all guarantees
+        $guarantees = $this->getBatchGuarantees($importSource);
+        
+        if (empty($guarantees)) {
+            return [
+                'success' => false,
+                'error' => 'الدفعة فارغة'
+            ];
+        }
+        
+        // Check ALL ready (all-or-nothing policy)
+        $notReady = [];
+        foreach ($guarantees as $g) {
+            if ($g['status'] !== 'approved' || !$g['supplier_id'] || !$g['bank_id']) {
+                $notReady[] = $g['guarantee_number'];
+            }
+        }
+        
+        if (!empty($notReady)) {
+            return [
+                'success' => false,
+                'error' => 'لا يمكن الإفراج الجماعي',
+                'reason' => 'بعض الضمانات غير جاهزة',
+                'not_ready_count' => count($notReady),
+                'not_ready_list' => $notReady
+            ];
+        }
+        
+        // All ready - release using INDIVIDUAL logic from release.php
+        $released = [];
+        $errors = [];
+        
+        $decisionRepo = new \App\Repositories\GuaranteeDecisionRepository($this->db);
+        
+        foreach ($guarantees as $g) {
+            try {
+                // Reuse release.php logic (lines 53-74)
+                // 1. Snapshot
+                $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
+                
+                // 2. Lock the guarantee
+                $decisionRepo->lock($g['id'], 'released');
+                
+                // 3. Set Active Action
+                $decisionRepo->setActiveAction($g['id'], 'release');
+                
+                // 4. Record in Timeline
+                \App\Services\TimelineRecorder::recordReleaseEvent($g['id'], $oldSnapshot, $reason);
+                
+                $released[] = $g['id'];
+                
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'guarantee_id' => $g['id'],
+                    'guarantee_number' => $g['guarantee_number'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+        
+        return [
+            'success' => count($errors) === 0,
+            'released_count' => count($released),
+            'released_ids' => $released,
+            'errors' => $errors
         ];
     }
     
