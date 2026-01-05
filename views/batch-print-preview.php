@@ -35,14 +35,16 @@ foreach ($guarantees as $g) {
     $g['parsed'] = $parsed;
     
     // Check if ready for printing
-    if ($g['status'] === 'approved' && $g['supplier_id'] && $g['bank_id']) {
+    if ($g['status'] === 'ready' && $g['supplier_id'] && $g['bank_id']) {
         $ready[] = $g;
     } else {
-        $reason = 'غير معتمد';
+        $reason = 'غير جاهز';
         if (!$g['supplier_id']) {
             $reason = 'لم يُختر المورد';
         } elseif (!$g['bank_id']) {
             $reason = 'لم يُختر البنك';
+        } elseif ($g['status'] !== 'ready') {
+            $reason = 'الحالة: ' . ($g['status'] ?? 'pending');
         }
         
         $notReady[] = [

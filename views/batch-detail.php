@@ -21,9 +21,17 @@ $metadata = $metadataStmt->fetch(PDO::FETCH_ASSOC);
 
 // Get all guarantees in batch
 $guaranteesStmt = $db->prepare("
-    SELECT g.*, d.status as decision_status, d.supplier_id, d.bank_id
+    SELECT 
+        g.*,
+        d.status as decision_status,
+        d.supplier_id,
+        d.bank_id,
+        s.official_name as supplier_name,
+        b.arabic_name as bank_name
     FROM guarantees g
     LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+    LEFT JOIN suppliers s ON s.id = d.supplier_id
+    LEFT JOIN banks b ON b.id = d.bank_id
     WHERE g.import_source = ?
     ORDER BY g.id
 ");
@@ -39,6 +47,13 @@ $batchNotes = $metadata['batch_notes'] ?? '';
 // Parse guarantee data
 foreach ($guarantees as &$g) {
     $g['parsed'] = json_decode($g['raw_data'], true);
+    // Use matched names if available, fallback to Excel names
+    if (!$g['supplier_name']) {
+        $g['supplier_name'] = $g['parsed']['supplier'] ?? '-';
+    }
+    if (!$g['bank_name']) {
+        $g['bank_name'] = $g['parsed']['bank'] ?? '-';
+    }
 }
 ?>
 <!DOCTYPE html>
@@ -147,8 +162,8 @@ foreach ($guarantees as &$g) {
                             </td>
                             <?php endif; ?>
                             <td class="border p-2 font-semibold"><?= htmlspecialchars($g['guarantee_number']) ?></td>
-                            <td class="border p-2"><?= htmlspecialchars($g['parsed']['supplier'] ?? '-') ?></td>
-                            <td class="border p-2"><?= htmlspecialchars($g['parsed']['bank'] ?? '-') ?></td>
+                            <td class="border p-2"><?= htmlspecialchars($g['supplier_name'] ?? '-') ?></td>
+                            <td class="border p-2"><?= htmlspecialchars($g['bank_name'] ?? '-') ?></td>
                             <td class="border p-2"><?= htmlspecialchars($g['parsed']['value'] ?? '-') ?></td>
                             <td class="border p-2">
                                 <?php if ($g['decision_status'] === 'ready'): ?>
@@ -271,11 +286,71 @@ foreach ($guarantees as &$g) {
     }
     
     function extendSelected() {
-        alert('TODO: Integrate with existing extend logic');
+        const selected = Array.from(document.querySelectorAll('.guarantee-checkbox:checked')).map(cb => cb.value);
+        if (selected.length === 0) {
+            alert('الرجاء اختيار ضمان واحد على الأقل');
+            return;
+        }
+        
+        const newDate = prompt('تاريخ الانتهاء الجديد (YYYY-MM-DD):');
+        if (!newDate) return;
+        
+        if (!confirm(`هل تريد تمديد ${selected.length} ضمان إلى ${newDate}؟`)) return;
+        
+        fetch('/api/batches.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'extend',
+                import_source: importSource,
+                guarantee_ids: selected,
+                new_expiry: newDate
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(`تم تمديد ${data.extended} ضمان بنجاح`);
+                location.reload();
+            } else {
+                alert('خطأ: ' + data.error);
+            }
+        })
+        .catch(err => alert('خطأ في الاتصال: ' + err));
     }
     
     function releaseSelected() {
-        alert('TODO: Integrate with existing release logic');
+        const selected = Array.from(document.querySelectorAll('.guarantee-checkbox:checked')).map(cb => cb.value);
+        if (selected.length === 0) {
+            alert('الرجاء اختيار ضمان واحد على الأقل');
+            return;
+        }
+        
+        const reason = prompt(' سبب الإفراج:');
+        if (!reason) return;
+        
+        if (!confirm(`هل تريد إفراج ${selected.length} ضمان؟\n\nالسبب: ${reason}`)) return;
+        
+        fetch('/api/batches.php', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                action: 'release',
+                import_source: importSource,
+                guarantee_ids: selected,
+                reason: reason
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                alert(`تم إفراج ${data.released} ضمان بنجاح`);
+                location.reload();
+            } else {
+                alert('خطأ: ' + data.error);
+            }
+        })
+        .catch(err => alert('خطأ في الاتصال: ' + err));
     }
     </script>
 </body>
