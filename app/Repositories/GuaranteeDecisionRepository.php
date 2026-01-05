@@ -268,7 +268,7 @@ class GuaranteeDecisionRepository
             lockedReason: $row['locked_reason'],
             supplierId: $row['supplier_id'],
             bankId: $row['bank_id'],
-            decisionSource: $row['decision_source'],
+            decisionSource: $row['decision_source'] ?? 'manual',
             confidenceScore: $row['confidence_score'] ? (float)$row['confidence_score'] : null,
             decidedAt: $row['decided_at'],
             decidedBy: $row['decided_by'],
