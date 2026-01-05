@@ -559,6 +559,7 @@ class TimelineRecorder {
                 'supplier_change' => 'تطابق يدوي',  // Supplier only
                 'bank_change' => 'تطابق تلقائي',     // ✅ Bank is always auto now
                 'bank_match' => 'تطابق تلقائي',      // ✅ Bank auto-match event  
+                'auto_match' => 'تطابق تلقائي',      // ✅ NEW: Retroactive auto-match
                 'manual_edit' => 'تطابق يدوي',       // Mixed or supplier-only events
                 'ai_match' => 'تطابق تلقائي',
                 'status_change' => 'تغيير حالة',
