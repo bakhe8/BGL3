@@ -56,7 +56,7 @@ try {
     try {
         // Import using service
         $service = new ImportService();
-        $result = $service->importFromExcel($tempPath, $_POST['imported_by'] ?? 'web_user');
+        $result = $service->importFromExcel($tempPath, $_POST['imported_by'] ?? 'web_user', $filename);
 
 
 

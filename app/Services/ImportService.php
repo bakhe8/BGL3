@@ -26,13 +26,30 @@ class ImportService
     }
 
     /**
+     * Sanitize filename for import_source
+     * Decision #1: Add filename to prevent collision
+     */
+    private function sanitizeFilename(string $filename): string
+    {
+        // Remove extension
+        $name = pathinfo($filename, PATHINFO_FILENAME);
+        
+        // Keep only alphanumeric and underscore
+        $clean = preg_replace('/[^a-zA-Z0-9_]/', '', $name);
+        
+        // Truncate to 30 chars
+        return substr($clean, 0, 30);
+    }
+
+    /**
      * Import from Excel file
      * 
      * @param string $filePath Path to uploaded Excel file
      * @param string $importedBy User who imported (default: 'system')
+     * @param string $originalFilename Original filename for import_source
      * @return array Result with count, errors, skipped
      */
-    public function importFromExcel(string $filePath, string $importedBy = 'system'): array
+    public function importFromExcel(string $filePath, string $importedBy = 'system', string $originalFilename = ''): array
     {
         if (!file_exists($filePath)) {
             throw new RuntimeException('الملف غير موجود');
@@ -75,6 +92,7 @@ class ImportService
         $dataRows = array_slice($rows, $headerRowIndex + 1);
         
         $imported = 0;
+        $duplicates = 0;  // Decision #6: Track duplicate imports
         $skipped = [];
         $errors = [];
         $importedIds = []; // Track IDs for timeline events
@@ -128,20 +146,44 @@ class ImportService
                 ];
 
                 // Create Guarantee
+                // Decision #1: Add sanitized filename to import_source
+                $filenamePart = $originalFilename ? '_' . $this->sanitizeFilename($originalFilename) : '';
+                
                 $guarantee = new Guarantee(
                     id: null,
                     guaranteeNumber: $guaranteeNumber,
                     rawData: $rawData,
-                    importSource: 'excel_' . date('Ymd_His'),
+                    importSource: 'excel_' . date('Ymd_His') . $filenamePart,
                     importedAt: date('Y-m-d H:i:s'),
                     importedBy: $importedBy
                 );
 
-                $created = $this->guaranteeRepo->create($guarantee);
-                $importedIds[] = $created->id; // Track ID
-                // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
-                $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
-                $imported++;
+                try {
+                    $created = $this->guaranteeRepo->create($guarantee);
+                    $importedIds[] = $created->id; // Track ID
+                    // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
+                    $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
+                    $imported++;
+                    
+                } catch (\PDOException $e) {
+                    // Decision #6: Handle duplicate guarantees
+                    if (strpos($e->getMessage(), 'UNIQUE constraint') !== false) {
+                        // Find existing guarantee
+                        $existing = $this->guaranteeRepo->findByNumber($guaranteeNumber);
+                        
+                        if ($existing) {
+                            // Record duplicate import event in timeline
+                            \App\Services\TimelineRecorder::recordDuplicateImportEvent($existing->id, 'excel');
+                            $duplicates++;
+                            $skipped[] = "الصف #{$rowNumber}: ضمان مكرر (موجود بالفعل برقم {$guaranteeNumber})";
+                        }
+                    } else {
+                        // Other database error
+                        throw $e;
+                    }
+                } catch (\Throwable $e) {
+                    $errors[] = "الصف #{$rowNumber}: " . $e->getMessage();
+                }
 
             } catch (\Throwable $e) {
                 $errors[] = "الصف #{$rowNumber}: " . $e->getMessage();
@@ -150,6 +192,7 @@ class ImportService
 
         return [
             'imported' => $imported,
+            'duplicates' => $duplicates,  // Decision #6: Report duplicate count
             'imported_ids' => $importedIds, // Keep for backward compat
             'imported_records' => $importedIdsWithData ?? [], // New full tracking
 
@@ -202,11 +245,12 @@ class ImportService
             'related_to' => $data['related_to'] ?? 'contract', // 🔥 NEW
         ];
 
+        // Decision #11: Daily batch for manual entry (not per-entry)
         $guarantee = new Guarantee(
             id: null,
             guaranteeNumber: $data['guarantee_number'],
             rawData: $rawData,
-            importSource: 'manual_entry',
+            importSource: 'manual_' . date('Ymd'),  // Daily batch
             importedAt: date('Y-m-d H:i:s'),
             importedBy: $createdBy
         );
