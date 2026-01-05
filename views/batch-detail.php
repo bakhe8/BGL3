@@ -164,7 +164,7 @@ foreach ($guarantees as &$g) {
                             <td class="border p-2 font-semibold"><?= htmlspecialchars($g['guarantee_number']) ?></td>
                             <td class="border p-2"><?= htmlspecialchars($g['supplier_name'] ?? '-') ?></td>
                             <td class="border p-2"><?= htmlspecialchars($g['bank_name'] ?? '-') ?></td>
-                            <td class="border p-2"><?= htmlspecialchars($g['parsed']['value'] ?? '-') ?></td>
+                            <td class="border p-2 text-left" dir="ltr"><?= $g['parsed']['amount'] ? number_format($g['parsed']['amount']) : '-' ?></td>
                             <td class="border p-2">
                                 <?php if ($g['decision_status'] === 'ready'): ?>
                                 <span class="text-green-700 font-semibold">✓ معتمد</span>
