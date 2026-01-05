@@ -589,10 +589,6 @@ class TimelineRecorder {
         if ($type === 'approved') return 'اعتماد';
 
         if ($type === 'modified') {
-            // Check event_subtype first for specific modified events
-            $subtype = $event['event_subtype'] ?? '';
-            if ($subtype === 'auto_match') return 'تطابق تلقائي';
-            
             if ($hasField('expiry_date') || $hasTrigger('extension_action')) return 'تمديد';
             if ($hasField('amount') || $hasTrigger('reduction_action')) return 'تخفيض';
            // Decision event: Based on what changed
