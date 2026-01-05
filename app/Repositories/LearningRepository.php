@@ -69,7 +69,7 @@ class LearningRepository
     {
         // Normalize supplier name for consistent querying
         // UPDATED: Learning Merge 2026-01-04
-        $normalized = \App\Utils\ArabicNormalizer::normalize($data['raw_supplier_name']);
+        $normalized = \App\Support\ArabicNormalizer::normalize($data['raw_supplier_name']);
         
         $stmt = $this->db->prepare("
             INSERT INTO learning_confirmations (

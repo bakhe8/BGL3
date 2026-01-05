@@ -241,26 +241,134 @@ $currentSettings = $settings->all();
                     </div>
                 </div>
 
-                <!-- Score Weights -->
+                <!-- Base Scores -->
                 <div class="card">
-                    <h2 class="card-title">أوزان النقاط</h2>
+                    <h2 class="card-title">🎯 Base Scores (نقاط الأساس حسب نوع الإشارة)</h2>
+                    <p class="form-help" style="margin-bottom: 15px;">هذه هي النقاط الأساسية المستخدمة فعلياً في نظام المطابقة. كل نوع إشارة له نقاط أساسية مختلفة حسب قوته.</p>
                     <div class="grid-2">
                         <div class="form-group">
-                            <label class="form-label">وزن الاسم الرسمي</label>
-                            <input type="number" class="form-input" name="WEIGHT_OFFICIAL" value="<?= $currentSettings['WEIGHT_OFFICIAL'] ?>" min="0.01" step="0.01" required>
+                            <label class="form-label">مطابقة تامة (Alias Exact)</label>
+                            <span class="form-help">مطابقة تامة مع اسم بديل محفوظ</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_ALIAS_EXACT" value="<?= $currentSettings['BASE_SCORE_ALIAS_EXACT'] ?? 100 ?>" min="0" max="100" step="1" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">وزن الاسم البديل المؤكد</label>
-                            <input type="number" class="form-input" name="WEIGHT_ALT_CONFIRMED" value="<?= $currentSettings['WEIGHT_ALT_CONFIRMED'] ?>" min="0.01" step="0.01" required>
+                            <label class="form-label">مرساة فريدة (Entity Anchor Unique)</label>
+                            <span class="form-help">مطابقة عبر كلمة فريدة مميزة</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_ENTITY_ANCHOR_UNIQUE" value="<?= $currentSettings['BASE_SCORE_ENTITY_ANCHOR_UNIQUE'] ?? 90 ?>" min="0" max="100" step="1" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">وزن الاسم البديل المتعلم</label>
-                            <input type="number" class="form-input" name="WEIGHT_ALT_LEARNING" value="<?= $currentSettings['WEIGHT_ALT_LEARNING'] ?>" min="0.01" step="0.01" required>
+                            <label class="form-label">مرساة عامة (Entity Anchor Generic)</label>
+                            <span class="form-help">مطابقة عبر كلمة عامة</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_ENTITY_ANCHOR_GENERIC" value="<?= $currentSettings['BASE_SCORE_ENTITY_ANCHOR_GENERIC'] ?? 75 ?>" min="0" max="100" step="1" required>
                         </div>
                         <div class="form-group">
-                            <label class="form-label">عقوبة المطابقة الضبابية</label>
-                            <input type="number" class="form-input" name="WEIGHT_FUZZY" value="<?= $currentSettings['WEIGHT_FUZZY'] ?>" min="0.01" step="0.01" required>
+                            <label class="form-label">مطابقة ضبابية قوية (Fuzzy Strong)</label>
+                            <span class="form-help">تشابه >= 95%</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_FUZZY_OFFICIAL_STRONG" value="<?= $currentSettings['BASE_SCORE_FUZZY_OFFICIAL_STRONG'] ?? 85 ?>" min="0" max="100" step="1" required>
                         </div>
+                        <div class="form-group">
+                            <label class="form-label">مطابقة ضبابية متوسطة (Fuzzy Medium)</label>
+                            <span class="form-help">تشابه 85-94%</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_FUZZY_OFFICIAL_MEDIUM" value="<?= $currentSettings['BASE_SCORE_FUZZY_OFFICIAL_MEDIUM'] ?? 70 ?>" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">مطابقة ضبابية ضعيفة (Fuzzy Weak)</label>
+                            <span class="form-help">تشابه 75-84%</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_FUZZY_OFFICIAL_WEAK" value="<?= $currentSettings['BASE_SCORE_FUZZY_OFFICIAL_WEAK'] ?? 55 ?>" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">نمط تاريخي متكرر (Historical Frequent)</label>
+                            <span class="form-help">استخدم بشكل متكرر في الماضي</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_HISTORICAL_FREQUENT" value="<?= $currentSettings['BASE_SCORE_HISTORICAL_FREQUENT'] ?? 60 ?>" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">نمط تاريخي نادر (Historical Occasional)</label>
+                            <span class="form-help">استخدم بشكل نادر في الماضي</span>
+                            <input type="number" class="form-input" name="BASE_SCORE_HISTORICAL_OCCASIONAL" value="<?= $currentSettings['BASE_SCORE_HISTORICAL_OCCASIONAL'] ?? 45 ?>" min="0" max="100" step="1" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Learning & Penalty Settings -->
+                <div class="card">
+                    <h2 class="card-title">📚 إعدادات التعلم والعقوبات</h2>
+                    <div class="grid-2">
+                        <div class="form-group">
+                            <label class="form-label">نسبة العقوبة لكل رفض (%)</label>
+                            <span class="form-help">النسبة المئوية التي تُخصم من الثقة عند كل رفض (افتراضي: 25%)</span>
+                            <input type="number" class="form-input" name="REJECTION_PENALTY_PERCENTAGE" value="<?= $currentSettings['REJECTION_PENALTY_PERCENTAGE'] ?? 25 ?>" min="0" max="100" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">تعزيز التأكيد: مستوى 1</label>
+                            <span class="form-help">نقاط إضافية عند 1-2 تأكيد (افتراضي: +5)</span>
+                            <input type="number" class="form-input" name="CONFIRMATION_BOOST_TIER1" value="<?= $currentSettings['CONFIRMATION_BOOST_TIER1'] ?? 5 ?>" min="0" max="50" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">تعزيز التأكيد: مستوى 2</label>
+                            <span class="form-help">نقاط إضافية عند 3-5 تأكيدات (افتراضي: +10)</span>
+                            <input type="number" class="form-input" name="CONFIRMATION_BOOST_TIER2" value="<?= $currentSettings['CONFIRMATION_BOOST_TIER2'] ?? 10 ?>" min="0" max="50" step="1" required>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">تعزيز التأكيد: مستوى 3</label>
+                            <span class="form-help">نقاط إضافية عند 6+ تأكيدات (افتراضي: +15)</span>
+                            <input type="number" class="form-input" name="CONFIRMATION_BOOST_TIER3" value="<?= $currentSettings['CONFIRMATION_BOOST_TIER3'] ?? 15 ?>" min="0" max="50" step="1" required>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- System Settings (Timezone) -->
+                <div class="card">
+                    <h2 class="card-title">⚙️ إعدادات النظام</h2>
+                    <div class="form-group">
+                        <label class="form-label">
+                            المنطقة الزمنية (Timezone)
+                        </label>
+                        <select class="form-input" name="TIMEZONE" required>
+                            <option value="Asia/Riyadh" <?= ($currentSettings['TIMEZONE'] ?? 'Asia/Riyadh') === 'Asia/Riyadh' ? 'selected' : '' ?>>
+                                🇸🇦 الرياض (Asia/Riyadh) - UTC+3
+                            </option>
+                            <option value="Asia/Dubai" <?= ($currentSettings['TIMEZONE'] ?? '') === 'Asia/Dubai' ? 'selected' : '' ?>>
+                                🇦🇪 دبي (Asia/Dubai) - UTC+4
+                            </option>
+                            <option value="Asia/Kuwait" <?= ($currentSettings['TIMEZONE'] ?? '') === 'Asia/Kuwait' ? 'selected' : '' ?>>
+                                🇰🇼 الكويت (Asia/Kuwait) - UTC+3
+                            </option>
+                            <option value="Asia/Qatar" <?= ($currentSettings['TIMEZONE'] ?? '') === 'Asia/Qatar' ? 'selected' : '' ?>>
+                                🇶🇦 الدوحة (Asia/Qatar) - UTC+3
+                            </option>
+                            <option value="Asia/Bahrain" <?= ($currentSettings['TIMEZONE'] ?? '') === 'Asia/Bahrain' ? 'selected' : '' ?>>
+                                🇧🇭 البحرين (Asia/Bahrain) - UTC+3
+                            </option>
+                            <option value="Africa/Cairo" <?= ($currentSettings['TIMEZONE'] ?? '') === 'Africa/Cairo' ? 'selected' : '' ?>>
+                                🇪🇬 القاهرة (Africa/Cairo) - UTC+2
+                            </option>
+                            <option value="UTC" <?= ($currentSettings['TIMEZONE'] ?? '') === 'UTC' ? 'selected' : '' ?>>
+                                🌍 UTC - التوقيت العالمي
+                            </option>
+                        </select>
+                        <small class="form-help">
+                            <?php
+                            use App\Support\DateTime as DT;
+                            try {
+                                echo 'التوقيت الحالي: ' . date('Y-m-d H:i:s') . ' (' . date_default_timezone_get() . ')';
+                            } catch (Exception $e) {
+                                echo 'التوقيت الحالي: ' . date('Y-m-d H:i:s');
+                            }
+                            ?>
+                        </small>
+                    </div>
+
+                    <!-- Production Mode Toggle -->
+                    <div class="form-group" style="margin-top: 20px;">
+                        <label class="form-label" style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" name="PRODUCTION_MODE" value="1" 
+                                   <?= !empty($currentSettings['PRODUCTION_MODE']) ? 'checked' : '' ?>
+                                   style="width: 20px; height: 20px; cursor: pointer;">
+                            <span>🚀 Production Mode (وضع الإنتاج)</span>
+                        </label>
+                        <small class="form-help" style="color: #666; margin-top: 5px;">
+                            ⚠️ عند التفعيل: جميع رسائل Debug ستكون صامتة (مُوصى به للإنتاج فقط)
+                        </small>
                     </div>
                 </div>
 

@@ -26,21 +26,30 @@ class ConfidenceCalculatorV2
     public function __construct(?\App\Support\Settings $settings = null)
     {
         $this->settings = $settings ?? new \App\Support\Settings();
+        $this->loadBaseScores();
     }
 
     /**
-     * Base scores by signal type (Charter-defined)
+     * Load base scores from settings
      */
-    private const BASE_SCORES = [
-        'alias_exact' => 100,
-        'entity_anchor_unique' => 90,
-        'entity_anchor_generic' => 75,
-        'fuzzy_official_strong' => 85,
-        'fuzzy_official_medium' => 70,
-        'fuzzy_official_weak' => 55,
-        'historical_frequent' => 60,
-        'historical_occasional' => 45,
-    ];
+    private function loadBaseScores(): void
+    {
+        $this->baseScores = [
+            'alias_exact' => (int) $this->settings->get('BASE_SCORE_ALIAS_EXACT', 100),
+            'entity_anchor_unique' => (int) $this->settings->get('BASE_SCORE_ENTITY_ANCHOR_UNIQUE', 90),
+            'entity_anchor_generic' => (int) $this->settings->get('BASE_SCORE_ENTITY_ANCHOR_GENERIC', 75),
+            'fuzzy_official_strong' => (int) $this->settings->get('BASE_SCORE_FUZZY_OFFICIAL_STRONG', 85),
+            'fuzzy_official_medium' => (int) $this->settings->get('BASE_SCORE_FUZZY_OFFICIAL_MEDIUM', 70),
+            'fuzzy_official_weak' => (int) $this->settings->get('BASE_SCORE_FUZZY_OFFICIAL_WEAK', 55),
+            'historical_frequent' => (int) $this->settings->get('BASE_SCORE_HISTORICAL_FREQUENT', 60),
+            'historical_occasional' => (int) $this->settings->get('BASE_SCORE_HISTORICAL_OCCASIONAL', 45),
+        ];
+    }
+
+    /**
+     * Base scores by signal type (loaded from Settings)
+     */
+    private array $baseScores = [];
 
     /**
      * Minimum confidence threshold for display
@@ -136,7 +145,7 @@ class ConfidenceCalculatorV2
         $highestBaseScore = -1;
 
         foreach ($signals as $signal) {
-            $baseScore = self::BASE_SCORES[$signal->signal_type] ?? 0;
+            $baseScore = $this->baseScores[$signal->signal_type] ?? 0;
             if ($baseScore > $highestBaseScore) {
                 $highestBaseScore = $baseScore;
                 $primarySignal = $signal;
@@ -151,38 +160,35 @@ class ConfidenceCalculatorV2
      */
     private function getBaseScore(string $signalType, float $rawStrength): int
     {
-        return self::BASE_SCORES[$signalType] ?? 40; // Default for unknown types
+        return $this->baseScores[$signalType] ?? 40; // Default for unknown types
     }
 
     /**
-     * Calculate confirmation boost (Charter Part 2, Section 4.2)
+     * Calculate confirmation boost (configurable via Settings)
      * 
      * Formula:
-     * - 1-2 confirmations: +5
-     * - 3-5 confirmations: +10
-     * - 6+ confirmations: +15
+     * - 1-2 confirmations: +tier1 boost
+     * - 3-5 confirmations: +tier2 boost
+     * - 6+ confirmations: +tier3 boost
      */
     private function calculateConfirmationBoost(int $count): int
     {
         if ($count === 0) {
             return 0;
         } elseif ($count <= 2) {
-            return 5;
+            return (int) $this->settings->get('CONFIRMATION_BOOST_TIER1', 5);
         } elseif ($count <= 5) {
-            return 10;
+            return (int) $this->settings->get('CONFIRMATION_BOOST_TIER2', 10);
         } else {
-            return 15;
+            return (int) $this->settings->get('CONFIRMATION_BOOST_TIER3', 15);
         }
     }
 
     /**
-     * Calculate rejection penalty (User Requirement: 25% per rejection)
+     * Calculate rejection penalty (configurable via Settings)
      * 
-     * Formula: 25% penalty per rejection (multiplicative)
-     * - 1 rejection: 75% of original confidence
-     * - 2 rejections: 56.25% of original confidence  
-     * - 3 rejections: 42.2% of original confidence
-     * - 4+ rejections: 31.6% of original confidence (effectively hidden)
+     * Formula: X% penalty per rejection (multiplicative)
+     * Default: 25% penalty means 75% retention (0.75 multiplier)
      * 
      * @param int $count Number of rejections
      * @param int $baseConfidence Base confidence before penalty
@@ -194,9 +200,15 @@ class ConfidenceCalculatorV2
             return $baseConfidence;
         }
         
-        // Apply 25% penalty per rejection (multiplicative)
-        // Formula: confidence × (0.75)^rejectionCount
-        $penaltyFactor = pow(0.75, $count);
+        // Get penalty percentage from settings (default 25%)
+        $penaltyPercentage = (int) $this->settings->get('REJECTION_PENALTY_PERCENTAGE', 25);
+        
+        // Calculate retention factor: 100% - penalty% = retention%
+        // Example: 25% penalty = 75% retention = 0.75 multiplier
+        $retentionFactor = (100 - $penaltyPercentage) / 100;
+        
+        // Apply penalty multiplicatively: confidence × (retention)^rejectionCount
+        $penaltyFactor = pow($retentionFactor, $count);
         
         return (int) ($baseConfidence * $penaltyFactor);
     }

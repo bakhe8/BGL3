@@ -401,7 +401,7 @@ class ImportService
         // Try Excel serial number
         if (is_numeric($value)) {
             $unixDate = ($value - 25569) * 86400;
-            return gmdate('Y-m-d', (int) $unixDate);
+            return date('Y-m-d', (int) $unixDate); // Changed from gmdate to use Riyadh timezone
         }
 
         // Return as-is if unable to parse

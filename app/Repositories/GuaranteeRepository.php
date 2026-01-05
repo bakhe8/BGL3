@@ -57,7 +57,7 @@ class GuaranteeRepository
         // Extract and normalize supplier name for indexed column
         // UPDATED: Learning Merge 2026-01-04
         $supplierName = $guarantee->rawData['supplier'] ?? null;
-        $normalized = $supplierName ? \App\Utils\ArabicNormalizer::normalize($supplierName) : null;
+        $normalized = $supplierName ? \App\Support\ArabicNormalizer::normalize($supplierName) : null;
         
         $stmt = $this->db->prepare("
             INSERT INTO guarantees (

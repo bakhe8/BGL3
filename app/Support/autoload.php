@@ -1,20 +1,35 @@
 <?php
 declare(strict_types=1);
 
-date_default_timezone_set('Asia/Riyadh');
+// Set timezone from Settings (dynamic)
+date_default_timezone_set('Asia/Riyadh'); // Will be overridden below after Settings loads
 
-spl_autoload_register(function (string $class): void {
+spl_autoload_register(function ($class) {
     $prefix = 'App\\';
     $baseDir = __DIR__ . '/../';
-
-    if (str_starts_with($class, $prefix)) {
-        $relative = substr($class, strlen($prefix));
-        $path = $baseDir . str_replace('\\', '/', $relative) . '.php';
-        if (file_exists($path)) {
-            require $path;
-        }
+    
+    $len = strlen($prefix);
+    if (strncmp($prefix, $class, $len) !== 0) {
+        return;
+    }
+    
+    $relativeClass = substr($class, $len);
+    $file = $baseDir . str_replace('\\', '/', $relativeClass) . '.php';
+    
+    if (file_exists($file)) {
+        require $file;
     }
 });
+
+// After Settings class is loaded, update timezone dynamically
+if (class_exists('App\\Support\\Settings')) {
+    $settings = new App\Support\Settings();
+    $timezone = $settings->get('TIMEZONE', 'Asia/Riyadh');
+    date_default_timezone_set($timezone);
+}
+
+// Load debug helpers
+require_once __DIR__ . '/debug_helpers.php';
 
 // Composer autoload (PhpSpreadsheet)
 $composerAutoload = base_path('vendor/autoload.php');

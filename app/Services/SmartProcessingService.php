@@ -413,7 +413,7 @@ class SmartProcessingService
             // 2. Are there OTHER conflicting aliases?
             
             $learningRepo = new SupplierLearningRepository($this->db);
-            $normalized = \App\Utils\ArabicNormalizer::normalize($rawName);
+            $normalized = \App\Support\ArabicNormalizer::normalize($rawName);
             
             // Get the ACTUAL source of the current alias match
             $currentAliasStmt = $learningRepo->db->prepare("
@@ -458,7 +458,7 @@ class SmartProcessingService
         // This is the critical case: we have a good match, but need to check
         // if there are conflicting aliases that would have blocked trust
         $learningRepo = new SupplierLearningRepository($this->db);
-        $normalized = \App\Utils\ArabicNormalizer::normalize($rawName);
+        $normalized = \App\Support\ArabicNormalizer::normalize($rawName);
         $conflicts = $learningRepo->findConflictingAliases($supplierId, $normalized);
         
         if (!empty($conflicts)) {

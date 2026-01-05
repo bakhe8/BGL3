@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace App\Support;
 
-use App\Utils\ArabicNormalizer;
+use App\Support\ArabicNormalizer;
 
 /**
  * Normalizer - Unified normalization utility

@@ -210,6 +210,6 @@ class SupplierLearningRepository
      */
     private function normalize(string $text): string
     {
-        return \App\Utils\ArabicNormalizer::normalize($text);
+        return \App\Support\ArabicNormalizer::normalize($text);
     }
 }

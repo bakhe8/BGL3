@@ -44,11 +44,26 @@ class Settings
         // Conflict Detection
         'CONFLICT_DELTA' => Config::CONFLICT_DELTA,                  // 0.1 - Score difference for conflicts
 
-        // Score Weights (multipliers applied to raw scores)
-        'WEIGHT_OFFICIAL' => 1.0,        // Official name match
-        'WEIGHT_ALT_CONFIRMED' => 0.95,  // Confirmed alternative name
-        'WEIGHT_ALT_LEARNING' => 0.75,   // Learned alternative name
-        'WEIGHT_FUZZY' => 0.80,          // Fuzzy match penalty
+        // Base Scores (used by ConfidenceCalculatorV2)
+        // These are the ACTUAL scores used in the matching system
+        'BASE_SCORE_ALIAS_EXACT' => 100,              // Exact alias match
+        'BASE_SCORE_ENTITY_ANCHOR_UNIQUE' => 90,      // Unique entity anchor
+        'BASE_SCORE_ENTITY_ANCHOR_GENERIC' => 75,     // Generic entity anchor
+        'BASE_SCORE_FUZZY_OFFICIAL_STRONG' => 85,     // Strong fuzzy match (>= 0.95)
+        'BASE_SCORE_FUZZY_OFFICIAL_MEDIUM' => 70,     // Medium fuzzy match (0.85-0.94)
+        'BASE_SCORE_FUZZY_OFFICIAL_WEAK' => 55,       // Weak fuzzy match (0.75-0.84)
+        'BASE_SCORE_HISTORICAL_FREQUENT' => 60,       // Frequently used historical pattern
+        'BASE_SCORE_HISTORICAL_OCCASIONAL' => 45,     // Occasionally used historical pattern
+
+        // Learning & Penalty Settings
+        'REJECTION_PENALTY_PERCENTAGE' => 25,         // Penalty per rejection (25% = 0.75 multiplier)
+        'CONFIRMATION_BOOST_TIER1' => 5,              // Boost for 1-2 confirmations
+        'CONFIRMATION_BOOST_TIER2' => 10,             // Boost for 3-5 confirmations
+        'CONFIRMATION_BOOST_TIER3' => 15,             // Boost for 6+ confirmations
+
+        // System Settings
+        'TIMEZONE' => 'Asia/Riyadh',                  // System timezone (configurable from UI)
+        'PRODUCTION_MODE' => false,                   // Enable production mode (disables debug logging)
 
         // Limits
         'CANDIDATES_LIMIT' => 20,        // Max suggestions shown
