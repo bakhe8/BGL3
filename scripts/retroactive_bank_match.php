@@ -80,13 +80,13 @@ foreach ($guaranteeIds as $gid) {
         $stmt->execute([
             $gid,
             'modified',
-            'auto_match',
+            'bank_match',  // ✅ SAME as SmartProcessingService uses (line 368)
             $snapshotData,
             $eventDetails,
             $eventTime,
             'بواسطة النظام'
         ]);
-        echo "  ✓ Timeline event added (modified/auto_match)" . PHP_EOL;
+        echo "  ✓ Timeline event added (modified/bank_match)" . PHP_EOL;
     } catch (Exception $e) {
         echo "  ERROR: " . $e->getMessage() . PHP_EOL;
     }
