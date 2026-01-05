@@ -48,6 +48,11 @@ class FuzzySignalFeeder implements SignalFeederInterface
 
         foreach ($allSuppliers as $supplier) {
             $supplierNormalized = $supplier['normalized_name'];
+            
+            // Skip invalid suppliers
+            if (empty($supplier['id'])) {
+                continue;
+            }
 
             // Calculate similarity
             $similarity = $this->calculateSimilarity($normalizedInput, $supplierNormalized);
