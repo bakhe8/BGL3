@@ -299,9 +299,9 @@ $formattedSuppliers = array_map(function($s) {
             <span>نظام إدارة الضمانات</span>
         </div>
         <nav class="global-actions">
-
-            <a href="views/statistics.php" class="btn-global">&#x1F4CA; إحصائيات</a>
-            <a href="views/settings.php" class="btn-global">&#x2699; إعدادات</a>
+            <a href="views/batches.php" class="btn-global">📦 الدفعات</a>
+            <a href="views/statistics.php" class="btn-global">📊 إحصائيات</a>
+            <a href="views/settings.php" class="btn-global">⚙ إعدادات</a>
         </nav>
     </header>
 
