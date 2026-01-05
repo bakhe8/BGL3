@@ -77,10 +77,14 @@ if (!isset($record)) {
                     if (!empty($record['active_action'])) {
                         echo $record['active_action'] === 'extension' ? 'طلب تمديد' : 
                             ($record['active_action'] === 'reduction' ? 'طلب تخفيض' : 
-                            ($record['active_action'] === 'release' ? 'طلب الإفراج عن' : ''));
+                            ($record['active_action'] === 'release' ? 'الإفراج عن' : ''));
                     }
                     ?>
-                </span> الضمان البنكي رقم (<span data-preview-target="guarantee_number" lang="en"><?= htmlspecialchars($arabicGuaranteeNumber ?? '') ?></span>) والعائد للعقد رقم (<span data-preview-target="contract_number"><?= htmlspecialchars($arabicContractNumber ?? '') ?></span>).
+                </span> الضمان البنكي رقم (<span data-preview-target="guarantee_number" lang="en"><?= htmlspecialchars($arabicGuaranteeNumber ?? '') ?></span>) والعائد <?php 
+                    // Dynamic label based on related_to field
+                    $relatedTo = $guarantee->rawData['related_to'] ?? 'contract';
+                    echo $relatedTo === 'purchase_order' ? 'لأمر الشراء رقم' : 'للعقد رقم';
+                ?> (<span data-preview-target="contract_number"><?= htmlspecialchars($arabicContractNumber ?? '') ?></span>).
             </div>
         </div>
         
@@ -122,6 +126,15 @@ if (!isset($record)) {
         $formattedExpiryDate = formatArabicDate($record['expiry_date'] ?? '', $arabicMonths);
         ?>
         <div class="preview-content">
+        <?php if ($record['active_action'] === 'release'): ?>
+            <!-- محتوى خطاب الإفراج -->
+            <p class="letter-paragraph">
+                بهذا نعيد إليكم أصل الضمان البنكي المذكور أعلاه والصادر منكم لصالحنا على حساب 
+                <span data-preview-target="supplier_name"><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span>، 
+                وذلك لانتهاء الغرض منه.
+            </p>
+        <?php else: ?>
+            <!-- محتوى خطاب التمديد (الافتراضي) -->
         <p class="letter-paragraph">
             <?php
             // Logic for the full introductory phrase
@@ -159,16 +172,42 @@ if (!isset($record)) {
                 علمًا بأنه في حال عدم تمكن البنك من تمديد الضمان المذكور قبل انتهاء مدة سريانه فيجب على البنك دفع
                 قيمة الضمان إلينا حسب النظام.
             </p>
+        <?php endif; ?>
         </div>
         
         <!-- التوقيع -->
         <div class="preview-clearfix">
             <div class="letter-line preview-note">وَتفضَّلوا بِقبُول خَالِص تحيَّاتي</div>
             <div class="preview-signature">
-                <div>مُدير الإدارة العامَّة للعمليَّات المحاسبيَّة</div>
-                <div class="signature-seal">سَامي بن عبَّاس الفايز</div>
+                <?php if ($record['active_action'] === 'release'): ?>
+                    <!-- توقيع الإفراج -->
+                    <div>مُساعِد الرّئيس التّنفيذي</div>
+                    <div class="signature-seal" style="margin-top: 3em;">الدّكتور/ صَالح بن محمد المفدّى</div>
+                <?php else: ?>
+                    <!-- التوقيع الافتراضي (تمديد/تخفيض) -->
+                    <div>مُدير الإدارة العامَّة للعمليَّات المحاسبيَّة</div>
+                    <div class="signature-seal">سَامي بن عبَّاس الفايز</div>
+                <?php endif; ?>
             </div>
         </div>
+        
+        <?php if ($record['active_action'] === 'release'): ?>
+        <!-- صورة إلى (CC) - للإفراج فقط -->
+        <div class="cc-section" style="margin-top: 40px; font-size: 12px !important;">
+            <div style="font-weight: bold; margin-bottom: 0px !important; line-height: 14px !important; padding: 0 !important;">صورة إلى:</div>
+            <ul style="list-style-type: none; padding-right: 20px !important; margin: 0 !important;">
+                <li style="margin: 0 !important; padding: 0 !important; line-height: 14px !important;">
+                    - <?php 
+                        $relatedTo = $guarantee->rawData['related_to'] ?? 'contract';
+                        echo $relatedTo === 'purchase_order' ? 'إدارة المشتريات' : 'إدارة العقود';
+                    ?>.
+                </li>
+                <li style="margin: 0 !important; padding: 0 !important; line-height: 14px !important;">
+                    - <span data-preview-target="supplier_name"><?= htmlspecialchars($record['supplier_name'] ?? '') ?></span>
+                </li>
+            </ul>
+        </div>
+        <?php endif; ?>
         
         <!-- التذييل - في أسفل الورقة -->
         <div class="sheet-footer">

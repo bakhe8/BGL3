@@ -31,6 +31,10 @@ try {
     $guaranteeRepo = new GuaranteeRepository($db);
     $currentGuarantee = $guaranteeRepo->find($guaranteeId);
 
+    // Track decision source for AI success metrics
+    $decisionSource = null;
+    $wasAiMatch = false;
+
     // SAFEGUARD: Check for ID/Name Mismatch
     // If frontend failed to clear ID, but user changed name, we trust the NAME.
     if ($supplierId && $supplierName) {
@@ -42,6 +46,10 @@ try {
         if ($dbName && mb_strtolower(trim($dbName)) !== mb_strtolower(trim($supplierName))) {
             // Mismatch detected! User changed name. Ignore old ID.
             $supplierId = null; 
+        } else if ($dbName) {
+            // ID and name match - this was likely selected from AI suggestions
+            $decisionSource = 'ai_match';
+            $wasAiMatch = true;
         }
     }
 
@@ -76,7 +84,11 @@ try {
             ]);
             exit;
         }
+    } else if ($supplierId && !$wasAiMatch) {
+        // Supplier ID was provided from the start (likely from previous decision)
+        $decisionSource = 'manual';
     }
+
 
     // Validation
     if (!$guaranteeId || !$supplierId) {
@@ -201,8 +213,8 @@ try {
     } else {
         // Create new decision
         $stmt = $db->prepare('
-            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, created_at)
-            VALUES (?, ?, ?, ?, ?, ?)
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
         $stmt->execute([
             $guaranteeId,
@@ -210,6 +222,7 @@ try {
             $bankId, // Might be null if not auto-matched
             $statusToSave,
             $now,
+            $decisionSource, // Track if this was AI-matched or manual
             $now
         ]);
     }

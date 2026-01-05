@@ -104,7 +104,10 @@ class UnifiedLearningAuthority
             $candidates
         );
 
-        return $suggestions;
+        // Filter out null results (deleted suppliers)
+        $suggestions = array_filter($suggestions, fn($s) => $s !== null);
+
+        return array_values($suggestions); // Re-index array
     }
 
     /**

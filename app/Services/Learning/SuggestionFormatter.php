@@ -24,15 +24,17 @@ class SuggestionFormatter
      * Convert internal candidate to SuggestionDTO
      * 
      * @param array $candidate Internal candidate array from Authority
-     * @return SuggestionDTO
+     * @return SuggestionDTO|null Returns null if supplier no longer exists
      */
-    public function toDTO(array $candidate): SuggestionDTO
+    public function toDTO(array $candidate): ?SuggestionDTO
     {
         // Fetch supplier details
         $supplier = $this->supplierRepo->findById($candidate['supplier_id']);
 
         if (!$supplier) {
-            throw new \RuntimeException("Supplier not found: {$candidate['supplier_id']}");
+            // Supplier was deleted - skip this suggestion instead of crashing
+            error_log("Warning: Skipping suggestion for deleted supplier ID: {$candidate['supplier_id']}");
+            return null;
         }
 
         // Generate Arabic reason
