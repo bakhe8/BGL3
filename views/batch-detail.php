@@ -151,7 +151,7 @@ foreach ($guarantees as &$g) {
                             <td class="border p-2"><?= htmlspecialchars($g['parsed']['bank'] ?? '-') ?></td>
                             <td class="border p-2"><?= htmlspecialchars($g['parsed']['value'] ?? '-') ?></td>
                             <td class="border p-2">
-                                <?php if ($g['decision_status'] === 'approved'): ?>
+                                <?php if ($g['decision_status'] === 'ready'): ?>
                                 <span class="text-green-700 font-semibold">✓ معتمد</span>
                                 <?php else: ?>
                                 <span class="text-gray-500">معلق</span>

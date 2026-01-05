@@ -86,7 +86,7 @@ class BatchService
         // Check ALL ready (all-or-nothing policy)
         $notReady = [];
         foreach ($guarantees as $g) {
-            if ($g['status'] !== 'approved' || !$g['supplier_id']) {
+            if ($g['status'] !== 'ready' || !$g['supplier_id']) {
                 $notReady[] = $g['guarantee_number'];
             }
         }
@@ -180,7 +180,7 @@ class BatchService
         // Check ALL ready (all-or-nothing policy)
         $notReady = [];
         foreach ($guarantees as $g) {
-            if ($g['status'] !== 'approved' || !$g['supplier_id'] || !$g['bank_id']) {
+            if ($g['status'] !== 'ready' || !$g['supplier_id'] || !$g['bank_id']) {
                 $notReady[] = $g['guarantee_number'];
             }
         }
