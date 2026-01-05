@@ -54,9 +54,13 @@ class GuaranteeDecisionRepository
     
     /**
      * Create new decision
+     * ✅ TYPE SAFETY: Ensure IDs are integers or NULL (not empty strings)
      */
     private function create(GuaranteeDecision $decision): void
     {
+        $supplierIdSafe = $decision->supplierId ? (int)$decision->supplierId : null;
+        $bankIdSafe = $decision->bankId ? (int)$decision->bankId : null;
+        
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (
                 guarantee_id, status, supplier_id, bank_id,
@@ -68,8 +72,8 @@ class GuaranteeDecisionRepository
         $stmt->execute([
             $decision->guaranteeId,
             $decision->status,
-            $decision->supplierId,
-            $decision->bankId,
+            $supplierIdSafe,
+            $bankIdSafe,
             $decision->decisionSource,
             $decision->confidenceScore,
             $decision->decidedAt ?? date('Y-m-d H:i:s'),
@@ -266,8 +270,8 @@ class GuaranteeDecisionRepository
             status: $row['status'],
             isLocked: (bool)$row['is_locked'],
             lockedReason: $row['locked_reason'],
-            supplierId: $row['supplier_id'],
-            bankId: $row['bank_id'],
+            supplierId: $row['supplier_id'] ? (int)$row['supplier_id'] : null,
+            bankId: $row['bank_id'] ? (int)$row['bank_id'] : null,
             decisionSource: $row['decision_source'] ?? 'manual',
             confidenceScore: $row['confidence_score'] ? (float)$row['confidence_score'] : null,
             decidedAt: $row['decided_at'],

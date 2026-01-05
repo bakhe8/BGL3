@@ -229,14 +229,19 @@ class SmartProcessingService
 
     /**
      * Create 'Approved' decision ensuring status becomes 'ready'
+     * ✅ TYPE SAFETY: Ensure IDs are integers (not strings from database)
      */
     private function createAutoDecision(int $guaranteeId, int $supplierId, int $bankId): void
     {
+        // Explicit type safety - ensure integers
+        $supplierIdSafe = (int)$supplierId;
+        $bankIdSafe = (int)$bankId;
+        
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, created_at)
             VALUES (?, ?, ?, 'ready', ?)
         ");
-        $stmt->execute([$guaranteeId, $supplierId, $bankId, date('Y-m-d H:i:s')]);
+        $stmt->execute([$guaranteeId, $supplierIdSafe, $bankIdSafe, date('Y-m-d H:i:s')]);
     }
 
     /**

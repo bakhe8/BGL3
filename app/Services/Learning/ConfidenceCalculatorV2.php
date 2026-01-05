@@ -97,25 +97,26 @@ class ConfidenceCalculatorV2
     /**
      * Assign level based on confidence (Charter Part 2, Section 4.3)
      * 
+     * Uses configurable thresholds from Settings:
+     * - LEVEL_B_THRESHOLD (default 85): Minimum for Level B (High confidence)
+     * - LEVEL_C_THRESHOLD (default 65): Minimum for Level C (Medium confidence)
+     * - Below LEVEL_C_THRESHOLD: Level D (Low confidence)
+     * 
      * @param int $confidence Confidence score (0-100)
      * @return string Level ('B', 'C', or 'D')
      */
     public function assignLevel(int $confidence): string
     {
-        // Get thresholds from settings (convert 0.xx to 0-100)
-        $reviewThreshold = $this->settings->get('MATCH_REVIEW_THRESHOLD', 0.70) * 100;
+        // Get thresholds from settings (user-configurable)
+        $levelBThreshold = (int) $this->settings->get('LEVEL_B_THRESHOLD', 85);
+        $levelCThreshold = (int) $this->settings->get('LEVEL_C_THRESHOLD', 65);
         
-        // Level A is handled by logic > MATCH_AUTO_THRESHOLD outside (SmartProcessingService)
-        
-        // Level B: High confidence (Above review threshold + 15 buffer usually, but let's stick to Charter/Settings hybrid)
-        // If settings says Review is 70, then > 85 is "Safe High" (B)
-        // This keeps B reserved for really good matches
-        if ($confidence >= 85) {
+        if ($confidence >= $levelBThreshold) {
             return 'B'; // High confidence
-        } elseif ($confidence >= $reviewThreshold) {
-            return 'C'; // Medium confidence (Above review threshold)
+        } elseif ($confidence >= $levelCThreshold) {
+            return 'C'; // Medium confidence
         } else {
-            return 'D'; // Low confidence (Below review threshold)
+            return 'D'; // Low confidence
         }
     }
 

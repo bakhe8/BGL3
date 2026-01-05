@@ -61,6 +61,11 @@ class Settings
         'CONFIRMATION_BOOST_TIER2' => 10,             // Boost for 3-5 confirmations
         'CONFIRMATION_BOOST_TIER3' => 15,             // Boost for 6+ confirmations
 
+        // UI Level Thresholds (0-100 scale)
+        'LEVEL_B_THRESHOLD' => 85,                     // Minimum confidence for Level B (High)
+        'LEVEL_C_THRESHOLD' => 65,                     // Minimum confidence for Level C (Medium)
+        // Level D is anything below LEVEL_C_THRESHOLD down to minimum display threshold
+
         // System Settings
         'TIMEZONE' => 'Asia/Riyadh',                  // System timezone (configurable from UI)
         'PRODUCTION_MODE' => false,                   // Enable production mode (disables debug logging)

@@ -404,12 +404,19 @@ if (!window.RecordsController) {
                 return;
             }
 
+
+            // Get current status filter from URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const statusFilter = urlParams.get('filter') || 'all';
+
             const payload = {
                 guarantee_id: recordIdEl.dataset.recordId,
                 supplier_id: document.getElementById('supplierIdHidden')?.value || null,
                 supplier_name: document.getElementById('supplierInput')?.value || '',
-                current_index: document.querySelector('[data-record-index]')?.dataset.recordIndex || 1
+                current_index: document.querySelector('[data-record-index]')?.dataset.recordIndex || 1,
+                status_filter: statusFilter // ✅ FIX: Send current filter to backend
             };
+
 
             try {
                 const response = await fetch('/api/save-and-next.php', {
@@ -421,17 +428,19 @@ if (!window.RecordsController) {
                 const data = await response.json();
 
                 if (data.success) {
-                    if (data.completed) {
+                    if (data.finished) {
                         this.showToast(data.message || 'تم الانتهاء من جميع السجلات', 'success');
                         return;
                     }
 
-                    // Reload page with next record
+                    // Reload page with next record, preserving filter
                     if (data.record && data.record.id) {
-                        window.location.href = `?id=${data.record.id}`;
+                        const filter = statusFilter !== 'all' ? `&filter=${statusFilter}` : '';
+                        window.location.href = `?id=${data.record.id}${filter}`;
                     } else {
                         window.location.reload();
                     }
+
                 } else {
                     // Handle supplier_required error specially
                     if (data.error === 'supplier_required') {

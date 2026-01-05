@@ -210,16 +210,20 @@ try {
             $now,
             $guaranteeId
         ]);
-    } else {
+     } else {
         // Create new decision
+        // ✅ TYPE SAFETY: Ensure IDs are integers or NULL (not empty strings)
+        $supplierIdSafe = $supplierId ? (int)$supplierId : null;
+        $bankIdSafe = $bankId ? (int)$bankId : null;
+        
         $stmt = $db->prepare('
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         ');
         $stmt->execute([
             $guaranteeId,
-            $supplierId,
-            $bankId, // Might be null if not auto-matched
+            $supplierIdSafe,
+            $bankIdSafe,
             $statusToSave,
             $now,
             $decisionSource, // Track if this was AI-matched or manual
@@ -319,28 +323,31 @@ try {
         error_log("Learning log error: " . $e->getMessage());
     }
     
-    // Get next record index
-    $nextIndex = $currentIndex + 1;
+    // ✅ FIX: Use NavigationService for consistent ordering (same as index.php)
+    // Get status filter from request (default to 'all')
+    $statusFilter = $input['status_filter'] ?? 'all';
     
-    // Get all guarantees IDs
-    $stmtIds = $db->query('SELECT id FROM guarantees ORDER BY imported_at DESC LIMIT 100');
-    $ids = $stmtIds->fetchAll(PDO::FETCH_COLUMN);
-    $total = count($ids);
+    // Get navigation info using NavigationService
+    $navInfo = \App\Services\NavigationService::getNavigationInfo(
+        $db,
+        $guaranteeId, // Current guarantee ID
+        $statusFilter
+    );
     
-    if ($nextIndex > $total) {
-        // No more records
-        echo '<div id="record-form-section" class="card" data-current-event-type="current">';
-        echo '<div class="card-body" style="text-align: center; padding: 40px;">';
-        echo '<h2>✅ تم الانتهاء من جميع السجلات</h2>';
-        echo '<p>لا توجد سجلات أخرى للمعالجة</p>';
-        echo '</div>';
-        echo '</div>';
+    $nextGuaranteeId = $navInfo['nextId'];
+    
+    if (!$nextGuaranteeId) {
+        // No more records - finished
+        echo json_encode([
+            'success' => true,
+            'finished' => true,
+            'message' => 'تم الانتهاء من جميع السجلات'
+        ]);
         exit;
     }
     
     // Get next record
     $guaranteeRepo = new GuaranteeRepository($db);
-    $nextGuaranteeId = $ids[$nextIndex - 1];
     $guarantee = $guaranteeRepo->find($nextGuaranteeId);
     
     if (!$guarantee) {
@@ -378,6 +385,13 @@ try {
     $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
     $banks = $banksStmt->fetchAll(PDO::FETCH_ASSOC);
     
+    // Get updated navigation info for the next record
+    $nextNavInfo = \App\Services\NavigationService::getNavigationInfo(
+        $db,
+        $nextGuaranteeId,
+        $statusFilter
+    );
+    
     // Include partial template to render HTML for next record
     // Return data for next record as JSON
     echo json_encode([
@@ -385,8 +399,8 @@ try {
         'finished' => false,
         'record' => $record,
         'banks' => $banks,
-        'currentIndex' => $nextIndex,
-        'totalRecords' => $total
+        'currentIndex' => $nextNavInfo['currentIndex'],
+        'totalRecords' => $nextNavInfo['totalRecords']
     ]);
     
 } catch (\Exception $e) {

@@ -39,26 +39,31 @@ try {
     $activeCount = $stmt->fetch(PDO::FETCH_ASSOC)['active'];
     $expiredCount = $totalGuarantees - $activeCount;
     
-    // Status Breakdown
+    // Status Breakdown - Uses same logic as index.php
     $stmt = $db->query("
         SELECT 
-            COALESCE(d.supplier_id, 0) as has_supplier,
-            COALESCE(d.bank_id, 0) as has_bank,
+            CASE 
+                WHEN d.id IS NOT NULL AND (d.is_locked IS NULL OR d.is_locked = 0) THEN 'ready'
+                WHEN d.id IS NULL AND (d.is_locked IS NULL OR d.is_locked = 0) THEN 'pending'
+                WHEN d.is_locked = 1 THEN 'released'
+                ELSE 'unknown'
+            END as status_category,
             COUNT(*) as count
         FROM guarantees g
         LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
-        GROUP BY has_supplier, has_bank
+        GROUP BY status_category
     ");
     $statusData = $stmt->fetchAll(PDO::FETCH_ASSOC);
     
     $pending = 0;
     $ready = 0;
     foreach ($statusData as $row) {
-        if ($row['has_supplier'] && $row['has_bank']) {
-            $ready += $row['count'];
-        } else {
-            $pending += $row['count'];
+        if ($row['status_category'] === 'ready') {
+            $ready = $row['count'];
+        } elseif ($row['status_category'] === 'pending') {
+            $pending = $row['count'];
         }
+        // Skip 'released' and 'unknown' from these counts
     }
     
     // Top Suppliers
