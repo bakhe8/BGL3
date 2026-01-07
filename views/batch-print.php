@@ -33,27 +33,29 @@ $supplierRepo = new SupplierRepository();
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
+
 <head>
     <meta charset="UTF-8">
     <title>طباعة مجمعة - <?= count($guaranteeIds) ?> خطابات</title>
-    
+
     <!-- Link to external CSS instead of copying -->
     <link rel="stylesheet" href="/assets/css/letter.css">
-    
+
     <!-- Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel=" stylesheet">
-    
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap"
+        rel=" stylesheet">
+
     <style>
         /* Only batch-specific overrides */
-        body { 
-            background: #525659; 
+        body {
+            background: #525659;
             margin: 0;
             padding: 20px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
         }
-        
+
         .letter-preview {
             background: transparent !important;
             padding: 0 !important;
@@ -81,32 +83,53 @@ $supplierRepo = new SupplierRepository();
             font-family: 'Tajawal', sans-serif;
             font-weight: bold;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
             display: flex;
             align-items: center;
             gap: 8px;
             transition: background 0.2s;
         }
-        .action-btn:hover { background: #1d4ed8; }
-        .action-btn.close { background: #4b5563; }
-        .action-btn.close:hover { background: #374151; }
+
+        .action-btn:hover {
+            background: #1d4ed8;
+        }
+
+        .action-btn.close {
+            background: #4b5563;
+        }
+
+        .action-btn.close:hover {
+            background: #374151;
+        }
 
         @media print {
-            body { 
-                background: white; 
-                padding: 0; 
+            body {
+                background: white;
+                padding: 0;
                 display: block;
             }
-            .floating-actions { display: none !important; }
-            .letter-preview { 
-                margin: 0; 
-                page-break-after: always; 
-                width: 100%;
-                background: white !important;
+
+            .floating-actions {
+                display: none !important;
             }
-            .letter-preview:last-child { page-break-after: auto; }
-            
-            .letter-paper {
+
+            .letter-preview {
+                margin: 0;
+                page-break-after: always;
+                width: 100% !important;
+                background: white !important;
+
+                /* FIX: Override absolute positioning from letter.css */
+                position: relative !important;
+                left: auto !important;
+                top: auto !important;
+            }
+
+            .letter-preview:last-child {
+                page-break-after: auto;
+            }
+
+            .letter-preview .letter-paper {
                 box-shadow: none;
                 margin: 0;
                 width: 100% !important;
@@ -116,6 +139,7 @@ $supplierRepo = new SupplierRepository();
         }
     </style>
 </head>
+
 <body>
 
     <div class="floating-actions no-print">
@@ -130,8 +154,9 @@ $supplierRepo = new SupplierRepository();
     <?php foreach ($guaranteeIds as $guaranteeId): ?>
         <?php
         // Fetch guarantee
-        $guarantee = $guaranteeRepo->find((int)$guaranteeId);
-        if (!$guarantee) continue;
+        $guarantee = $guaranteeRepo->find((int) $guaranteeId);
+        if (!$guarantee)
+            continue;
 
         // Load decision data
         $decisionStmt = $db->prepare("SELECT * FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
@@ -153,13 +178,14 @@ $supplierRepo = new SupplierRepository();
 
         // Enrich with relations
         if ($decision && $decision['supplier_id']) {
-            $supplier = $supplierRepo->find((int)$decision['supplier_id']);
-            if ($supplier) $record['supplier_name'] = $supplier->officialName;
+            $supplier = $supplierRepo->find((int) $decision['supplier_id']);
+            if ($supplier)
+                $record['supplier_name'] = $supplier->officialName;
         }
 
         // Bank details from database (if decision has bank_id)
         if ($decision && $decision['bank_id']) {
-            $bank = $bankRepo->getBankDetails((int)$decision['bank_id']);
+            $bank = $bankRepo->getBankDetails((int) $decision['bank_id']);
             if ($bank) {
                 $record['bank_name'] = $bank['official_name'];
                 $record['bank_center'] = $bank['department'];
@@ -167,13 +193,13 @@ $supplierRepo = new SupplierRepository();
                 $record['bank_email'] = $bank['email'];
             }
         } else {
-             // Fallback: Smart Bank Matching using Normalizer
+            // Fallback: Smart Bank Matching using Normalizer
             $bankName = trim(preg_replace('/\s+/u', ' ', $record['bank_name'] ?? ''));
-            
+
             if ($bankName && $bankName !== 'غير محدد') {
                 try {
                     $bankId = null;
-                    
+
                     // 1. Try exact match on 'arabic_name' (TRIMMED)
                     $stmt = $db->prepare("SELECT id FROM banks WHERE TRIM(arabic_name) = ? LIMIT 1");
                     $stmt->execute([$bankName]);
@@ -182,21 +208,21 @@ $supplierRepo = new SupplierRepository();
                     // 2. If not found, use Normalizer & Aliases
                     if (!$bankId && class_exists('\App\Support\BankNormalizer')) {
                         $normalized = \App\Support\BankNormalizer::normalize($bankName);
-                        
+
                         $stmt = $db->prepare("SELECT bank_id FROM bank_alternative_names WHERE normalized_name = ? LIMIT 1");
                         $stmt->execute([$normalized]);
                         $bankId = $stmt->fetchColumn();
-                        
+
                         // 3. Fallback: Fuzzy search with normalized name
                         if (!$bankId) {
-                             $stmt = $db->prepare("SELECT id FROM banks WHERE arabic_name LIKE ? LIMIT 1");
-                             $stmt->execute(["%$bankName%"]);
-                             $bankId = $stmt->fetchColumn();
+                            $stmt = $db->prepare("SELECT id FROM banks WHERE arabic_name LIKE ? LIMIT 1");
+                            $stmt->execute(["%$bankName%"]);
+                            $bankId = $stmt->fetchColumn();
                         }
                     }
 
                     if ($bankId) {
-                        $bank = $bankRepo->getBankDetails((int)$bankId);
+                        $bank = $bankRepo->getBankDetails((int) $bankId);
                         if ($bank) {
                             $record['bank_name'] = $bank['official_name'];
                             $record['bank_center'] = $bank['department'];
@@ -205,7 +231,7 @@ $supplierRepo = new SupplierRepository();
                             $record['bank_email'] = !empty($bank['email']) ? $bank['email'] : ($guarantee->rawData['bank_email'] ?? '');
                         }
                     } else {
-                         // Keep rawData
+                        // Keep rawData
                         $record['bank_center'] = $guarantee->rawData['bank_center'] ?? '';
                         $record['bank_po_box'] = $guarantee->rawData['bank_po_box'] ?? '';
                         $record['bank_email'] = $guarantee->rawData['bank_email'] ?? '';
@@ -215,7 +241,7 @@ $supplierRepo = new SupplierRepository();
                 }
             }
         }
-        
+
         // Use unified renderer (no placeholder in print context)
         $showPlaceholder = false;
         include __DIR__ . '/../partials/letter-renderer.php';
@@ -223,4 +249,5 @@ $supplierRepo = new SupplierRepository();
     <?php endforeach; ?>
 
 </body>
+
 </html>

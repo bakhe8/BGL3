@@ -1,6 +1,9 @@
 <?php
 require_once __DIR__ . '/../app/Support/Database.php';
+require_once __DIR__ . '/../app/Support/BankNormalizer.php'; 
+
 use App\Support\Database;
+use App\Support\BankNormalizer;
 
 header('Content-Type: application/json');
 
@@ -23,8 +26,14 @@ try {
     $db = Database::connect();
     $updates = 0;
     $inserts = 0;
+    $aliasInserts = 0;
+
+    // Prepare alias insertion statement
+    $insertAlias = $db->prepare('INSERT OR IGNORE INTO bank_alternative_names (bank_id, alternative_name, normalized_name) VALUES (?, ?, ?)');
 
     foreach ($data as $item) {
+        $bankId = null;
+
         // Safe Update Logic
         if (isset($item['id'])) {
             // Check if exists
@@ -43,11 +52,11 @@ try {
 
                 $updateHelp = $db->prepare('UPDATE banks SET arabic_name=?, english_name=?, short_name=?, department=?, address_line1=?, contact_email=? WHERE id=?');
                 $updateHelp->execute([$arabic, $english, $short, $dept, $addr, $email, $item['id']]);
+                
+                $bankId = $item['id'];
                 $updates++;
             } else {
-                // Insert with ID (or skip ID to auto-inc? usually import preserves ID for restore purposes)
-                // Let's preserve ID if user wants full restore capability, BUT manual inserts might conflict.
-                // Generally, if ID is provided and not finding match, we assume it's a restore or sync.
+                // Insert with ID
                 $insert = $db->prepare('INSERT INTO banks (id, arabic_name, english_name, short_name, department, address_line1, contact_email) VALUES (?, ?, ?, ?, ?, ?, ?)');
                 $insert->execute([
                     $item['id'],
@@ -58,6 +67,7 @@ try {
                     $item['address_line1'] ?? '',
                     $item['contact_email'] ?? ''
                 ]);
+                $bankId = $item['id'];
                 $inserts++;
             }
         } else {
@@ -71,11 +81,25 @@ try {
                 $item['address_line1'] ?? '',
                 $item['contact_email'] ?? ''
             ]);
+            $bankId = $db->lastInsertId();
             $inserts++;
+        }
+
+        // Handle Aliases Import (if bank was created/updated successfully)
+        if ($bankId && isset($item['aliases']) && is_array($item['aliases'])) {
+            foreach ($item['aliases'] as $alias) {
+                if (empty(trim($alias))) continue;
+                
+                $normalized = BankNormalizer::normalize($alias);
+                $insertAlias->execute([$bankId, trim($alias), $normalized]);
+                if ($insertAlias->rowCount() > 0) {
+                    $aliasInserts++;
+                }
+            }
         }
     }
 
-    echo json_encode(['success' => true, 'message' => "تم الاستيراد: $inserts إضافة، $updates تحديث"]);
+    echo json_encode(['success' => true, 'message' => "تم الاستيراد: $inserts إضافة، $updates تحديث، $aliasInserts صيغة بديلة."]);
 
 } catch (Exception $e) {
     http_response_code(500);

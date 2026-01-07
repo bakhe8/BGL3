@@ -269,8 +269,11 @@ try {
     }
     
     // 4. RECORD: Status Transition Event (SE-01/SE-02) - Separate Event
+    // 🔧 FIX: Create fresh snapshot AFTER database update to capture correct supplier name
+    $newSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
+    
     try {
-        \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $statusToSave, 'data_completeness_check');
+        \App\Services\TimelineRecorder::recordStatusTransitionEvent($guaranteeId, $newSnapshot, $statusToSave, 'data_completeness_check');
         error_log("[TIMELINE] Status transition event recorded for guarantee #$guaranteeId: $statusToSave");
     } catch (\Throwable $e) {
         error_log("[TIMELINE ERROR] Failed to record status transition: " . $e->getMessage());
