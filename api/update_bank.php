@@ -10,9 +10,12 @@ try {
     if (empty($data['id'])) {
         throw new Exception('Missing ID');
     }
-
+    
     $db = Database::connect();
     
+    // ✅ This function UPDATES existing bank data only
+    // ID is used to IDENTIFY the record, not to change it
+    // ID should NEVER be modified - it's immutable
     $stmt = $db->prepare("
         UPDATE banks 
         SET 
@@ -26,21 +29,34 @@ try {
         WHERE id = ?
     ");
     
+    
+    // Execute with explicit non-null values
     $result = $stmt->execute([
-        $data['arabic_name'],
-        $data['english_name'] ?? null,
-        $data['short_name'] ?? null,
-        $data['department'] ?? null,
-        $data['address_line1'] ?? null,
-        $data['contact_email'] ?? null,
-        $data['id']
+        $data['arabic_name'] ?? '',
+        $data['english_name'] ?? '',
+        $data['short_name'] ?? '',
+        $data['department'] ?? '',
+        $data['address_line1'] ?? '',
+        $data['contact_email'] ?? '',
+        (int)$data['id']
     ]);
     
-    if ($result) {
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception('Update failed');
+    if (!$result) {
+        throw new Exception('Update execution failed');
     }
+    
+    // ✅ Verify the bank still exists (using direct query due to SQLite PDO bug)
+    // Note: rows affected = 0 is OK if data didn't change
+    // IMPORTANT: Using direct query because prepared statements fail for some IDs in SQLite
+    $bankId = (int)$data['id'];
+    $verifyStmt = $db->query("SELECT id FROM banks WHERE id = $bankId");
+    $verified = $verifyStmt->fetchColumn();
+    
+    if (!$verified) {
+        throw new Exception('Critical: Bank ID was lost during update!');
+    }
+    
+    echo json_encode(['success' => true, 'updated' => $stmt->rowCount() > 0]);
 
 } catch (Exception $e) {
     http_response_code(500);

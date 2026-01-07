@@ -632,8 +632,16 @@ $currentSettings = $settings->all();
             document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
             
             document.getElementById(tabId).classList.add('active');
-            // Find the button that triggered this or match by tabId
-            document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`).classList.add('active');
+            // Find the button by matching the tab id
+            const buttons = {
+                'general': 0,
+                'banks': 1,
+                'suppliers': 2,
+                'learning': 3
+            };
+            if (buttons[tabId] !== undefined) {
+                document.querySelectorAll('.tab-btn')[buttons[tabId]].classList.add('active');
+            }
 
             // Lazy load content
             if (tabId === 'banks' && document.getElementById('banksTableContainer').innerText === 'جاري التحميل...') {
@@ -868,7 +876,6 @@ $currentSettings = $settings->all();
                     btn.classList.add('btn-success');
                     setTimeout(() => {
                         btn.innerHTML = originalText;
-                        btn.classList.remove('btn-success');
                         btn.classList.remove('btn-success');
                         btn.disabled = false;
                     }, 2000);

@@ -29,14 +29,33 @@ try {
     
     // ===== LIFECYCLE GATE: Prevent extension on pending guarantees =====
     $statusCheck = $db->prepare("
-        SELECT status 
+        SELECT status, is_locked, locked_reason
         FROM guarantee_decisions 
         WHERE guarantee_id = ?
     ");
     $statusCheck->execute([$guaranteeId]);
-    $currentStatus = $statusCheck->fetchColumn();
+    $decision = $statusCheck->fetch(PDO::FETCH_ASSOC);
     
-    if ($currentStatus !== 'ready') {
+    if (!$decision) {
+        http_response_code(400);
+        echo '<div id="record-form-section" class="card" data-current-event-type="current">';
+        echo '<div class="card-body" style="color: red;">لا يوجد قرار لهذا الضمان.</div>';
+        echo '</div>';
+        exit;
+    }
+    
+    // Check if locked (released)
+    if ($decision['is_locked']) {
+        http_response_code(400);
+        echo '<div id="record-form-section" class="card" data-current-event-type="current">';
+        echo '<div class="card-body" style="color: red;">لا يمكن تمديد ضمان مُفرَج عنه. الضمان مقفل بسبب: ' . 
+             htmlspecialchars($decision['locked_reason'] ?? 'غير محدد') . '</div>';
+        echo '</div>';
+        exit;
+    }
+    
+    // Check if ready
+    if ($decision['status'] !== 'ready') {
         http_response_code(400);
         echo '<div id="record-form-section" class="card" data-current-event-type="current">';
         echo '<div class="card-body" style="color: red;">لا يمكن تمديد ضمان غير مكتمل. يجب اختيار المورد والبنك أولاً.</div>';

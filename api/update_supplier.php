@@ -33,19 +33,28 @@ try {
         WHERE id = ?
     ");
     
+    
+    // ✅ FIX: Protect against ID loss
     $result = $stmt->execute([
         $data['official_name'],
-        $data['english_name'] ?? null,
+        $data['english_name'] ?? '',
         $normalizedName,
         $data['is_confirmed'] ? 1 : 0,
-        $data['id']
+        (int)$data['id']
     ]);
     
-    if ($result) {
-        echo json_encode(['success' => true]);
-    } else {
-        throw new Exception('Update failed');
+    if (!$result) {
+        throw new Exception('Update execution failed');
     }
+    
+    // ✅ Verify ID preservation (using direct query due to SQLite PDO bug)
+    $supplierId = (int)$data['id'];
+    $verifyStmt = $db->query("SELECT id FROM suppliers WHERE id = $supplierId");
+    if (!$verifyStmt->fetchColumn()) {
+        throw new Exception('Critical: Supplier ID was lost during update!');
+    }
+    
+    echo json_encode(['success' => true, 'updated' => $stmt->rowCount() > 0]);
 
 } catch (Exception $e) {
     http_response_code(500);

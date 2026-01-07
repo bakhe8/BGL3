@@ -75,6 +75,8 @@ class TimelineRecorder {
      * ADR-007: Generate Immutable Letter HTML Snapshot
      * Renders the complete formatted letter HTML for historical accuracy
      * 
+     * ✅ UPDATED: Now uses unified LetterBuilder system instead of preview-section.php
+     * 
      * @param int $guaranteeId
      * @param string $actionType 'extension', 'reduction', or 'release'
      * @param array $actionData Additional action-specific data (e.g., new_expiry, new_amount)
@@ -83,7 +85,7 @@ class TimelineRecorder {
     public static function generateLetterSnapshot($guaranteeId, $actionType, $actionData = []) {
         global $db;
         
-        error_log("🔍 generateLetterSnapshot (HTML): GID=$guaranteeId Type=$actionType");
+        error_log("🔍 generateLetterSnapshot (LetterBuilder): GID=$guaranteeId Type=$actionType");
         
         // Fetch current guarantee state
         $stmt = $db->prepare("
@@ -110,30 +112,49 @@ class TimelineRecorder {
         
         $rawData = json_decode($data['raw_data'], true);
         
-        // Build record array with AFTER state (new values)
-        $record = [
-            'id' => $guaranteeId,
+        // ✅ Fetch dynamic bank details if bank_id exists
+        $bankCenter = '';
+        $bankPoBox = '';
+        $bankEmail = '';
+        
+        if (!empty($data['bank_id'])) {
+            // Use BankRepository to get bank details
+            $bankRepo = new \App\Repositories\BankRepository();
+            $bankDetails = $bankRepo->getBankDetails((int)$data['bank_id']);
+            
+            if ($bankDetails) {
+                $bankCenter = $bankDetails['department'] ?? '';
+                $bankPoBox = $bankDetails['po_box'] ?? '';
+                $bankEmail = $bankDetails['email'] ?? '';
+            }
+        }
+        
+        // Build guarantee data array for LetterBuilder
+        $guaranteeData = [
             'guarantee_number' => $data['guarantee_number'] ?? $rawData['guarantee_number'] ?? '',
-            'supplier_name' => $data['supplier_name'] ?? $rawData['supplier'] ?? '',
-            'bank_name' => $data['bank_name'] ?? $rawData['bank'] ?? '',
+            'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
             'amount' => $actionData['new_amount'] ?? ($rawData['amount'] ?? 0),
             'expiry_date' => $actionData['new_expiry'] ?? ($rawData['expiry_date'] ?? ''),
-            'issue_date' => $rawData['issue_date'] ?? '',
-            'contract_number' => $rawData['contract_number'] ?? $rawData['document_reference'] ?? '',
             'type' => $rawData['type'] ?? '',
-            'active_action' => $actionType,  // Critical: tells template which letter to render
-            'bank_center' => 'مركز خدمات التجارة',
-            'bank_po_box' => '3555',
-            'bank_email' => 'info@bank.com'
+            'related_to' => $rawData['related_to'] ?? 'contract',
+            'supplier_name' => $data['supplier_name'] ?? $rawData['supplier'] ?? '',
+            'bank_name' => $data['bank_name'] ?? $rawData['bank'] ?? '',
+            'bank_center' => $bankCenter,
+            'bank_po_box' => $bankPoBox,
+            'bank_email' => $bankEmail
         ];
         
-        // ✨ Render preview-section.php to capture formatted HTML
-        ob_start();
-        include __DIR__ . '/../../partials/preview-section.php';
-        $letterHtml = ob_get_clean();
-        
-        error_log("✅ generateLetterSnapshot: HTML generated (" . strlen($letterHtml) . " bytes)");
-        return $letterHtml;
+        // ✅ Use unified LetterBuilder system
+        try {
+            $letterData = \App\Services\LetterBuilder::prepare($guaranteeData, $actionType);
+            $letterHtml = \App\Services\LetterBuilder::render($letterData);
+            
+            error_log("✅ generateLetterSnapshot: HTML generated via LetterBuilder (" . strlen($letterHtml) . " bytes)");
+            return $letterHtml;
+        } catch (\Exception $e) {
+            error_log("❌ generateLetterSnapshot: LetterBuilder error - " . $e->getMessage());
+            return null;
+        }
     }
 
     /**

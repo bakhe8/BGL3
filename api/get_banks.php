@@ -71,15 +71,15 @@ try {
         
         foreach ($banks as $bank) {
             echo '<tr data-id="' . $bank['id'] . '">
-                <td>' . htmlspecialchars($bank['id']) . '</td>
-                <td><input type="text" class="row-input" name="arabic_name" value="' . htmlspecialchars($bank['arabic_name']) . '"></td>
+                <td>' . $bank['id'] . '</td>
+                <td><input type="text" class="row-input" name="arabic_name" value="' . htmlspecialchars($bank['arabic_name'] ?? '') . '"></td>
                 <td><input type="text" class="row-input" name="english_name" value="' . htmlspecialchars($bank['english_name'] ?? '') . '"></td>
                 <td><input type="text" class="row-input" name="short_name" value="' . htmlspecialchars($bank['short_name'] ?? '') . '"></td>
                 <td><input type="text" class="row-input" name="department" value="' . htmlspecialchars($bank['department'] ?? '') . '"></td>
                 <td><input type="text" class="row-input" name="address_line1" value="' . htmlspecialchars($bank['address_line1'] ?? '') . '"></td>
                 <td><input type="text" class="row-input" name="contact_email" value="' . htmlspecialchars($bank['contact_email'] ?? '') . '"></td>
                 <td>
-                    <button class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; margin-left: 5px;" onclick="updateBank(' . $bank['id'] . ', this)">💾 حفظ</button>
+                    <button class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; margin-left: 5px;" onclick="updateBank(' . $bank['id'] . ', this)">✏️ تحديث</button>
                     <button class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteBank(' . $bank['id'] . ')">🗑️ حذف</button>
                 </td>
             </tr>';

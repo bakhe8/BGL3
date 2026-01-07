@@ -135,6 +135,7 @@ try {
             };
             $event['user'] = $event['created_by'] ?? 'System';
         }
+        unset($event); // Break reference
     } catch (\PDOException $e) {
         // History table doesn't exist or query failed - timeline will be empty
         $timeline = [];

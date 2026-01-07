@@ -67,18 +67,33 @@ class BankRepository
     {
         try {
             $pdo = Database::connection();
-            $stmt = $pdo->prepare('
-                SELECT 
-                    arabic_name as official_name,
-                    department,
-                    address_line1 as po_box,
-                    contact_email as email
-                FROM banks WHERE id = ?
-            ');
-            $stmt->execute([$bankId]);
-            $bank = $stmt->fetch(PDO::FETCH_ASSOC);
             
-            return $bank ?: null;
+            // ✅ CRITICAL FIX: Use CAST(id AS TEXT) because of mixed types in SQLite
+            // Some IDs are stored as integers (2), others as strings ('37')
+            $strId = (string)$bankId;
+            $sql = "SELECT * FROM banks WHERE CAST(id AS TEXT) = '$strId'";
+            
+            $result = $pdo->query($sql);
+            if (!$result) {
+                return null;
+            }
+            
+            // Use fetchAll() to avoid other SQLite PDO bugs
+            $banks = $result->fetchAll(PDO::FETCH_ASSOC);
+            
+            if (empty($banks)) {
+                return null;
+            }
+            
+            $bank = $banks[0];  // Get first (and only) result
+            
+            // Map to expected keys
+            return [
+                'official_name' => $bank['arabic_name'] ?? '',
+                'department' => $bank['department'] ?? '',
+                'po_box' => $bank['address_line1'] ?? '',
+                'email' => $bank['contact_email'] ?? ''
+            ];
         } catch (\Exception $e) {
             return null;
         }

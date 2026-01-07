@@ -444,7 +444,10 @@ $formattedSuppliers = array_map(function($s) {
 
                     <!-- Preview Section - Lifecycle Gate -->
                     <?php if ($mockRecord['status'] === 'ready'): ?>
-                        <?php require __DIR__ . '/partials/preview-section.php'; ?>
+                        <?php 
+                        $showPlaceholder = true;
+                        require __DIR__ . '/partials/letter-renderer.php'; 
+                        ?>
                     <?php endif; ?>
 
                 </main>

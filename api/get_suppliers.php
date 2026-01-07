@@ -78,7 +78,7 @@ try {
                     </select>
                 </td>
                 <td>
-                    <button class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; margin-left: 5px;" onclick="updateSupplier(' . $s['id'] . ', this)">💾 حفظ</button>
+                    <button class="btn btn-sm" style="padding: 4px 8px; font-size: 12px; margin-left: 5px;" onclick="updateSupplier(' . $s['id'] . ', this)">✏️ تحديث</button>
                     <button class="btn btn-sm btn-danger" style="padding: 4px 8px; font-size: 12px;" onclick="deleteSupplier(' . $s['id'] . ')">🗑️ حذف</button>
                 </td>
             </tr>';
