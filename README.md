@@ -1,224 +1,68 @@
-# 🏦 BGL System V3 - نظام إدارة الضمانات البنكية
+# 🏦 BGL3 - Bank Guarantee Lifecycle System
 
-![Version](https://img.shields.io/badge/version-1.0.0-blue)
-![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4)
-![SQLite](https://img.shields.io/badge/SQLite-3-003B57)
-![Status](https://img.shields.io/badge/status-production-success)
+![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
+![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)
+![SQLite](https://img.shields.io/badge/SQLite-Data-003B57.svg)
+![Tailwind](https://img.shields.io/badge/Tailwind-CSS-06B6D4.svg)
 
-نظام مستقل ومتكامل بالكامل لإدارة الضمانات البنكية من البداية للنهاية.
-
-> **النسخة 1.0.0 - الإطلاق الرسمي الأول** 🎉
+**BGL3** is a state-of-the-art Bank Guarantee Management System designed to streamline the tracking, management, and lifecycle analysis of bank guarantees. It empowers organizations to move from manual tracking to a fully automated, intelligence-driven workflow.
 
 ---
 
-## ✨ الميزات الرئيسية
+## ✨ Features
 
-### 📋 إدارة شاملة للضمانات
-- ✅ تتبع كامل لدورة حياة الضمان
-- ✅ عمليات (تمديد، تخفيض، إفراج) مع حفظ تاريخي كامل
-- ✅ Timeline تفاعلي لعرض جميع الأحداث
-- ✅ معاينة فورية للخطابات والمستندات
-
-### 🤖 تعلم آلي وذكاء اصطناعي
-- ✅ مطابقة تلقائية ذكية للموردين والبنوك
-- ✅ اقتراحات ذكية بناءً على التاريخ
-- ✅ تحسين مستمر من خلال تعلم القرارات
-
-### 📊 استيراد متعدد المصادر
-- ✅ استيراد من Excel (PhpSpreadsheet)
-- ✅ إدخال يدوي تفاعلي
-- ✅ لصق ذكي مع استخراج تلقائي للبيانات
-- ✅ نظام Batch لإدارة الدفعات
-
-### 📈 تحليلات وإحصائيات متقدمة
-- ✅ لوحة إحصائيات شاملة (20+ مؤشر)
-- ✅ تحليل الموردين والبنوك
-- ✅ تحليل مالي مفصّل
-- ✅ مؤشرات أداء التعلم الآلي
-
-### 🎨 واجهة عصرية
-- ✅ تصميم Modern مع Tailwind CSS
-- ✅ Responsive - يعمل على جميع الأجهزة
-- ✅ تفاعلية مع Alpine.js
-- ✅ نظام Toast و Modal مخصص
+- **🔄 Full Lifecycle Management**: Track guarantees from initial issuance (Bid Bond) to Final Performance, Advance Payment, and Release.
+- **🧠 Smart Intelligence**:
+    - **Auto-Matching**: Machine learning-inspired algorithms to match imported data with existing records.
+    - **Predictive Suggestions**: Smart autocomplete for banks and suppliers based on historical data.
+- **📊 Interactive Timeline**: Visual history of every action taken on a guarantee (extensions, reductions, claims).
+- **📥 Universal Import**: Seamlessly import data from Excel/CSV with intelligent parsing and "Paste-to-Import" capabilities.
+- **📈 Advanced Analytics**: Real-time dashboard showing status distribution, expiring guarantees, and financial exposure.
 
 ---
 
-## 🚀 البدء السريع
+## 🚀 Quick Start
 
-### المتطلبات
+This application is designed to be a standalone desktop-like web application.
 
-```
-✅ PHP >= 8.0
-✅ SQLite 3
-✅ Composer
-✅ متصفح حديث (Chrome, Firefox, Safari, Edge)
-```
+### ▶️ Running the Application
+Double-click the **`start.bat`** file in the root directory.
+> This will verify the environment, start the local PHP server on port `8000`, and open your default browser.
 
-### التنصيب
-
-```bash
-# 1. استنساخ المشروع
-git clone <repository-url>
-cd BGL3
-
-# 2. تثبيت المكتبات
-composer install
-
-# 3. تشغيل السيرفر
-php -S localhost:8000 server.php
-
-# 4. فتح المتصفح
-http://localhost:8000/
-```
+### ⏹️ Stopping the Server
+To safely stop the server, use one of the following:
+*   **`stop.bat`**: Runs in the terminal to kill the server process.
+*   **`close.vbs`**: Runs silently (suitable for a Desktop Shortcut) to close the server without opening windows.
 
 ---
 
-## 📁 هيكل المشروع
+## 📚 Documentation
 
-```
-BGL3/
-├── 📄 index.php           # نقطة الدخول الرئيسية
-├── 📄 server.php          # Development server router
-├── 📄 composer.json       # Dependencies
-├── 📄 VERSION             # رقم الإصدار (1.0.0)
-├── 📄 CHANGELOG.md        # سجل التغييرات
-├── 📄 RELEASE_NOTES.md    # ملاحظات الإصدار
-├── 📁 api/                # RESTful APIs (34 endpoint)
-├── 📁 app/                # منطق التطبيق
-│   ├── Support/           # Database & Utilities
-│   ├── Models/            # Data Models
-│   ├── Repositories/      # Data Access Layer
-│   └── Services/          # Business Logic
-├── 📁 views/              # الواجهات (6 صفحات)
-├── 📁 partials/           # مكونات HTML قابلة لإعادة الاستخدام
-├── 📁 public/             # الملفات العامة (JS, CSS, Images)
-├── 📁 storage/            # قاعدة البيانات والملفات
-│   ├── database/          # SQLite Database
-│   ├── uploads/           # ملفات المستخدمين
-│   └── settings.json      # الإعدادات
-├── 📁 docs/               # التوثيق التقني
-└── 📁 .agent/policies/    # سياسات التطوير
-```
+The technical documentation is located in the `docs/` directory.
+
+### 🏗️ Architecture & Design
+*   [**System Architecture**](docs/system-architecture.md): Overview of the Layered Architecture, Services, and Repositories.
+*   [**Database Schema**](docs/database-schema.md): Complete relationship diagram and table definitions.
+*   [**Database Model**](docs/database-model.md): Details on the SQLite implementation.
+*   [**Authority Model**](docs/authority-model.md): Explanation of the "Authority" entity concept.
+
+### 💻 Developer Guides
+*   [**API Contracts**](docs/api-contracts.md): Specifications for the internal REST API endpoints.
+*   [**UI & Behavior**](docs/ui-behavior-contract.md): Rules governing frontend interactions and state.
+*   [**JavaScript Constraints**](docs/javascript-constraints.md): Coding standards for the Vanilla JS frontend.
 
 ---
 
-## 📊 الاستخدام
+## 🛠️ Technology Stack
 
-### استيراد ضمانات جديدة
-
-#### من Excel
-```bash
-1. افتح الواجهة الرئيسية
-2. اضغط على زر "ملف"
-3. اختر ملف Excel
-4. سيتم الاستيراد تلقائياً مع المطابقة الذكية
-```
-
-#### إدخال يدوي
-```bash
-1. اضغط على "يدوي"
-2. املأ النموذج التفاعلي
-3. احفظ - والنظام سيتعلم من اختياراتك
-```
-
-#### لصق ذكي
-```bash
-1. اضغط على "لصق"
-2. الصق نص الضمان
-3. سيتم استخراج البيانات تلقائياً
-```
-
-### العمليات الأساسية
-
-- **حفظ:** حفظ القرار والانتقال للتالي
-- **تمديد:** تمديد صلاحية الضمان لسنة
-- **تخفيض:** تقليل قيمة الضمان
-- **إفراج:** إصدار خطاب إفراج نهائي
+*   **Backend**: PHP 8.0+ (Native Standalone Server)
+*   **Database**: SQLite 3
+*   **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript (ES6+)
+*   **Architecture**: Server-Driven UI with Repository Pattern
 
 ---
 
-## 🛠️ التقنيات المستخدمة
+## 📝 License
 
-### Backend
-- **PHP 8.0+** مع PDO
-- **SQLite 3** قاعدة بيانات
-- **PhpSpreadsheet** لملفات Excel
-- **HTMLPurifier** لتنظيف المدخلات
-
-### Frontend
-- **Alpine.js** للتفاعل
-- **Tailwind CSS** للتصميم
-- **Vanilla JavaScript** Controllers
-- **Lucide Icons** للأيقونات
-
-### المعمارية
-- **Server-Driven Architecture** ✅
-- **RESTful APIs** ✅
-- **Repository Pattern** ✅
-- **PSR-4 Autoloading** ✅
-
----
-
-## 🔒 الأمان والجودة
-
-- ✅ **التزام 100%** بالسياسات المعمارية المعتمدة
-- ✅ **Prepared Statements** لمنع SQL Injection
-- ✅ **Input Validation** على مستوى السيرفر
-- ✅ **HTMLPurifier** لتنظيف المدخلات
-- ✅ **كود مُختبر** بشكل شامل
-
----
-
-## 📚 التوثيق
-
-- **[CHANGELOG.md](CHANGELOG.md)** - سجل شامل بجميع التغييرات
-- **[RELEASE_NOTES.md](RELEASE_NOTES.md)** - ملاحظات الإصدار 1.0.0
-- **[docs/](docs/)** - التوثيق التقني المفصل
-- **[.agent/policies/](.agent/policies/)** - سياسات التطوير المعتمدة
-
----
-
-## 🧪 الاختبارات
-
-```bash
-# تشغيل الاختبارات الآلية
-vendor/bin/phpunit
-
-# تشغيل اختبارات محددة
-vendor/bin/phpunit tests/Unit/
-```
-
----
-
-## 📝 ملاحظات مهمة
-
-- **قاعدة البيانات:** `storage/database/database.sqlite`
-- **Portable:** انسخ المشروع لأي مكان ويعمل فوراً!
-- **النسخ الاحتياطية:** انسخ ملف `.sqlite` بشكل دوري
-- **التحديثات:** تابع [CHANGELOG.md](CHANGELOG.md) للتحديثات
-
----
-
-## 🤝 المساهمة
-
-هذا مشروع خاص. للمساهمة أو الإبلاغ عن مشاكل، تواصل مع مالك المشروع.
-
----
-
-## 📄 الترخيص
-
-Proprietary - جميع الحقوق محفوظة © 2026
-
----
-
-## 🙏 شكر وتقدير
-
-تم تطوير هذا النظام بمساعدة **Antigravity AI** مع التزام صارم بأفضل الممارسات والمعايير المعمارية.
-
----
-
-**النسخة:** 1.0.0  
-**تاريخ الإصدار:** 8 يناير 2026  
-**الحالة:** مستقر وجاهز للإنتاج ✅
-
+Private Proprietary Software.
+Copyright © 2026. All Rights Reserved.
