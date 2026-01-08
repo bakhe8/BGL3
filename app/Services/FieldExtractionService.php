@@ -35,10 +35,10 @@ class FieldExtractionService
             // Pattern 6: Arabic "رقم الضمان" followed by value
             '/رقم\s*الضمان[:\s]*([A-Z0-9\-\/]+)/iu',
         ];
-        
+
         return self::extractWithPatterns($text, $patterns, 'GUARANTEE_NUMBER');
     }
-    
+
     /**
      * Extract amount from text
      * Returns float value or null
@@ -55,45 +55,56 @@ class FieldExtractionService
             // Pattern 4: Simple large numbers without separators
             '/\b([0-9]{5,}(?:\.[0-9]{2})?)\b/',
         ];
-        
+
         $amountStr = self::extractWithPatterns($text, $patterns, 'AMOUNT');
-        
+
         if ($amountStr) {
-            return (float)str_replace(',', '', $amountStr);
+            return (float) str_replace(',', '', $amountStr);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Extract expiry date from text
      * Normalizes to YYYY-MM-DD format
+     * 
+     * ✨ ENHANCED: Added support for:
+     * - Arabic month names (يناير، فبراير، إلخ)
+     * - Dot separator (MM.DD.YYYY)
+     * - More flexible patterns
      */
     public static function extractExpiryDate(string $text): ?string
     {
         $patterns = [
             // Pattern 1: YYYY-MM-DD or YYYY/MM/DD
-            '/(?:Expiry|Until|تاريخ|انتهاء|الانتهاء|ينتهي)[:\s]*([0-9]{4}[\-\/][0-9]{1,2}[\-\/][0-9]{1,2})/iu',
-            // Pattern 2: DD-MM-YYYY or DD/MM/YYYY
-            '/(?:Expiry|Until|تاريخ|انتهاء|الانتهاء|ينتهي)[:\s]*([0-9]{1,2}[\-\/][0-9]{1,2}[\-\/][0-9]{4})/iu',
-            // Pattern 3: Date with month name (6-Jan-2026, 15-Dec-2025)
-            '/\b([0-9]{1,2}[\-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/][0-9]{4})\b/i',
-            // Pattern 4: Just dates in YYYY-MM-DD format
-            '/\b([0-9]{4}[\-\/][0-9]{1,2}[\-\/][0-9]{1,2})\b/',
-            // Pattern 5: Just dates in DD-MM-YYYY format (will need conversion)
-            '/\b([0-9]{1,2}[\-\/][0-9]{1,2}[\-\/][0-9]{4})\b/',
+            '/(?:Expiry|Until|تاريخ|انتهاء|الانتهاء|ينتهي)[:\s]*([0-9]{4}[\-\/\.][0-9]{1,2}[\-\/\.][0-9]{1,2})/iu',
+            // Pattern 2: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
+            '/(?:Expiry|Until|تاريخ|انتهاء|الانتهاء|ينتهي)[:\s]*([0-9]{1,2}[\-\/\.][0-9]{1,2}[\-\/\.][0-9]{4})/iu',
+            // Pattern 3a: Date with English month + 2-digit year (12-Jan-26, 15-Dec-25)
+            '/\b([0-9]{1,2}[\-\/\.](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/\.]([0-9]{2}))\b/i',
+            // Pattern 3b: Date with English month + 4-digit year (6-Jan-2026, 15-Dec-2025)
+            '/\b([0-9]{1,2}[\-\/\.](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/\.][0-9]{4})\b/i',
+            // Pattern 4: Date with Arabic month name (15-يناير-2026)
+            '/\b([0-9]{1,2}[\-\/\.](يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر)[\-\/\.][0-9]{4})\b/iu',
+            // Pattern 5: Just dates in YYYY-MM-DD format (with -, /, or .)
+            '/\b([0-9]{4}[\-\/\.][0-9]{1,2}[\-\/\.][0-9]{1,2})\b/',
+            // Pattern 6: Just dates in DD-MM-YYYY format (with -, /, or .)
+            '/\b([0-9]{1,2}[\-\/\.][0-9]{1,2}[\-\/\.][0-9]{4})\b/',
+            // Pattern 7: Compact format YYYYMMDD
+            '/\b(20[0-9]{2}[01][0-9][0-3][0-9])\b/',
         ];
-        
+
         $dateStr = self::extractWithPatterns($text, $patterns, 'EXPIRY_DATE');
-        
+
         if ($dateStr) {
-            // Convert month name format to YYYY-MM-DD
+            // Convert to standard YYYY-MM-DD format
             return self::normalizeDateFormat($dateStr);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Extract issue date from text
      */
@@ -103,16 +114,16 @@ class FieldExtractionService
             '/(?:Issue|Issued|تاريخ\s*الإصدار|صدر|إصدار)[:\s]*([0-9]{4}[\-\/][0-9]{1,2}[\-\/][0-9]{1,2})/iu',
             '/(?:Issue|Issued|تاريخ\s*الإصدار|صدر|إصدار)[:\s]*([0-9]{1,2}[\-\/][0-9]{1,2}[\-\/][0-9]{4})/iu',
         ];
-        
+
         $dateStr = self::extractWithPatterns($text, $patterns, 'ISSUE_DATE');
-        
+
         if ($dateStr) {
             return str_replace('/', '-', $dateStr);
         }
-        
+
         return null;
     }
-    
+
     /**
      * Extract supplier name from text
      */
@@ -126,17 +137,17 @@ class FieldExtractionService
             '/^([A-Z][A-Z\s&]+COMPANY)\s*\t/im',
             '/^([A-Z][A-Z\s&]+(?:COMPANY|CO\.|LTD|LLC|CORPORATION))\s*\t/im',
         ];
-        
+
         $supplierStr = self::extractWithPatterns($text, $patterns, 'SUPPLIER');
-        
+
         if ($supplierStr) {
             // Clean up supplier name (remove extra spaces, trailing punctuation)
             return preg_replace('/[،,\.]+$/', '', trim($supplierStr));
         }
-        
+
         return null;
     }
-    
+
     /**
      * Extract bank name from text
      */
@@ -150,35 +161,55 @@ class FieldExtractionService
             // Common Saudi bank codes
             '/\b(SNB|ANB|SABB|NCB|RIBL|SAMBA|BSF|ALRAJHI|ALINMA)\b/i',
         ];
-        
+
         $bankStr = self::extractWithPatterns($text, $patterns, 'BANK');
-        
+
         if ($bankStr) {
             return preg_replace('/[،,\.]+$/', '', trim($bankStr));
         }
-        
+
         return null;
     }
-    
+
     /**
-     * Extract contract number from text
+     * Extract contract number or purchase order from text
+     * 
+     * ✨ ENHANCED: Purchase orders now extract number only (without PO- prefix)
+     * - Contract (عقد): C/0061/43, CNT-2024-001 → kept as-is
+     * - Purchase Order (أمر شراء): PO-123456 → extracted as "123456"
+     * 
+     * ⚠️ IMPORTANT: PO cannot contain "/" (slash) - only "-" (dash) is valid
      */
     public static function extractContractNumber(string $text): ?string
     {
         $patterns = [
+            // CONTRACTS (kept as-is with C/ prefix)
             // From subject/title line (e.g. "إفراج عن ضمان C/0061/43")
             '/^[^\n]*\b(C\/[A-Z]?[0-9]{4}\/[0-9]{2})\b/im',
-            // Standard Labels
-            '/(?:Contract|PO|Order|العقد|الشراء|أمر\s*الشراء|رقم\s*العقد)[:\s#]*([A-Z0-9\-\/]+)/iu',
-            '/(?:عقد|ع\.ر)[:\s#]*([A-Z0-9\-\/]+)/iu',
-            // Specific Formats (PO-123, C/123/22)
-            '/\b([CP]O[\-\/][0-9]{4,})\b/i',
             '/\b(C\/[0-9]{4}\/[0-9]{2})\b/i',
+            '/\b(CNT[\-][0-9]{4,})\b/i', // CNT-2024-001
+
+            // PURCHASE ORDERS (extract number only, no PO- prefix)
+            // ⚠️ Only dash (-) allowed, no slash (/)
+            '/(?:PO|P\.O|أمر\s*شراء)[:\s#\-]*(\d{4,})/iu',
+
+            // Generic contract labels (fallback)
+            '/(?:Contract|Order|العقد|رقم\s*العقد|عقد)[:\s#]*([A-Z0-9\-\/]+)/iu',
+            '/(?:ع\.ر)[:\s#]*([A-Z0-9\-\/]+)/iu',
         ];
-        
-        return self::extractWithPatterns($text, $patterns, 'CONTRACT_NUMBER');
+
+        $extracted = self::extractWithPatterns($text, $patterns, 'CONTRACT_NUMBER');
+
+        if ($extracted) {
+            // Clean up: if it starts with PO- or P.O-, remove the prefix
+            // This ensures we only store the number for purchase orders
+            $cleaned = preg_replace('/^(PO|P\.O)[\-\s]*/i', '', $extracted);
+            return $cleaned;
+        }
+
+        return null;
     }
-    
+
     /**
      * Detect guarantee type (initial or final)
      */
@@ -189,10 +220,10 @@ class FieldExtractionService
         } elseif (preg_match('/ابتدائي|initial|bid/iu', $text)) {
             return 'ابتدائي';
         }
-        
+
         return 'ابتدائي'; // Default
     }
-    
+
     /**
      * Detect intent (extension, reduction, release)
      * For logging only - not actionable
@@ -206,10 +237,10 @@ class FieldExtractionService
         } elseif (preg_match('/إفراج|افراج|release|cancel|للإفراج|لإفراج/iu', $text)) {
             return 'release';
         }
-        
+
         return null;
     }
-    
+
     /**
      * Multi-pattern extraction helper
      * Tries multiple patterns in order until one matches
@@ -228,27 +259,68 @@ class FieldExtractionService
         error_log("❌ [{$fieldName}] No match found in " . count($patterns) . " patterns");
         return null;
     }
-    
+
     /**
      * Normalize date format to YYYY-MM-DD
-     * Handles month names (Jan, Feb, etc.)
+     * Handles English and Arabic month names, various separators
      * 
-     * ⚠️ Addresses user concern: "Code Duplication" - unified method
+     * ✨ ENHANCED: Added Arabic month names support
      */
     private static function normalizeDateFormat(string $dateStr): string
     {
-        // Convert month name format to YYYY-MM-DD
-        if (preg_match('/([0-9]{1,2})[\-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/]([0-9]{4})/i', $dateStr, $m)) {
+        // Handle compact format YYYYMMDD
+        if (preg_match('/^(20[0-9]{2})([01][0-9])([0-3][0-9])$/', $dateStr, $m)) {
+            return $m[1] . '-' . $m[2] . '-' . $m[3];
+        }
+
+        // Convert English month name format with 2-digit year (12-Jan-26 → 2026-01-12)
+        if (preg_match('/([0-9]{1,2})[\-\/\.](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/\.]([0-9]{2})\b/i', $dateStr, $m)) {
             $months = [
-                'jan'=>'01', 'feb'=>'02', 'mar'=>'03', 'apr'=>'04',
-                'may'=>'05', 'jun'=>'06', 'jul'=>'07', 'aug'=>'08',
-                'sep'=>'09', 'oct'=>'10', 'nov'=>'11', 'dec'=>'12'
+                'jan' => '01', 'feb' => '02', 'mar' => '03', 'apr' => '04',
+                'may' => '05', 'jun' => '06', 'jul' => '07', 'aug' => '08',
+                'sep' => '09', 'oct' => '10', 'nov' => '11', 'dec' => '12'
+            ];
+            $month = $months[strtolower($m[2])];
+            
+            // Convert 2-digit year to 4-digit: 00-49 → 20xx, 50-99 → 19xx
+            $year = (int)$m[3];
+            $year = $year < 50 ? 2000 + $year : 1900 + $year;
+            
+            return $year . '-' . $month . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+        }
+        
+        // Convert English month name format with 4-digit year (6-Jan-2026 → 2026-01-06)
+        if (preg_match('/([0-9]{1,2})[\-\/\.](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[\-\/\.]([0-9]{4})/i', $dateStr, $m)) {
+            $months = [
+                'jan' => '01', 'feb' => '02', 'mar' => '03', 'apr' => '04',
+                'may' => '05', 'jun' => '06', 'jul' => '07', 'aug' => '08',
+                'sep' => '09', 'oct' => '10', 'nov' => '11', 'dec' => '12'
             ];
             $month = $months[strtolower($m[2])];
             return $m[3] . '-' . $month . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
         }
-        
-        // Normalize other formats (replace / with -)
-        return str_replace('/', '-', $dateStr);
+
+        // Convert Arabic month name format to YYYY-MM-DD
+        if (preg_match('/([0-9]{1,2})[\-\/\.](يناير|فبراير|مارس|أبريل|مايو|يونيو|يوليو|أغسطس|سبتمبر|أكتوبر|نوفمبر|ديسمبر)[\-\/\.]([0-9]{4})/iu', $dateStr, $m)) {
+            $arabicMonths = [
+                'يناير' => '01',
+                'فبراير' => '02',
+                'مارس' => '03',
+                'أبريل' => '04',
+                'مايو' => '05',
+                'يونيو' => '06',
+                'يوليو' => '07',
+                'أغسطس' => '08',
+                'سبتمبر' => '09',
+                'أكتوبر' => '10',
+                'نوفمبر' => '11',
+                'ديسمبر' => '12'
+            ];
+            $month = $arabicMonths[$m[2]];
+            return $m[3] . '-' . $month . '-' . str_pad($m[1], 2, '0', STR_PAD_LEFT);
+        }
+
+        // Normalize separators (replace / and . with -)
+        return str_replace(['/', '.'], '-', $dateStr);
     }
 }

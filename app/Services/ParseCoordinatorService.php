@@ -132,22 +132,96 @@ class ParseCoordinatorService
     
     /**
      * Extract fields from text using FieldExtractionService
+     * 
+     * ✨ ENHANCED: Uses Text Masking to prevent field overlap
+     * Each extracted field is masked from subsequent searches for better accuracy
      */
     private static function extractFieldsFromText(string $text): array
     {
-        return [
-            'guarantee_number' => FieldExtractionService::extractGuaranteeNumber($text),
-            'amount' => FieldExtractionService::extractAmount($text),
-            'expiry_date' => FieldExtractionService::extractExpiryDate($text),
-            'issue_date' => FieldExtractionService::extractIssueDate($text),
-            'supplier' => FieldExtractionService::extractSupplier($text),
-            'bank' => FieldExtractionService::extractBank($text),
-            'contract_number' => FieldExtractionService::extractContractNumber($text),
-            'type' => FieldExtractionService::detectType($text),
-            'intent' => FieldExtractionService::detectIntent($text),
-            'currency' => 'SAR',
-            'source_text' => $text
-        ];
+        // ⚠️ CRITICAL: Extract in order of specificity (most specific first)
+        // This prevents generic patterns from consuming specific ones
+        
+        $workingText = $text;  // Working copy for masking
+        $extracted = [];
+        
+        // 1. GUARANTEE NUMBER (high specificity - specific alphanumeric patterns)
+        $extracted['guarantee_number'] = FieldExtractionService::extractGuaranteeNumber($workingText);
+        if ($extracted['guarantee_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['guarantee_number']);
+        }
+        
+        // 2. AMOUNT (highest specificity - numbers with commas/decimals)
+        $extracted['amount'] = FieldExtractionService::extractAmount($workingText);
+        if ($extracted['amount']) {
+            // Mask the formatted version with commas
+            $formattedAmount = number_format($extracted['amount'], 2);
+            $workingText = self::maskExtractedValue($workingText, (string)$extracted['amount']);
+            $workingText = self::maskExtractedValue($workingText, str_replace(',', '', $formattedAmount));
+        }
+        
+        // 3. DATES (high specificity - specific date formats)
+        $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
+        if ($extracted['expiry_date']) {
+            // Mask the original date format (before normalization)
+            $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
+        }
+        
+        $extracted['issue_date'] = FieldExtractionService::extractIssueDate($workingText);
+        if ($extracted['issue_date']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
+        }
+        
+        // 4. BANK (medium specificity - known codes or keywords)
+        $extracted['bank'] = FieldExtractionService::extractBank($workingText);
+        if ($extracted['bank']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['bank']);
+        }
+        
+        // 5. CONTRACT NUMBER (medium specificity)
+        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
+        if ($extracted['contract_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        }
+        
+        // 6. SUPPLIER (lowest specificity - catch-all for text)
+        // Extract this LAST to avoid consuming other fields
+        $extracted['supplier'] = FieldExtractionService::extractSupplier($workingText);
+        
+        // 7. TYPE and INTENT (pattern detection - use original text)
+        $extracted['type'] = FieldExtractionService::detectType($text);
+        $extracted['intent'] = FieldExtractionService::detectIntent($text);
+        
+        // 8. Metadata
+        $extracted['currency'] = 'SAR';
+        $extracted['source_text'] = $text;
+        
+        return $extracted;
+    }
+    
+    /**
+     * Mask an extracted value from text to prevent re-extraction
+     * 
+     * This is a simple replacement approach:
+     * - Replaces the exact extracted value with spaces
+     * - Prevents the same text segment from matching multiple patterns
+     * 
+     * @param string $text Text to mask from
+     * @param string $value Value to mask
+     * @return string Text with value masked
+     */
+    private static function maskExtractedValue(string $text, string $value): string
+    {
+        if (empty($value)) {
+            return $text;
+        }
+        
+        // Use preg_quote to escape special regex characters in the value
+        $quotedValue = preg_quote($value, '/');
+        
+        // Replace with spaces (preserves text length and positions)
+        $masked = preg_replace('/' . $quotedValue . '/u', str_repeat(' ', mb_strlen($value)), $text, 1);
+        
+        return $masked;
     }
     
     /**

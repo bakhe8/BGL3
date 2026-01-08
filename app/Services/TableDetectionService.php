@@ -145,6 +145,17 @@ class TableDetectionService
                 $rowData['supplier'] = $col;
                 error_log("  🏢 Supplier: {$col}");
                 continue;
+                $rowData['amount'] = $col;
+            }
+        }
+        
+        // ✨ NEW: Infer document type from Contract Number format
+        // If it's a plain number (e.g. 7773), it's a Purchase Order
+        if (!empty($rowData['contract_number'])) {
+            if (preg_match('/^[0-9]{4,}$/', $rowData['contract_number'])) {
+                $rowData['related_to'] = 'purchase_order';
+            } else {
+                $rowData['related_to'] = 'contract';
             }
         }
         
@@ -206,19 +217,41 @@ class TableDetectionService
     
     /**
      * Check if column is an amount
+     * 
+     * ⚠️ STRICT: Must have comma OR decimal to avoid matching plain numbers (PO numbers)
+     * Examples:
+     * ✅ 95,200.00 → Amount
+     * ✅ 1,234.56 → Amount  
+     * ✅ 95,200 → Amount
+     * ❌ 7773 → NOT an amount (plain number, likely PO or reference)
      */
     private static function isAmount(string $col): bool
     {
-        // Numbers with commas or decimals
-        return (bool)preg_match('/^[0-9,]+(\.[0-9]{2})?$/', $col);
+        // Must have comma OR decimal point (prevents "7773" from being detected as amount)
+        if (strpos($col, ',') !== false || strpos($col, '.') !== false) {
+            return (bool)preg_match('/^[0-9,]+(\.[0-9]{2})?$/', $col);
+        }
+        
+        return false; // Plain numbers are not amounts
     }
     
     /**
      * Check if column is a date
+     * 
+     * Supports:
+     * - 12-Jan-26 (2-digit year)
+     * - 12-Jan-2026 (4-digit year)
+     * - DD-MM-YYYY / DD/MM/YYYY
+     * - YYYY-MM-DD / YYYY/MM/DD
      */
     private static function isDate(string $col): bool
     {
-        // Month name format (6-Jan-2026)
+        // Month name format with 2-digit year (12-Jan-26)
+        if (preg_match('/^[0-9]{1,2}[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/]([0-9]{2})$/i', $col)) {
+            return true;
+        }
+        
+        // Month name format with 4-digit year (6-Jan-2026)
         if (preg_match('/^[0-9]{1,2}[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/][0-9]{4}$/i', $col)) {
             return true;
         }
@@ -299,15 +332,31 @@ class TableDetectionService
     /**
      * Check if column is a contract number
      */
+    /**
+     * Check if column is a contract number or PO
+     * 
+     * ⚠️ UPDATED: 
+     * - Removed "PO-" support because user clarified POs are plain numbers (e.g. 7773)
+     * - "PO-211" is actually an S/N, so must be rejected
+     * - Added support for plain numbers (4+ digits)
+     */
     private static function isContractNumber(string $col): bool
     {
-        // Format: ABC/1234/56
+        // Format: ABC/1234/56 (Contract)
         if (preg_match('/^[A-Z]+\/[A-Z0-9]{4,}\/[0-9]{2}$/i', $col)) {
             return true;
         }
         
-        // Format: PO-1234 or CNT-1234
-        if (preg_match('/^(PO|CNT|C)-[0-9]+/i', $col)) {
+        // Format: CNT-1234 or C-1234 (standard Contract prefixes)
+        // ❌ REMOVED "PO" prefix support - user confirmed "PO-211" is incorrect/S-N
+        if (preg_match('/^(CNT|C)-[0-9]+/i', $col)) {
+            return true;
+        }
+        
+        // ✨ NEW: Plain Purchase Order numbers (4+ digits)
+        // Example: 7773
+        // Note: isAmount() handles numbers with commas/decimals. Clean integers flow here.
+        if (preg_match('/^[0-9]{4,}$/', $col)) {
             return true;
         }
         
