@@ -28,12 +28,10 @@ function showImportModal() {
     if (fileInput) {
         fileInput.click();
     } else {
-        // Fallback: Show error instead of redirecting to non-existent page
+        // Error: File input not found
         console.error('File input element #hiddenFileInput not found');
         if (typeof showToast === 'function') {
             showToast('عفواً، خاصية الاستيراد غير متاحة حالياً', 'error');
-        } else {
-            alert('عفواً، خاصية الاستيراد غير متاحة حالياً');
         }
     }
 }

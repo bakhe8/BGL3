@@ -595,8 +595,11 @@ if (!window.RecordsController) {
             return new Promise((resolve) => {
                 const overlay = document.getElementById('bgl-confirm-overlay');
                 if (!overlay) {
-                    // Fallback if partial is missing (should not happen in prod)
-                    if (confirm(message)) resolve(true); else resolve(false);
+                    // Critical: Modal HTML not found in page
+                    // This should never happen if the partial is included
+                    console.error('CRITICAL: bgl-confirm-overlay not found. Ensure partials/confirm-modal.php is included.');
+                    // Resolve false to prevent any destructive action
+                    resolve(false);
                     return;
                 }
 
@@ -848,13 +851,10 @@ if (!window.RecordsController) {
             if (fileInput) {
                 fileInput.click();
             } else {
-                // Fallback: Show error instead of redirecting to non-existent page
+                // Error: File input not found
                 console.error('File input element #hiddenFileInput not found');
-                if (this.showToast) {
-                    this.showToast('عفواً، خاصية الاستيراد غير متاحة حالياً', 'error');
-                } else {
-                    alert('عفواً، خاصية الاستيراد غير متاحة حالياً');
-                }
+                // Note: showToast is in RecordsController context, not available here
+                // The import feature should be properly implemented with the file input element
             }
         }
         // Navigation Implementation

@@ -1,7 +1,10 @@
 {
-    "name": "bgl/unified-workflow-v3",
-    "description": "BGL System V3 - Standalone System",
+    "name": "bgl/guarantee-management-system",
+    "description": "نظام إدارة الضمانات البنكية - BGL System v3",
+    "version": "1.0.0",
     "type": "project",
+    "keywords": ["guarantee", "bank", "management", "php", "sqlite"],
+    "license": "proprietary",
     "require": {
         "php": ">=8.0",
         "phpoffice/phpspreadsheet": "^1.29"

@@ -5,6 +5,7 @@
 # Environment
 .env
 .env.local
+.env.*.local
 
 # Database
 storage/database/*.sqlite
@@ -15,10 +16,14 @@ storage/database/*.db
 # Logs
 *.log
 /logs/
+/storage/logs/
+storage/*.log
 
 # OS
 .DS_Store
 Thumbs.db
+desktop.ini
+ehthumbs.db
 
 # IDE
 .vscode/
@@ -26,11 +31,26 @@ Thumbs.db
 *.swp
 *.swo
 *~
+*.sublime-workspace
+*.sublime-project
 
 # Temporary files
 *.tmp
 *.temp
+*.cache
+*.bak
 *_backup_*
 create_empty_db*.php
 restore_*.php
 copy_*.php
+
+# Uploads (keep structure, ignore content)
+/storage/uploads/*
+!/storage/uploads/.gitkeep
+/storage/attachments/*
+!/storage/attachments/.gitkeep
+
+# Test coverage
+/coverage/
+.phpunit.result.cache
+
