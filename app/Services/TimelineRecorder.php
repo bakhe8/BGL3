@@ -19,7 +19,7 @@ class TimelineRecorder {
      * This snapshot represents the "current state" at the time of calling.
      */
     public static function createSnapshot($guaranteeId, $decisionData = null) {
-        global $db;
+        $db = \App\Support\Database::connection();
         
         if (!$decisionData) {
             // Fetch latest decision + raw data
@@ -83,7 +83,7 @@ class TimelineRecorder {
      * @return string|null Complete letter HTML or null if guarantee not found
      */
     public static function generateLetterSnapshot($guaranteeId, $actionType, $actionData = []) {
-        global $db;
+        $db = \App\Support\Database::connection();
         
         error_log("🔍 generateLetterSnapshot (LetterBuilder): GID=$guaranteeId Type=$actionType");
         
@@ -318,7 +318,7 @@ class TimelineRecorder {
         $subtype = null,  // 🆕 event_subtype
         $letterSnapshot = null  // ADR-007: letter snapshot
     ) {
-        global $db;
+        $db = \App\Support\Database::connection();
         
         // Note: We do NOT calculate status change here anymore. 
         // Status transitions (SE-01/02) must be recorded via recordStatusTransitionEvent separately.
@@ -394,10 +394,7 @@ class TimelineRecorder {
      * The ONLY entry point.
      */
     public static function recordImportEvent($guaranteeId, $source = 'excel', $explicitRawData = null) {
-        global $db;
-        if (!$db) {
-            $db = \App\Support\Database::connect();
-        }
+        $db = \App\Support\Database::connection();
         // Check if import event already exists (prevent duplicates)
         $stmt = $db->prepare("SELECT id FROM guarantee_history WHERE guarantee_id = ? AND event_type = 'import' LIMIT 1");
         $stmt->execute([$guaranteeId]);
@@ -460,7 +457,7 @@ class TimelineRecorder {
      * Creates a timeline event for transparency without modifying guarantee data
      */
     public static function recordDuplicateImportEvent($guaranteeId, $source = 'excel') {
-        global $db;
+        $db = \App\Support\Database::connection();
         
         // Fetch current raw_data for snapshot
         $stmt = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
@@ -501,7 +498,7 @@ class TimelineRecorder {
     }
 
     public static function recordStatusTransitionEvent($guaranteeId, $oldSnapshot, $newStatus, $reason = 'auto_logic') {
-        global $db;
+        $db = \App\Support\Database::connection();
         
         $oldStatus = $oldSnapshot['status'] ?? 'pending';
         
@@ -527,7 +524,7 @@ class TimelineRecorder {
      * saveReimportEvent (LE-00 Equivalent for duplicates, but strictly separate type)
      */
     public static function recordReimportEvent($guaranteeId, $source = 'excel') {
-        global $db;
+        $db = \App\Support\Database::connection();
         $snapshot = self::createSnapshot($guaranteeId);
         $eventDetails = ['source' => $source, 'reason' => 'duplicate_guarantee_number'];
         $stmt = $db->prepare("INSERT INTO guarantee_history (guarantee_id, event_type, snapshot_data, event_details, created_at, created_by) VALUES (?, 'reimport', ?, ?, ?, ?)");
@@ -538,7 +535,7 @@ class TimelineRecorder {
     // ... [Keep getEventDisplayLabel as per previous fix, but ensure it handles new structure] ...
 
     public static function getTimeline($guaranteeId) {
-        global $db;
+        $db = \App\Support\Database::connection();
         $stmt = $db->prepare("SELECT * FROM guarantee_history WHERE guarantee_id = ? ORDER BY created_at DESC, id DESC");
         $stmt->execute([$guaranteeId]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);

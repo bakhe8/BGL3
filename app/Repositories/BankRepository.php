@@ -21,15 +21,6 @@ class BankRepository
         return $this->map($row);
     }
 
-    public function findByNormalizedKey(string $key): ?Bank
-    {
-        $pdo = Database::connection();
-        $stmt = $pdo->prepare('SELECT * FROM banks WHERE normalized_name = :k LIMIT 1');
-        $stmt->execute(['k' => $key]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row ? $this->map($row) : null;
-    }
-
     public function find(int $id): ?Bank
     {
         $pdo = Database::connection();
@@ -68,24 +59,16 @@ class BankRepository
         try {
             $pdo = Database::connection();
             
-            // ✅ CRITICAL FIX: Use CAST(id AS TEXT) because of mixed types in SQLite
-            // Some IDs are stored as integers (2), others as strings ('37')
-            $strId = (string)$bankId;
-            $sql = "SELECT * FROM banks WHERE CAST(id AS TEXT) = '$strId'";
+            // ✅ Use prepared statement with CAST for SQLite mixed type handling
+            // Some IDs stored as integers (2), others as strings ('37')
+            $stmt = $pdo->prepare("SELECT * FROM banks WHERE CAST(id AS TEXT) = ?");
+            $stmt->execute([(string)$bankId]);
             
-            $result = $pdo->query($sql);
-            if (!$result) {
+            $bank = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$bank) {
                 return null;
             }
-            
-            // Use fetchAll() to avoid other SQLite PDO bugs
-            $banks = $result->fetchAll(PDO::FETCH_ASSOC);
-            
-            if (empty($banks)) {
-                return null;
-            }
-            
-            $bank = $banks[0];  // Get first (and only) result
             
             // Map to expected keys
             return [

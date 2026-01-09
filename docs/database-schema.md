@@ -5,8 +5,10 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
 ## Tables
 
 ### 1. `guarantees`
-*   **Role**: Immutable Raw Data Container.
-*   **DDL**:
+
+* **Role**: Immutable Raw Data Container.
+* **DDL**:
+
     ```sql
     CREATE TABLE guarantees (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -21,8 +23,10 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ### 2. `guarantee_decisions`
-*   **Role**: Operational State (Mutable).
-*   **DDL**:
+
+* **Role**: Operational State (Mutable).
+* **DDL**:
+
     ```sql
     CREATE TABLE guarantee_decisions (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -39,7 +43,7 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
         last_modified_at DATETIME,
         last_modified_by TEXT,
         manual_override BOOLEAN DEFAULT 0,
-        extra_columns JSON, -- Note: Schema report doesn't show this but code might usage it? No, code uses explicit columns.
+        -- extra_columns field removed in Migration 004 (2026-01-10)
         active_action TEXT NULL, -- Added in Phase 3
         active_action_set_at TEXT NULL,
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -52,8 +56,10 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ### 3. `guarantee_history`
-*   **Role**: Audit Trail.
-*   **DDL**:
+
+* **Role**: Audit Trail.
+* **DDL**:
+
     ```sql
     CREATE TABLE guarantee_history (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -70,8 +76,10 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ### 4. `suppliers`
-*   **Role**: Normalized Registry.
-*   **DDL**:
+
+* **Role**: Normalized Registry.
+* **DDL**:
+
     ```sql
     CREATE TABLE suppliers (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -86,14 +94,17 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ### 5. `banks`
-*   **Role**: Normalized Registry.
-*   **DDL**:
+
+* **Role**: Normalized Registry.
+* **DDL**:
+
     ```sql
     CREATE TABLE banks (
         id, -- Integer PK implied
         arabic_name TEXT,
         english_name TEXT,
         short_name TEXT,
+        normalized_name TEXT, -- Added in Migration 003 (2026-01-10)
         department TEXT,
         address_line1 TEXT,
         contact_email TEXT,
@@ -103,8 +114,10 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ### 6. `supplier_learning_cache`
-*   **Role**: Performance & Intelligence.
-*   **DDL**:
+
+* **Role**: Performance & Intelligence.
+* **DDL**:
+
     ```sql
     CREATE TABLE supplier_learning_cache (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,6 +140,12 @@ This document represents the **Physical Data Model** verified from `scripts/db_s
     ```
 
 ## Evidence Index
-*   **Tables & DDL**: Extracted from `scripts/db_schema_report.json`.
-*   **Generated Columns**: `supplier_learning_cache` in `scripts/db_schema_report.json`.
-*   **Initial Schema**: `database/migrations/001_initial_schema.sql` (Inferred source).
+
+* **Tables & DDL**: Extracted from `scripts/db_schema_report.json`.
+* **Generated Columns**: `supplier_learning_cache` in `scripts/db_schema_report.json`.
+* **Initial Schema**: `database/migrations/001_initial_schema.sql` (Inferred source).
+
+## Recent Migrations
+
+* **Migration 003** (2026-01-10): Added `normalized_name` column to `banks` table
+* **Migration 004** (2026-01-10): Removed `extra_columns` field from `guarantee_decisions`
