@@ -17,9 +17,9 @@ The BGL3 team takes security seriously. If you discover a security vulnerability
 
 Please report security vulnerabilities by emailing:
 
-**Email:** [Create a private security advisory](https://github.com/bakhe8/BGL3/security/advisories/new)
+**Email:** bakheet@gmail.com
 
-Or use GitHub's private vulnerability reporting feature if available for this repository.
+Or [Create a private security advisory](https://github.com/bakhe8/BGL3/security/advisories/new)
 
 ### What to Include
 
@@ -110,9 +110,9 @@ When contributing to BGL3, please follow these security guidelines:
 
 يرجى الإبلاغ عن الثغرات الأمنية عبر البريد الإلكتروني:
 
-**البريد:** [إنشاء تقرير أمان خاص](https://github.com/bakhe8/BGL3/security/advisories/new)
+**البريد:** bakheet@gmail.com
 
-أو استخدم ميزة الإبلاغ الخاص عن الثغرات في GitHub إن كانت متاحة.
+أو [إنشاء تقرير أمان خاص](https://github.com/bakhe8/BGL3/security/advisories/new)
 
 ### ما يجب تضمينه
 
