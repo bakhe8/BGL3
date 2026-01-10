@@ -221,7 +221,7 @@ class ComprehensiveExtensionTest
     {
         $this->printHeader("Project Database Test");
         
-        $dbPath = __DIR__ . '/storage/database.db';
+        $dbPath = __DIR__ . '/../storage/database.db';
         
         if (file_exists($dbPath)) {
             echo "Database File: ✓ Found\n";
