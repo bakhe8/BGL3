@@ -2,7 +2,7 @@
 
 ## 🎨 Overview
 
-BGL3 uses a **custom CSS design system** with zero external dependencies (除了 Tailwind has been completely removed).
+BGL3 uses a **custom CSS design system** with zero external dependencies (Tailwind has been completely removed).
 
 ---
 
