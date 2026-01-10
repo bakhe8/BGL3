@@ -162,7 +162,7 @@ $basePath = ($currentDir === 'views') ? '../' : './';
 
 ---
 
-## 2026-01-[DATE]: PHP Version Requirement
+## 2026-01-08: PHP Version Requirement
 
 ### Decision
 
@@ -182,7 +182,7 @@ Require PHP 8.3+
 
 ---
 
-## 2026-01-[DATE]: SQLite over MySQL
+## 2026-01-08: SQLite over MySQL
 
 ### Decision
 

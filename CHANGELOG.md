@@ -139,4 +139,4 @@
 - **MINOR** (الثاني): إضافة ميزات جديدة متوافقة
 - **PATCH** (الثالث): إصلاحات وتحسينات صغيرة
 
-[1.0.0]: https://github.com/yourname/bgl-system/releases/tag/v1.0.0
+[1.0.0]: https://github.com/bakhe8/BGL3/releases/tag/v1.0.0
