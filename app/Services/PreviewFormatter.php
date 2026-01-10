@@ -79,10 +79,12 @@ class PreviewFormatter
      */
     public static function getIntroPhrase(string $rawType): string
     {
-        if (stripos($rawType, 'Final') !== false) {
+        if (stripos($rawType, 'Final') !== false || stripos($rawType, 'نهائي') !== false) {
             return 'إشارة إلى الضمان البنكي النهائي الموضح أعلاه';
-        } elseif (stripos($rawType, 'Advance') !== false) {
+        } elseif (stripos($rawType, 'Advance') !== false || stripos($rawType, 'دفعة مقدمة') !== false) {
             return 'إشارة إلى ضمان الدفعة المقدمة البنكي الموضح أعلاه';
+        } elseif (stripos($rawType, 'Initial') !== false || stripos($rawType, 'ابتدائي') !== false) {
+            return 'إشارة إلى الضمان البنكي الابتدائي الموضح أعلاه';
         } else {
             return 'إشارة إلى الضمان البنكي الموضح أعلاه';
         }

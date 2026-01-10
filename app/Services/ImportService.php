@@ -7,6 +7,7 @@ use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
 use App\Support\SimpleXlsxReader;
+use App\Support\TypeNormalizer;
 use RuntimeException;
 
 /**
@@ -140,7 +141,7 @@ class ImportService
                     'amount' => $amount,
                     'issue_date' => $issueDate,
                     'expiry_date' => $expiryDate,
-                    'type' => $type ?: 'نهائي',
+                    'type' => TypeNormalizer::normalize($type),
                     'contract_number' => $contractNumber,
                     'related_to' => $headerMap['contract_type'] ?? 'contract', // 🔥 NEW
                 ];
@@ -240,7 +241,7 @@ class ImportService
             'amount' => isset($data['amount']) ? floatval($data['amount']) : 0,
             'issue_date' => $data['issue_date'] ?? null,
             'expiry_date' => $data['expiry_date'] ?? null,
-            'type' => $data['type'] ?? 'نهائي',
+            'type' => TypeNormalizer::normalize($data['type'] ?? ''),
             'contract_number' => $data['contract_number'] ?? null,
             'related_to' => $data['related_to'] ?? 'contract', // 🔥 NEW
         ];

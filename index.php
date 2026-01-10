@@ -124,6 +124,7 @@ if ($currentRecord) {
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
         'type' => $raw['type'] ?? 'ابتدائي',
+        'related_to' => $raw['related_to'] ?? 'contract',
         'status' => 'pending',
         
         // Excel Raw Data (for hints display)
@@ -285,6 +286,68 @@ $formattedSuppliers = array_map(function($s) {
     
     <!-- Main Application Styles -->
     <link rel="stylesheet" href="public/css/index-main.css">
+    <!-- Header Override to match unified header styling (same as batches page) -->
+    <style>
+        :root { --height-top-bar: 64px; }
+        .top-bar {
+            height: var(--height-top-bar);
+            background: var(--bg-card);
+            border-bottom: 1px solid var(--border-primary);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 var(--space-lg);
+            box-shadow: var(--shadow-sm);
+            flex-shrink: 0;
+        }
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: var(--font-weight-black);
+            font-size: var(--font-size-xl);
+            color: var(--text-primary);
+        }
+        .brand-icon {
+            width: 36px;
+            height: 36px;
+            background: linear-gradient(135deg, var(--accent-primary), #8b5cf6);
+            border-radius: var(--radius-md);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-size: 16px;
+        }
+        .global-actions {
+            display: flex;
+            gap: var(--space-sm);
+        }
+        .btn-global {
+            display: inline-flex;
+            align-items: center;
+            gap: var(--space-xs);
+            padding: var(--space-sm) var(--space-md);
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-medium);
+            color: var(--text-secondary);
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: var(--radius-md);
+            text-decoration: none;
+            transition: all var(--transition-base);
+        }
+        .btn-global:hover {
+            background: var(--bg-hover);
+            color: var(--text-primary);
+        }
+        .btn-global.active {
+            background: var(--accent-primary-light);
+            color: var(--accent-primary);
+            border-color: var(--accent-primary);
+            font-weight: var(--font-weight-semibold);
+        }
+    </style>
 
 </head>
 <body>
@@ -292,18 +355,8 @@ $formattedSuppliers = array_map(function($s) {
     <!-- Hidden File Input for Excel Import -->
     <input type="file" id="hiddenFileInput" accept=".xlsx,.xls" style="display: none;">
     
-    <!-- Top Bar (Global) -->
-    <header class="top-bar">
-        <div class="brand">
-            <div class="brand-icon">&#x1F4CB;</div>
-            <span>نظام إدارة الضمانات</span>
-        </div>
-        <nav class="global-actions">
-            <a href="views/batches.php" class="btn-global">📦 الدفعات</a>
-            <a href="views/statistics.php" class="btn-global">📊 إحصائيات</a>
-            <a href="views/settings.php" class="btn-global">⚙ إعدادات</a>
-        </nav>
-    </header>
+    <!-- Unified Header -->
+    <?php include __DIR__ . '/partials/unified-header.php'; ?>
 
     <!-- Main Container -->
     <div class="app-container">

@@ -17,16 +17,17 @@ $currentSettings = $settings->all();
     <!-- Design System CSS -->
     <link rel="stylesheet" href="../public/css/design-system.css">
     <link rel="stylesheet" href="../public/css/components.css">
+
     <link rel="stylesheet" href="../public/css/layout.css">
     
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         /* Settings Page - Unique Styles Only */
-        .container { max-width: 95%; margin: 0 auto; padding: var(--space-lg); }
+        .container { width: 100%; max-width: 100%; margin: 0 auto; padding: var(--space-lg); }
         
         /* Tabs Styling */
-        .tabs { 
+        .tabs {
             display: flex; 
             gap: 10px; 
             margin-bottom: 20px; 
@@ -61,11 +62,10 @@ $currentSettings = $settings->all();
             border-radius: 8px 8px 0 0;
         }
         
-        .tab-content { display: none; }
+        .tab-content { display: none; width: 100%; max-width: 100%; margin: 0 auto; }
         .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        .tab-content .card { width: 100%; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
-        
-        /* Buttons */
         .btn {
             padding: 10px 20px;
             background: var(--accent-primary);

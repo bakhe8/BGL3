@@ -21,6 +21,7 @@
     transition: all var(--transition-base);
     text-decoration: none;
     white-space: nowrap;
+    font-family: var(--font-family);
 }
 
 .btn:hover {
@@ -99,6 +100,23 @@
 .btn-lg {
     padding: var(--space-md) var(--space-lg);
     font-size: var(--font-size-lg);
+}
+
+.btn-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: var(--accent-primary);
+    text-decoration: none;
+    cursor: pointer;
+    font-size: inherit;
+    display: inline;
+    font-family: var(--font-family);
+}
+
+.btn-link:hover {
+    text-decoration: underline;
+    color: var(--accent-primary-hover);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -654,6 +672,10 @@
 
 .text-info {
     color: var(--accent-info);
+}
+
+.text-accent {
+    color: var(--accent-primary);
 }
 
 .font-bold {

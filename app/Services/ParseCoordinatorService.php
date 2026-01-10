@@ -6,6 +6,7 @@ namespace App\Services;
 use PDO;
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
+use App\Support\TypeNormalizer;
 
 /**
  * ParseCoordinatorService
@@ -335,7 +336,7 @@ class ParseCoordinatorService
             'amount' => $amount,
             'expiry_date' => $expiryDate,
             'contract_number' => $rowData['contract_number'],
-            'type' => 'ابتدائي',
+            'type' => TypeNormalizer::normalize($rowData['type'] ?? $rowData['guarantee_type'] ?? ''), 
             'source' => $source,
             'original_text' => $text
         ];
@@ -401,7 +402,7 @@ class ParseCoordinatorService
             'expiry_date' => $extracted['expiry_date'],
             'issue_date' => $extracted['issue_date'],
             'contract_number' => $extracted['contract_number'],
-            'type' => $extracted['type'],
+            'type' => TypeNormalizer::normalize($extracted['type']),
             'source' => 'smart_paste',
             'original_text' => $text,
             'detected_intent' => $extracted['intent']
