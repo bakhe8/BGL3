@@ -47,7 +47,7 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/BGL3.git
+git clone https://github.com/bakhe8/BGL3.git
 
 # Start development server
 cd BGL3
@@ -61,10 +61,10 @@ http://localhost:8000
 
 ## 💡 روابط مفيدة
 
-- [GitHub Repository](https://github.com/YOUR_USERNAME/BGL3)
-- [Issues Tracker](https://github.com/YOUR_USERNAME/BGL3/issues)
-- [Discussions](https://github.com/YOUR_USERNAME/BGL3/discussions)
-- [Project Board](https://github.com/YOUR_USERNAME/BGL3/projects)
+- [GitHub Repository](https://github.com/bakhe8/BGL3)
+- [Issues Tracker](https://github.com/bakhe8/BGL3/issues)
+- [Discussions](https://github.com/bakhe8/BGL3/discussions)
+- [Project Board](https://github.com/bakhe8/BGL3/projects)
 
 ---
 
@@ -72,9 +72,9 @@ http://localhost:8000
 
 هل تحتاج مساعدة؟
 
-- 🐛 وجدت bug? [Open an Issue](https://github.com/YOUR_USERNAME/BGL3/issues/new?template=bug_report.md)
-- ✨ لديك اقتراح? [Request a Feature](https://github.com/YOUR_USERNAME/BGL3/issues/new?template=feature_request.md)
-- 💬 سؤال عام? [Start a Discussion](https://github.com/YOUR_USERNAME/BGL3/discussions)
+- 🐛 وجدت bug? [Open an Issue](https://github.com/bakhe8/BGL3/issues/new?template=bug_report.md)
+- ✨ لديك اقتراح? [Request a Feature](https://github.com/bakhe8/BGL3/issues/new?template=feature_request.md)
+- 💬 سؤال عام? [Start a Discussion](https://github.com/bakhe8/BGL3/discussions)
 
 ---
 

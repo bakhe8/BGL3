@@ -61,7 +61,7 @@ BGL3/
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/BGL3.git
+git clone https://github.com/bakhe8/BGL3.git
 cd BGL3
 
 # Start development server
@@ -143,11 +143,11 @@ git commit -m "Clear description of what changed
 
 ## 📚 الوثائق
 
-- [Architecture Overview](https://github.com/YOUR_USERNAME/BGL3/wiki/Architecture) - البنية المعمارية
-- [AI Matching System](https://github.com/YOUR_USERNAME/BGL3/wiki/AI-Matching) - نظام المطابقة الذكية
-- [Design System](https://github.com/YOUR_USERNAME/BGL3/wiki/Design-System) - نظام التصميم
-- [API Reference](https://github.com/YOUR_USERNAME/BGL3/wiki/API) - مرجع APIs
-- [Decisions Log](https://github.com/YOUR_USERNAME/BGL3/wiki/Decisions) - سجل القرارات التقنية
+- [Architecture Overview](https://github.com/bakhe8/BGL3/wiki/Architecture) - البنية المعمارية
+- [AI Matching System](https://github.com/bakhe8/BGL3/wiki/AI-Matching) - نظام المطابقة الذكية
+- [Design System](https://github.com/bakhe8/BGL3/wiki/Design-System) - نظام التصميم
+- [API Reference](https://github.com/bakhe8/BGL3/wiki/API) - مرجع APIs
+- [Decisions Log](https://github.com/bakhe8/BGL3/wiki/Decisions) - سجل القرارات التقنية
 
 ---
 

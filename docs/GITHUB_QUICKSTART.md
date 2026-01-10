@@ -35,7 +35,7 @@
 git push origin main
 
 # أو استخدم HTTPS
-git remote set-url origin https://github.com/YOUR_USERNAME/BGL3.git
+git remote set-url origin https://github.com/bakhe8/BGL3.git
 git push origin main
 ```
 
