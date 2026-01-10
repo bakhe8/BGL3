@@ -186,7 +186,7 @@ class ComprehensiveExtensionTest
         } else {
             echo "Autoloader File: ✗ Not found\n";
             echo "Run: composer install\n";
-            $this->recordResult('Composer Autoloader', false, 'Vendor directory missing');
+            $this->recordResult('Composer Dependencies', false, 'Vendor directory missing');
         }
     }
 
@@ -337,19 +337,37 @@ class ComprehensiveExtensionTest
     private function parseSize(string $size): int
     {
         $size = trim($size);
-        $last = strtolower($size[strlen($size) - 1]);
-        $size = (int)$size;
         
-        switch ($last) {
-            case 'g':
-                $size *= 1024;
-            case 'm':
-                $size *= 1024;
-            case 'k':
-                $size *= 1024;
+        // Handle empty string safely
+        if ($size === '') {
+            return 0;
         }
         
-        return $size;
+        // Explicitly handle unlimited memory convention
+        if ($size === '-1') {
+            return -1;
+        }
+        
+        $last = strtolower(substr($size, -1));
+        
+        // If the last character is a recognized unit, parse accordingly
+        if (in_array($last, ['g', 'm', 'k'], true)) {
+            $numeric = (float)substr($size, 0, -1);
+            
+            switch ($last) {
+                case 'g':
+                    $numeric *= 1024; // intentional fall-through to 'm' and 'k'
+                case 'm':
+                    $numeric *= 1024; // intentional fall-through to 'k'
+                case 'k':
+                    $numeric *= 1024;
+            }
+            
+            return (int)$numeric;
+        }
+        
+        // No recognized suffix: treat as bytes
+        return (int)$size;
     }
 
     /**
