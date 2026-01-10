@@ -21,7 +21,7 @@ Thank you for your interest in contributing to BGL3! We welcome contributions fr
 
 ```bash
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/BGL3.git
+git clone https://github.com/bakhe8/BGL3.git
 cd BGL3
 
 # Install dependencies
@@ -129,7 +129,7 @@ Use the [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md) an
 
 ```bash
 # استنسخ fork الخاص بك
-git clone https://github.com/YOUR_USERNAME/BGL3.git
+git clone https://github.com/bakhe8/BGL3.git
 cd BGL3
 
 # تثبيت الاعتماديات
