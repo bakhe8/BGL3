@@ -1,0 +1,22 @@
+/* 
+ * CSS Extension Test
+ * 
+ * TEST EditorConfig: Indentation should be 2 spaces for CSS files
+ */
+
+.test-editorconfig {
+  /* This should be indented with 2 spaces */
+  color: #333;
+  background: #fff;
+  
+  /* Nested rule */
+  &:hover {
+    color: #000;
+  }
+}
+
+/* TEST: Type 'di' and wait for autocomplete (display, etc.) */
+.test-intellisense {
+  /* IntelliSense should suggest CSS properties */
+  display: block;
+}

@@ -1,0 +1,93 @@
+﻿
+╔═══════════════════════════════════════════════════════════╗
+║     اختبار شامل للامتدادات - BGL3 System Test          ║
+╚═══════════════════════════════════════════════════════════╝
+
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHP Version Check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Current Version: 8.3.26
+Required Version: >= 8.0.0
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  PHP Extensions Check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+pdo                  PDO Database Support           ✓ Loaded
+pdo_sqlite           SQLite PDO Driver              ✓ Loaded
+sqlite3              SQLite3 Extension              ✓ Loaded
+fileinfo             File Information               ✗ Missing
+mbstring             Multibyte String               ✓ Loaded
+json                 JSON Support                   ✓ Loaded
+zip                  ZIP Archive                    ✓ Loaded
+openssl              OpenSSL                        ✓ Loaded
+curl                 cURL (optional)                ✓ Loaded
+  (Optional - Available)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  SQLite Database Test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Warning: unlink(C:\Users\Bakheet\AppData\Local\Temp/test_1768059622.db): Resource temporarily unavailable in C:\Users\Bakheet\Documents\Projects\BGL3\comprehensive_test.php on line 104
+Database Creation: ✓
+Table Creation: ✓
+Data Insert: ✓
+Data Query: ✓
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  File Operations Test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+File Write: ✓
+File Read: ✓
+MIME Detection: ⚠ (fileinfo extension not loaded)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Composer Autoloader Test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Autoloader File: ✓ Found
+Path: C:\Users\Bakheet\Documents\Projects\BGL3/vendor/autoload.php
+PhpSpreadsheet: ✓ Loaded
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  System Settings Check
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Memory Limit:             128M
+Max Execution Time:       0 seconds
+Upload Max Filesize:      2M
+Post Max Size:            8M
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  Project Database Test
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Database File: ⚠ Not found (will be created on first run)
+Expected Path: C:\Users\Bakheet\Documents\Projects\BGL3/storage/database.db
+
+╔═══════════════════════════════════════════════════════════╗
+║                    Test Summary - ملخص الاختبار          ║
+╚═══════════════════════════════════════════════════════════╝
+
+Total Tests: 14
+Passed (نجح): 13 ✓
+Failed (فشل): 1 ✗
+
+⚠ بعض الاختبارات فشلت - Some tests failed
+يرجى مراجعة النتائج أعلاه - Please review results above
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Detailed Results:
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+✓ PHP Version                    [PASS] 8.3.26
+✓ Extension: pdo                 [PASS] PDO Database Support
+✓ Extension: pdo_sqlite          [PASS] SQLite PDO Driver
+✓ Extension: sqlite3             [PASS] SQLite3 Extension
+✗ Extension: fileinfo            [FAIL] File Information
+✓ Extension: mbstring            [PASS] Multibyte String
+✓ Extension: json                [PASS] JSON Support
+✓ Extension: zip                 [PASS] ZIP Archive
+✓ Extension: openssl             [PASS] OpenSSL
+✓ SQLite Operations              [PASS] All operations successful
+✓ File Operations                [PASS] All file operations successful
+✓ Composer Dependencies          [PASS] PhpSpreadsheet available
+✓ System Settings                [PASS] Settings configured
+✓ Project Database               [PASS] Will be auto-created

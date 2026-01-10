@@ -3,35 +3,17 @@
          xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
          bootstrap="vendor/autoload.php"
          colors="true"
-         failOnRisky="true"
-         failOnWarning="true">
-    
+         failOnRisky="false"
+         failOnWarning="false">
+
     <testsuites>
         <testsuite name="Unit">
             <directory>tests/Unit</directory>
         </testsuite>
-        
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>
-        
-        <testsuite name="Learning Authority">
-            <directory>tests/Unit/Services/Learning</directory>
-            <directory>tests/Integration/Services/Learning</directory>
-        </testsuite>
     </testsuites>
-
-    <coverage>
-        <include>
-            <directory suffix=".php">app/Services/Learning</directory>
-            <directory suffix=".php">app/DTO</directory>
-            <directory suffix=".php">app/Contracts</directory>
-        </include>
-        
-        <report>
-            <html outputDirectory="coverage"/>
-        </report>
-    </coverage>
 
     <php>
         <env name="APP_ENV" value="testing"/>

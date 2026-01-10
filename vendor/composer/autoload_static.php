@@ -17,6 +17,10 @@ class ComposerStaticInit4cb6f433c502cdf3fb13b60395ea9c9f
         array (
             'ZipStream\\' => 10,
         ),
+        'T' => 
+        array (
+            'Tests\\' => 6,
+        ),
         'P' => 
         array (
             'Psr\\SimpleCache\\' => 16,
@@ -48,6 +52,10 @@ class ComposerStaticInit4cb6f433c502cdf3fb13b60395ea9c9f
         'ZipStream\\' => 
         array (
             0 => __DIR__ . '/..' . '/maennchen/zipstream-php/src',
+        ),
+        'Tests\\' => 
+        array (
+            0 => __DIR__ . '/../..' . '/tests',
         ),
         'Psr\\SimpleCache\\' => 
         array (
