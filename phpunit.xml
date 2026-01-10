@@ -21,18 +21,6 @@
         </testsuite>
     </testsuites>
 
-    <coverage>
-        <include>
-            <directory suffix=".php">app/Services/Learning</directory>
-            <directory suffix=".php">app/DTO</directory>
-            <directory suffix=".php">app/Contracts</directory>
-        </include>
-        
-        <report>
-            <html outputDirectory="coverage"/>
-        </report>
-    </coverage>
-
     <php>
         <env name="APP_ENV" value="testing"/>
         <env name="DB_CONNECTION" value="sqlite"/>
