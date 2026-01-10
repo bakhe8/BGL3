@@ -1,68 +1,189 @@
-# 🏦 BGL3 - Bank Guarantee Lifecycle System
+# BGL3 - نظام إدارة الضمانات البنكية v3.0
 
-![Version](https://img.shields.io/badge/version-1.0.1-blue.svg)
-![PHP](https://img.shields.io/badge/PHP-8.0%2B-777BB4.svg)
-![SQLite](https://img.shields.io/badge/SQLite-Data-003B57.svg)
-![Tailwind](https://img.shields.io/badge/Tailwind-CSS-06B6D4.svg)
+[![PHP Version](https://img.shields.io/badge/PHP-8.3+-blue.svg)](https://php.net)
+[![License](https://img.shields.io/badge/license-Private-red.svg)]()
+[![Status](https://img.shields.io/badge/status-Active-success.svg)]()
 
-**BGL3** is a state-of-the-art Bank Guarantee Management System designed to streamline the tracking, management, and lifecycle analysis of bank guarantees. It empowers organizations to move from manual tracking to a fully automated, intelligence-driven workflow.
+## 📋 نظرة عامة
 
----
+**BGL3** (Bank Guarantee Letters v3.0) هو نظام شامل لإدارة الضمانات البنكية مع ميزات الذكاء الاصطناعي للمطابقة التلقائية.
 
-## ✨ Features
+### ✨ المميزات الرئيسية
 
-- **🔄 Full Lifecycle Management**: Track guarantees from initial issuance (Bid Bond) to Final Performance, Advance Payment, and Release.
-- **🧠 Smart Intelligence**:
-    - **Auto-Matching**: Machine learning-inspired algorithms to match imported data with existing records.
-    - **Predictive Suggestions**: Smart autocomplete for banks and suppliers based on historical data.
-- **📊 Interactive Timeline**: Visual history of every action taken on a guarantee (extensions, reductions, claims).
-- **📥 Universal Import**: Seamlessly import data from Excel/CSV with intelligent parsing and "Paste-to-Import" capabilities.
-- **📈 Advanced Analytics**: Real-time dashboard showing status distribution, expiring guarantees, and financial exposure.
+- 📦 **إدارة الدفعات**: استيراد ومعالجة دفعات الضمانات من Excel
+- 🤖 **AI Matching**: مطابقة تلقائية للموردين والبنوك باستخدام التعلم الآلي
+- 📊 **إحصائيات متقدمة**: تحليلات شاملة للأداء والاتجاهات
+- 🖨️ **طباعة الخطابات**: إنشاء خطابات رسمية (إفراج/تمديد/تخفيض)
+- ⚙️ **إعدادات مرنة**: تحكم كامل في معايير المطابقة والتعلم
+- 🎨 **UI/UX موحد**: نظام تصميم متجاوب بدون اعتماديات خارجية
 
 ---
 
-## 🚀 Quick Start
+## 🏗️ البنية التقنية
 
-This application is designed to be a standalone desktop-like web application.
+### Stack
 
-### ▶️ Running the Application
-Double-click the **`start.bat`** file in the root directory.
-> This will verify the environment, start the local PHP server on port `8000`, and open your default browser.
+- **Backend**: PHP 8.3+ (Vanilla - no framework)
+- **Database**: SQLite 3
+- **Frontend**: Vanilla JavaScript + Custom CSS Design System
+- **Icons**: Lucide Icons
+- **Fonts**: Tajawal (Google Fonts)
 
-### ⏹️ Stopping the Server
-To safely stop the server, use one of the following:
-*   **`stop.bat`**: Runs in the terminal to kill the server process.
-*   **`close.vbs`**: Runs silently (suitable for a Desktop Shortcut) to close the server without opening windows.
+### الهيكل
 
----
+```
+BGL3/
+├── app/                  # Core application logic
+│   ├── Core/            # Database, Router, Request handling
+│   ├── Services/        # Business logic (AI, Matching, Letters)
+│   └── Support/         # Helpers, Settings, DateTime
+├── public/              # Public assets
+│   ├── css/            # Design system CSS
+│   └── uploads/        # Excel imports
+├── views/              # Page templates
+├── partials/           # Reusable components
+├── api/                # API endpoints
+└── docs/               # Documentation
 
-## 📚 Documentation
-
-The technical documentation is located in the `docs/` directory.
-
-### 🏗️ Architecture & Design
-*   [**System Architecture**](docs/system-architecture.md): Overview of the Layered Architecture, Services, and Repositories.
-*   [**Database Schema**](docs/database-schema.md): Complete relationship diagram and table definitions.
-*   [**Database Model**](docs/database-model.md): Details on the SQLite implementation.
-*   [**Authority Model**](docs/authority-model.md): Explanation of the "Authority" entity concept.
-
-### 💻 Developer Guides
-*   [**API Contracts**](docs/api-contracts.md): Specifications for the internal REST API endpoints.
-*   [**UI & Behavior**](docs/ui-behavior-contract.md): Rules governing frontend interactions and state.
-*   [**JavaScript Constraints**](docs/javascript-constraints.md): Coding standards for the Vanilla JS frontend.
+```
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 التثبيت والتشغيل
 
-*   **Backend**: PHP 8.0+ (Native Standalone Server)
-*   **Database**: SQLite 3
-*   **Frontend**: HTML5, Tailwind CSS, Vanilla JavaScript (ES6+)
-*   **Architecture**: Server-Driven UI with Repository Pattern
+### المتطلبات
+
+- PHP 8.3 or higher
+- SQLite3 extension enabled
+- Composer (optional)
+
+### التشغيل السريع
+
+```bash
+# Clone the repository
+git clone https://github.com/YOUR_USERNAME/BGL3.git
+cd BGL3
+
+# Start development server
+php -S localhost:8000
+
+# Open in browser
+http://localhost:8000
+```
+
+### Database Setup
+
+السيرفر سينشئ قاعدة البيانات تلقائياً عند أول تشغيل:
+
+- `database.db` - SQLite database
+- جداول تُنشأ تلقائياً إذا لم تكن موجودة
 
 ---
 
-## 📝 License
+## 🤝 المساهمة
 
-Private Proprietary Software.
-Copyright © 2026. All Rights Reserved.
+نرحب بمساهماتك! يرجى اتباع العملية التالية:
+
+### 1️⃣ فتح Issue
+
+قبل البدء بأي عمل، افتح Issue لـ:
+
+- 🐛 الإبلاغ عن bug
+- ✨ اقتراح feature جديد
+- 📝 تحسين documentation
+- 💡 مناقشة قرار تقني
+
+**استخدم Labels المناسبة:**
+
+- `bug` - مشاكل تقنية
+- `feature` - ميزات جديدة
+- `improvement` - تحسينات على كود موجود
+- `documentation` - تحديثات documentation
+- `decision` - قرارات تقنية تحتاج نقاش
+
+### 2️⃣ إنشاء Branch
+
+```bash
+# Always branch from main
+git checkout main
+git pull origin main
+
+# Create feature branch
+git checkout -b feature/your-feature-name
+# OR
+git checkout -b fix/bug-description
+```
+
+### 3️⃣ Commit Changes
+
+```bash
+# Make your changes
+git add .
+git commit -m "Clear description of what changed
+
+- Detailed point 1
+- Detailed point 2
+- Fixes #issue_number"
+```
+
+### 4️⃣ إنشاء Pull Request
+
+- Push your branch
+- افتح PR على GitHub
+- اربط PR بالـ Issue المناسب
+- انتظر المراجعة
+
+**⚠️ مهم:**
+
+- لا يُسمح بالـ commit مباشرة على `main`
+- جميع التغييرات يجب أن تمر عبر Pull Request
+- يجب نجاح جميع الـ checks قبل الدمج
+
+---
+
+## 📚 الوثائق
+
+- [Architecture Overview](https://github.com/YOUR_USERNAME/BGL3/wiki/Architecture) - البنية المعمارية
+- [AI Matching System](https://github.com/YOUR_USERNAME/BGL3/wiki/AI-Matching) - نظام المطابقة الذكية
+- [Design System](https://github.com/YOUR_USERNAME/BGL3/wiki/Design-System) - نظام التصميم
+- [API Reference](https://github.com/YOUR_USERNAME/BGL3/wiki/API) - مرجع APIs
+- [Decisions Log](https://github.com/YOUR_USERNAME/BGL3/wiki/Decisions) - سجل القرارات التقنية
+
+---
+
+## 🔒 الأمان
+
+- لا تشارك بيانات حساسة في Issues أو PRs
+- استخدم `.env` للمعلومات السرية (غير موجود في Git)
+- الإبلاغ عن ثغرات أمنية عبر email مباشر (لا تفتح Issue عام)
+
+---
+
+## 📞 الدعم
+
+- **Issues**: للمشاكل التقنية والطلبات
+- **Discussions**: للنقاشات والأسئلة العامة
+- **Wiki**: للوثائق الشاملة
+
+---
+
+## 📝 الترخيص
+
+هذا المشروع خاص ومملوك. جميع الحقوق محفوظة.
+
+---
+
+## 🎉 الإصدارات
+
+### v3.0.0 (2026-01-10)
+
+- ✅ نظام تصميم موحد (Design System)
+- ✅ Unified Header Component
+- ✅ إزالة Tailwind CDN
+- ✅ إصلاح مشاكل التمرير والتنقل
+- ✅ دعم Safari (webkit prefixes)
+- ✅ +1557 additions, -585 deletions
+
+---
+
+**Made with ❤️ in Saudi Arabia**
