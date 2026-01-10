@@ -382,109 +382,118 @@ try {
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الإحصائيات - نظام إدارة الضمانات</title>
-    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../public/css/design-system.css">
+    <link rel="stylesheet" href="../public/css/components.css">
+    <link rel="stylesheet" href="../public/css/layout.css">
+    
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght=400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        /* CSS Variables - Root */
-        :root {
-            --bg-body: #f1f5f9;
-            --bg-primary: #ffffff;
-            --bg-secondary: #f8fafc;
-            --bg-card: #ffffff;
-            --border-primary: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #475569;
-            --text-muted: #64748b;
-            --accent-primary: #3b82f6;
-            --accent-success: #16a34a;
-            --accent-danger: #dc2626;
-            --accent-warning: #f59e0b;
-            --font-family: 'Tajawal', sans-serif;
-            --radius-md: 8px;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+        /* Statistics Page - Unique Styles Only */
+        .stats-container { 
+            max-width: 1400px; 
+            margin: 0 auto; 
+            padding: var(--space-lg);
+            padding-top: var(--space-xl);
         }
         
-        /* Reset & Base */
-        *, *::before, *::after { 
-            box-sizing: border-box; 
-            margin: 0; 
-            padding: 0; 
+        .page-header {
+            margin-bottom: var(--space-2xl);
         }
         
-        body {
-            font-family: var(--font-family);
-            background: var(--bg-body);
-            color: var(--text-primary);
-            line-height: 1.6;
+        .page-header h1 {
+            font-size: var(--font-size-3xl);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-xs);
         }
         
-        /* Enhanced Grid System */
-        .stats-container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+        .page-header p {
+            color: var(--text-secondary);
+        }
         
-        /* Hero Cards (Overview) */
+        /* Grid System */
+        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg); }
+        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); }
+        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); }
+        
+        /* Hero Cards */
         .hero-card {
             background: linear-gradient(135deg, var(--accent-primary) 0%, var(--accent-success) 100%);
             color: white;
             padding: 28px;
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
             text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            box-shadow: var(--shadow-md);
         }
-        .hero-value { font-size: 42px; font-weight: 700; margin-bottom: 8px; }
-        .hero-label { font-size: 14px; opacity: 0.95; }
+        
+        .hero-value { 
+            font-size: 42px; 
+            font-weight: var(--font-weight-bold); 
+            margin-bottom: var(--space-sm); 
+        }
+        
+        .hero-label { 
+            font-size: var(--font-size-sm); 
+            opacity: 0.95; 
+        }
         
         /* Section Headers */
         .section-header {
             font-size: 26px;
-            font-weight: 700;
+            font-weight: var(--font-weight-bold);
             margin: 50px 0 25px 0;
-            padding-bottom: 15px;
+            padding-bottom: var(--space-md);
             border-bottom: 3px solid var(--accent-primary);
             display: flex;
             align-items: center;
-            gap: 12px;
+            gap: var(--space-sm);
         }
-        .section-header-icon { font-size: 32px; }
         
-        /* Standard Cards */
-        .card {
-            background: var(--bg-primary);
-            border: 1px solid var(--border-primary);
-            border-radius: 10px;
-            padding: 24px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
-        }
-        .card-title {
-            font-size: 18px;
-            font-weight: 700;
-            margin-bottom: 20px;
-            color: var(--text-primary);
-        }
+        .section-header-icon { font-size: 32px; }
         
         /* Metric Cards */
         .metric-card {
             background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 20px;
+            border-radius: var(--radius-md);
+            padding: var(--space-lg);
             text-align: center;
         }
+        
         .metric-value {
             font-size: 32px;
-            font-weight: 700;
+            font-weight: var(--font-weight-bold);
             color: var(--accent-primary);
-            margin-bottom: 8px;
+            margin-bottom: var(--space-sm);
         }
+        
         .metric-label {
-            font-size: 13px;
+            font-size: var(--font-size-sm);
             color: var(--text-secondary);
         }
+        
         .metric-sub {
-            font-size: 11px;
+            font-size: var(--font-size-xs);
             color: var(--text-muted);
-            margin-top: 4px;
+            margin-top: var(--space-xs);
+        }
+        
+        /* Cards */
+        .card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-lg);
+            box-shadow: var(--shadow-sm);
+        }
+        
+        .card-title {
+            font-size: var(--font-size-lg);
+            font-weight: var(--font-weight-bold);
+            margin-bottom: var(--space-md);
+            color: var(--text-primary);
         }
         
         /* Tables */
@@ -492,21 +501,40 @@ try {
             width: 100%;
             border-collapse: collapse;
         }
+        
         .table-stats th {
             background: var(--bg-secondary);
-            padding: 12px;
+            padding: var(--space-sm) var(--space-md);
             text-align: right;
-            font-size: 13px;
-            font-weight: 600;
+            font-size: var(--font-size-sm);
+            font-weight: var(--font-weight-semibold);
             border-bottom: 2px solid var(--border-primary);
+            color: var(--text-secondary);
         }
+        
         .table-stats td {
-            padding: 12px;
-            border-bottom: 1px solid var(--border-primary);
-            font-size: 14px;
+            padding: var(--space-sm) var(--space-md);
+            border-bottom: 1px solid var(--border-light);
+            font-size: var(--font-size-sm);
         }
+        
         .table-stats tr:hover {
-            background: var(--bg-secondary);
+            background: var(--bg-hover);
+        }
+        
+        /* Progress Bars */
+        .progress-bar {
+            background: rgba(0,0,0,0.1);
+            height: 8px;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            margin: var(--space-xs) 0;
+        }
+        
+        .progress-fill {
+            height: 100%;
+            background: var(--accent-primary);
+            transition: width var(--transition-base);
         }
         
         /* Special Gradient Card (AI Section) */
@@ -514,35 +542,8 @@ try {
             background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
             color: white;
             padding: 30px;
-            border-radius: 12px;
+            border-radius: var(--radius-lg);
             box-shadow: 0 6px 12px rgba(139, 92, 246, 0.3);
-        }
-        
-        /* Badge/Pill Styles */
-        .badge {
-            display: inline-block;
-            padding: 4px 12px;
-            border-radius: 12px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        .badge-success { background: #10b981; color: white; }
-        .badge-warning { background: #f59e0b; color: white; }
-        .badge-danger { background: #ef4444; color: white; }
-        .badge-info { background: #3b82f6; color: white; }
-        
-        /* Progress Bars */
-        .progress-bar {
-            background: rgba(0,0,0,0.1);
-            height: 8px;
-            border-radius: 4px;
-            overflow: hidden;
-            margin: 8px 0;
-        }
-        .progress-fill {
-            height: 100%;
-            background: var(--accent-primary);
-            transition: width 0.3s;
         }
         
         /* Responsive */
@@ -551,21 +552,14 @@ try {
         }
         @media (max-width: 768px) {
             .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+            .stats-container { padding: var(--space-md); }
         }
     </style>
 </head>
 <body>
-    <!-- Top Navigation Bar -->
-    <header style="background: #ffffff; border-bottom: 2px solid var(--border-primary); padding: 16px 24px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-        <div style="display: flex; align-items: center; gap: 20px;">
-            <h1 style="font-size: 20px; font-weight: 700; color: var(--text-primary);">📊 نظام إدارة الضمانات</h1>
-        </div>
-        <nav style="display: flex; gap: 12px;">
-            <a href="index.php" class="btn" style="text-decoration: none; padding: 8px 16px; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 6px; color: var(--text-primary);">🏠 الرئيسية</a>
-            <a href="settings.php" class="btn" style="text-decoration: none; padding: 8px 16px; background: var(--bg-secondary); border: 1px solid var(--border-primary); border-radius: 6px; color: var(--text-primary);">⚙️ الإعدادات</a>
-            <a href="statistics.php" class="btn btn-primary" style="text-decoration: none; padding: 8px 16px; background: var(--accent-primary); border: none; border-radius: 6px; color: white;">📊 الإحصائيات</a>
-        </nav>
-    </header>
+    
+    <!-- Unified Header -->
+    <?php include __DIR__ . '/../partials/unified-header.php'; ?>
     
     <div class="stats-container">
         <div class="page-header">

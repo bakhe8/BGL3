@@ -14,54 +14,58 @@ $currentSettings = $settings->all();
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>الإعدادات - BGL System v3.0</title>
     
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../public/css/design-system.css">
+    <link rel="stylesheet" href="../public/css/components.css">
+    <link rel="stylesheet" href="../public/css/layout.css">
+    
     <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    
     <style>
-        /* Previous CSS styles remain... */
-        :root {
-            --bg-body: #f1f5f9;
-            --bg-card: #ffffff;
-            --bg-secondary: #f8fafc;
-            --border-primary: #e2e8f0;
-            --text-primary: #1e293b;
-            --text-secondary: #475569;
-            --text-muted: #64748b;
-            --accent-primary: #3b82f6;
-            --accent-success: #16a34a;
-            --accent-danger: #dc2626;
-            --font-family: 'Tajawal', sans-serif;
-            --radius-md: 8px;
-            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
-            --shadow-md: 0 2px 8px rgba(0, 0, 0, 0.06);
+        /* Settings Page - Unique Styles Only */
+        .container { max-width: 95%; margin: 0 auto; padding: var(--space-lg); }
+        
+        /* Tabs Styling */
+        .tabs { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 20px; 
+            border-bottom: 2px solid var(--border-primary); 
+            padding-bottom: 0; 
         }
         
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        
-        body {
+        .tab-btn {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            border-bottom: 3px solid transparent;
+            color: var(--text-secondary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 16px;
             font-family: var(--font-family);
-            background: var(--bg-body);
-            color: var(--text-primary);
-            padding: 20px;
-            line-height: 1.6;
+            flex: 1;
+            text-align: center;
         }
         
-        .container { max-width: 95%; margin: 0 auto; } /* Increased width for tables */
-        
-        /* Header & Common Components */
-        .header {
-            background: var(--bg-card);
-            padding: 20px 24px;
-            border-radius: var(--radius-md);
-            box-shadow: var(--shadow-sm);
-            margin-bottom: 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .tab-btn:hover { 
+            color: var(--accent-primary); 
+            background: rgba(59, 130, 246, 0.05); 
         }
         
-        .header h1 { font-size: 24px; font-weight: 700; color: var(--text-primary); }
+        .tab-btn.active {
+            color: var(--accent-primary);
+            border-bottom-color: var(--accent-primary);
+            background: white;
+            border-radius: 8px 8px 0 0;
+        }
         
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        
+        /* Buttons */
         .btn {
             padding: 10px 20px;
             background: var(--accent-primary);
@@ -77,33 +81,13 @@ $currentSettings = $settings->all();
             font-size: 14px;
         }
         .btn:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-secondary { background: var(--bg-secondary); color: var(--text-primary); border: 1px solid var(--border-primary); }
         .btn-success { background: var(--accent-success); }
         .btn-danger { background: var(--accent-danger); }
+        .btn-primary { background: var(--accent-primary); }
 
-        /* Tabs Styling */
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 2px solid var(--border-primary); padding-bottom: 0; }
-        .tab-btn {
-            padding: 12px 24px;
-            background: transparent;
-            border: none;
-            border-bottom: 3px solid transparent;
-            color: var(--text-secondary);
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-            font-size: 16px;
-        }
-        .tab-btn:hover { color: var(--accent-primary); background: rgba(59, 130, 246, 0.05); }
-        .tab-btn.active {
-            color: var(--accent-primary);
-            border-bottom-color: var(--accent-primary);
-            background: white;
-            border-radius: 8px 8px 0 0;
-        }
         
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.3s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Settings-specific styles */
 
         /* Card & Forms */
         .card {
@@ -204,12 +188,11 @@ $currentSettings = $settings->all();
     </style>
 </head>
 <body>
+    
+    <!-- Unified Header -->
+    <?php include __DIR__ . '/../partials/unified-header.php'; ?>
+    
     <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <h1>⚙️ إعدادات النظام</h1>
-            <a href="../index.php" class="btn">العودة للرئيسية</a>
-        </div>
 
         <!-- Alert Messages -->
         <div id="alertSuccess" class="alert alert-success alert-hidden"></div>

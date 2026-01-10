@@ -59,76 +59,73 @@ unset($g);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($batchName) ?></title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Design System CSS -->
+    <link rel="stylesheet" href="../public/css/design-system.css">
+    <link rel="stylesheet" href="../public/css/components.css">
+    <link rel="stylesheet" href="../public/css/layout.css">
+    <link rel="stylesheet" href="../public/css/batch-detail.css">
+    
+    <!-- Fonts -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <style>
-        body { font-family: 'Tajawal', sans-serif; }
-        
-        /* Loading Overlay */
-        .loading-overlay {
-            position: absolute; inset: 0; background: rgba(255,255,255,0.7);
-            display: flex; align-items: center; justify-content: center; z-index: 10;
-        }
-        
-        /* Transitions */
-        .fade-enter { opacity: 0; transform: translateY(10px); }
-        .fade-enter-active { opacity: 1; transform: translateY(0); transition: opacity 300ms, transform 300ms; }
-    </style>
 </head>
-<body class="bg-gray-50 text-gray-800">
+<body>
 
+    <!-- Unified Header -->
+    <?php include __DIR__ . '/../partials/unified-header.php'; ?>
+    
     <!-- Toast Container -->
-    <div id="toast-container" class="fixed top-4 right-4 z-50 flex flex-col gap-2"></div>
+    <div id="toast-container" style="position: fixed; top: var(--space-md); right: var(--space-md); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--space-sm);"></div>
 
     <!-- Modal Container -->
-    <div id="modal-backdrop" class="fixed inset-0 bg-black/50 z-40 hidden flex items-center justify-center backdrop-blur-sm transition-opacity opacity-0">
-        <div id="modal-content" class="bg-white rounded-xl shadow-2xl w-full max-w-md mx-4 transform scale-95 transition-all duration-200">
+    <div id="modal-backdrop" class="modal-backdrop" style="display: none;">
+        <div id="modal-content" class="modal-content">
             <!-- Dynamic Content -->
         </div>
     </div>
 
     <!-- Main Content -->
-    <div class="container mx-auto px-4 py-8 max-w-7xl">
+    <div class="page-container">
         
-        <!-- Top Header -->
-        <header class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-6 relative overflow-hidden">
-            <div class="absolute top-0 right-0 w-2 h-full bg-blue-500"></div>
-            
-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <!-- Batch Header -->
+        <header class="batch-header">
+            <div class="batch-header-content">
                 <div>
-                    <div class="flex items-center gap-3 mb-2">
-                        <h1 class="text-3xl font-bold text-gray-900"><?= htmlspecialchars($batchName) ?></h1>
-                        <span class="px-3 py-1 rounded-full text-xs font-bold <?= $isClosed ? 'bg-gray-100 text-gray-500' : 'bg-green-100 text-green-700' ?>">
+                    <div class="batch-title-group">
+                        <h1 class="batch-name"><?= htmlspecialchars($batchName) ?></h1>
+                        <span class="badge <?= $isClosed ? 'badge-neutral' : 'badge-success' ?>">
                             <?= $isClosed ? 'مغلقة' : 'نشطة' ?>
                         </span>
                     </div>
-                    <div class="flex gap-4 text-sm text-gray-500">
-                        <span class="flex items-center gap-1"><i data-lucide="package" class="w-4 h-4"></i> <?= count($guarantees) ?> ضمان</span>
-                        <span class="flex items-center gap-1"><i data-lucide="file-spreadsheet" class="w-4 h-4"></i> <?= htmlspecialchars($importSource) ?></span>
+                    <div class="batch-meta">
+                        <span class="batch-meta-item"><i data-lucide="package" style="width: 16px; height: 16px;"></i> <?= count($guarantees) ?> ضمان</span>
+                        <span class="batch-meta-item"><i data-lucide="file-spreadsheet" style="width: 16px; height: 16px;"></i> <?= htmlspecialchars($importSource) ?></span>
                     </div>
                     <?php if ($batchNotes): ?>
-                        <div class="mt-3 bg-yellow-50 text-yellow-800 px-3 py-2 rounded-lg text-sm border border-yellow-100 inline-block">
+                        <div class="batch-notes-box">
                             💡 <?= htmlspecialchars($batchNotes) ?>
                         </div>
                     <?php endif; ?>
                 </div>
 
-                <div class="flex flex-wrap gap-2">
-                    <button onclick="openMetadataModal()" class="btn-secondary">
-                        <i data-lucide="edit-3" class="w-4 h-4"></i> تعديل البيانات
+                <div class="batch-actions">
+                    <button onclick="openMetadataModal()" class="btn btn-secondary">
+                        <i data-lucide="edit-3" style="width: 16px; height: 16px;"></i> تعديل البيانات
                     </button>
                     
                     <?php if (!$isClosed): ?>
-                        <button onclick="handleBatchAction('close')" class="btn-danger">
-                            <i data-lucide="lock" class="w-4 h-4"></i> إغلاق الدفعة
+                        <button onclick="handleBatchAction('close')" class="btn btn-danger">
+                            <i data-lucide="lock" style="width: 16px; height: 16px;"></i> إغلاق الدفعة
                         </button>
-                        <button onclick="printReadyGuarantees()" class="btn-primary bg-green-600 hover:bg-green-700">
-                            <i data-lucide="printer" class="w-4 h-4"></i> طباعة الجاهز
+                        <button onclick="printReadyGuarantees()" class="btn btn-success">
+                            <i data-lucide="printer" style="width: 16px; height: 16px;"></i> طباعة الجاهز
                         </button>
                     <?php else: ?>
-                        <button onclick="handleBatchAction('reopen')" class="btn-warning">
-                            <i data-lucide="unlock" class="w-4 h-4"></i> إعادة فتح
+                        <button onclick="handleBatchAction('reopen')" class="btn" style="background: var(--accent-warning-light); color: var(--accent-warning); border-color: var(--accent-warning);">
+                            <i data-lucide="unlock" style="width: 16px; height: 16px;"></i> إعادة فتح
                         </button>
                     <?php endif; ?>
                 </div>
@@ -136,84 +133,84 @@ unset($g);
         </header>
 
         <!-- Actions Toolbar -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 flex flex-wrap gap-3 items-center justify-between">
-            <div class="flex gap-2">
+        <div class="actions-toolbar">
+            <div class="toolbar-left">
                 <?php if (!$isClosed): ?>
-                    <button id="btn-extend" onclick="executeBulkAction('extend')" class="btn-action bg-blue-50 text-blue-700 hover:bg-blue-100">
-                        <i data-lucide="calendar-plus" class="w-4 h-4"></i> تمديد المحدد
+                    <button id="btn-extend" onclick="executeBulkAction('extend')" class="btn" style="background: var(--accent-info-light); color: var(--accent-info);">
+                        <i data-lucide="calendar-plus" style="width: 16px; height: 16px;"></i> تمديد المحدد
                     </button>
-                    <button id="btn-release" onclick="executeBulkAction('release')" class="btn-action bg-green-50 text-green-700 hover:bg-green-100">
-                        <i data-lucide="check-circle-2" class="w-4 h-4"></i> إفراج المحدد
+                    <button id="btn-release" onclick="executeBulkAction('release')" class="btn btn-success">
+                        <i data-lucide="check-circle-2" style="width: 16px; height: 16px;"></i> إفراج المحدد
                     </button>
                 <?php endif; ?>
             </div>
             
-            <div class="flex gap-2 text-sm">
-                <button onclick="TableManager.toggleSelectAll(true)" class="text-gray-500 hover:text-gray-700">تحديد الكل</button>
-                <span class="text-gray-300">|</span>
-                <button onclick="TableManager.toggleSelectAll(false)" class="text-gray-500 hover:text-gray-700">إلغاء التحديد</button>
+            <div class="toolbar-right">
+                <button onclick="TableManager.toggleSelectAll(true)" class="toolbar-link">تحديد الكل</button>
+                <span class="toolbar-separator">|</span>
+                <button onclick="TableManager.toggleSelectAll(false)" class="toolbar-link">إلغاء التحديد</button>
             </div>
         </div>
 
         <!-- Guarantees Table -->
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden relative min-h-[300px]">
-            <div id="table-loading" class="loading-overlay hidden">
-                <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+        <div class="table-container">
+            <div id="table-loading" class="loading-overlay" style="display: none;">
+                <div class="spinner"></div>
             </div>
 
-            <div class="overflow-x-auto">
-                <table class="w-full text-sm">
-                    <thead class="bg-gray-50 border-b border-gray-200">
+            <div class="table-wrapper">
+                <table class="batch-table">
+                    <thead>
                         <tr>
                             <?php if (!$isClosed): ?>
-                                <th class="p-4 w-10">
-                                    <input type="checkbox" onchange="TableManager.toggleSelectAll(this.checked)" class="rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                <th style="padding: var(--space-md); width: 40px;">
+                                    <input type="checkbox" onchange="TableManager.toggleSelectAll(this.checked)" class="batch-checkbox">
                                 </th>
                             <?php endif; ?>
-                            <th class="p-4 text-right">رقم الضمان</th>
-                            <th class="p-4 text-right">المورد</th>
-                            <th class="p-4 text-right">البنك</th>
-                            <th class="p-4 text-center">الإجراء</th>
-                            <th class="p-4 text-left font-mono">القيمة</th>
-                            <th class="p-4 text-center">الحالة</th>
-                            <th class="p-4 text-center">تفاصيل</th>
+                            <th>رقم الضمان</th>
+                            <th>المورد</th>
+                            <th>البنك</th>
+                            <th class="text-center">الإجراء</th>
+                            <th class="text-left">القيمة</th>
+                            <th class="text-center">الحالة</th>
+                            <th class="text-center">تفاصيل</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
                         <?php foreach ($guarantees as $g): ?>
-                            <tr class="hover:bg-blue-50/50 transition-colors group">
+                            <tr>
                                 <?php if (!$isClosed): ?>
-                                    <td class="p-4 text-center">
-                                        <input type="checkbox" value="<?= $g['id'] ?>" class="guarantee-checkbox rounded border-gray-300 text-blue-600 focus:ring-blue-500">
+                                    <td style="padding: var(--space-md); text-align: center;">
+                                        <input type="checkbox" value="<?= $g['id'] ?>" class="batch-checkbox guarantee-checkbox">
                                     </td>
                                 <?php endif; ?>
-                                <td class="p-4 font-medium text-gray-900"><?= htmlspecialchars($g['guarantee_number']) ?></td>
-                                <td class="p-4 text-gray-600"><?= htmlspecialchars($g['supplier_name']) ?></td>
-                                <td class="p-4 text-gray-600"><?= htmlspecialchars($g['bank_name']) ?></td>
-                                <td class="p-4 text-center">
+                                <td class="font-medium"><?= htmlspecialchars($g['guarantee_number']) ?></td>
+                                <td><?= htmlspecialchars($g['supplier_name']) ?></td>
+                                <td><?= htmlspecialchars($g['bank_name']) ?></td>
+                                <td style="text-align: center;">
                                     <?php if ($g['active_action'] == 'release'): ?>
-                                        <span class="px-2 py-1 rounded text-xs bg-green-100 text-green-700">إفراج</span>
+                                        <span class="action-badge release">إفراج</span>
                                     <?php elseif ($g['active_action'] == 'extension'): ?>
-                                        <span class="px-2 py-1 rounded text-xs bg-blue-100 text-blue-700">تمديد</span>
+                                        <span class="action-badge extension">تمديد</span>
                                     <?php else: ?>
-                                        <span class="text-gray-400">-</span>
+                                        <span style="color: var(--text-light);">-</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="p-4 text-left font-mono text-gray-700" dir="ltr">
+                                <td class="font-mono" dir="ltr" style="text-align: left;">
                                     <?= number_format((float)($g['parsed']['amount'] ?? 0), 2) ?>
                                 </td>
-                                <td class="p-4 text-center">
+                                <td style="text-align: center;">
                                     <?php if ($g['decision_status'] === 'ready'): ?>
-                                        <div class="flex items-center justify-center gap-1 text-green-600 font-medium text-xs">
-                                            <i data-lucide="check" class="w-3 h-3"></i> جاهز
+                                        <div class="status-ready">
+                                            <i data-lucide="check" style="width: 12px; height: 12px;"></i> جاهز
                                         </div>
                                     <?php else: ?>
-                                        <span class="text-gray-400 text-xs">غير جاهز</span>
+                                        <span style="color: var(--text-light); font-size: var(--font-size-xs);">غير جاهز</span>
                                     <?php endif; ?>
                                 </td>
-                                <td class="p-4 text-center">
-                                    <a href="/index.php?id=<?= $g['id'] ?>" class="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-full inline-block transition-colors">
-                                        <i data-lucide="arrow-left" class="w-4 h-4"></i>
+                                <td style="text-align: center;">
+                                    <a href="/index.php?id=<?= $g['id'] ?>" class="link-icon">
+                                        <i data-lucide="arrow-left"></i>
                                     </a>
                                 </td>
                             </tr>
@@ -223,8 +220,8 @@ unset($g);
             </div>
             
             <?php if (empty($guarantees)): ?>
-                <div class="py-12 flex flex-col items-center justify-center text-gray-400">
-                    <i data-lucide="inbox" class="w-12 h-12 mb-3 stroke-1"></i>
+                <div class="table-empty">
+                    <i data-lucide="inbox" style="width: 48px; height: 48px; stroke-width: 1; margin-bottom: var(--space-sm);"></i>
                     <p>لا توجد بيانات للعرض</p>
                 </div>
             <?php endif; ?>
