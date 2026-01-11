@@ -151,10 +151,14 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $extracted['guarantee_number']);
         }
         
-        // 2. CONTRACT/PO NUMBER (High priority numeric ID)
-        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
-        if ($extracted['contract_number']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        // 2. DATES (Expiry and Issue) - Clear dates early to avoid numeric remainder conflicts
+        $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
+        if ($extracted['expiry_date']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
+        }
+        $extracted['issue_date'] = FieldExtractionService::extractIssueDate($workingText);
+        if ($extracted['issue_date']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
         }
 
         // 3. AMOUNT (Search for formatted numbers)
@@ -166,16 +170,12 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $formatted);
         }
 
-        // 4. DATES (Expiry and Issue)
-        $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
-        if ($extracted['expiry_date']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
+        // 4. CONTRACT/PO NUMBER (Search for numeric IDs)
+        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
+        if ($extracted['contract_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
         }
-        $extracted['issue_date'] = FieldExtractionService::extractIssueDate($workingText);
-        if ($extracted['issue_date']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
-        }
-        
+
         // 5. BANK
         $extracted['bank'] = FieldExtractionService::extractBank($workingText);
         if ($extracted['bank']) {

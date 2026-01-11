@@ -157,10 +157,10 @@ class FieldExtractionService
     public static function extractBank(string $text): ?string
     {
         $patterns = [
-            // Pattern 1: Keyword followed by text (require non-whitespace, ignore if numeric ID)
-            '/(?:Bank|البنك|بنك|مصرف)[:\h]+(?![0-9]{5,10}(?:\h|\v|$))([^\v\h][^\v]*)/iu', 
-            // Pattern 2: Text BEFORE keyword (e.g. Alrajhi Bank)
-            '/([^\v\h][^\v]*)\h+(?:Bank|البنك|بنك|مصرف)/iu', 
+            // Pattern 1: Keyword followed by text (must not be JUST a numeric ID)
+            '/(?:Bank|البنك|بنك|مصرف)[:\h]+(?![0-9]{5,10}(?:\h|\v|$))([^\v\h][^\v]*?)(?:\h+[0-9]{5,10})?/iu', 
+            // Pattern 2: Text BEFORE keyword (must not start with a 5-10 digit ID)
+            '/(?![0-9]{5,10}\h+)([^\v\h][^\v]*?)\h+(?:Bank|البنك|بنك|مصرف)/iu', 
             '/(?:من|عبر)\h*(?:بنك|البنك)\h+([^\v،,\.]+)/iu',
             // Pattern for TAB-separated
             '/\t([A-Z]{2,4})\t[0-9,]+/i',
@@ -189,22 +189,21 @@ class FieldExtractionService
     public static function extractContractNumber(string $text): ?string
     {
         $patterns = [
+            // Pattern 1: Pure Digits (5-10 digits) - Aggressive check
+            '/^\h*([0-9]{5,10})(?:\h|\v|$)/im',
+            '/\b([0-9]{5,10})\b/',
+
             // CONTRACTS (kept as-is with C/ prefix)
-            // From subject/title line (e.g. "إفراج عن ضمان C/0061/43")
             '/^[^\n]*\b(C\/[A-Z]?[0-9]{4}\/[0-9]{2})\b/im',
             '/\b(C\/[0-9]{4}\/[0-9]{2})\b/i',
             '/\b(CNT[\-][0-9]{4,})\b/i', // CNT-2024-001
 
-            // PURCHASE ORDERS (extract number only, no PO- prefix)
-            // ⚠️ Only dash (-) allowed, no slash (/)
+            // PURCHASE ORDERS
             '/(?:PO|P\.O|أمر\s*شراء)[:\s#\-]*(\d{4,})/iu',
 
             // Generic contract labels (fallback)
             '/(?:Contract|Order|العقد|رقم\s*العقد|عقد)[:\h#]*([A-Z0-9\-\/]+)/iu',
             '/(?:ع\.ر)[:\h#]*([A-Z0-9\-\/]+)/iu',
-            // Pattern 6: Pure Digits (5-10 digits) at start of line or with space boundary
-            '/^\h*([0-9]{5,10})(?:\h|\v|$)/im',
-            '/\b([0-9]{5,10})\b/',
         ];
 
         $extracted = self::extractWithPatterns($text, $patterns, 'CONTRACT_NUMBER');
@@ -266,7 +265,6 @@ class FieldExtractionService
                 return $value;
             }
         }
-        error_log("❌ [{$fieldName}] No match found in " . count($patterns) . " patterns");
         return null;
     }
 
