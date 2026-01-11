@@ -14,7 +14,7 @@ class TypeNormalizer
     public static function normalize(?string $input): string
     {
         if (empty($input)) {
-            return 'نهائي'; // Default fallback
+            return 'غير محدد'; // Don't guess if empty
         }
 
         $normalized = mb_strtoupper(trim($input));

@@ -135,17 +135,22 @@ class FieldExtractionService
         $patterns = [
             '/(?:Supplier|Beneficiary|المورد|المستفيد|لصالح)[:\h]*([^\v]+)/iu',
             '/(?:لصالح|ل\s*صالع)[:\h]*([^\v]+)/iu',
-            '/(?:شركة|مؤسسة|مصنع|مركز|مكتب|مقاولات)\h+([^\v،,\.]+)/iu', // Prefix + name
+            // Include prefix in the capture group
+            '/\b(شركة|مؤسسة|مصنع|مركز|مكتب|مقاولات)\h+([^\v،,\.]+)/iu', 
             // Pattern for TAB-separated table
             '/^([A-Z][A-Z\s&]+COMPANY)\s*\t/im',
             '/^([A-Z][A-Z\s&]+(?:COMPANY|CO\.|LTD|LLC|CORPORATION))\s*\t/im',
         ];
 
-        $supplierStr = self::extractWithPatterns($text, $patterns, 'SUPPLIER');
-
-        if ($supplierStr) {
-            // Clean up supplier name (remove extra spaces, trailing punctuation)
-            return preg_replace('/[،,\.]+$/', '', trim($supplierStr));
+        // Custom extraction for supplier because of multiple capture groups in Pattern 3
+        foreach ($patterns as $pattern) {
+            if (preg_match($pattern, $text, $m)) {
+                // If we have multiple groups (e.g. prefix + name), join them
+                $value = count($m) > 2 ? trim($m[1] . ' ' . $m[2]) : trim($m[1]);
+                $safeValue = str_replace(["\n", "\r"], ' ', $value);
+                error_log("✅ [SUPPLIER] Matched with pattern: $pattern => $safeValue");
+                return preg_replace('/[،,\.]+$/', '', $value);
+            }
         }
 
         return null;
