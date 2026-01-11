@@ -145,47 +145,45 @@ class ParseCoordinatorService
         $workingText = $text;  // Working copy for masking
         $extracted = [];
         
-        // 1. GUARANTEE NUMBER (high specificity - specific alphanumeric patterns)
+        // 1. GUARANTEE NUMBER
         $extracted['guarantee_number'] = FieldExtractionService::extractGuaranteeNumber($workingText);
         if ($extracted['guarantee_number']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['guarantee_number']);
         }
         
-        // 2. AMOUNT (highest specificity - numbers with commas/decimals)
+        // 2. AMOUNT (Search for formatted numbers first)
         $extracted['amount'] = FieldExtractionService::extractAmount($workingText);
         if ($extracted['amount']) {
-            // Mask the formatted version with commas
-            $formattedAmount = number_format($extracted['amount'], 2);
+            // Mask raw number and formatted version
             $workingText = self::maskExtractedValue($workingText, (string)$extracted['amount']);
-            $workingText = self::maskExtractedValue($workingText, str_replace(',', '', $formattedAmount));
+            $formatted = number_format($extracted['amount'], 2);
+            $workingText = self::maskExtractedValue($workingText, str_replace(',', '', $formatted));
+            $workingText = self::maskExtractedValue($workingText, $formatted);
         }
-        
-        // 3. DATES (high specificity - specific date formats)
+
+        // 3. DATES (Expiry and Issue)
         $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
         if ($extracted['expiry_date']) {
-            // Mask the original date format (before normalization)
             $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
         }
-        
         $extracted['issue_date'] = FieldExtractionService::extractIssueDate($workingText);
         if ($extracted['issue_date']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
         }
         
-        // 4. CONTRACT NUMBER (medium specificity) - Extract before bank to catch leading PO numbers
-        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
-        if ($extracted['contract_number']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
-        }
-
-        // 5. BANK (medium specificity - known codes or keywords)
+        // 4. BANK
         $extracted['bank'] = FieldExtractionService::extractBank($workingText);
         if ($extracted['bank']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['bank']);
         }
+
+        // 5. CONTRACT/PO NUMBER (The remaining numeric ID)
+        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
+        if ($extracted['contract_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        }
         
-        // 6. SUPPLIER (lowest specificity - catch-all for text)
-        // Extract this LAST to avoid consuming other fields
+        // 6. SUPPLIER (Catch-all for what's left)
         $extracted['supplier'] = FieldExtractionService::extractSupplier($workingText);
         
         // 7. TYPE and INTENT (pattern detection - use original text)

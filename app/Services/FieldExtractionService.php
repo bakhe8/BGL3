@@ -53,10 +53,10 @@ class FieldExtractionService
             '/([0-9,]+(?:\.[0-9]{2})?)\s*(?:SAR|SR|ر\.س|ريال)/iu',
             // Pattern 3: Large numbers (likely amounts) with thousand separators
             '/\b([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{2})?)\b/',
-            // Pattern 4: Simple large numbers without separators (6+ digits to avoid IDs)
-            '/\b([0-9]{6,}(?:\.[0-9]{2})?)\b/',
-            // Pattern 5: Any number with decimal point and 2 digits (e.g., 5,989.83)
+            // Pattern 4: Any number with decimal point and 2 digits (e.g., 5,989.83)
             '/\b([0-9,]+\.[0-9]{2})\b/',
+            // Pattern 5: Simple large numbers (7+ digits) - fallback
+            '/\b([0-9]{7,})\b/',
         ];
 
         $amountStr = self::extractWithPatterns($text, $patterns, 'AMOUNT');
