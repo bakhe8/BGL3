@@ -10,48 +10,73 @@ use App\Support\Database;
 header('Content-Type: text/html; charset=utf-8');
 
 // Helper functions (Added span for currency symbol styling)
-function formatMoney($amount) { return number_format($amount, 2) . ' <span class="text-xs text-muted">ر.س</span>'; }
-function formatNumber($num) { return number_format($num); }
+function formatMoney($amount) { return number_format((float)$amount, 2) . ' <span class="text-xs text-muted">ر.س</span>'; }
+function formatNumber($num) { return number_format((float)$num); }
 
 $db = Database::connect();
 
 try {
     // ============================================
-    // SECTION 1: OVERVIEW DASHBOARD
+    // SECTION 1: GLOBAL METRICS (ASSET vs OCCURRENCE)
     // ============================================
     $overview = $db->query("
         SELECT 
-            COUNT(*) as total,
-            COUNT(CASE WHEN json_extract(raw_data, '$.expiry_date') >= date('now') THEN 1 END) as active,
-            COUNT(CASE WHEN json_extract(raw_data, '$.expiry_date') < date('now') THEN 1 END) as expired,
-            COUNT(CASE WHEN date(imported_at) >= date('now', 'start of month') THEN 1 END) as this_month,
-            COALESCE(SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)), 0) as total_amount,
-            AVG(CAST(json_extract(raw_data, '$.amount') AS REAL)) as avg_amount,
-            MAX(CAST(json_extract(raw_data, '$.amount') AS REAL)) as max_amount,
-            MIN(CAST(json_extract(raw_data, '$.amount') AS REAL)) as min_amount
-        FROM guarantees
+            (SELECT COUNT(*) FROM guarantees) as total_assets,
+            (SELECT COUNT(*) FROM guarantee_occurrences) as total_occurrences,
+            (SELECT COUNT(*) FROM guarantees WHERE json_extract(raw_data, '$.expiry_date') >= date('now')) as active_assets,
+            (SELECT COUNT(*) FROM batch_metadata WHERE status='active') as active_batches,
+            (SELECT SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as total_amount,
+            (SELECT AVG(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as avg_amount,
+            (SELECT MAX(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as max_amount,
+            (SELECT MIN(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as min_amount
     ")->fetch(PDO::FETCH_ASSOC);
 
-    $statusBreakdown = $db->query("
-        SELECT 
-            CASE 
-                WHEN d.id IS NOT NULL AND (d.is_locked IS NULL OR d.is_locked = 0) THEN 'ready'
-                WHEN d.id IS NULL THEN 'pending'
-                WHEN d.is_locked = 1 THEN 'released'
-            END as status,
-            COUNT(*) as count
-        FROM guarantees g
-        LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
-        GROUP BY status
-    ")->fetchAll(PDO::FETCH_KEY_PAIR);
-
-    $pending = $statusBreakdown['pending'] ?? 0;
-    $ready = $statusBreakdown['ready'] ?? 0;
-    $released = $statusBreakdown['released'] ?? 0;
-
+    $efficiencyRatio = $overview['total_assets'] > 0 
+        ? round($overview['total_occurrences'] / $overview['total_assets'], 2) 
+        : 1;
 
     // ============================================
-    // SECTION 2: BANKS & SUPPLIERS
+    // SECTION 2: BATCH OPERATIONS ANALYSIS
+    // ============================================
+    // Analyze recent batches: Content vs Context
+    $batchStats = $db->query("
+        SELECT 
+            o.batch_identifier,
+            COALESCE(MAX(m.batch_name), 'دفعة ' || SUBSTR(o.batch_identifier, 1, 15)) as batch_name,
+            MAX(o.occurred_at) as import_date,
+            COUNT(o.id) as total_rows,
+            SUM(CASE WHEN g.import_source = o.batch_identifier THEN 1 ELSE 0 END) as new_items,
+            SUM(CASE WHEN g.import_source != o.batch_identifier THEN 1 ELSE 0 END) as recurring_items
+        FROM guarantee_occurrences o
+        JOIN guarantees g ON o.guarantee_id = g.id
+        LEFT JOIN batch_metadata m ON o.batch_identifier = m.import_source
+        GROUP BY o.batch_identifier
+        ORDER BY import_date DESC
+        LIMIT 5
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // Identify Most Frequent Assets (Top Recurring)
+    $topRecurring = $db->query("
+        SELECT 
+            g.guarantee_number,
+            s.official_name as supplier,
+            b.arabic_name as bank,
+            COUNT(o.id) as occurrence_count,
+            MIN(o.occurred_at) as first_seen,
+            MAX(o.occurred_at) as last_seen
+        FROM guarantee_occurrences o
+        JOIN guarantees g ON o.guarantee_id = g.id
+        LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
+        LEFT JOIN suppliers s ON d.supplier_id = s.id
+        LEFT JOIN banks b ON d.bank_id = b.id
+        GROUP BY g.id
+        HAVING occurrence_count > 1
+        ORDER BY occurrence_count DESC
+        LIMIT 5
+    ")->fetchAll(PDO::FETCH_ASSOC);
+
+    // ============================================
+    // SECTION 3: BANKS & SUPPLIERS (Existing)
     // ============================================
     $topSuppliers = $db->query("
         SELECT s.official_name, COUNT(*) as count
@@ -391,8 +416,46 @@ try {
     $errorMessage = $e->getMessage();
     error_log("Statistics error: " . $errorMessage);
     // Safe defaults
-    $overview = ['total' => 0, 'active' => 0, 'expired' => 0, 'this_month' => 0, 'total_amount' => 0, 'avg_amount' => 0, 'max_amount' => 0, 'min_amount' => 0];
+    $overview = ['total' => 0, 'active' => 0, 'expired' => 0, 'this_month' => 0, 'total_amount' => 0, 'avg_amount' => 0, 'max_amount' => 0, 'min_amount' => 0, 'total_assets' => 0, 'total_occurrences' => 0, 'active_batches' => 0];
     $pending = 0; $ready = 0; $released = 0;
+    $batchStats = [];
+    $topRecurring = [];
+    $topSuppliers = [];
+    $topBanks = [];
+    $stableSuppliers = [];
+    $riskySuppliers = [];
+    $challengingSuppliers = [];
+    $uniqueCounts = ['suppliers' => 0, 'banks' => 0];
+    $exclusiveSuppliers = 0;
+    $timing = ['avg_hours' => 0, 'min_hours' => 0, 'max_hours' => 0];
+    $peakHour = ['hour' => 'N/A', 'count' => 0];
+    $qualityMetrics = ['total' => 0, 'ftr' => 0, 'complex' => 0];
+    $firstTimeRight = 0;
+    $complexGuarantees = 0;
+    $busiestDay = ['weekday' => 'N/A', 'count' => 0];
+    $weeklyTrend = ['this_week' => 0, 'last_week' => 0];
+    $trendPercent = 0;
+    $trendDirection = '0%';
+    $expiration = ['next_30' => 0, 'next_90' => 0];
+    $peakMonth = ['month' => 'N/A', 'count' => 0];
+    $expirationByMonth = [];
+    $actions = ['extensions' => 0, 'reductions' => 0, 'releases' => 0, 'recent_releases' => 0];
+    $multipleExtensions = 0;
+    $extensionProbability = [];
+    $topEventTypes = [];
+    $aiStats = ['total' => 0, 'ai_matches' => 0, 'manual' => 0];
+    $aiMatchRate = 0;
+    $manualIntervention = 0;
+    $automationRate = 0;
+    $autoMatchEvents = 0;
+    $mlStats = ['confirmations' => 0, 'rejections' => 0, 'total' => 0];
+    $confirmedPatterns = [];
+    $rejectedPatterns = [];
+    $confidenceDistribution = ['high' => 0, 'medium' => 0, 'low' => 0];
+    $mlAccuracy = 0;
+    $timeSaved = 0;
+    $typeDistribution = [];
+    $amountCorrelation = [];
 }
 ?>
 <!DOCTYPE html>
@@ -400,13 +463,14 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الإحصائيات - نظام إدارة الضمانات</title>
+    <title>الإحصائيات المتقدمة - BGL3</title>
     
     <!-- Design System CSS -->
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="../public/css/design-system.css">
     <link rel="stylesheet" href="../public/css/components.css">
     <link rel="stylesheet" href="../public/css/layout.css">
+    <link rel="stylesheet" href="../public/css/batch-detail.css"> 
     
     <style>
         /* Statistics Page - Layout Only without Overrides */
@@ -511,71 +575,112 @@ try {
     
     <div class="stats-container">
         
-        <!-- Header -->
-        <div class="flex justify-between items-center mb-5">
+        <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="font-bold text-primary mb-1" style="font-size: 28px;">لوحة الإحصائيات المتقدمة</h1>
-                <p class="text-secondary text-sm">تحليل شامل ومنظم لجميع جوانب نظام الضمانات المصرفية</p>
+                <h1 class="font-bold text-primary mb-1 text-2xl">لوحة القيادة والتحليل</h1>
+                <p class="text-secondary text-sm">نظرة شمولية على الضمانات، الدفعات، والكفاءة التشغيلية</p>
             </div>
-            <div class="text-left">
-                <span class="badge badge-neutral-light"><?= date('Y-m-d') ?></span>
+            <span class="badge badge-neutral-light"><?= date('Y-m-d') ?></span>
+        </div>
+
+        <!-- SECTION 1: SYSTEM HEALTH (ASSETS vs OCCURRENCES) -->
+        <div class="grid-4 mb-6">
+            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-primary);">
+                <div class="hero-value text-primary"><?= formatNumber($overview['total_assets']) ?></div>
+                <div class="hero-label">أصول فريدة (Assets)</div>
+                <div class="text-xs text-muted mt-2">ضمانات مميزة في النظام</div>
+            </div>
+            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-info);">
+                <div class="hero-value text-info"><?= formatNumber($overview['total_occurrences']) ?></div>
+                <div class="hero-label">سجلات ظهور (Occurrences)</div>
+                <div class="text-xs text-muted mt-2">مجموع الأسطر المستوردة</div>
+            </div>
+            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-success);">
+                <div class="hero-value text-success"><?= $efficiencyRatio ?>x</div>
+                <div class="hero-label">معدل الكفاءة</div>
+                <div class="text-xs text-muted mt-2">متوسط ظهور الضمان الواحد</div>
+            </div>
+            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-warning);">
+                <div class="hero-value text-warning"><?= formatNumber($overview['active_batches']) ?></div>
+                <div class="hero-label">دفعات نشطة</div>
+                <div class="text-xs text-muted mt-2">جلسات عمل مفتوحة</div>
             </div>
         </div>
 
-        <!-- ============================================ -->
-        <!-- SECTION 1: OVERVIEW DASHBOARD -->
-        <!-- ============================================ -->
-        <div class="grid-4 mb-5">
-            <div class="hero-stats-card primary">
-                <div class="hero-value text-primary"><?= formatNumber($overview['total']) ?></div>
-                <div class="hero-label">إجمالي الضمانات</div>
+        <!-- SECTION 2: BATCH ANALYSIS -->
+        <div class="card mb-6">
+            <div class="card-header flex-between">
+                <h3 class="card-title">تحليل أداء الدفعات (Batch Context Analysis)</h3>
+                <span class="badge badge-primary-light">آخر 5 دفعات</span>
             </div>
-            <div class="hero-stats-card success">
-                <div class="hero-value text-success"><?= formatMoney($overview['total_amount']) ?></div>
-                <div class="hero-label">إجمالي المبالغ</div>
-            </div>
-            <div class="hero-stats-card warning">
-                <div class="hero-value text-warning"><?= formatNumber($overview['active']) ?></div>
-                <div class="hero-label">ضمانات سارية</div>
-            </div>
-            <div class="hero-stats-card danger">
-                <div class="hero-value text-danger"><?= formatNumber($overview['expired']) ?></div>
-                <div class="hero-label">ضمانات منتهية</div>
-            </div>
-        </div>
-        
-        <div class="grid-4 mb-5">
-            <div class="card p-3 flex flex-col items-center justify-center">
-                <span class="text-2xl font-bold text-warning mb-1"><?= formatNumber($pending) ?></span>
-                <span class="text-sm text-secondary">معلقة</span>
-            </div>
-            <div class="card p-3 flex flex-col items-center justify-center">
-                <span class="text-2xl font-bold text-success mb-1"><?= formatNumber($ready) ?></span>
-                <span class="text-sm text-secondary">معتمدة</span>
-            </div>
-            <div class="card p-3 flex flex-col items-center justify-center">
-                <span class="text-2xl font-bold text-info mb-1"><?= formatNumber($released) ?></span>
-                <span class="text-sm text-secondary">تم إفراجها</span>
-            </div>
-            <div class="card p-3 flex flex-col items-center justify-center">
-                <span class="text-2xl font-bold text-primary mb-1"><?= formatNumber($overview['this_month']) ?></span>
-                <span class="text-sm text-secondary">مستوردة هذا الشهر</span>
+            <div class="card-body p-0">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>الدفعة</th>
+                            <th>تاريخ الاستيراد</th>
+                            <th>إجمالي الأسطر</th>
+                            <th>ضمانات جديدة</th>
+                            <th>تكرارات (Re-occurrences)</th>
+                            <th>نسبة التكرار</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($batchStats as $batch): 
+                            $recurRate = $batch['total_rows'] > 0 
+                                ? round(($batch['recurring_items'] / $batch['total_rows']) * 100, 1) 
+                                : 0;
+                        ?>
+                        <tr>
+                            <td class="font-bold"><?= htmlspecialchars($batch['batch_name']) ?></td>
+                            <td class="text-mono"><?= $batch['import_date'] ?></td>
+                            <td class="text-center font-bold"><?= formatNumber($batch['total_rows']) ?></td>
+                            <td class="text-center text-success">
+                                <span class="badge badge-success-light">+<?= formatNumber($batch['new_items']) ?></span>
+                            </td>
+                            <td class="text-center text-info">
+                                <span class="badge badge-info-light">↻ <?= formatNumber($batch['recurring_items']) ?></span>
+                            </td>
+                            <td class="text-center">
+                                <div class="flex-align-center gap-2" style="justify-content: center;">
+                                    <div class="progress-track" style="width: 60px; height: 6px;">
+                                        <div class="progress-fill bg-info" style="width: <?= $recurRate ?>%"></div>
+                                    </div>
+                                    <span class="text-xs font-bold"><?= $recurRate ?>%</span>
+                                </div>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
             </div>
         </div>
 
-        <!-- ============================================ -->
-        <!-- SECTION 2: BANKS & SUPPLIERS ANALYSIS -->
-        <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">🏦</span>
-            <span class="section-title">تحليل البنوك والموردين</span>
-        </div>
-
-        <!-- 2A: Top Performers -->
-        <div class="grid-2 mb-4">
+        <!-- SECTION 3: TOP RECURRING ASSETS -->
+        <div class="grid-2 mb-6">
             <div class="card">
                 <div class="card-header">
-                    <h3 class="card-title">أكثر 10 موردين</h3>
+                    <h3 class="card-title">الأصول الأكثر نشاطاً (تكراراً)</h3>
+                </div>
+                <div class="card-body p-0">
+                     <table class="table">
+                        <thead><tr><th>رقم الضمان</th><th>المورد</th><th>عدد مرات الظهور</th></tr></thead>
+                        <tbody>
+                            <?php foreach ($topRecurring as $item): ?>
+                            <tr>
+                                <td class="font-bold font-mono text-primary"><?= htmlspecialchars($item['guarantee_number']) ?></td>
+                                <td class="text-sm"><?= htmlspecialchars($item['supplier']) ?></td>
+                                <td class="text-center font-bold text-lg"><?= $item['occurrence_count'] ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">أهم الموردين (حسب الأصول الفريدة)</h3>
                 </div>
                 <div class="card-body p-0">
                     <table class="table">
@@ -591,27 +696,51 @@ try {
                     </table>
                 </div>
             </div>
-            
-            <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">أكثر 10 بنوك</h3>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table">
-                        <thead><tr><th>البنك</th><th>العدد</th><th>المبلغ</th><th>تمديدات</th></tr></thead>
-                        <tbody>
-                            <?php foreach ($topBanks as $bank): ?>
-                            <tr>
-                                <td><?= htmlspecialchars($bank['bank_name']) ?></td>
-                                <td class="font-bold"><?= formatNumber($bank['count']) ?></td>
-                                <td><?= formatMoney($bank['total_amount']) ?></td>
-                                <td><span class="badge badge-warning-light"><?= $bank['extensions'] ?></span></td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
-                </div>
+
+        </div>
+
+        <!-- SECTION 3B: TOP BANKS -->
+        <div class="card mb-6">
+            <div class="card-header">
+                <h3 class="card-title">الأداء المالي للبنوك</h3>
             </div>
+            <div class="card-body p-0">
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>البنك</th>
+                            <th>عدد الضمانات</th>
+                            <th>إجمالي المبالغ</th>
+                            <th>تمديدات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <?php foreach ($topBanks as $bank): ?>
+                        <tr>
+                            <td class="font-bold"><?= htmlspecialchars($bank['bank_name']) ?></td>
+                            <td class="text-center font-bold"><?= formatNumber($bank['count']) ?></td>
+                            <td class="text-center"><?= formatMoney($bank['total_amount']) ?></td>
+                            <td class="text-center">
+                                <?php if ($bank['extensions'] > 0): ?>
+                                <span class="badge badge-warning-light"><?= $bank['extensions'] ?></span>
+                                <?php else: ?>
+                                <span class="text-muted">-</span>
+                                <?php endif; ?>
+                            </td>
+                        </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <!-- ============================================ -->
+        <!-- SECTION 4: DETAILED SUPPLIER ANALYSIS -->
+        <!-- ============================================ -->
+        <div class="section-separator">
+            <span class="icon-lg">🔍</span>
+            <span class="section-title">تصنيف أداء الموردين</span>
         </div>
 
         <!-- 2B: Supplier Analysis -->

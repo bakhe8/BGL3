@@ -645,5 +645,5 @@ class TimelineRecorder {
         };
     }
 
-    private static function getCurrentUser(): string { return 'النظام'; }
+    private static function getCurrentUser(): string { return 'User'; }
 }

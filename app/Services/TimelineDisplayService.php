@@ -62,6 +62,7 @@ class TimelineDisplayService
                     'change_reason' => '',
                     'description' => json_encode(json_decode($event['event_details'] ?? '{}', true)),
                     'user' => $event['created_by'] ?? 'النظام',
+                    'created_by' => $event['created_by'] ?? 'النظام', // ✅ Pass through for view compatibility
                     'snapshot' => json_decode($event['snapshot_data'] ?? '{}', true),
                     'snapshot_data' => $event['snapshot_data'] ?? '{}',
                     'letter_snapshot' => $event['letter_snapshot'] ?? null,

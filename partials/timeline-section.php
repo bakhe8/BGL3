@@ -237,13 +237,13 @@ $eventCount = count($timeline);
                             <div style="font-size: 11px; color: #64748b; margin-top: 6px; padding-top: 6px; border-top: 1px solid #f1f5f9; display: flex; justify-content: space-between;">
                                 <span><?= htmlspecialchars($event['created_at'] ?? '') ?></span>
                                 <?php 
-                                // ✅ Override created_by for bank-only events
-                                $displayCreator = $event['created_by'] ?? '🤖 نظام';
-                                
-                                // If event label is "تطابق تلقائي", show as system
-                                if ($eventLabel === 'تطابق تلقائي') {
-                                    $displayCreator = '🤖 نظام';
-                                }
+                                // Format the display with icons
+                                $rawCreator = $event['created_by'] ?? 'System';
+                                $displayCreator = match(trim($rawCreator)) {
+                                    'بواسطة النظام', 'System', 'System AI', 'النظام' => '🤖 النظام',
+                                    'بواسطة المستخدم', 'User', 'web_user', 'user' => '👤 المستخدم',
+                                    default => '👤 ' . str_replace('بواسطة ', '', $rawCreator)
+                                };
                                 ?>
                                 <span style="font-weight: 500;"><?= $displayCreator ?></span>
                             </div>
