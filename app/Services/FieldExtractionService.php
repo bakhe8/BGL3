@@ -213,7 +213,7 @@ class FieldExtractionService
     /**
      * Detect guarantee type (initial or final)
      */
-    public static function detectType(string $text): string
+    public static function detectType(string $text): ?string
     {
         if (preg_match('/نهائي|final|performance/iu', $text)) {
             return 'نهائي';
@@ -221,7 +221,7 @@ class FieldExtractionService
             return 'ابتدائي';
         }
 
-        return 'ابتدائي'; // Default
+        return null; // No default assumption
     }
 
     /**

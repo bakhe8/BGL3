@@ -48,7 +48,7 @@ class RecordHydratorService
             'expiry_date' => $raw['expiry_date'] ?? '',
             'issue_date' => $raw['issue_date'] ?? '',
             'contract_number' => $raw['contract_number'] ?? '',
-            'type' => $raw['type'] ?? 'ابتدائي',
+            'type' => $raw['type'] ?? null,
             'status' => 'pending'
         ];
         

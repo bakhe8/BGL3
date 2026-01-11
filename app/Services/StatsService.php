@@ -31,8 +31,8 @@ class StatsService
         $query = $db->prepare('
             SELECT 
                 COUNT(*) as total,
-                SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NOT NULL THEN 1 ELSE 0 END) as ready,
-                SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.id IS NULL THEN 1 ELSE 0 END) as pending,
+                SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND d.status = "ready" THEN 1 ELSE 0 END) as ready,
+                SUM(CASE WHEN (d.is_locked IS NULL OR d.is_locked = 0) AND (d.id IS NULL OR d.status != "ready") THEN 1 ELSE 0 END) as pending,
                 SUM(CASE WHEN d.is_locked = 1 THEN 1 ELSE 0 END) as released
             FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id

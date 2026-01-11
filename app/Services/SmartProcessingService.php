@@ -187,7 +187,7 @@ class SmartProcessingService
 
             // Auto-approve ONLY if BOTH supplier AND bank matched + No conflicts
             if ($supplierId && $bankId && empty($conflicts)) {
-                $this->createAutoDecision($guaranteeId, $supplierId, $bankId);
+                $this->createAutoDecision($guaranteeId, $supplierId, $bankId, $supplierConfidence);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
                 
                 // Record status transition event for timeline visibility
@@ -231,17 +231,17 @@ class SmartProcessingService
      * Create 'Approved' decision ensuring status becomes 'ready'
      * ✅ TYPE SAFETY: Ensure IDs are integers (not strings from database)
      */
-    private function createAutoDecision(int $guaranteeId, int $supplierId, int $bankId): void
+    private function createAutoDecision(int $guaranteeId, int $supplierId, int $bankId, float $confidence = 100.0): void
     {
         // Explicit type safety - ensure integers
         $supplierIdSafe = (int)$supplierId;
         $bankIdSafe = (int)$bankId;
         
         $stmt = $this->db->prepare("
-            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, created_at)
-            VALUES (?, ?, ?, 'ready', ?)
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decision_source, confidence_score, created_at)
+            VALUES (?, ?, ?, 'ready', 'auto_match', ?, ?)
         ");
-        $stmt->execute([$guaranteeId, $supplierIdSafe, $bankIdSafe, date('Y-m-d H:i:s')]);
+        $stmt->execute([$guaranteeId, $supplierIdSafe, $bankIdSafe, $confidence, date('Y-m-d H:i:s')]);
     }
 
     /**

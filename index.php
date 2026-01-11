@@ -103,9 +103,9 @@ if (!$currentRecord) {
             
             // Apply specific status filter
             if ($statusFilter === 'ready') {
-                $defaultRecordQuery .= ' AND d.id IS NOT NULL';
+                $defaultRecordQuery .= ' AND d.status = "ready"';
             } elseif ($statusFilter === 'pending') {
-                $defaultRecordQuery .= ' AND d.id IS NULL';
+                $defaultRecordQuery .= ' AND (d.id IS NULL OR d.status = "pending")';
             }
             // 'all' filter has no additional conditions
         }
@@ -155,7 +155,7 @@ if ($currentRecord) {
         'expiry_date' => $raw['expiry_date'] ?? '',
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
-        'type' => $raw['type'] ?? 'ابتدائي',
+        'type' => $raw['type'] ?? null,
         'related_to' => $raw['related_to'] ?? 'contract',
         'status' => 'pending',
         
@@ -180,7 +180,7 @@ if ($currentRecord) {
         // Map decision status to display status
         // Decision status: 'ready' or 'rejected'
         // Display status: 'ready' (has decision) or 'pending' (no decision)
-        $mockRecord['status'] = 'ready'; // Any decision = ready for action
+        $mockRecord['status'] = $decision->status; // Respect actual DB status
         $mockRecord['supplier_id'] = $decision->supplierId;
         $mockRecord['bank_id'] = $decision->bankId;
         $mockRecord['decision_source'] = $decision->decisionSource;

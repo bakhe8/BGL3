@@ -38,8 +38,23 @@ class ArabicEntityExtractor
             }
             
             // Skip very common words (simple list for stub)
-            $commonWords = ['شركة', 'مؤسسة', 'مكتب', 'دار', 'في', 'من', 'الى', 'على'];
-            if (in_array($word, $commonWords)) {
+            $commonWords = [
+                // Arabic
+                'شركة', 'مؤسسة', 'مكتب', 'دار', 'في', 'من', 'الى', 'على',
+                'مجموعة', 'العالمية', 'الوطنية', 'للتجارة', 'المقاولات', 'خدمات',
+                'توريد', 'استيراد', 'تصدير', 'عامة', 'للمقاولات', 'التجارية',
+                'المحدودة', 'القابضة', 'الاستثمارية', 'الاولى', 'العربية', 'السعودية',
+
+                // English
+                'company', 'co', 'corp', 'inc', 'ltd', 'limited', 'llc',
+                'establishment', 'est', 'trading', 'general', 'group',
+                'international', 'national', 'technology', 'services',
+                'contracting', 'engineering', 'works', 'supplies',
+                'import', 'export', 'holdings', 'investment', 'arabia', 'saudi',
+                'the', 'and', 'for', 'of', 'to', 'in', 'at'
+            ];
+            
+            if (in_array(mb_strtolower($word), $commonWords)) {
                 continue;
             }
             

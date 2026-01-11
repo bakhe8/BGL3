@@ -74,6 +74,10 @@ foreach ($guarantees as &$g) {
 }
 unset($g);
 ?>
+<?php 
+// Calculate ready count for UI logic
+$readyCount = count(array_filter($guarantees, fn($g) => ($g['decision_status'] ?? '') === 'ready'));
+?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -178,9 +182,11 @@ unset($g);
                                 <button onclick="handleBatchAction('close')" class="btn btn-outline-danger btn-sm" title="إغلاق الدفعة للأرشفة">
                                     <i data-lucide="lock" style="width: 16px;"></i>
                                 </button>
+                                <?php if ($readyCount > 0): ?>
                                 <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
-                                    <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= count(array_filter($guarantees, fn($g)=>$g['decision_status']=='ready')) ?>)
+                                    <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= $readyCount ?>)
                                 </button>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <button onclick="handleBatchAction('reopen')" class="btn btn-warning shadow-md">
                                     <i data-lucide="unlock" style="width: 16px;"></i> إعادة فتح الدفعة
@@ -193,7 +199,7 @@ unset($g);
         </div>
 
         <!-- Actions Toolbar -->
-        <?php if (!$isClosed): ?>
+        <?php if (!$isClosed && $readyCount > 0): ?>
         <div class="card mb-4" id="actions-toolbar">
             <div class="card-body p-3 flex-between align-center">
                 <div class="flex-align-center gap-2">

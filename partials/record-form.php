@@ -18,7 +18,7 @@ if (!isset($record)) {
         'expiry_date' => '',
         'issue_date' => '',
         'contract_number' => '',
-        'type' => 'Initial',
+        'type' => null,
         'status' => 'pending'
     ];
 }
@@ -222,10 +222,12 @@ $disabledTitle = !$isReady ? 'title="غير متاح قبل اكتمال بيا�
             <div class="info-label">تاريخ الانتهاء</div>
             <div class="info-value" data-preview-field="expiry_date"><?= htmlspecialchars($record['expiry_date']) ?></div>
         </div>
+        <?php if (!empty($record['type'])): ?>
         <div class="info-item">
             <div class="info-label">النوع</div>
             <div class="info-value" data-preview-field="type"><?= htmlspecialchars($record['type']) ?></div>
         </div>
+        <?php endif; ?>
         <div class="info-item">
             <div class="info-label">البنك</div>
             <div class="info-value" data-preview-field="bank_name"><?= htmlspecialchars($record['bank_name'] ?? 'غير محدد') ?></div>

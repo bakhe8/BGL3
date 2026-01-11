@@ -44,6 +44,12 @@ class HistoricalSignalFeeder implements SignalFeederInterface
 
         foreach ($historicalSelections as $item) {
             $supplierId = $item['supplier_id'];
+            
+            // Skip invalid or null supplier IDs (e.g. Bank-only matches)
+            if (empty($supplierId)) {
+                continue;
+            }
+
             $selectionCount = $item['count'];
 
             $signalType = $this->determineSignalType($selectionCount);

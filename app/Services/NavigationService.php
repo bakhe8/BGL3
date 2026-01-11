@@ -87,9 +87,9 @@ class NavigationService
             
             // Apply specific status filter
             if ($filter === 'ready') {
-                $conditions .= ' AND d.id IS NOT NULL';
+                $conditions .= ' AND d.status = "ready"';
             } elseif ($filter === 'pending') {
-                $conditions .= ' AND d.id IS NULL';
+                $conditions .= ' AND (d.id IS NULL OR d.status = "pending")';
             }
             // 'all' filter has no additional conditions
             
