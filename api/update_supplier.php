@@ -28,16 +28,28 @@ try {
             official_name = ?,
             english_name = ?,
             normalized_name = ?,
-            is_confirmed = ?,
-            updated_at = CURRENT_TIMESTAMP
+            is_confirmed = ?
         WHERE id = ?
     ");
     
     
+    // ✅ Smart Validation: Prevent Arabic in English Name field
+    $englishName = $data['english_name'] ?? '';
+    if (preg_match('/\p{Arabic}/u', $englishName)) {
+        // Option A: Ignore it (Save as NULL) - Keeps data clean
+        $englishName = null;
+    }
+
+    // ✅ Reverse Smart: If Official Name is English (No Arabic) AND English field is empty
+    // Auto-populate English Name (Assumes it's a foreign company)
+    if (!preg_match('/\p{Arabic}/u', $data['official_name']) && empty($englishName)) {
+        $englishName = $data['official_name'];
+    }
+
     // ✅ FIX: Protect against ID loss
     $result = $stmt->execute([
         $data['official_name'],
-        $data['english_name'] ?? '',
+        $englishName,
         $normalizedName,
         $data['is_confirmed'] ? 1 : 0,
         (int)$data['id']

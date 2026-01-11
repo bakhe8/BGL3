@@ -1191,7 +1191,7 @@ body {
 /* Info Grid */
 .info-grid {
     display: grid;
-    grid-template-columns: repeat(5, 1fr);
+    grid-template-columns: repeat(6, 1fr);
     gap: var(--space-md);
     padding: var(--space-md);
     background: var(--bg-secondary);

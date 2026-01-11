@@ -41,10 +41,10 @@ class BankRepository
             $row['short_name'] ?? null,
             1, // is_confirmed - always confirmed in new schema
             $row['created_at'] ?? null,
-            null, // department removed
-            null, // address_line_1 removed
-            null, // address_line_2 removed
-            null  // contact_email removed
+            $row['department'] ?? null,
+            $row['address_line1'] ?? null,
+            $row['address_line2'] ?? null, // Schema doesn't show address_line2, assuming meant to be compatible or nullable
+            $row['contact_email'] ?? null
         );
     }
     
@@ -162,18 +162,17 @@ class BankRepository
             $params['sc'] = $data['short_code'];
         }
         
-        // Address fields
         if (isset($data['department'])) {
             $fields[] = 'department = :dept';
             $params['dept'] = $data['department'];
         }
-        if (isset($data['address_line_1'])) {
-            $fields[] = 'address_line_1 = :addr1';
-            $params['addr1'] = $data['address_line_1'];
+        if (isset($data['address_line1'])) {
+            $fields[] = 'address_line1 = :addr1';
+            $params['addr1'] = $data['address_line1'];
         }
-        if (isset($data['address_line_2'])) {
-            $fields[] = 'address_line_2 = :addr2';
-            $params['addr2'] = $data['address_line_2'];
+        if (isset($data['address_line2'])) {
+            $fields[] = 'address_line2 = :addr2';
+            $params['addr2'] = $data['address_line2'];
         }
         if (isset($data['contact_email'])) {
             $fields[] = 'contact_email = :email';

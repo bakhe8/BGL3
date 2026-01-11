@@ -70,20 +70,46 @@ try {
              $supplierId = $stmt->fetchColumn();
         }
         
-        if (!$supplierId) {
-            // NO AUTO-CREATE: Require explicit supplier selection or creation
-            // User must either:
-            // 1. Select from suggestions (chips)
-            // 2. Use "Add New Supplier" button
-            http_response_code(400);
-            echo json_encode([
-                'success' => false,
-                'error' => 'supplier_required',
-                'message' => 'يجب اختيار مورد من الاقتراحات أو إضافة مورد جديد عبر الزر المخصص',
-                'supplier_name' => $supplierName
-            ]);
-            exit;
-        }
+            // ✅ Smart Save: Auto-Create Supplier if not found
+             try {
+                // Get the original imported name from raw data (if available)
+                $originalImportedName = $currentGuarantee->rawData['supplier'] ?? '';
+                
+                // Smart Logic:
+                // If user entered Arabic Name (Official) AND Original was English (Imported)
+                // Then use Original as "English Name"
+                $englishNameCandidate = null;
+                
+                if (preg_match('/\p{Arabic}/u', $supplierName)) {
+                    // User entered Arabic. Check if we have an English original.
+                    if ($originalImportedName && !preg_match('/\p{Arabic}/u', $originalImportedName)) {
+                        $englishNameCandidate = $originalImportedName;
+                    }
+                } else {
+                    // User entered English. Use it as both (handled by service/logic downstream)
+                    $englishNameCandidate = $supplierName;
+                }
+
+                $createResult = \App\Services\SupplierManagementService::create($db, [
+                    'official_name' => $supplierName,
+                    'english_name' => $englishNameCandidate
+                ]);
+                
+                $supplierId = $createResult['supplier_id'];
+                $decisionSource = 'auto_create_on_save';
+
+             } catch (Exception $e) {
+                 // Creation failed (e.g. valid duplicate race condition?)
+                 // Fallback to error
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'error' => 'creation_failed',
+                    'message' => 'فشل إنشاء المورد تلقائياً: ' . $e->getMessage(),
+                    'supplier_name' => $supplierName
+                ]);
+                exit;
+             }
     } else if ($supplierId && !$wasAiMatch) {
         // Supplier ID was provided from the start (likely from previous decision)
         $decisionSource = 'manual';

@@ -20,9 +20,19 @@ try {
     
     $db = Database::connect();
     
+    // Smart Detection: Check if name contains Arabic characters
+    // Regex: \p{Arabic} detects any Arabic script character
+    $hasArabic = preg_match('/\p{Arabic}/u', $name);
+    
+    // Detailed Logic:
+    // 1. If Arabic: Official = Name, English = NULL (Avoid Repetition)
+    // 2. If English: Official = Name, English = Name (Common practice for foreign companies)
+    $englishName = $hasArabic ? null : $name;
+
     // Use unified service
     $result = \App\Services\SupplierManagementService::create($db, [
-        'official_name' => $name
+        'official_name' => $name,
+        'english_name' => $englishName
     ]);
     
     // Return response in expected format for Decision Flow

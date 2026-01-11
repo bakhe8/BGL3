@@ -662,7 +662,7 @@ $currentSettings = $settings->all();
 
             container.classList.add('loading');
             try {
-                const res = await fetch(`../api/get_suppliers.php?page=${page}`);
+                const res = await fetch(`../api/get_suppliers.php?page=${page}&t=${Date.now()}`);
                 const html = await res.text();
                 // Policy: Use outerHTML replacement
                 container.outerHTML = html;

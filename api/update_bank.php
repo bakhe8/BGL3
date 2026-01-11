@@ -26,7 +26,7 @@ try {
             address_line1 = ?,
             contact_email = ?,
             updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
+        WHERE CAST(id AS INTEGER) = ?
     ");
     
     
