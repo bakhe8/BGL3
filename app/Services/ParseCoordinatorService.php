@@ -345,7 +345,7 @@ class ParseCoordinatorService
             id: null,
             guaranteeNumber: $rowData['guarantee_number'],
             rawData: $rawData,
-            importSource: $source === 'smart_paste_multi' ? 'Smart Paste (Multi)' : 'Smart Paste',
+            importSource: $source === 'smart_paste_multi' ? 'Smart Paste (Multi) ' . date('Y-m-d H:i') : 'Smart Paste (' . date('Y-m-d H:i') . ')',
             importedAt: date('Y-m-d H:i:s'),
             importedBy: 'Web User'
         );
@@ -412,7 +412,7 @@ class ParseCoordinatorService
             id: null,
             guaranteeNumber: $extracted['guarantee_number'],
             rawData: $rawData,
-            importSource: 'Smart Paste',
+            importSource: 'Smart Paste (' . date('Y-m-d H:i') . ')',
             importedAt: date('Y-m-d H:i:s'),
             importedBy: 'Web User'
         );

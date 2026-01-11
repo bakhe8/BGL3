@@ -412,6 +412,26 @@ try {
         ORDER BY ext_rate DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
 
+    // ============================================
+    // SECTION 0: ROI & EXECUTIVE VALUE (NEW)
+    // ============================================
+    // Assumptions for ROI Calculation
+    $manualEntryTime = 5; // 5 minutes to manually enter/verify a guarantee
+    
+    // Total automated actions (AI Decisions + Auto Matches + Recurring Processed)
+    $automatedActions = ($aiStats['ai_matches'] ?? 0) + ($autoMatchEvents ?? 0);
+    
+    // Calculate Time Saved
+    $totalMinutesSaved = $automatedActions * $manualEntryTime;
+    $totalHoursSaved = round($totalMinutesSaved / 60, 1);
+    
+    // Full-Time Employee (FTE) Equivalent (Assuming 160h work month)
+    $fteMonthsSaved = round($totalHoursSaved / 160, 1);
+    
+    // Cost Savings (Assuming avg hourly rate of 50 SAR)
+    $hourlyRate = 50; 
+    $costSaved = $totalHoursSaved * $hourlyRate;
+
 } catch (Exception $e) {
     $errorMessage = $e->getMessage();
     error_log("Statistics error: " . $errorMessage);
@@ -470,101 +490,97 @@ try {
     <link rel="stylesheet" href="../public/css/design-system.css">
     <link rel="stylesheet" href="../public/css/components.css">
     <link rel="stylesheet" href="../public/css/layout.css">
-    <link rel="stylesheet" href="../public/css/batch-detail.css"> 
     
     <style>
-        /* Statistics Page - Layout Only without Overrides */
         .stats-container { 
             max-width: 1400px; 
             margin: 0 auto; 
-            padding: var(--space-lg);
-            padding-top: var(--space-xl);
+            padding: var(--space-xl);
         }
         
-        .page-header {
-            margin-bottom: var(--space-2xl);
+        /* Unified Grid System */
+        .grid-2, .grid-3, .grid-4 { 
+            display: grid; 
+            gap: 24px;
+            margin-bottom: 24px;
         }
         
-        /* Grid System - Using CSS Grid */
-        .grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--space-lg); }
-        .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-lg); }
-        .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-lg); }
-        .grid-5 { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--space-md); }
+        .grid-2 { grid-template-columns: repeat(2, 1fr); }
+        .grid-3 { grid-template-columns: repeat(3, 1fr); }
+        .grid-4 { grid-template-columns: repeat(4, 1fr); }
         
-        /* Responsive */
-        @media (max-width: 1200px) {
+        @media (max-width: 1024px) {
             .grid-4 { grid-template-columns: repeat(2, 1fr); }
-            .grid-5 { grid-template-columns: repeat(3, 1fr); }
         }
+        
         @media (max-width: 768px) {
-            .grid-2, .grid-3, .grid-4, .grid-5 { grid-template-columns: 1fr; }
+            .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
             .stats-container { padding: var(--space-md); }
         }
-        
-        /* Hero Cards Replacement */
-        .hero-stats-card {
+
+        /* Metric Mini Card (Restored) */
+        .metric-mini-card {
             background: var(--bg-card);
             border: 1px solid var(--border-primary);
-            border-radius: var(--radius-lg);
-            padding: var(--space-lg);
-            position: relative;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            box-shadow: var(--shadow-md);
-            transition: all var(--transition-base);
-        }
-        
-        .hero-stats-card:hover {
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-lg);
-        }
-        
-        .hero-stats-card.primary { border-top: 4px solid var(--accent-primary); }
-        .hero-stats-card.success { border-top: 4px solid var(--accent-success); }
-        .hero-stats-card.warning { border-top: 4px solid var(--accent-warning); }
-        .hero-stats-card.danger  { border-top: 4px solid var(--accent-danger); }
-        
-        .hero-value { font-size: 36px; font-weight: var(--font-weight-bold); line-height: 1.2; margin-bottom: var(--space-xs); }
-        .hero-label { font-size: var(--font-size-sm); color: var(--text-secondary); }
-
-        /* Metric Mini Cards */
-        .metric-mini-card {
-            background: var(--bg-secondary);
             border-radius: var(--radius-md);
             padding: var(--space-md);
             text-align: center;
-            border: 1px solid var(--border-light);
+            box-shadow: var(--shadow-sm);
         }
-        
-        /* Section Header */
-        .section-separator {
-            display: flex;
-            align-items: center;
-            gap: var(--space-md);
-            margin: 40px 0 24px 0;
-            padding-bottom: var(--space-sm);
-            border-bottom: 2px solid var(--border-light);
-        }
-        .section-title {
-            font-size: var(--font-size-xl);
-            font-weight: var(--font-weight-bold);
-            color: var(--text-primary);
-        }
-
-        /* Progress Bars */
-        .progress-track {
-            background: var(--border-light);
-            height: 8px;
-            border-radius: var(--radius-full);
+        /* Executive ROI Card - Premium Look */
+        .roi-card {
+            background: linear-gradient(135deg, var(--bg-card) 0%, #f8fafc 100%);
+            border: 1px solid var(--border-primary);
+            border-top: 5px solid var(--accent-primary);
+            border-radius: var(--radius-lg);
+            padding: var(--space-xl);
+            margin-bottom: var(--space-2xl);
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: var(--space-lg);
+            position: relative;
             overflow: hidden;
         }
-        .progress-fill {
-            height: 100%;
-            border-radius: var(--radius-full);
+        
+        .roi-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 150px;
+            height: 150px;
+            background: linear-gradient(135deg, transparent 50%, rgba(99, 102, 241, 0.05) 50%);
+            pointer-events: none;
+        }
+
+        .roi-metric {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .roi-metric:not(:last-child) { border-left: 1px solid var(--border-light); }
+        .roi-value {
+            font-size: 32px;
+            font-weight: 800;
+            color: var(--text-primary);
+            margin-bottom: 4px;
+            display: block;
+        }
+        .roi-label {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+        }
+        .roi-sub {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        
+        @media (max-width: 768px) {
+            .roi-card { grid-template-columns: repeat(2, 1fr); gap: 16px; padding: 16px; }
+            .roi-metric:not(:last-child) { border-left: none; }
         }
     </style>
 </head>
@@ -575,54 +591,93 @@ try {
     
     <div class="stats-container">
         
+        <!-- Header -->
         <div class="flex justify-between items-center mb-6">
             <div>
-                <h1 class="font-bold text-primary mb-1 text-2xl">لوحة القيادة والتحليل</h1>
+                <h1 class="text-2xl font-bold text-primary mb-1">لوحة القيادة والتحليل</h1>
                 <p class="text-secondary text-sm">نظرة شمولية على الضمانات، الدفعات، والكفاءة التشغيلية</p>
             </div>
-            <span class="badge badge-neutral-light"><?= date('Y-m-d') ?></span>
+            <div class="flex gap-2">
+                <span class="badge badge-neutral-light"><?= date('Y-m-d') ?></span>
+            </div>
         </div>
 
-        <!-- SECTION 1: SYSTEM HEALTH (ASSETS vs OCCURRENCES) -->
+        <!-- ============================================ -->
+        <!-- EXECUTIVE ROI DASHBOARD (NEW) -->
+        <!-- ============================================ -->
+        <div class="roi-card">
+            <div class="roi-metric">
+                <div class="roi-value text-primary"><?= $totalHoursSaved ?>h</div>
+                <div class="roi-label">وقت تم توفيره</div>
+                <div class="roi-sub">مقارنة بالعمل اليدوي</div>
+            </div>
+            <div class="roi-metric">
+                <div class="roi-value text-success"><?= $fteMonthsSaved ?><span class="text-sm font-normal text-muted"> شهر</span></div>
+                <div class="roi-label">إنتاجية موظف (FTE)</div>
+                <div class="roi-sub">بناءً على 160 ساعة/شهر</div>
+            </div>
+            <div class="roi-metric">
+                <div class="roi-value text-info"><?= $automationRate ?>%</div>
+                <div class="roi-label">نسبة الأتمتة</div>
+                <div class="roi-sub">تدخل يدوي محدود (<?= $manualIntervention ?>%)</div>
+            </div>
+            <div class="roi-metric">
+                <div class="roi-value text-warning"><?= formatNumber($costSaved) ?><span class="text-sm font-normal text-muted"> ر.س</span></div>
+                <div class="roi-label">قيمة تشغيلية موفرة</div>
+                <div class="roi-sub">تقديري (50 ر.س/ساعة)</div>
+            </div>
+        </div>
+
+        <!-- 1. Key Metrics Cards -->
         <div class="grid-4 mb-6">
-            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-primary);">
-                <div class="hero-value text-primary"><?= formatNumber($overview['total_assets']) ?></div>
-                <div class="hero-label">أصول فريدة (Assets)</div>
-                <div class="text-xs text-muted mt-2">ضمانات مميزة في النظام</div>
+            <div class="card p-4 flex flex-col justify-between" style="border-top: 4px solid var(--accent-primary);">
+                <div class="text-secondary text-sm mb-2 font-bold">الأصول الفريدة</div>
+                <div class="flex justify-between items-end">
+                    <span class="text-3xl font-bold text-primary"><?= formatNumber($overview['total_assets']) ?></span>
+                    <i data-lucide="box" class="text-light" style="width: 24px;"></i>
+                </div>
             </div>
-            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-info);">
-                <div class="hero-value text-info"><?= formatNumber($overview['total_occurrences']) ?></div>
-                <div class="hero-label">سجلات ظهور (Occurrences)</div>
-                <div class="text-xs text-muted mt-2">مجموع الأسطر المستوردة</div>
+            <div class="card p-4 flex flex-col justify-between" style="border-top: 4px solid var(--accent-info);">
+                <div class="text-secondary text-sm mb-2 font-bold">سجلات الظهور</div>
+                <div class="flex justify-between items-end">
+                    <span class="text-3xl font-bold text-info"><?= formatNumber($overview['total_occurrences']) ?></span>
+                    <i data-lucide="layers" class="text-light" style="width: 24px;"></i>
+                </div>
             </div>
-            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-success);">
-                <div class="hero-value text-success"><?= $efficiencyRatio ?>x</div>
-                <div class="hero-label">معدل الكفاءة</div>
-                <div class="text-xs text-muted mt-2">متوسط ظهور الضمان الواحد</div>
+            <div class="card p-4 flex flex-col justify-between" style="border-top: 4px solid var(--accent-success);">
+                <div class="text-secondary text-sm mb-2 font-bold">معدل الكفاءة</div>
+                <div class="flex justify-between items-end">
+                    <span class="text-3xl font-bold text-success"><?= $efficiencyRatio ?>x</span>
+                    <i data-lucide="trending-up" class="text-light" style="width: 24px;"></i>
+                </div>
             </div>
-            <div class="hero-stats-card" style="border-top: 4px solid var(--accent-warning);">
-                <div class="hero-value text-warning"><?= formatNumber($overview['active_batches']) ?></div>
-                <div class="hero-label">دفعات نشطة</div>
-                <div class="text-xs text-muted mt-2">جلسات عمل مفتوحة</div>
+            <div class="card p-4 flex flex-col justify-between" style="border-top: 4px solid var(--accent-warning);">
+                <div class="text-secondary text-sm mb-2 font-bold">الدفعات النشطة</div>
+                <div class="flex justify-between items-end">
+                    <span class="text-3xl font-bold text-warning"><?= formatNumber($overview['active_batches']) ?></span>
+                    <i data-lucide="activity" class="text-light" style="width: 24px;"></i>
+                </div>
             </div>
         </div>
 
-        <!-- SECTION 2: BATCH ANALYSIS -->
+        <!-- 2. Batch Operations (Wide Table) -->
         <div class="card mb-6">
-            <div class="card-header flex-between">
-                <h3 class="card-title">تحليل أداء الدفعات (Batch Context Analysis)</h3>
-                <span class="badge badge-primary-light">آخر 5 دفعات</span>
+            <div class="card-header border-bottom">
+                <h3 class="card-title text-lg flex items-center gap-2">
+                    <i data-lucide="history" style="width: 18px;"></i>
+                    تحليل أداء الدفعات الأخيرة
+                </h3>
             </div>
             <div class="card-body p-0">
-                <table class="table">
+                <table class="table table-striped">
                     <thead>
                         <tr>
                             <th>الدفعة</th>
                             <th>تاريخ الاستيراد</th>
-                            <th>إجمالي الأسطر</th>
-                            <th>ضمانات جديدة</th>
-                            <th>تكرارات (Re-occurrences)</th>
-                            <th>نسبة التكرار</th>
+                            <th class="text-center">إجمالي الأسطر</th>
+                            <th class="text-center">جديد</th>
+                            <th class="text-center">تكرار</th>
+                            <th class="text-center">نسبة التكرار</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -632,22 +687,13 @@ try {
                                 : 0;
                         ?>
                         <tr>
-                            <td class="font-bold"><?= htmlspecialchars($batch['batch_name']) ?></td>
-                            <td class="text-mono"><?= $batch['import_date'] ?></td>
+                            <td class="font-bold text-primary"><?= htmlspecialchars($batch['batch_name']) ?></td>
+                            <td class="text-secondary text-sm"><?= date('Y-m-d H:i', strtotime($batch['import_date'])) ?></td>
                             <td class="text-center font-bold"><?= formatNumber($batch['total_rows']) ?></td>
-                            <td class="text-center text-success">
-                                <span class="badge badge-success-light">+<?= formatNumber($batch['new_items']) ?></span>
-                            </td>
-                            <td class="text-center text-info">
-                                <span class="badge badge-info-light">↻ <?= formatNumber($batch['recurring_items']) ?></span>
-                            </td>
+                            <td class="text-center"><span class="badge badge-success-light">+<?= formatNumber($batch['new_items']) ?></span></td>
+                            <td class="text-center"><span class="badge badge-info-light">↻ <?= formatNumber($batch['recurring_items']) ?></span></td>
                             <td class="text-center">
-                                <div class="flex-align-center gap-2" style="justify-content: center;">
-                                    <div class="progress-track" style="width: 60px; height: 6px;">
-                                        <div class="progress-fill bg-info" style="width: <?= $recurRate ?>%"></div>
-                                    </div>
-                                    <span class="text-xs font-bold"><?= $recurRate ?>%</span>
-                                </div>
+                                <span class="text-sm font-bold <?= $recurRate > 50 ? 'text-info' : 'text-secondary' ?>"><?= $recurRate ?>%</span>
                             </td>
                         </tr>
                         <?php endforeach; ?>
@@ -656,21 +702,22 @@ try {
             </div>
         </div>
 
-        <!-- SECTION 3: TOP RECURRING ASSETS -->
+        <!-- 3. Top Lists Grid (Banks & Suppliers) -->
         <div class="grid-2 mb-6">
+            <!-- Top Recurring Assets -->
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">الأصول الأكثر نشاطاً (تكراراً)</h3>
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">الأصول الأكثر نشاطاً</h3>
                 </div>
                 <div class="card-body p-0">
                      <table class="table">
-                        <thead><tr><th>رقم الضمان</th><th>المورد</th><th>عدد مرات الظهور</th></tr></thead>
+                        <thead><tr><th>رقم الضمان</th><th>المورد</th><th class="text-center">الظهور</th></tr></thead>
                         <tbody>
                             <?php foreach ($topRecurring as $item): ?>
                             <tr>
-                                <td class="font-bold font-mono text-primary"><?= htmlspecialchars($item['guarantee_number']) ?></td>
-                                <td class="text-sm"><?= htmlspecialchars($item['supplier']) ?></td>
-                                <td class="text-center font-bold text-lg"><?= $item['occurrence_count'] ?></td>
+                                <td class="font-mono text-primary font-bold dir-ltr text-right"><?= htmlspecialchars($item['guarantee_number']) ?></td>
+                                <td class="text-sm text-truncate" style="max-width: 150px;"><?= htmlspecialchars($item['supplier']) ?></td>
+                                <td class="text-center font-bold"><?= $item['occurrence_count'] ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -678,48 +725,48 @@ try {
                 </div>
             </div>
 
+            <!-- Top Suppliers -->
             <div class="card">
-                <div class="card-header">
-                    <h3 class="card-title">أهم الموردين (حسب الأصول الفريدة)</h3>
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">أهم الموردين</h3>
                 </div>
                 <div class="card-body p-0">
                     <table class="table">
-                        <thead><tr><th>المورد</th><th>عدد الضمانات</th></tr></thead>
+                        <thead><tr><th>المورد</th><th class="text-center">عدد الضمانات</th></tr></thead>
                         <tbody>
-                            <?php foreach ($topSuppliers as $supplier): ?>
+                            <?php foreach (array_slice($topSuppliers, 0, 5) as $supplier): ?>
                             <tr>
-                                <td><?= htmlspecialchars($supplier['official_name']) ?></td>
-                                <td class="font-bold"><?= formatNumber($supplier['count']) ?></td>
+                                <td class="text-sm"><?= htmlspecialchars($supplier['official_name']) ?></td>
+                                <td class="text-center font-bold"><?= formatNumber($supplier['count']) ?></td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
             </div>
-
         </div>
 
-        <!-- SECTION 3B: TOP BANKS -->
+        <!-- 4. Bank Performance (Full Width) -->
         <div class="card mb-6">
-            <div class="card-header">
-                <h3 class="card-title">الأداء المالي للبنوك</h3>
+            <div class="card-header border-bottom">
+                <h3 class="card-title text-lg">الأداء المالي للبنوك</h3>
             </div>
             <div class="card-body p-0">
                 <table class="table">
                     <thead>
                         <tr>
                             <th>البنك</th>
-                            <th>عدد الضمانات</th>
-                            <th>إجمالي المبالغ</th>
-                            <th>تمديدات</th>
+                            <th class="text-center">العدد</th>
+                            <th class="text-center">إجمالي المبالغ</th>
+                            <th class="text-center">التمديدات</th>
                         </tr>
                     </thead>
                     <tbody>
-                        <?php foreach ($topBanks as $bank): ?>
+                        <?php foreach (array_slice($topBanks, 0, 8) as $bank): ?>
                         <tr>
                             <td class="font-bold"><?= htmlspecialchars($bank['bank_name']) ?></td>
                             <td class="text-center font-bold"><?= formatNumber($bank['count']) ?></td>
-                            <td class="text-center"><?= formatMoney($bank['total_amount']) ?></td>
+                            <td class="text-center dir-ltr"><?= formatMoney($bank['total_amount']) ?></td>
                             <td class="text-center">
                                 <?php if ($bank['extensions'] > 0): ?>
                                 <span class="badge badge-warning-light"><?= $bank['extensions'] ?></span>
@@ -734,61 +781,70 @@ try {
             </div>
         </div>
 
-
-        <!-- ============================================ -->
-        <!-- SECTION 4: DETAILED SUPPLIER ANALYSIS -->
-        <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">🔍</span>
-            <span class="section-title">تصنيف أداء الموردين</span>
-        </div>
-
-        <!-- 2B: Supplier Analysis -->
-        <div class="grid-3 mb-4">
+        <!-- 5. Advanced Analysis (Grid 3) -->
+        <div class="grid-3 mb-6">
+            <!-- Stable Suppliers -->
             <div class="card">
-                <div class="card-header border-bottom-0 pb-2">
-                    <h4 class="font-bold text-base text-success">✓ الموردين الأكثر استقراراً</h4>
+                <div class="card-header border-bottom bg-success-light bg-opacity-10">
+                    <h3 class="card-title text-base text-success">الأكثر استقراراً</h3>
                 </div>
-                <div class="card-body pt-0">
-                    <?php foreach ($stableSuppliers as $s): ?>
-                    <div class="flex justify-between items-center py-2 border-bottom border-light">
-                        <span class="text-sm"><?= htmlspecialchars($s['official_name']) ?></span>
-                        <span class="badge badge-success-light"><?= $s['count'] ?></span>
-                    </div>
-                    <?php endforeach; ?>
+                <div class="card-body p-0">
+                    <table class="table table-sm">
+                        <tbody>
+                            <?php foreach ($stableSuppliers as $s): ?>
+                            <tr>
+                                <td class="text-sm"><?= htmlspecialchars($s['official_name']) ?></td>
+                                <td class="text-center font-bold text-success"><?= $s['count'] ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
             
+            <!-- Risky Suppliers -->
             <div class="card">
-                <div class="card-header border-bottom-0 pb-2">
-                    <h4 class="font-bold text-base text-danger">⚠️ الموردين عاليي المخاطر</h4>
+                <div class="card-header border-bottom bg-danger-light bg-opacity-10">
+                    <h3 class="card-title text-base text-danger">الأكثر مخاطرة</h3>
                 </div>
-                <div class="card-body pt-0">
-                    <?php foreach (array_slice($riskySuppliers, 0, 5) as $s): ?>
-                    <div class="flex justify-between items-center py-2 border-bottom border-light">
-                        <span class="text-sm"><?= htmlspecialchars($s['official_name']) ?></span>
-                        <span class="text-xs font-bold text-danger"><?= $s['risk_score'] ?>%</span>
-                    </div>
-                    <?php endforeach; ?>
+                <div class="card-body p-0">
+                    <table class="table table-sm">
+                        <tbody>
+                            <?php foreach (array_slice($riskySuppliers, 0, 5) as $s): ?>
+                            <tr>
+                                <td class="text-sm"><?= htmlspecialchars($s['official_name']) ?></td>
+                                <td class="text-center font-bold text-danger"><?= $s['risk_score'] ?>%</td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
             
+            <!-- Challenging Suppliers -->
             <div class="card">
-                <div class="card-header border-bottom-0 pb-2">
-                    <h4 class="font-bold text-base text-warning">🎯 الصعب مطابقتهم تلقائياً</h4>
+                <div class="card-header border-bottom bg-warning-light bg-opacity-10">
+                    <h3 class="card-title text-base text-warning">تحديات المطابقة</h3>
                 </div>
-                <div class="card-body pt-0">
-                    <?php foreach ($challengingSuppliers as $s): ?>
-                    <div class="flex justify-between items-center py-2 border-bottom border-light">
-                        <span class="text-sm"><?= htmlspecialchars($s['official_name']) ?></span>
-                        <span class="badge badge-warning-light"><?= $s['manual_count'] ?></span>
-                    </div>
-                    <?php endforeach; ?>
+                <div class="card-body p-0">
+                    <table class="table table-sm">
+                        <tbody>
+                            <?php foreach ($challengingSuppliers as $s): ?>
+                            <tr>
+                                <td class="text-sm"><?= htmlspecialchars($s['official_name']) ?></td>
+                                <td class="text-center font-bold text-warning"><?= $s['manual_count'] ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
-        <!-- 2C: Relationships -->
+
+        <!-- ============================================ -->
+        <!-- SECTION: RELATIONSHIPS & NETWORK -->
+        <!-- ============================================ -->
         <div class="grid-3 mb-4">
             <div class="metric-mini-card">
                 <div class="text-2xl font-bold text-primary mb-1"><?= formatNumber($uniqueCounts['suppliers']) ?></div>
@@ -804,20 +860,20 @@ try {
             </div>
         </div>
         
-        <div class="card mb-5">
-            <div class="card-header">
-                <h4 class="card-title">أقوى التحالفات (بنك-مورد)</h4>
+        <div class="card mb-6">
+            <div class="card-header border-bottom">
+                <h3 class="card-title text-base">أقوى التحالفات (بنك-مورد)</h3>
             </div>
             <div class="card-body p-0">
                 <table class="table">
-                    <thead><tr><th>المورد</th><th></th><th>البنك</th><th>التكرار</th></tr></thead>
+                    <thead><tr><th>المورد</th><th class="text-center">العلاقة</th><th>البنك</th><th class="text-center">عدد الضمانات</th></tr></thead>
                     <tbody>
                         <?php foreach ($bankSupplierPairs as $pair): ?>
                         <tr>
-                            <td><?= htmlspecialchars($pair['supplier']) ?></td>
-                            <td class="text-center text-muted">↔</td>
-                            <td><?= htmlspecialchars($pair['bank']) ?></td>
-                            <td class="font-bold"><?= $pair['count'] ?></td>
+                            <td class="text-sm"><?= htmlspecialchars($pair['supplier']) ?></td>
+                            <td class="text-center text-muted"><i data-lucide="arrow-left-right" style="width: 14px;"></i></td>
+                            <td class="text-sm"><?= htmlspecialchars($pair['bank']) ?></td>
+                            <td class="text-center font-bold"><?= $pair['count'] ?></td>
                         </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -825,315 +881,219 @@ try {
             </div>
         </div>
 
-        <!-- ============================================ -->
-        <!-- SECTION 3: TIME & PERFORMANCE -->
-        <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">⏱️</span>
-            <span class="section-title">الوقت والأداء</span>
-        </div>
-
-        <!-- 3A: Processing Speed -->
-        <div class="grid-3 mb-4">
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= round($timing['avg_hours'] ?? 0, 1) ?>h</div>
-                <div class="text-sm text-secondary">متوسط وقت المعالجة</div>
-                <div class="text-xs text-muted mt-1">من الاستيراد → القرار</div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-success mb-1"><?= round($timing['min_hours'] ?? 0, 1) ?>h</div>
-                <div class="text-sm text-secondary">أسرع معالجة</div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-danger mb-1"><?= round($timing['max_hours'] ?? 0, 1) ?>h</div>
-                <div class="text-sm text-secondary">أبطأ معالجة</div>
-            </div>
-        </div>
-        
-        <div class="grid-2 mb-4">
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= $peakHour['hour'] ?? 'N/A' ?>:00</div>
-                <div class="text-sm text-secondary">ساعة الذروة</div>
-                <div class="text-xs text-muted mt-1"><?= formatNumber($peakHour['count'] ?? 0) ?> حدث</div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= $busiestDay['weekday'] ?? 'N/A' ?></div>
-                <div class="text-sm text-secondary">اليوم الأكثر نشاطاً</div>
-                <div class="text-xs text-muted mt-1"><?= formatNumber($busiestDay['count'] ?? 0) ?> حدث</div>
-            </div>
-        </div>
-
-        <!-- 3B: Quality Metrics -->
-        <div class="grid-3 mb-4">
-            <div class="card p-4 text-center bg-white border-success" style="border-top: 4px solid var(--accent-success);">
-                <div class="text-4xl font-bold text-success mb-2"><?= $firstTimeRight ?>%</div>
-                <div class="font-bold text-sm">First-Time-Right</div>
-                <div class="text-xs text-muted mt-1">نسبة النجاح من أول مرة</div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold mb-1" style="color: <?= $manualIntervention > 30 ? 'var(--accent-danger)' : 'var(--accent-success)' ?>;">
-                    <?= $manualIntervention ?>%
+        <!-- 6. Quality & Timing -->
+        <div class="grid-2 mb-6">
+            <!-- Quality Metrics -->
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">مؤشرات الجودة</h3>
                 </div>
-                <div class="text-sm text-secondary">معدل التدخل اليدوي</div>
-                <div class="badge badge-neutral mt-2"><?= $manualIntervention > 30 ? 'يحتاج تحسين' : 'ممتاز' ?></div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= formatNumber($complexGuarantees) ?></div>
-                <div class="text-sm text-secondary">ضمانات معقدة</div>
-                <div class="text-xs text-muted mt-1">تم تعديلها 3+ مرات</div>
-            </div>
-        </div>
-
-        <!-- 3C: Trends -->
-        <div class="grid-3 mb-5">
-            <div class="metric-mini-card">
-                <div class="text-3xl font-bold mb-1" style="color: <?= $trendPercent >= 0 ? 'var(--accent-success)' : 'var(--accent-danger)' ?>;">
-                    <?= $trendDirection ?>
+                <div class="card-body">
+                    <div class="flex items-center justify-between mb-4 pb-4 border-bottom border-light">
+                        <span class="text-secondary">First Time Right</span>
+                        <span class="text-2xl font-bold text-success"><?= $firstTimeRight ?>%</span>
+                    </div>
+                    <div class="flex items-center justify-between mb-4 pb-4 border-bottom border-light">
+                        <span class="text-secondary">التدخل اليدوي</span>
+                        <span class="text-2xl font-bold <?= $manualIntervention > 20 ? 'text-danger' : 'text-primary' ?>"><?= $manualIntervention ?>%</span>
+                    </div>
+                    <div class="flex items-center justify-between">
+                        <span class="text-secondary">متوسط وقت المعالجة</span>
+                        <span class="text-2xl font-bold text-primary"><?= round($timing['avg_hours'] ?? 0, 1) ?>h</span>
+                    </div>
                 </div>
-                <div class="text-sm text-secondary">النمو الأسبوعي</div>
             </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= formatNumber($weeklyTrend['this_week']) ?></div>
-                <div class="text-sm text-secondary">ضمانات هذا الأسبوع</div>
-            </div>
-            <div class="metric-mini-card">
-                <div class="text-2xl font-bold text-primary mb-1"><?= formatNumber($weeklyTrend['last_week']) ?></div>
-                <div class="text-sm text-secondary">ضمانات الأسبوع الماضي</div>
+
+            <!-- Expiry Analysis (Redesigned) -->
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">تحليل الانتهاءات القادمة</h3>
+                </div>
+                <div class="card-body">
+                    <div class="grid-2 gap-4 mb-4">
+                        <div class="p-3 bg-danger-light bg-opacity-10 rounded text-center border border-danger-light">
+                            <div class="text-2xl font-bold text-danger mb-1"><?= formatNumber($expiration['next_30']) ?></div>
+                            <div class="text-xs font-bold text-danger">عاجل (30 يوم)</div>
+                        </div>
+                        <div class="p-3 bg-warning-light bg-opacity-10 rounded text-center border border-warning-light">
+                            <div class="text-2xl font-bold text-warning mb-1"><?= formatNumber($expiration['next_90']) ?></div>
+                            <div class="text-xs font-bold text-warning">قريب (90 يوم)</div>
+                        </div>
+                    </div>
+                    
+                    <?php if (!empty($expirationByMonth)): ?>
+                    <div>
+                        <h4 class="text-xs font-bold text-secondary mb-3 border-bottom pb-2">توقعات الأشهر القادمة (أشهر الذروة)</h4>
+                        <div class="space-y-3">
+                            <?php foreach (array_slice($expirationByMonth, 0, 3) as $month): ?>
+                            <div class="flex items-center text-sm">
+                                <div class="w-24 font-mono text-secondary text-xs"><?= $month['month'] ?></div>
+                                <div class="flex-1 h-3 bg-gray-100 rounded-full overflow-hidden mx-2">
+                                    <div class="h-full bg-primary" style="width: <?= min(($month['count'] / ($peakMonth['count'] ?: 1)) * 100, 100) ?>%"></div>
+                                </div>
+                                <span class="badge badge-neutral-light"><?= $month['count'] ?> ضمان</span>
+                            </div>
+                            <?php endforeach; ?>
+                        </div>
+                    </div>
+                    <?php endif; ?>
+                </div>
             </div>
         </div>
+
 
         <!-- ============================================ -->
-        <!-- SECTION 4: EXPIRATION & ACTION PLANNING -->
+        <!-- SECTION 7: AI & AUTOMATION PERFORMANCE -->
         <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">📅</span>
-            <span class="section-title">التخطيط والإجراءات</span>
-        </div>
-
-        <!-- 4A: Expiration Pressure -->
-        <div class="grid-3 mb-4">
-            <div class="card p-4 border-warning" style="background-color: var(--accent-warning-light); border: 1px solid var(--accent-warning);">
-                <div class="text-3xl font-bold text-warning mb-1"><?= formatNumber($expiration['next_30']) ?></div>
-                <div class="text-sm" style="color: #92400e;">تنتهي خلال 30 يوم</div>
-            </div>
-            <div class="card p-4 border-danger" style="background-color: var(--accent-danger-light); border: 1px solid var(--accent-danger);">
-                <div class="text-3xl font-bold text-danger mb-1"><?= formatNumber($expiration['next_90']) ?></div>
-                <div class="text-sm" style="color: #991b1b;">تنتهي خلال 90 يوم</div>
-            </div>
-            <div class="card p-4 text-center">
-                <div class="text-2xl font-bold text-primary mb-1"><?= $peakMonth['month'] ?></div>
-                <div class="text-sm text-secondary">الشهر الأخطر (<?= formatNumber($peakMonth['count']) ?>)</div>
-            </div>
-        </div>
-
-        <!-- 4B: Monthly Distribution -->
-        <?php if (!empty($expirationByMonth)): ?>
-        <div class="card mb-4">
-            <div class="card-header">
-                <h4 class="card-title">توزيع الانتهاءات القادمة (12 شهر)</h4>
+        <div class="card mb-6">
+            <div class="card-header border-bottom flex-between">
+                <h3 class="card-title text-lg">أداء الذكاء الاصطناعي والأتمتة</h3>
+                <span class="badge badge-primary-light">AI Confidence: <?= $mlAccuracy ?>%</span>
             </div>
             <div class="card-body">
-                <?php foreach (array_slice($expirationByMonth, 0, 6) as $month): ?>
-                <div class="flex items-center gap-3 mb-3 last:mb-0">
-                    <span class="text-sm font-medium w-20"><?= $month['month'] ?></span>
-                    <div class="flex-1">
-                        <div class="progress-track" style="height: 6px;">
-                            <div class="progress-fill bg-primary" style="background-color: var(--accent-primary); width: <?= min(($month['count'] / $peakMonth['count']) * 100, 100) ?>%;"></div>
-                        </div>
+                <div class="grid-4 gap-4 mb-6">
+                    <div class="text-center p-3 border rounded bg-secondary-light">
+                        <div class="text-3xl font-bold text-primary mb-1"><?= $aiMatchRate ?>%</div>
+                        <div class="text-sm text-secondary">نسبة المطابقة الآلية</div>
                     </div>
-                    <span class="text-sm font-bold w-10 text-right"><?= $month['count'] ?></span>
+                    <div class="text-center p-3 border rounded bg-secondary-light">
+                        <div class="text-3xl font-bold text-success mb-1"><?= formatNumber($autoMatchEvents) ?></div>
+                        <div class="text-sm text-secondary">عمليات دمج تلقائي</div>
+                    </div>
+                    <div class="text-center p-3 border rounded bg-secondary-light">
+                        <div class="text-3xl font-bold text-info mb-1"><?= formatNumber($mlStats['confirmations']) ?></div>
+                        <div class="text-sm text-secondary">أنماط تم تعلمها</div>
+                    </div>
+                    <div class="text-center p-3 border rounded bg-secondary-light">
+                        <div class="text-3xl font-bold text-warning mb-1"><?= $timeSaved ?>h</div>
+                        <div class="text-sm text-secondary">وقت تم توفيره</div>
+                    </div>
                 </div>
-                <?php endforeach; ?>
+
+                <div class="grid-2 gap-6">
+                    <!-- Learned Patterns -->
+                    <div>
+                        <h4 class="font-bold text-sm mb-3 text-secondary">أكثر الأنماط المؤكدة (Verified Patterns)</h4>
+                        <table class="table table-sm border">
+                            <thead><tr><th>النص الأصلي</th><th>الاسم الرسمي</th><th class="text-center">تكرار</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($confirmedPatterns as $p): ?>
+                                <tr>
+                                    <td class="text-xs text-muted truncate" style="max-width: 150px;"><?= htmlspecialchars($p['raw_supplier_name']) ?></td>
+                                    <td class="text-xs font-bold"><?= htmlspecialchars($p['official_name']) ?></td>
+                                    <td class="text-center"><span class="badge badge-success-light"><?= $p['count'] ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Rejected Patterns -->
+                    <div>
+                        <h4 class="font-bold text-sm mb-3 text-secondary">أنماط تم رفضها (False Positives)</h4>
+                        <table class="table table-sm border">
+                            <thead><tr><th>النص الأصلي</th><th>الاقتراح المرفوض</th><th class="text-center">تكرار</th></tr></thead>
+                            <tbody>
+                                <?php foreach ($rejectedPatterns as $p): ?>
+                                <tr>
+                                    <td class="text-xs text-muted truncate" style="max-width: 150px;"><?= htmlspecialchars($p['raw_supplier_name']) ?></td>
+                                    <td class="text-xs text-danger"><?= htmlspecialchars($p['official_name']) ?></td>
+                                    <td class="text-center"><span class="badge badge-danger-light"><?= $p['count'] ?></span></td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
-        <?php endif; ?>
 
-        <!-- 4C: Actions & Probability -->
-        <div class="grid-2 mb-5">
+        <!-- ============================================ -->
+        <!-- SECTION 8: TRENDS & FINANCIALS -->
+        <!-- ============================================ -->
+        <div class="grid-3 mb-6">
+            <!-- 1. Time Trends -->
             <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">الإجراءات المسجلة</h4>
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">أنماط الوقت والنشاط</h3>
                 </div>
                 <div class="card-body">
-                    <div class="grid-3 gap-2 mb-4">
-                        <div class="text-center p-2 rounded bg-secondary">
-                            <div class="text-xl font-bold text-warning"><?= formatNumber($actions['extensions']) ?></div>
-                            <div class="text-xs text-muted">تمديدات</div>
+                    <div class="flex items-center justify-between mb-4 pb-4 border-bottom border-light">
+                        <div>
+                            <div class="text-sm text-secondary mb-1">ساعة الذروة</div>
+                            <div class="text-2xl font-bold text-primary"><?= $peakHour['hour'] ?? '00' ?>:00</div>
                         </div>
-                        <div class="text-center p-2 rounded bg-secondary">
-                            <div class="text-xl font-bold text-info"><?= formatNumber($actions['reductions']) ?></div>
-                            <div class="text-xs text-muted">تخفيضات</div>
-                        </div>
-                        <div class="text-center p-2 rounded bg-secondary">
-                            <div class="text-xl font-bold text-success"><?= formatNumber($actions['releases']) ?></div>
-                            <div class="text-xs text-muted">إفراجات</div>
+                        <div class="text-right">
+                            <div class="text-xs text-muted">عدد العمليات</div>
+                            <div class="font-bold"><?= formatNumber($peakHour['count'] ?? 0) ?></div>
                         </div>
                     </div>
-                    <div class="text-sm text-secondary bg-hover p-2 rounded">
-                        <div class="flex justify-between mb-1">
-                            <span>تمديدات متعددة:</span>
-                            <strong class="text-primary"><?= formatNumber($multipleExtensions) ?></strong>
+                    <div class="flex items-center justify-between mb-4 pb-4 border-bottom border-light">
+                        <div>
+                            <div class="text-sm text-secondary mb-1">اليوم الأكثر نشاطاً</div>
+                            <div class="text-2xl font-bold text-primary"><?= $busiestDay['weekday'] ?? '-' ?></div>
                         </div>
-                        <div class="flex justify-between">
-                            <span>إفراجات حديثة (7 أيام):</span>
-                            <strong class="text-primary"><?= formatNumber($actions['recent_releases']) ?></strong>
+                        <div class="text-right">
+                            <div class="text-xs text-muted">عدد العمليات</div>
+                            <div class="font-bold"><?= formatNumber($busiestDay['count'] ?? 0) ?></div>
                         </div>
                     </div>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">احتمالية التمديد (حسب المورد)</h4>
-                </div>
-                <div class="card-body">
-                    <?php foreach ($extensionProbability as $prob): ?>
-                    <div class="flex justify-between items-center mb-3 text-sm">
-                        <span class="truncate pr-2"><?= htmlspecialchars($prob['official_name']) ?></span>
+                    <div>
+                        <div class="text-sm text-secondary mb-2">النمو الأسبوعي</div>
                         <div class="flex items-center gap-2">
-                            <div class="progress-track w-24">
-                                <div class="progress-fill" style="background-color: var(--accent-warning); width: <?= $prob['probability'] ?>%;"></div>
-                            </div>
-                            <span class="font-bold w-8 text-right"><?= $prob['probability'] ?>%</span>
+                            <span class="text-3xl font-bold <?= $trendPercent >= 0 ? 'text-success' : 'text-danger' ?>">
+                                <?= $trendDirection ?>
+                            </span>
+                            <span class="text-xs text-muted">(مقارنة بالأسبوع الماضي)</span>
                         </div>
                     </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-        </div>
-
-        <!-- ============================================ -->
-        <!-- SECTION 5: AI & MACHINE LEARNING -->
-        <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">🧠</span>
-            <span class="section-title">الذكاء الاصطناعي والتعلم الآلي</span>
-        </div>
-
-        <div class="card mb-5 overflow-hidden border-0 shadow-lg" style="background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); color: white;">
-            <!-- 5A: Main Metrics -->
-            <div class="grid-4 p-5 border-bottom" style="border-color: rgba(255,255,255,0.1);">
-                <div class="text-center">
-                    <div class="text-4xl font-bold mb-1"><?= $mlAccuracy ?>%</div>
-                    <div class="text-sm opacity-90">دقة التعلم</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold mb-1"><?= $automationRate ?>%</div>
-                    <div class="text-sm opacity-90">معدل الأتمتة</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold mb-1"><?= $aiMatchRate ?>%</div>
-                    <div class="text-sm opacity-90">نسبة تطابق AI</div>
-                </div>
-                <div class="text-center">
-                    <div class="text-4xl font-bold mb-1"><?= $mlStats['total'] ?></div>
-                    <div class="text-sm opacity-90">أحداث التعلم</div>
                 </div>
             </div>
 
-            <!-- 5B: Patterns -->
-            <div class="grid-2 p-5 gap-4">
-                <?php if (!empty($confirmedPatterns)): ?>
-                <div class="bg-white bg-opacity-10 rounded p-4">
-                    <h4 class="font-bold text-sm mb-3 opacity-90">✅ الأنماط المؤكدة</h4>
-                    <?php foreach ($confirmedPatterns as $p): ?>
-                    <div class="flex justify-between items-center py-2 border-bottom" style="border-color: rgba(255,255,255,0.1);">
-                        <div>
-                            <div class="font-bold text-xs"><?= htmlspecialchars($p['raw_supplier_name']) ?></div>
-                            <div class="text-xs opacity-70">→ <?= htmlspecialchars($p['official_name']) ?></div>
-                        </div>
-                        <span class="bg-success text-white text-xs px-2 py-1 rounded-full bg-opacity-80">×<?= $p['count'] ?></span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-
-                <?php if (!empty($rejectedPatterns)): ?>
-                <div class="bg-white bg-opacity-10 rounded p-4">
-                    <h4 class="font-bold text-sm mb-3 opacity-90">❌ الأخطاء الشائعة</h4>
-                    <?php foreach ($rejectedPatterns as $p): ?>
-                    <div class="flex justify-between items-center py-2 border-bottom" style="border-color: rgba(255,255,255,0.1);">
-                        <div>
-                            <div class="font-bold text-xs"><?= htmlspecialchars($p['raw_supplier_name']) ?></div>
-                            <div class="text-xs opacity-70">Suggested: <?= htmlspecialchars($p['official_name']) ?></div>
-                        </div>
-                        <span class="bg-danger text-white text-xs px-2 py-1 rounded-full bg-opacity-80">×<?= $p['count'] ?></span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-                <?php endif; ?>
-            </div>
-            
-             <!-- 5C: Performance Summary inside the colored card -->
-             <div class="p-4 bg-black bg-opacity-20 flex justify-around">
-                 <div class="text-center">
-                     <div class="text-xl font-bold"><?= $timeSaved ?>h</div>
-                     <div class="text-xs opacity-75">وقت موفر</div>
-                 </div>
-                 <div class="text-center">
-                     <div class="text-xl font-bold"><?= formatNumber($autoMatchEvents) ?></div>
-                     <div class="text-xs opacity-75">مطابقة تلقائية</div>
-                 </div>
-             </div>
-        </div>
-
-        <!-- ============================================ -->
-        <!-- SECTION 6: FINANCIAL & TYPE ANALYSIS -->
-        <!-- ============================================ -->
-        <div class="section-separator">
-            <span class="icon-lg">💰</span>
-            <span class="section-title">التحليل المالي والأنواع</span>
-        </div>
-
-        <!-- 6A: Amount Analytics -->
-        <div class="grid-4 mb-5">
-            <div class="card p-3 text-center">
-                <div class="text-xl font-bold text-primary mb-1"><?= formatMoney($overview['total_amount']) ?></div>
-                <div class="text-xs text-muted">إجمالي المبالغ</div>
-            </div>
-            <div class="card p-3 text-center">
-                <div class="text-xl font-bold text-primary mb-1"><?= formatMoney($overview['avg_amount']) ?></div>
-                <div class="text-xs text-muted">متوسط المبلغ</div>
-            </div>
-            <div class="card p-3 text-center">
-                <div class="text-xl font-bold text-primary mb-1"><?= formatMoney($overview['max_amount']) ?></div>
-                <div class="text-xs text-muted">أكبر ضمان</div>
-            </div>
-            <div class="card p-3 text-center">
-                <div class="text-xl font-bold text-primary mb-1"><?= formatMoney($overview['min_amount']) ?></div>
-                <div class="text-xs text-muted">أصغر ضمان</div>
-            </div>
-        </div>
-
-        <!-- 6B: Insights -->
-        <div class="grid-2 mb-5">
+            <!-- 2. Types Distribution (Restored) -->
             <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">ارتباط المبلغ بالتمديد</h4>
-                </div>
-                <div class="card-body">
-                    <?php foreach ($amountCorrelation as $corr): ?>
-                    <div class="flex justify-between items-center p-2 mb-2 bg-hover rounded">
-                        <span class="font-medium text-sm"><?= $corr['range'] ?></span>
-                        <span class="badge <?= $corr['ext_rate'] > 30 ? 'badge-danger-light' : 'badge-success-light' ?>">
-                            <?= $corr['ext_rate'] ?>% تمديد
-                        </span>
-                    </div>
-                    <?php endforeach; ?>
-                </div>
-            </div>
-
-            <div class="card">
-                <div class="card-header">
-                    <h4 class="card-title">توزيع الأنواع</h4>
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">توزيع أنواع الضمانات</h3>
                 </div>
                 <div class="card-body p-0">
                     <table class="table">
+                        <thead><tr><th>النوع</th><th class="text-center">العدد</th></tr></thead>
                         <tbody>
                             <?php foreach ($typeDistribution as $type): ?>
                             <tr>
-                                <td><?= htmlspecialchars($type['type']) ?></td>
-                                <td class="text-left font-bold"><?= formatNumber($type['count']) ?></td>
+                                <td class="text-sm"><?= htmlspecialchars($type['type'] ?? 'غير محدد') ?></td>
+                                <td class="text-center font-bold"><?= formatNumber($type['count']) ?></td>
+                            </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 3. Financial Correlation -->
+            <div class="card">
+                <div class="card-header border-bottom">
+                    <h3 class="card-title text-base">تحليل المبالغ والتمديد</h3>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>الفئة</th>
+                                <th class="text-center">العدد</th>
+                                <th class="text-center">تمديد</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?php foreach ($amountCorrelation as $row): ?>
+                            <tr>
+                                <td class="text-sm font-bold truncate"><?= $row['range'] ?></td>
+                                <td class="text-center text-secondary"><?= formatNumber($row['total']) ?></td>
+                                <td class="text-center">
+                                    <span class="badge <?= $row['ext_rate'] > 50 ? 'badge-warning-light' : 'badge-neutral' ?>">
+                                        <?= $row['ext_rate'] ?>%
+                                    </span>
+                                </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
@@ -1142,12 +1102,12 @@ try {
             </div>
         </div>
 
-        <div class="text-center p-5 text-muted text-xs mt-5 border-top border-light">
-            <p>تم إنشاء هذه الإحصائيات في <?= date('Y-m-d H:i:s') ?></p>
-            <p class="mt-1">BGL System v3.0 - Statistics Dashboard</p>
-        </div>
-
     </div>
-    <script src="../public/js/main.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script>
+        lucide.createIcons();
+    </script>
 </body>
 </html>

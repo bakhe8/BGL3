@@ -605,6 +605,11 @@
     margin-bottom: var(--space-xl);
 }
 
+.mb-6 {
+    margin-bottom: 48px;
+    /* Explicit large margin */
+}
+
 .p-0 {
     padding: 0;
 }

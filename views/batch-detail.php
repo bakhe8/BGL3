@@ -23,18 +23,30 @@ $metadata = $metadataStmt->fetch(PDO::FETCH_ASSOC);
 // ✅ UPDATED: Batch-as-Context Model (Query from Occurrences)
 $stmt = $db->prepare("
     SELECT g.*, 
-           s.official_name as supplier_name, 
+           -- Prefer simple resolved name from decision, then fallback to inferred match, then raw
+           COALESCE(s_decided.official_name, s.official_name) as supplier_name,
            b.arabic_name as bank_name,
            d.status as decision_status,
            d.active_action,
            o.occurred_at as occurrence_date -- Get specific occurrence time
     FROM guarantees g
     JOIN guarantee_occurrences o ON g.id = o.guarantee_id
+    
+    -- 1. Get Latest Decision (To ensure we show what the user actually saved)
+    LEFT JOIN guarantee_decisions d ON d.id = (
+        SELECT MAX(id) FROM guarantee_decisions WHERE guarantee_id = g.id
+    )
+    
+    -- 2. Join Supplier from Decision (Highest Priority)
+    LEFT JOIN suppliers s_decided ON d.supplier_id = s_decided.id
+    
+    -- 3. Join for inferred supplier (Fallback)
     LEFT JOIN suppliers s ON g.normalized_supplier_name = s.official_name 
          OR json_extract(g.raw_data, '$.supplier') = s.official_name
+         OR json_extract(g.raw_data, '$.supplier') = s.english_name -- ✅ Added: Match English Name
+         
     LEFT JOIN banks b ON json_extract(g.raw_data, '$.bank') = b.english_name 
          OR json_extract(g.raw_data, '$.bank') = b.arabic_name
-    LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
     WHERE o.batch_identifier = ?
     ORDER BY g.id ASC
 ");
@@ -101,62 +113,96 @@ unset($g);
     <!-- Main Content -->
     <div class="page-container">
         
-        <!-- Batch Header -->
-        <div class="card mb-5">
-            <div class="card-body p-5">
-                <div class="flex-between align-center wrap-gap">
-                    <div>
-                        <div class="flex-align-center gap-2 mb-2">
-                            <h1 class="text-2xl font-bold"><?= htmlspecialchars($batchName) ?></h1>
-                            <span class="badge <?= $isClosed ? 'badge-neutral' : 'badge-success' ?>">
-                                <?= $isClosed ? 'مغلقة' : 'نشطة' ?>
-                            </span>
+        <!-- Batch Header (Redesigned) -->
+        <div class="card mb-5 border-0 shadow-sm">
+            <div class="card-body p-6">
+                <div class="row align-items-start gap-4" style="display: flex; flex-wrap: wrap; justify-content: space-between;">
+                    
+                    <!-- Right Side: Info -->
+                    <div style="flex: 1; min-width: 300px;">
+                        <div class="d-flex align-items-center gap-3 mb-3">
+                            <div class="p-3 bg-primary-light rounded-circle text-primary">
+                                <i data-lucide="layers" style="width: 24px; height: 24px;"></i>
+                            </div>
+                            <div>
+                                <h1 class="text-2xl font-bold mb-1 d-flex align-items-center gap-2">
+                                    <?= htmlspecialchars($batchName) ?>
+                                    <span class="badge text-xs <?= $isClosed ? 'badge-neutral' : 'badge-success' ?>">
+                                        <?= $isClosed ? 'مغلقة' : 'نشطة' ?>
+                                    </span>
+                                </h1>
+                                <div class="text-secondary text-sm d-flex align-items-center gap-4">
+                                    <span class="d-flex align-items-center gap-1" title="تاريخ الاستيراد">
+                                        <i data-lucide="calendar" style="width: 14px;"></i> 
+                                        <?= date('Y-m-d H:i', strtotime($guarantees[0]['occurrence_date'] ?? 'now')) ?>
+                                    </span>
+                                    <span class="d-flex align-items-center gap-1" title="المصدر">
+                                        <i data-lucide="file-spreadsheet" style="width: 14px;"></i> 
+                                        <?= htmlspecialchars(substr($importSource, 0, 20)) . (strlen($importSource)>20 ? '...' : '') ?>
+                                    </span>
+                                </div>
+                            </div>
                         </div>
-                        <div class="text-secondary text-sm flex-align-center gap-4">
-                            <span class="flex-align-center gap-1"><i data-lucide="package" style="width: 16px;"></i> <?= count($guarantees) ?> ضمان</span>
-                            <span class="flex-align-center gap-1"><i data-lucide="file-spreadsheet" style="width: 16px;"></i> <?= htmlspecialchars($importSource) ?></span>
-                        </div>
+
                         <?php if ($batchNotes): ?>
-                            <div class="mt-3 p-2 bg-warning-light text-warning-dark rounded text-sm border border-warning-light">
-                                💡 <?= htmlspecialchars($batchNotes) ?>
+                            <div class="mt-4 p-3 bg-warning-light text-warning-dark rounded-lg text-sm border-0 d-flex gap-2">
+                                <i data-lucide="sticky-note" style="width: 18px; min-width: 18px;"></i>
+                                <p class="m-0"><?= htmlspecialchars($batchNotes) ?></p>
                             </div>
                         <?php endif; ?>
                     </div>
 
-                    <div class="flex-align-center gap-2 mt-3-sm">
-                        <button onclick="openMetadataModal()" class="btn btn-secondary">
-                            <i data-lucide="edit-3" style="width: 16px;"></i> تعديل البيانات
-                        </button>
+                    <!-- Left Side: Statistics & Actions -->
+                    <div class="d-flex flex-column align-items-end gap-3" style="min-width: 250px;">
                         
-                        <?php if (!$isClosed): ?>
-                            <button onclick="handleBatchAction('close')" class="btn btn-danger">
-                                <i data-lucide="lock" style="width: 16px;"></i> إغلاق الدفعة
+                        <!-- Quick Stats Box -->
+                        <div class="d-flex gap-4 p-3 bg-subtle rounded-lg mb-2">
+                            <div class="text-center px-2">
+                                <div class="text-xs text-secondary mb-1">عدد الضمانات</div>
+                                <div class="font-bold text-lg"><?= count($guarantees) ?></div>
+                            </div>
+                            <div class="vr bg-gray-200"></div>
+                            <div class="text-center px-2">
+                                <div class="text-xs text-secondary mb-1">اجمالي القيمة</div>
+                                <div class="font-bold text-lg text-primary"><?= number_format($totalAmount, 0) ?></div>
+                            </div>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="d-flex align-items-center gap-2">
+                            <button onclick="openMetadataModal()" class="btn btn-outline-secondary btn-sm" title="تعديل الاسم والملاحظات">
+                                <i data-lucide="edit-3" style="width: 16px;"></i>
                             </button>
-                            <button onclick="printReadyGuarantees()" class="btn btn-success">
-                                <i data-lucide="printer" style="width: 16px;"></i> طباعة الجاهز
-                            </button>
-                        <?php else: ?>
-                            <button onclick="handleBatchAction('reopen')" class="btn btn-warning">
-                                <i data-lucide="unlock" style="width: 16px;"></i> إعادة فتح
-                            </button>
-                        <?php endif; ?>
+                            
+                            <?php if (!$isClosed): ?>
+                                <button onclick="handleBatchAction('close')" class="btn btn-outline-danger btn-sm" title="إغلاق الدفعة للأرشفة">
+                                    <i data-lucide="lock" style="width: 16px;"></i>
+                                </button>
+                                <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
+                                    <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= count(array_filter($guarantees, fn($g)=>$g['decision_status']=='ready')) ?>)
+                                </button>
+                            <?php else: ?>
+                                <button onclick="handleBatchAction('reopen')" class="btn btn-warning shadow-md">
+                                    <i data-lucide="unlock" style="width: 16px;"></i> إعادة فتح الدفعة
+                                </button>
+                            <?php endif; ?>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
 
         <!-- Actions Toolbar -->
-        <div class="card mb-4">
+        <?php if (!$isClosed): ?>
+        <div class="card mb-4" id="actions-toolbar">
             <div class="card-body p-3 flex-between align-center">
                 <div class="flex-align-center gap-2">
-                    <?php if (!$isClosed): ?>
-                        <button id="btn-extend" onclick="executeBulkAction('extend')" class="btn btn-primary btn-sm">
-                            <i data-lucide="calendar-plus" style="width: 16px;"></i> تمديد المحدد
-                        </button>
-                        <button id="btn-release" onclick="executeBulkAction('release')" class="btn btn-success btn-sm">
-                            <i data-lucide="check-circle-2" style="width: 16px;"></i> إفراج المحدد
-                        </button>
-                    <?php endif; ?>
+                    <button id="btn-extend" onclick="executeBulkAction('extend')" class="btn btn-primary btn-sm">
+                        <i data-lucide="calendar-plus" style="width: 16px;"></i> تمديد المحدد
+                    </button>
+                    <button id="btn-release" onclick="executeBulkAction('release')" class="btn btn-success btn-sm">
+                        <i data-lucide="check-circle-2" style="width: 16px;"></i> إفراج المحدد
+                    </button>
                 </div>
                 
                 <div class="text-sm">
@@ -166,6 +212,7 @@ unset($g);
                 </div>
             </div>
         </div>
+        <?php endif; ?>
 
         <!-- Guarantees Table -->
         <div class="card overflow-hidden">
