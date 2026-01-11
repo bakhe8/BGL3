@@ -149,12 +149,13 @@ class ImportService
                 // Create Guarantee
                 // Decision #1: Add sanitized filename to import_source
                 $filenamePart = $originalFilename ? '_' . $this->sanitizeFilename($originalFilename) : '';
+                $batchIdentifier = 'excel_' . date('Ymd_His') . $filenamePart; // Define batch ID once
                 
                 $guarantee = new Guarantee(
                     id: null,
                     guaranteeNumber: $guaranteeNumber,
                     rawData: $rawData,
-                    importSource: 'excel_' . date('Ymd_His') . $filenamePart,
+                    importSource: $batchIdentifier,
                     importedAt: date('Y-m-d H:i:s'),
                     importedBy: $importedBy
                 );
@@ -162,6 +163,13 @@ class ImportService
                 try {
                     $created = $this->guaranteeRepo->create($guarantee);
                     $importedIds[] = $created->id; // Track ID
+                    
+                    // ✅ [NEW] Record First Occurrence
+                    $this->recordOccurrence($created->id, $batchIdentifier, 'excel');
+
+                    // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
+                    $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
+                    $imported++;
                     // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
                     $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
                     $imported++;
@@ -173,10 +181,13 @@ class ImportService
                         $existing = $this->guaranteeRepo->findByNumber($guaranteeNumber);
                         
                         if ($existing) {
+                            // ✅ [NEW] Record Re-Occurrence (The core of Batch-as-Context)
+                            $this->recordOccurrence($existing->id, $batchIdentifier, 'excel');
+
                             // Record duplicate import event in timeline
                             \App\Services\TimelineRecorder::recordDuplicateImportEvent($existing->id, 'excel');
                             $duplicates++;
-                            $skipped[] = "الصف #{$rowNumber}: ضمان مكرر (موجود بالفعل برقم {$guaranteeNumber})";
+                            $skipped[] = "الصف #{$rowNumber}: ضمان مكرر (تم تسجيل ظهور جديد في الدفعة الحالية)";
                         }
                     } else {
                         // Other database error
@@ -247,16 +258,22 @@ class ImportService
         ];
 
         // Decision #11: Daily batch for manual entry (not per-entry)
+        $batchIdentifier = 'manual_' . date('Ymd');  // Daily batch
+
         $guarantee = new Guarantee(
             id: null,
             guaranteeNumber: $data['guarantee_number'],
             rawData: $rawData,
-            importSource: 'manual_' . date('Ymd'),  // Daily batch
+            importSource: $batchIdentifier,
             importedAt: date('Y-m-d H:i:s'),
             importedBy: $createdBy
         );
 
         $created = $this->guaranteeRepo->create($guarantee);
+        
+        // ✅ [NEW] Record Occurrence for manual entry
+        $this->recordOccurrence($created->id, $batchIdentifier, 'manual');
+
         return $created->id;
     }
 
@@ -519,5 +536,25 @@ class ImportService
             'preview' => $preview,
             'total_rows' => count($rows) - 1,
         ];
+    }
+
+    /**
+     * Record a physical occurrence of a guarantee in a batch
+     * This is the "Batch as Context" enabler.
+     */
+    private function recordOccurrence(int $guaranteeId, string $batchIdentifier, string $type): void
+    {
+        $db = Database::connect();
+        // Check if already exists in this batch (idempotency within same batch)
+        $stmt = $db->prepare("SELECT id FROM guarantee_occurrences WHERE guarantee_id = ? AND batch_identifier = ?");
+        $stmt->execute([$guaranteeId, $batchIdentifier]);
+        
+        if (!$stmt->fetch()) {
+            $insert = $db->prepare("
+                INSERT INTO guarantee_occurrences (guarantee_id, batch_identifier, batch_type, occurred_at)
+                VALUES (?, ?, ?, ?)
+            ");
+            $insert->execute([$guaranteeId, $batchIdentifier, $type, date('Y-m-d H:i:s')]);
+        }
     }
 }

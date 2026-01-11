@@ -20,25 +20,33 @@ $metadataStmt = $db->prepare("SELECT * FROM batch_metadata WHERE import_source =
 $metadataStmt->execute([$importSource]);
 $metadata = $metadataStmt->fetch(PDO::FETCH_ASSOC);
 
-// 2. Fetch Guarantees with Relations
-$guaranteesStmt = $db->prepare("
-    SELECT 
-        g.*,
-        d.status as decision_status,
-        d.active_action,
-        d.supplier_id,
-        d.bank_id,
-        s.official_name as supplier_name,
-        b.arabic_name as bank_name
+// ✅ UPDATED: Batch-as-Context Model (Query from Occurrences)
+$stmt = $db->prepare("
+    SELECT g.*, 
+           s.official_name as supplier_name, 
+           b.arabic_name as bank_name,
+           d.status as decision_status,
+           d.active_action,
+           o.occurred_at as occurrence_date -- Get specific occurrence time
     FROM guarantees g
-    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-    LEFT JOIN suppliers s ON s.id = d.supplier_id
-    LEFT JOIN banks b ON b.id = d.bank_id
-    WHERE g.import_source = ?
-    ORDER BY g.id
+    JOIN guarantee_occurrences o ON g.id = o.guarantee_id
+    LEFT JOIN suppliers s ON g.normalized_supplier_name = s.official_name 
+         OR json_extract(g.raw_data, '$.supplier') = s.official_name
+    LEFT JOIN banks b ON json_extract(g.raw_data, '$.bank') = b.english_name 
+         OR json_extract(g.raw_data, '$.bank') = b.arabic_name
+    LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
+    WHERE o.batch_identifier = ?
+    ORDER BY g.id ASC
 ");
-$guaranteesStmt->execute([$importSource]);
-$guarantees = $guaranteesStmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt->execute([$importSource]);
+$guarantees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculate stats based on occurrences
+$totalAmount = 0;
+foreach ($guarantees as $r) {
+    $raw = json_decode($r['raw_data'], true);
+    $totalAmount += floatval($raw['amount'] ?? 0);
+}
 
 // 3. Process Data
 $batchName = $metadata['batch_name'] ?? 'دفعة ' . substr($importSource, 0, 30);
@@ -281,11 +289,17 @@ unset($g);
             open(html) {
                 this.content.innerHTML = html;
                 this.el.style.display = 'flex';
+                // Trigger reflow to enable transition
+                void this.el.offsetWidth; 
+                this.el.classList.add('active');
             },
             
             close() {
-                this.el.style.display = 'none';
-                this.content.innerHTML = '';
+                this.el.classList.remove('active');
+                setTimeout(() => {
+                    this.el.style.display = 'none';
+                    this.content.innerHTML = '';
+                }, 300); // Wait for transition
             }
         };
 
@@ -335,9 +349,30 @@ unset($g);
             }
         };
 
-        async function handleBatchAction(action) {
-            if(!confirm('هل أنت متأكد من تنفيذ هذا الإجراء؟')) return;
+        function handleBatchAction(action) {
+            const actionText = action === 'close' ? 'إغلاق الدفعة' : 'إعادة فتح الدفعة';
+            const actionColor = action === 'close' ? 'text-danger' : 'text-warning';
             
+            Modal.open(`
+                <div class="p-5 text-center">
+                    <div class="mb-4 flex-center">
+                        <div class="p-3 rounded-full bg-warning-light">
+                            <i data-lucide="alert-triangle" style="width: 32px; height: 32px; color: var(--accent-warning);"></i>
+                        </div>
+                    </div>
+                    <h3 class="text-xl font-bold mb-2">تأكيد الإجراء</h3>
+                    <p class="text-secondary mb-6">هل أنت متأكد من رغبتك في <span class="${actionColor} font-bold">${actionText}</span>؟</p>
+                    <div class="flex-center gap-3">
+                        <button onclick="Modal.close()" class="btn btn-secondary w-32">إلغاء</button>
+                        <button onclick="confirmBatchAction('${action}')" class="btn btn-primary w-32">نعم، نفذ</button>
+                    </div>
+                </div>
+            `);
+            lucide.createIcons();
+        }
+
+        async function confirmBatchAction(action) {
+            Modal.close();
             try {
                 document.getElementById('table-loading').style.display = 'flex';
                 await API.post(action);
@@ -388,11 +423,11 @@ unset($g);
                     <h3 class="text-xl font-bold mb-4">تعديل بيانات الدفعة</h3>
                     <div class="form-group mb-3">
                         <label class="form-label">اسم الدفعة</label>
-                        <input type="text" id="modal-batch-name" value="<?= htmlspecialchars($batchName) ?>" class="form-control">
+                        <input type="text" id="modal-batch-name" value="<?= htmlspecialchars($batchName) ?>" class="form-input">
                     </div>
                     <div class="form-group mb-3">
                         <label class="form-label">ملاحظات</label>
-                        <textarea id="modal-batch-notes" rows="3" class="form-control"><?= htmlspecialchars($batchNotes) ?></textarea>
+                        <textarea id="modal-batch-notes" rows="3" class="form-textarea"><?= htmlspecialchars($batchNotes) ?></textarea>
                     </div>
                     <div class="flex-end gap-2 mt-4">
                         <button onclick="Modal.close()" class="btn btn-secondary">إلغاء</button>
