@@ -21,19 +21,22 @@ class NavigationService
      * @param PDO $db Database connection
      * @param int|null $currentId Current guarantee ID (null for first record)
      * @param string $statusFilter Filter: 'all', 'ready', 'pending', 'released'
+     * @param string|null $searchTerm Search query if active
      * @return array Navigation data with totalRecords, currentIndex, prevId, nextId
      */
     public static function getNavigationInfo(
         PDO $db, 
         ?int $currentId, 
-        string $statusFilter = 'all'
+        string $statusFilter = 'all',
+        ?string $searchTerm = null
     ): array {
-        $filterConditions = self::buildFilterConditions($statusFilter);
+        $filterConditions = self::buildFilterConditions($statusFilter, $searchTerm);
         
         // Get total count
         $totalRecords = self::getTotalCount($db, $filterConditions);
         
-        // If no current ID, return defaults
+        // If no current ID, return defaults (unless we want to find the first ID for the search?)
+        // If currentId is null but we have search results, logic usually handled by controller (index.php) finding the first ID
         if (!$currentId) {
             return [
                 'totalRecords' => $totalRecords,
@@ -61,8 +64,20 @@ class NavigationService
     /**
      * Build SQL WHERE conditions based on status filter
      */
-    private static function buildFilterConditions(string $filter): string
+    private static function buildFilterConditions(string $filter, ?string $searchTerm = null): string
     {
+        // ✅ Search Mode: Overrides standard status filters
+        if ($searchTerm) {
+            $searchSafe = stripslashes($searchTerm);
+            
+            // Search in directly (Raw Data) AND Linked Official Names
+            return " AND (
+                g.guarantee_number LIKE '%$searchSafe%' OR
+                g.raw_data LIKE '%$searchSafe%' OR
+                s.official_name LIKE '%$searchSafe%'
+            )";
+        }
+        
         if ($filter === 'released') {
             // Show only released
             return ' AND d.is_locked = 1';
@@ -90,6 +105,7 @@ class NavigationService
         $query = '
             SELECT COUNT(*) FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            LEFT JOIN suppliers s ON d.supplier_id = s.id
             WHERE 1=1
         ' . $filterConditions;
         
@@ -109,6 +125,7 @@ class NavigationService
                 SELECT COUNT(*) as position
                 FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+                LEFT JOIN suppliers s ON d.supplier_id = s.id
                 WHERE g.id < ?
             ' . $filterConditions;
             
@@ -131,6 +148,7 @@ class NavigationService
             $query = '
                 SELECT g.id FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+                LEFT JOIN suppliers s ON d.supplier_id = s.id
                 WHERE g.id < ?
             ' . $filterConditions . '
                 ORDER BY g.id DESC LIMIT 1
@@ -155,6 +173,7 @@ class NavigationService
             $query = '
                 SELECT g.id FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+                LEFT JOIN suppliers s ON d.supplier_id = s.id
                 WHERE g.id > ?
             ' . $filterConditions . '
                 ORDER BY g.id ASC LIMIT 1

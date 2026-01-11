@@ -63,6 +63,11 @@ $supplierRepo = new SupplierRepository();
             margin-bottom: 30px;
         }
 
+        /* Hide the single-letter print button in batch mode */
+        .btn-print-overlay {
+            display: none !important;
+        }
+
         /* Floating Print Button */
         .floating-actions {
             position: fixed;

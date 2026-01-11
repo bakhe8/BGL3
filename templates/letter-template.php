@@ -17,7 +17,42 @@
  */
 ?>
 <div class="letter-preview">
-    <main class="letter-paper">
+    <main class="letter-paper" style="position: relative;">
+        
+        <!-- Print Button Overlay (Only for screen) -->
+        <button onclick="window.print()" class="btn-print-overlay" title="طباعة الخطاب">
+            🖨️
+        </button>
+        <style>
+            .btn-print-overlay {
+                position: absolute;
+                top: 20px;
+                left: 20px; /* Arabic RTL: Left is the "end" or correct side for LTR interface elements, or maybe user wants it on left? Screenshot arrow points to left corner. */
+                width: 36px;
+                height: 36px;
+                border: 1px solid #e5e7eb;
+                background: #fff;
+                border-radius: 50%;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 18px;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+                transition: all 0.2s;
+                z-index: 100;
+                color: #4b5563;
+            }
+            .btn-print-overlay:hover {
+                transform: scale(1.05);
+                box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+                color: #111;
+                border-color: #d1d5db;
+            }
+            @media print {
+                .btn-print-overlay { display: none !important; }
+            }
+        </style>
         
         <!-- رأس الخطاب: اسم البنك + المحترمين -->
         <div class="preview-header">
@@ -45,7 +80,7 @@
         <div class="preview-subject">
             <div class="preview-subject-label">الموضوع<span class="symbol">:</span>&nbsp;</div>
             <div class="preview-subject-text">
-                <?= $subject_parts['text'] ?> الضمان البنكي رقم (<span lang="en"><?= $subject_parts['guarantee_number'] ?></span>) والعائد <?= $subject_parts['related_label'] ?> (<span lang="en"><?= $subject_parts['contract_number'] ?></span>).
+                <?= $subject_parts['text'] ?> الضمان البنكي رقم (<span dir="ltr" style="display:inline-block;"><?= $subject_parts['guarantee_number'] ?></span>) والعائد <?= $subject_parts['related_label'] ?> (<span lang="en"><?= $subject_parts['contract_number'] ?></span>).
             </div>
         </div>
         

@@ -34,6 +34,7 @@ $db = Database::connect();
 
 // Get filter parameter for status filtering (Defined EARLY)
 $statusFilter = $_GET['filter'] ?? 'all'; // all, ready, pending
+$searchTerm = isset($_GET['search']) ? trim($_GET['search']) : null;
 
 $guaranteeRepo = new GuaranteeRepository($db);
 $decisionRepo = new GuaranteeDecisionRepository($db);
@@ -57,27 +58,57 @@ if ($requestedId) {
 // If not found or no ID specified, get first record matching the filter
 if (!$currentRecord) {
     // Build query based on status filter
+    // ✅ SEARCH LOGIC: If search parameter exists, we ignore status filters temporarily or combine them
+    
     $defaultRecordQuery = '
         SELECT g.id FROM guarantees g
         LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+        LEFT JOIN suppliers s ON d.supplier_id = s.id
         WHERE 1=1
     ';
     
-    // Apply filter conditions
-    if ($statusFilter === 'released') {
-        // Show only released
-        $defaultRecordQuery .= ' AND d.is_locked = 1';
-    } else {
-        // Exclude released for other filters
-        $defaultRecordQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+    if ($searchTerm) {
+        // Search Mode: Filter by term across multiple fields
+        // We use JSON_EXTRACT for raw_data or assume columns exist if migrated
+        // Assuming raw_data is a JSON column. If it's a string, we might need LIKE '%...%' on the whole column
+        // But for better performance/accuracy, let's search raw_data field content
         
-        // Apply specific status filter
-        if ($statusFilter === 'ready') {
-            $defaultRecordQuery .= ' AND d.id IS NOT NULL';
-        } elseif ($statusFilter === 'pending') {
-            $defaultRecordQuery .= ' AND d.id IS NULL';
+        $searchSafe = stripslashes($searchTerm);
+        
+        // Search in: Guarantee Number, Supplier, Bank, Contract Number
+        // Note: In SQLite/MySQL JSON handling might differ. Using flexible LIKE for now as broadest support
+        $defaultRecordQuery .= " AND (
+            g.guarantee_number LIKE '%$searchSafe%' OR
+            g.raw_data LIKE '%\"supplier\":\"%$searchSafe%\"%' OR
+            g.raw_data LIKE '%\"bank\":\"%$searchSafe%\"%' OR
+            g.raw_data LIKE '%\"contract_number\":\"%$searchSafe%\"%' OR
+            g.raw_data LIKE '%$searchSafe%' OR
+            s.official_name LIKE '%$searchSafe%'
+        )";
+        
+        // If specific status was requested WITH search, we can keep it, but usually search overrides
+        // Let's fallback to 'all' behavior within search results unless specifically useful?
+        // For simplicity: Search searches EVERYTHING (including released)
+        
+    } else {
+        // Normal Filter Mode (No Search)
+    
+        // Apply filter conditions
+        if ($statusFilter === 'released') {
+            // Show only released
+            $defaultRecordQuery .= ' AND d.is_locked = 1';
+        } else {
+            // Exclude released for other filters
+            $defaultRecordQuery .= ' AND (d.is_locked IS NULL OR d.is_locked = 0)';
+            
+            // Apply specific status filter
+            if ($statusFilter === 'ready') {
+                $defaultRecordQuery .= ' AND d.id IS NOT NULL';
+            } elseif ($statusFilter === 'pending') {
+                $defaultRecordQuery .= ' AND d.id IS NULL';
+            }
+            // 'all' filter has no additional conditions
         }
-        // 'all' filter has no additional conditions
     }
     
     $defaultRecordQuery .= ' ORDER BY g.id ASC LIMIT 1';
@@ -94,7 +125,8 @@ if (!$currentRecord) {
 $navInfo = \App\Services\NavigationService::getNavigationInfo(
     $db,
     $currentRecord ? $currentRecord->id : null,
-    $statusFilter
+    $statusFilter,
+    $searchTerm // ✅ Hand off search term to navigation
 );
 
 $totalRecords = $navInfo['totalRecords'];
@@ -381,8 +413,7 @@ $formattedSuppliers = array_map(function($s) {
                 <!-- Navigation Controls -->
                 <div class="navigation-controls" style="display: flex; align-items: center; gap: 16px;">
                     <button class="btn btn-ghost btn-sm" 
-                            data-action="previousRecord" 
-                            data-id="<?= $prevId ?? '' ?>"
+                            onclick="window.location.href='?id=<?= $prevId ?? '' ?>&filter=<?= $statusFilter ?>&search=<?= urlencode($searchTerm ?? '') ?>'"
                             <?= !$prevId ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : '' ?>>
                         ← السابق
                     </button>
@@ -392,8 +423,7 @@ $formattedSuppliers = array_map(function($s) {
                     </span>
                     
                     <button class="btn btn-ghost btn-sm" 
-                            data-action="nextRecord"
-                            data-id="<?= $nextId ?? '' ?>"
+                            onclick="window.location.href='?id=<?= $nextId ?? '' ?>&filter=<?= $statusFilter ?>&search=<?= urlencode($searchTerm ?? '') ?>'"
                             <?= !$nextId ? 'disabled style="opacity:0.3;cursor:not-allowed;"' : '' ?>>
                         التالي →
                     </button>

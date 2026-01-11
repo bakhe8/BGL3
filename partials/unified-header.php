@@ -30,6 +30,21 @@ $basePath = ($currentDir === 'views') ? '../' : './';
         <span>نظام إدارة الضمانات</span>
     </div>
 
+    <!-- ✅ Search Bar -->
+    <div class="header-search-container">
+        <form action="<?= $basePath ?>index.php" method="GET" class="header-search-form">
+            <div class="search-input-wrapper">
+                <span class="search-icon">🔍</span>
+                <input type="text" name="search"
+                    value="<?= isset($_GET['search']) ? htmlspecialchars($_GET['search']) : '' ?>"
+                    placeholder="بحث برقم الضمان، المورد، أو البنك..." class="search-input" autocomplete="off">
+                <?php if (isset($_GET['search']) && !empty($_GET['search'])): ?>
+                    <a href="<?= $basePath ?>index.php" class="clear-search" title="إلغاء البحث">✕</a>
+                <?php endif; ?>
+            </div>
+        </form>
+    </div>
+
     <nav class="global-actions">
         <a href="<?= $basePath ?>index.php"
             class="btn-global <?= isActive('index', $currentPage, $currentDir) ? 'active' : '' ?>">
