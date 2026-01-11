@@ -157,11 +157,11 @@ class FieldExtractionService
     public static function extractBank(string $text): ?string
     {
         $patterns = [
-            // Pattern 1: Keyword followed by text (must not be JUST a numeric ID)
-            '/(?:Bank|البنك|بنك|مصرف)[:\h]+(?![0-9]{5,10}(?:\h|\v|$))([^\v\h][^\v]*?)(?:\h+[0-9]{5,10})?/iu', 
-            // Pattern 2: Text BEFORE keyword (must not start with a 5-10 digit ID)
-            '/(?![0-9]{5,10}\h+)([^\v\h][^\v]*?)\h+(?:Bank|البنك|بنك|مصرف)/iu', 
-            '/(?:من|عبر)\h*(?:بنك|البنك)\h+([^\v،,\.]+)/iu',
+            // Pattern 1: Keyword followed by text (must NOT be a numeric ID)
+            '/(?:Bank|البنك|بنك|مصرف)[:\h]+(?![0-9]{5,10}(?:\h|\v|$))([^\v\h][^\v]*?)(?:\h+[0-9]{5,10})?(?:\h|\v|$)/iu', 
+            // Pattern 2: Text BEFORE keyword (must NOT be a numeric ID)
+            '/(?:\b|(?<![0-9]))(?![0-9]{5,10}\h+)([^\v\h][^\v]*?)\h+(?:Bank|البنك|بنك|مصرف)/iu', 
+            '/(?:من|عبر)\h*(?:بنك|البنك)\h+([^\v\h][^\v،,\.]+)/iu',
             // Pattern for TAB-separated
             '/\t([A-Z]{2,4})\t[0-9,]+/i',
             // Common Saudi bank codes
@@ -171,7 +171,10 @@ class FieldExtractionService
         $bankStr = self::extractWithPatterns($text, $patterns, 'BANK');
 
         if ($bankStr) {
-            return preg_replace('/[،,\.]+$/', '', trim($bankStr));
+            $bankStr = preg_replace('/[،,\.]+$/', '', trim($bankStr));
+            // Secondary Guard: Strip any 5-10 digit numeric ID that leaked into the bank name
+            $bankStr = preg_replace('/\h*[0-9]{5,10}\h*$/', '', $bankStr);
+            return trim($bankStr);
         }
 
         return null;

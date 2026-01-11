@@ -145,13 +145,19 @@ class ParseCoordinatorService
         $workingText = $text;  // Working copy for masking
         $extracted = [];
         
-        // 1. GUARANTEE NUMBER
+        // 1. GUARANTEE NUMBER (Highest priority ID)
         $extracted['guarantee_number'] = FieldExtractionService::extractGuaranteeNumber($workingText);
         if ($extracted['guarantee_number']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['guarantee_number']);
         }
         
-        // 2. DATES (Expiry and Issue) - Clear dates early to avoid numeric remainder conflicts
+        // 2. CONTRACT/PO NUMBER (Priority ID - Extract early to handle naked numbers)
+        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
+        if ($extracted['contract_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        }
+
+        // 3. DATES (Expiry and Issue)
         $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
         if ($extracted['expiry_date']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
@@ -161,19 +167,13 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
         }
 
-        // 3. AMOUNT (Search for formatted numbers)
+        // 4. AMOUNT
         $extracted['amount'] = FieldExtractionService::extractAmount($workingText);
         if ($extracted['amount']) {
             $workingText = self::maskExtractedValue($workingText, (string)$extracted['amount']);
             $formatted = number_format($extracted['amount'], 2);
             $workingText = self::maskExtractedValue($workingText, str_replace(',', '', $formatted));
             $workingText = self::maskExtractedValue($workingText, $formatted);
-        }
-
-        // 4. CONTRACT/PO NUMBER (Search for numeric IDs)
-        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
-        if ($extracted['contract_number']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
         }
 
         // 5. BANK
