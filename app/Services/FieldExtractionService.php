@@ -157,8 +157,10 @@ class FieldExtractionService
     public static function extractBank(string $text): ?string
     {
         $patterns = [
-            '/(?:Bank|البنك|بنك|مصرف)[:\h]+([^\v]+)/iu', // Require separator + text on SAME line
-            '/([^\v]+)\h+(?:Bank|البنك|بنك|مصرف)/iu', // Text BEFORE keyword (e.g. Alrajhi Bank)
+            // Pattern 1: Keyword followed by text (require non-whitespace, ignore if numeric ID)
+            '/(?:Bank|البنك|بنك|مصرف)[:\h]+(?![0-9]{5,10}(?:\h|\v|$))([^\v\h][^\v]*)/iu', 
+            // Pattern 2: Text BEFORE keyword (e.g. Alrajhi Bank)
+            '/([^\v\h][^\v]*)\h+(?:Bank|البنك|بنك|مصرف)/iu', 
             '/(?:من|عبر)\h*(?:بنك|البنك)\h+([^\v،,\.]+)/iu',
             // Pattern for TAB-separated
             '/\t([A-Z]{2,4})\t[0-9,]+/i',

@@ -151,17 +151,22 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $extracted['guarantee_number']);
         }
         
-        // 2. AMOUNT (Search for formatted numbers first)
+        // 2. CONTRACT/PO NUMBER (High priority numeric ID)
+        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
+        if ($extracted['contract_number']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        }
+
+        // 3. AMOUNT (Search for formatted numbers)
         $extracted['amount'] = FieldExtractionService::extractAmount($workingText);
         if ($extracted['amount']) {
-            // Mask raw number and formatted version
             $workingText = self::maskExtractedValue($workingText, (string)$extracted['amount']);
             $formatted = number_format($extracted['amount'], 2);
             $workingText = self::maskExtractedValue($workingText, str_replace(',', '', $formatted));
             $workingText = self::maskExtractedValue($workingText, $formatted);
         }
 
-        // 3. DATES (Expiry and Issue)
+        // 4. DATES (Expiry and Issue)
         $extracted['expiry_date'] = FieldExtractionService::extractExpiryDate($workingText);
         if ($extracted['expiry_date']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['expiry_date']);
@@ -171,19 +176,13 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
         }
         
-        // 4. BANK
+        // 5. BANK
         $extracted['bank'] = FieldExtractionService::extractBank($workingText);
         if ($extracted['bank']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['bank']);
         }
-
-        // 5. CONTRACT/PO NUMBER (The remaining numeric ID)
-        $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
-        if ($extracted['contract_number']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
-        }
         
-        // 6. SUPPLIER (Catch-all for what's left)
+        // 6. SUPPLIER (Catch-all)
         $extracted['supplier'] = FieldExtractionService::extractSupplier($workingText);
         
         // 7. TYPE and INTENT (pattern detection - use original text)
