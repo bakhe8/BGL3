@@ -172,16 +172,16 @@ class ParseCoordinatorService
             $workingText = self::maskExtractedValue($workingText, $extracted['issue_date']);
         }
         
-        // 4. BANK (medium specificity - known codes or keywords)
-        $extracted['bank'] = FieldExtractionService::extractBank($workingText);
-        if ($extracted['bank']) {
-            $workingText = self::maskExtractedValue($workingText, $extracted['bank']);
-        }
-        
-        // 5. CONTRACT NUMBER (medium specificity)
+        // 4. CONTRACT NUMBER (medium specificity) - Extract before bank to catch leading PO numbers
         $extracted['contract_number'] = FieldExtractionService::extractContractNumber($workingText);
         if ($extracted['contract_number']) {
             $workingText = self::maskExtractedValue($workingText, $extracted['contract_number']);
+        }
+
+        // 5. BANK (medium specificity - known codes or keywords)
+        $extracted['bank'] = FieldExtractionService::extractBank($workingText);
+        if ($extracted['bank']) {
+            $workingText = self::maskExtractedValue($workingText, $extracted['bank']);
         }
         
         // 6. SUPPLIER (lowest specificity - catch-all for text)

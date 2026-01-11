@@ -23,17 +23,18 @@ class FieldExtractionService
     {
         $patterns = [
             // Pattern 1: REF/LG/NO followed by alphanumeric
-            '/(?:REF|LG|NO|رقم|الرقم|ر\.ض)[:\s\-#]*([A-Z0-9\-\/]{4,25})/iu',
+            '/\b(?:REFERENCE|REF|LG|NO|رقم|الرقم|ر\.ض)[:\h\-#]+([A-Z0-9\-\/]{4,25})/iu',
             // Pattern 2: Specific formats like 040XXXXXX
             '/\b(040[A-Z0-9]{5,})\b/i',
             // Pattern 3: G- or BG- prefix
-            '/\b([GB]G?[\-\s]?[A-Z0-9]{5,20})\b/i',
+            '/\b([GB]G?[\-\h]?[A-Z0-9]{5,20})\b/i',
             // Pattern 4: B followed by 6 digits (e.g., B323790)
             '/\b(B[0-9]{6,})\b/i',
-            // Pattern 5: Just uppercase alphanumeric strings
+            // Pattern 5: Alphanumeric with mix of letters and numbers (at least 8 chars)
+            '/\b([0-9]{2,}[A-Z]{2,}[0-9A-Z]{4,})\b/i',
             '/\b([A-Z]{2,}[0-9]{4,}[A-Z0-9]*)\b/',
             // Pattern 6: Arabic "رقم الضمان" followed by value
-            '/رقم\s*الضمان[:\s]*([A-Z0-9\-\/]+)/iu',
+            '/رقم\h*الضمان[:\h]*([A-Z0-9\-\/]+)/iu',
         ];
 
         return self::extractWithPatterns($text, $patterns, 'GUARANTEE_NUMBER');
@@ -47,13 +48,15 @@ class FieldExtractionService
     {
         $patterns = [
             // Pattern 1: With explicit keywords (Amount, مبلغ, Value, SAR)
-            '/(?:Amount|مبلغ|القيمة|value|SAR|SR|ر\.س|ريال)[:\s]*([0-9,]+(?:\.[0-9]{2})?)/iu',
+            '/(?:Amount|مبلغ|القيمة|value|SAR|SR|ر\.س|ريال)[:\h]*([0-9,]+(?:\.[0-9]{2})?)/iu',
             // Pattern 2: Number followed by currency
             '/([0-9,]+(?:\.[0-9]{2})?)\s*(?:SAR|SR|ر\.س|ريال)/iu',
             // Pattern 3: Large numbers (likely amounts) with thousand separators
             '/\b([0-9]{1,3}(?:,[0-9]{3})+(?:\.[0-9]{2})?)\b/',
-            // Pattern 4: Simple large numbers without separators
-            '/\b([0-9]{5,}(?:\.[0-9]{2})?)\b/',
+            // Pattern 4: Simple large numbers without separators (6+ digits to avoid IDs)
+            '/\b([0-9]{6,}(?:\.[0-9]{2})?)\b/',
+            // Pattern 5: Any number with decimal point and 2 digits (e.g., 5,989.83)
+            '/\b([0-9,]+\.[0-9]{2})\b/',
         ];
 
         $amountStr = self::extractWithPatterns($text, $patterns, 'AMOUNT');
@@ -130,10 +133,10 @@ class FieldExtractionService
     public static function extractSupplier(string $text): ?string
     {
         $patterns = [
-            '/(?:Supplier|Beneficiary|المورد|المستفيد|لصالح)[:\s]*([^\n\r]+)/iu',
-            '/(?:لصالح|ل\s*صالح)[:\s]*([^\n\r]+)/iu',
-            '/(?:شركة)\s+([^\n\r،,\.]+)/iu', // Company + name
-            // Pattern for TAB-separated table: Look for long English text before TAB and alphanumeric
+            '/(?:Supplier|Beneficiary|المورد|المستفيد|لصالح)[:\h]*([^\v]+)/iu',
+            '/(?:لصالح|ل\s*صالع)[:\h]*([^\v]+)/iu',
+            '/(?:شركة|مؤسسة|مصنع|مركز|مكتب|مقاولات)\h+([^\v،,\.]+)/iu', // Prefix + name
+            // Pattern for TAB-separated table
             '/^([A-Z][A-Z\s&]+COMPANY)\s*\t/im',
             '/^([A-Z][A-Z\s&]+(?:COMPANY|CO\.|LTD|LLC|CORPORATION))\s*\t/im',
         ];
@@ -154,12 +157,13 @@ class FieldExtractionService
     public static function extractBank(string $text): ?string
     {
         $patterns = [
-            '/(?:Bank|البنك|بنك|مصرف)[:\s]*([^\n\r]+)/iu',
-            '/(?:من|عبر)\s*(?:بنك|البنك)\s+([^\n\r،,\.]+)/iu',
-            // Pattern for TAB-separated: Look for bank code like SNB, ANB, SABB after TABs
+            '/(?:Bank|البنك|بنك|مصرف)[:\h]+([^\v]+)/iu', // Require separator + text on SAME line
+            '/([^\v]+)\h+(?:Bank|البنك|بنك|مصرف)/iu', // Text BEFORE keyword (e.g. Alrajhi Bank)
+            '/(?:من|عبر)\h*(?:بنك|البنك)\h+([^\v،,\.]+)/iu',
+            // Pattern for TAB-separated
             '/\t([A-Z]{2,4})\t[0-9,]+/i',
             // Common Saudi bank codes
-            '/\b(SNB|ANB|SABB|NCB|RIBL|SAMBA|BSF|ALRAJHI|ALINMA)\b/i',
+            '/\b(SNB|ANB|SABB|NCB|RIBL|SAMBA|BSF|ALRAJHI|RAJHI|ALINMA|SAIB)\b/i',
         ];
 
         $bankStr = self::extractWithPatterns($text, $patterns, 'BANK');
@@ -194,8 +198,11 @@ class FieldExtractionService
             '/(?:PO|P\.O|أمر\s*شراء)[:\s#\-]*(\d{4,})/iu',
 
             // Generic contract labels (fallback)
-            '/(?:Contract|Order|العقد|رقم\s*العقد|عقد)[:\s#]*([A-Z0-9\-\/]+)/iu',
-            '/(?:ع\.ر)[:\s#]*([A-Z0-9\-\/]+)/iu',
+            '/(?:Contract|Order|العقد|رقم\s*العقد|عقد)[:\h#]*([A-Z0-9\-\/]+)/iu',
+            '/(?:ع\.ر)[:\h#]*([A-Z0-9\-\/]+)/iu',
+            // Pattern 6: Pure Digits (5-10 digits) at start of line or with space boundary
+            '/^\h*([0-9]{5,10})(?:\h|\v|$)/im',
+            '/\b([0-9]{5,10})\b/',
         ];
 
         $extracted = self::extractWithPatterns($text, $patterns, 'CONTRACT_NUMBER');
@@ -252,7 +259,8 @@ class FieldExtractionService
         foreach ($patterns as $pattern) {
             if (preg_match($pattern, $text, $m)) {
                 $value = trim($m[1]);
-                error_log("✅ [{$fieldName}] Matched with pattern: {$pattern} => {$value}");
+                $safeValue = str_replace(["\n", "\r"], ' ', $value);
+                error_log("✅ [{$fieldName}] Matched with pattern: {$pattern} => {$safeValue}");
                 return $value;
             }
         }
