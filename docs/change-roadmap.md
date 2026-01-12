@@ -173,3 +173,21 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 - Cleanup:
   - Removed test files.
   - Restored `storage/database/app.sqlite` from baseline snapshot.
+
+## 9) Decision row policy (design-only)
+- Context: `guarantee_decisions` can contain multiple rows per guarantee (e.g., bank-only then full decision).
+- Risk: Updates that do not target the latest row can leave UI showing stale data.
+- Proposed invariants (choose one approach):
+  - Option A (single-row authority): enforce one row per guarantee; use upsert for all writes.
+  - Option B (latest-row authority): allow multiple rows but always update the latest (ORDER BY id DESC) and treat older rows as immutable history.
+- Interim non-code guidance:
+  - When inspecting issues, compare “latest row by id” vs any older row to detect divergence.
+
+## 10) Manual test case (design-only)
+- Goal: detect decision-row mismatch if multiple rows exist.
+- Setup:
+  - Import a guarantee with a known bank and an unknown supplier to create a bank-only decision.
+  - Then save supplier manually via `save-and-next`.
+- Expected:
+  - Latest decision row contains both supplier_id and bank_id and status becomes `ready`.
+  - UI reflects the saved supplier immediately (no stale pending state).
