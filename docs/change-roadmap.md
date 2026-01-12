@@ -110,12 +110,24 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
   - Value persists and is used in matching logic.
 
 ## 4) Incremental change batches (apply + test immediately)
-- Batch A (low risk): documentation-only updates.
-- Batch B (medium risk): API contracts (JSON body).
-- Batch C (high risk): matching, saving, and batch execution logic.
-- After each batch: run smoke test + the critical flow checklist.
+- Batch A (low risk): completed 2026-01-13; documentation-only updates + test run log.
+- Batch B (medium risk): completed 2026-01-13; API contract review (no new code changes required).
+- Batch C (high risk): pending; matching, saving, and batch execution logic.
+- After each batch: run smoke test + the critical flow checklist (skip only if no code changes).
 
-## 5) Temporary guardrails (during testing)
+## 5) API contract review (Batch B)
+- Date: 2026-01-13 02:31:17 (local)
+- JSON endpoints verified:
+  - `api/create-bank.php`, `api/create_supplier.php`, `api/update_bank.php`, `api/update_supplier.php`,
+    `api/delete_bank.php`, `api/delete_supplier.php`, `api/learning-action.php`, `api/settings.php`
+  - `api/create-guarantee.php`, `api/parse-paste.php`, `api/save-and-next.php`,
+    `api/extend.php`, `api/reduce.php`, `api/release.php`, `api/create-supplier.php`
+  - `api/batches.php` (JSON merged with `$_POST` for compatibility)
+- Form-data endpoints verified:
+  - `api/import.php`, `api/import_banks.php`, `api/import_suppliers.php`, `api/upload-attachment.php`
+- Result: no remaining JSON/POST contract mismatches detected.
+
+## 6) Temporary guardrails (during testing)
 - Log auto-match decisions: confidence, threshold, and source.
 - Log batch actions: selected IDs, blocked reasons, and outcomes.
 - Log save-and-next changes: supplier decision + bank decision presence.
@@ -125,12 +137,12 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
     - `api/save-and-next.php`
     - `app/Services/BatchService.php`
 
-## 6) Acceptance criteria
+## 7) Acceptance criteria
 - No HTTP 500 errors in critical flows.
 - Matching/auto-save behavior changes only where intended.
 - Batch print output matches the actioned guarantees shown in UI.
 
-## 7) Test run log (manual)
+## 8) Test run log (manual)
 - Date: 2026-01-13 02:26:38 (local)
 - Environment: local server `http://localhost:8000`
 - Test data: temporary bank/suppliers/guarantees created, then removed; DB restored to baseline snapshot.
