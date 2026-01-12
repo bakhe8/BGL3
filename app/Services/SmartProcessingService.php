@@ -218,22 +218,29 @@ class SmartProcessingService
                 );
                 
                 $stats['auto_matched']++;
-            } else if ($trustDecision && !$trustDecision->allowed) {
-                // EXPLAINABLE TRUST GATE: Log why auto-approval was blocked
-                error_log(sprintf(
-                    "[TRUST_GATE] Auto-approval blocked for guarantee #%d - Reason: %s, Confidence: %d",
-                    $guaranteeId,
-                    $trustDecision->reason,
-                    $trustDecision->confidence
-                ));
-                
-                if ($trustDecision->blockingAlias) {
+            } else {
+                if ($trustDecision && !$trustDecision->allowed) {
+                    // EXPLAINABLE TRUST GATE: Log why auto-approval was blocked
                     error_log(sprintf(
-                        "[TRUST_GATE] Blocking alias: '%s' (source: %s, usage: %d)",
-                        $trustDecision->blockingAlias['alternative_name'],
-                        $trustDecision->blockingAlias['source'],
-                        $trustDecision->blockingAlias['usage_count']
+                        "[TRUST_GATE] Auto-approval blocked for guarantee #%d - Reason: %s, Confidence: %d",
+                        $guaranteeId,
+                        $trustDecision->reason,
+                        $trustDecision->confidence
                     ));
+                    
+                    if ($trustDecision->blockingAlias) {
+                        error_log(sprintf(
+                            "[TRUST_GATE] Blocking alias: '%s' (source: %s, usage: %d)",
+                            $trustDecision->blockingAlias['alternative_name'],
+                            $trustDecision->blockingAlias['source'],
+                            $trustDecision->blockingAlias['usage_count']
+                        ));
+                    }
+                }
+
+                if ($bankId) {
+                    // Bank is deterministic and should be persisted even if supplier is pending.
+                    $this->createBankOnlyDecision($guaranteeId, $bankId);
                 }
             }
         }
@@ -263,6 +270,26 @@ class SmartProcessingService
             $this->decidedBy,
             $confidence,
             date('Y-m-d H:i:s')
+        ]);
+    }
+
+    /**
+     * Persist bank-only decision (supplier pending).
+     */
+    private function createBankOnlyDecision(int $guaranteeId, int $bankId): void
+    {
+        $stmt = $this->db->prepare("
+            INSERT INTO guarantee_decisions (guarantee_id, bank_id, status, decision_source, decided_by, decided_at, created_at)
+            VALUES (?, ?, 'pending', ?, ?, ?, ?)
+        ");
+        $now = date('Y-m-d H:i:s');
+        $stmt->execute([
+            $guaranteeId,
+            (int)$bankId,
+            $this->decisionSource,
+            $this->decidedBy,
+            $now,
+            $now
         ]);
     }
 

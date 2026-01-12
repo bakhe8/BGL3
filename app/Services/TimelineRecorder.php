@@ -367,8 +367,25 @@ class TimelineRecorder {
      * Kept for backward compatibility or generic use, but specific methods preferred
      */
     public static function detectChanges($oldSnapshot, $newData) {
-        // ... (We can keep it simple or remove if unused, keeping simple for now)
-        return []; 
+        if (!$oldSnapshot || !is_array($newData)) {
+            return $newData ?: [];
+        }
+
+        $changes = [];
+        foreach ($newData as $key => $value) {
+            if (!array_key_exists($key, $oldSnapshot)) {
+                // Ignore meta keys like triggers/confidence that are not part of snapshot.
+                continue;
+            }
+            if ($oldSnapshot[$key] != $value) {
+                $changes[$key] = [
+                    'old' => $oldSnapshot[$key],
+                    'new' => $value
+                ];
+            }
+        }
+
+        return $changes;
     }
     
     /**

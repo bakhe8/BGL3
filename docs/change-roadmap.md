@@ -112,7 +112,7 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 ## 4) Incremental change batches (apply + test immediately)
 - Batch A (low risk): completed 2026-01-13; documentation-only updates + test run log.
 - Batch B (medium risk): completed 2026-01-13; API contract review (no new code changes required).
-- Batch C (high risk): pending; matching, saving, and batch execution logic.
+- Batch C (high risk): completed 2026-01-13; matching, saving, and batch execution logic.
 - After each batch: run smoke test + the critical flow checklist (skip only if no code changes).
 
 ## 5) API contract review (Batch B)
@@ -156,4 +156,20 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
   - Settings (`api/settings.php` POST/GET): success.
 - Cleanup:
   - Removed test records and files.
+  - Restored `storage/database/app.sqlite` from baseline snapshot.
+
+- Date: 2026-01-13 02:41:52 (local)
+- Environment: local server `http://localhost:8000`
+- Test data:
+  - Bank alias from live DB: `مصرف الراجحي` (id 1)
+  - Suppliers created for test: `ALPHA SUPPLY LLC`, `UNMATCHABLE_SUPPLIER_12345` (removed after run)
+- Flows executed:
+  - Import (`api/import.php`): success, imported 3 (two auto-matched, one pending supplier).
+  - Manual entry (`api/create-guarantee.php`): success.
+  - Save-and-next (`api/save-and-next.php`): success; pending supplier became ready after save due to existing bank_id.
+  - Batch extend partial (`api/batches.php`): success on selected guarantees.
+  - Extend/reduce/release (`api/extend.php`, `api/reduce.php`, `api/release.php`): HTTP 200.
+  - Batch print (`views/batch-print.php`): HTTP 200.
+- Cleanup:
+  - Removed test files.
   - Restored `storage/database/app.sqlite` from baseline snapshot.
