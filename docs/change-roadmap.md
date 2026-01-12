@@ -129,3 +129,19 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 - No HTTP 500 errors in critical flows.
 - Matching/auto-save behavior changes only where intended.
 - Batch print output matches the actioned guarantees shown in UI.
+
+## 7) Test run log (manual)
+- Date: 2026-01-13 02:26:38 (local)
+- Environment: local server `http://localhost:8000`
+- Test data: temporary bank/suppliers/guarantees created, then removed; DB restored to baseline snapshot.
+- Flows executed:
+  - Import (`api/import.php`): success, imported 2, auto_matched 0.
+  - Manual entry (`api/create-guarantee.php`): success.
+  - Save-and-next (`api/save-and-next.php`): success.
+  - Batch extend partial (`api/batches.php`): success; blocked not-ready guarantees.
+  - Extend/reduce/release (`api/extend.php`, `api/reduce.php`, `api/release.php`): HTTP 200.
+  - Batch print (`views/batch-print.php`): HTTP 200.
+  - Settings (`api/settings.php` POST/GET): success.
+- Cleanup:
+  - Removed test records and files.
+  - Restored `storage/database/app.sqlite` from baseline snapshot.
