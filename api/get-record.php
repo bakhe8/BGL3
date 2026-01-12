@@ -10,6 +10,7 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
 use App\Support\Settings;
+use App\Support\Logger;
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -239,6 +240,15 @@ try {
                                 'auto',
                                 date('Y-m-d H:i:s')
                             ]);
+
+                            Logger::info('auto_match_decision', [
+                                'guarantee_id' => $guaranteeId,
+                                'supplier_id' => $top['id'],
+                                'bank_id' => $bankId,
+                                'confidence' => $top['score'],
+                                'threshold' => $autoThreshold,
+                                'source' => 'get-record-supplier'
+                            ]);
                             
                             // 6. Save timeline event (Strict UE-01)
                             \App\Services\TimelineRecorder::recordDecisionEvent($guaranteeId, $oldSnapshot, $newData, true, $top['score']);
@@ -316,6 +326,15 @@ try {
                                 date('Y-m-d H:i:s'),
                                 'auto',
                                 date('Y-m-d H:i:s')
+                            ]);
+
+                            Logger::info('auto_match_decision', [
+                                'guarantee_id' => $guaranteeId,
+                                'supplier_id' => $supplierId,
+                                'bank_id' => $bank['id'],
+                                'confidence' => 100,
+                                'threshold' => $autoThreshold,
+                                'source' => 'get-record-bank'
                             ]);
                             
                             // 6. Save timeline event (Note: no longer recording bank events in timeline)

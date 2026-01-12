@@ -8,6 +8,7 @@ use App\Repositories\GuaranteeRepository;
 use App\Repositories\SupplierLearningRepository;
 use App\Repositories\SupplierRepository;
 use App\Support\BankNormalizer;
+use App\Support\Logger;
 use App\Models\TrustDecision;
 use App\Services\ConflictDetector;
 use PDO;
@@ -191,6 +192,15 @@ class SmartProcessingService
 
             // Auto-approve ONLY if BOTH supplier AND bank matched + No conflicts
             if ($supplierId && $bankId && empty($conflicts)) {
+                $threshold = $this->settings->get('MATCH_AUTO_THRESHOLD', 90);
+                Logger::info('auto_match_decision', [
+                    'guarantee_id' => $guaranteeId,
+                    'supplier_id' => $supplierId,
+                    'bank_id' => $bankId,
+                    'confidence' => $supplierConfidence,
+                    'threshold' => $threshold,
+                    'source' => 'smart_processing'
+                ]);
                 $this->createAutoDecision($guaranteeId, $supplierId, $bankId, $supplierConfidence);
                 $this->logAutoMatchEvents($guaranteeId, $rawData, $finalSupplierName, $supplierConfidence);
                 

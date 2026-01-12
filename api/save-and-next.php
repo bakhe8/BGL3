@@ -9,6 +9,7 @@ require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
+use App\Support\Logger;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -248,6 +249,16 @@ try {
             $now
         ]);
     }
+
+    Logger::info('save_and_next_decision', [
+        'guarantee_id' => $guaranteeId,
+        'supplier_id' => $supplierId,
+        'bank_id' => $bankId,
+        'has_bank' => (bool)$bankId,
+        'status' => $statusToSave,
+        'decision_source' => $decisionSource,
+        'decided_by' => $decidedBy
+    ]);
 
     // NOTE: guarantees table has NO status column
     // Status is derived from guarantee_decisions table in index.php

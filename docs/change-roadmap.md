@@ -119,6 +119,11 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 - Log auto-match decisions: confidence, threshold, and source.
 - Log batch actions: selected IDs, blocked reasons, and outcomes.
 - Log save-and-next changes: supplier decision + bank decision presence.
+  - Implemented in:
+    - `app/Services/SmartProcessingService.php`
+    - `api/get-record.php`
+    - `api/save-and-next.php`
+    - `app/Services/BatchService.php`
 
 ## 6) Acceptance criteria
 - No HTTP 500 errors in critical flows.

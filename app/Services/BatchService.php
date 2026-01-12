@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use App\Support\Database;
+use App\Support\Logger;
 use PDO;
 
 /**
@@ -186,6 +187,15 @@ class BatchService
         }
         
         $success = count($extended) > 0;
+        Logger::info('batch_extend', [
+            'import_source' => $importSource,
+            'user_id' => $userId,
+            'selected_ids' => $hasSelection ? $ids : null,
+            'processed_ids' => $extended,
+            'blocked' => $blocked,
+            'errors' => $errors,
+            'success' => $success
+        ]);
         return [
             'success' => $success,
             'error' => $success ? null : 'لا توجد ضمانات مؤهلة للتمديد',
@@ -299,6 +309,15 @@ class BatchService
         }
         
         $success = count($released) > 0;
+        Logger::info('batch_release', [
+            'import_source' => $importSource,
+            'user_id' => $userId,
+            'selected_ids' => $hasSelection ? $ids : null,
+            'processed_ids' => $released,
+            'blocked' => $blocked,
+            'errors' => $errors,
+            'success' => $success
+        ]);
         return [
             'success' => $success,
             'error' => $success ? null : 'لا توجد ضمانات مؤهلة للإفراج',
