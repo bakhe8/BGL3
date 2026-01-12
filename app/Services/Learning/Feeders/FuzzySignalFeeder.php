@@ -124,6 +124,9 @@ class FuzzySignalFeeder implements SignalFeederInterface
         }
 
         $distance = levenshtein($str1, $str2);
+        if ($distance < 0) {
+            return 0.0; // Guardrail: invalid distance should not produce a perfect match
+        }
 
         // Convert distance to similarity (0-1)
         $similarity = 1 - ($distance / $maxLength);

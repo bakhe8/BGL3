@@ -32,18 +32,23 @@ class BankRepository
 
     private function map(array $row): Bank
     {
+        $officialName = $row['arabic_name'] ?? $row['official_name'] ?? '';
+        $officialNameEn = $row['english_name'] ?? $row['official_name_en'] ?? null;
+        $shortCode = $row['short_name'] ?? $row['short_code'] ?? null;
+        $normalized = $row['normalized_name'] ?? $row['normalized_key'] ?? null;
+
         return new Bank(
             (int) $row['id'],
-            $row['arabic_name'],
-            $row['english_name'] ?? null,
-            $row['arabic_name'],
-            null, // normalized_key removed
-            $row['short_name'] ?? null,
+            $officialName,
+            $officialNameEn,
+            $officialName,
+            $normalized,
+            $shortCode,
             1, // is_confirmed - always confirmed in new schema
             $row['created_at'] ?? null,
             $row['department'] ?? null,
-            $row['address_line1'] ?? null,
-            $row['address_line2'] ?? null, // Schema doesn't show address_line2, assuming meant to be compatible or nullable
+            $row['address_line1'] ?? $row['address_line_1'] ?? null,
+            $row['address_line2'] ?? $row['address_line_2'] ?? null, // Legacy compatibility (not in schema)
             $row['contact_email'] ?? null
         );
     }
@@ -106,33 +111,40 @@ class BankRepository
     public function create(array $data): Bank
     {
         $pdo = Database::connection();
+        $arabicName = $data['arabic_name'] ?? $data['official_name'] ?? '';
+        $englishName = $data['english_name'] ?? $data['official_name_en'] ?? null;
+        $shortName = $data['short_name'] ?? $data['short_code'] ?? null;
+        $normalizedName = $data['normalized_name'] ?? $data['normalized_key'] ?? null;
+        if (!$normalizedName && $arabicName) {
+            $normalizedName = \App\Support\BankNormalizer::normalize($arabicName);
+        }
+        $addressLine1 = $data['address_line1'] ?? $data['address_line_1'] ?? null;
+
         $stmt = $pdo->prepare('INSERT INTO banks 
-            (official_name, official_name_en, normalized_name, short_code, is_confirmed, department, address_line_1, address_line_2, contact_email) 
-            VALUES (:o, :oe, :nk, :sc, :c, :dept, :addr1, :addr2, :email)');
+            (arabic_name, english_name, short_name, normalized_name, department, address_line1, contact_email, created_at, updated_at) 
+            VALUES (:arabic, :english, :short, :normalized, :dept, :addr1, :email, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)');
         $stmt->execute([
-            'o' => $data['official_name'],
-            'oe' => $data['official_name_en'] ?? null,
-            'nk' => $data['normalized_key'] ?? null,
-            'sc' => $data['short_code'] ?? null,
-            'c' => $data['is_confirmed'] ?? 0,
+            'arabic' => $arabicName,
+            'english' => $englishName,
+            'short' => $shortName,
+            'normalized' => $normalizedName,
             'dept' => $data['department'] ?? null,
-            'addr1' => $data['address_line_1'] ?? null,
-            'addr2' => $data['address_line_2'] ?? null,
+            'addr1' => $addressLine1,
             'email' => $data['contact_email'] ?? null,
         ]);
         $id = (int) $pdo->lastInsertId();
         return new Bank(
             $id, 
-            $data['official_name'], 
-            $data['official_name_en'] ?? null, 
-            $data['official_name'], // officialNameAr default
-            $data['normalized_key'] ?? null, 
-            $data['short_code'] ?? null, 
-            (int) ($data['is_confirmed'] ?? 0), 
+            $arabicName, 
+            $englishName, 
+            $arabicName, // officialNameAr default
+            $normalizedName, 
+            $shortName, 
+            1, 
             date('c'),
             $data['department'] ?? null,
-            $data['address_line_1'] ?? null,
-            $data['address_line_2'] ?? null,
+            $addressLine1,
+            $data['address_line2'] ?? $data['address_line_2'] ?? null,
             $data['contact_email'] ?? null
         );
     }
@@ -145,34 +157,30 @@ class BankRepository
         $fields = [];
         $params = ['id' => $id];
         
-        if (isset($data['official_name'])) {
-            $fields[] = 'official_name = :o';
-            $params['o'] = $data['official_name'];
+        if (isset($data['arabic_name']) || isset($data['official_name'])) {
+            $fields[] = 'arabic_name = :arabic';
+            $params['arabic'] = $data['arabic_name'] ?? $data['official_name'];
         }
-        if (isset($data['official_name_en'])) {
-            $fields[] = 'official_name_en = :oe';
-            $params['oe'] = $data['official_name_en'];
+        if (isset($data['english_name']) || isset($data['official_name_en'])) {
+            $fields[] = 'english_name = :english';
+            $params['english'] = $data['english_name'] ?? $data['official_name_en'];
         }
-        if (isset($data['normalized_key'])) {
-            $fields[] = 'normalized_key = :nk';
-            $params['nk'] = $data['normalized_key'];
+        if (isset($data['normalized_name']) || isset($data['normalized_key'])) {
+            $fields[] = 'normalized_name = :normalized';
+            $params['normalized'] = $data['normalized_name'] ?? $data['normalized_key'];
         }
-        if (isset($data['short_code'])) {
-            $fields[] = 'short_code = :sc';
-            $params['sc'] = $data['short_code'];
+        if (isset($data['short_name']) || isset($data['short_code'])) {
+            $fields[] = 'short_name = :short';
+            $params['short'] = $data['short_name'] ?? $data['short_code'];
         }
         
         if (isset($data['department'])) {
             $fields[] = 'department = :dept';
             $params['dept'] = $data['department'];
         }
-        if (isset($data['address_line1'])) {
+        if (isset($data['address_line1']) || isset($data['address_line_1'])) {
             $fields[] = 'address_line1 = :addr1';
-            $params['addr1'] = $data['address_line1'];
-        }
-        if (isset($data['address_line2'])) {
-            $fields[] = 'address_line2 = :addr2';
-            $params['addr2'] = $data['address_line2'];
+            $params['addr1'] = $data['address_line1'] ?? $data['address_line_1'];
         }
         if (isset($data['contact_email'])) {
             $fields[] = 'contact_email = :email';
@@ -182,6 +190,8 @@ class BankRepository
         if (empty($fields)) {
             return; // Nothing to update
         }
+        
+        $fields[] = 'updated_at = CURRENT_TIMESTAMP';
         
         $sql = 'UPDATE banks SET ' . implode(', ', $fields) . ' WHERE id = :id';
         $stmt = $pdo->prepare($sql);

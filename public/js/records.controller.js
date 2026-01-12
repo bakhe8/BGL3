@@ -390,7 +390,7 @@ if (!window.RecordsController) {
             }
             const recordIdEl = document.querySelector('[data-record-id]');
             if (!recordIdEl) {
-                this.showToast('خطأ: لا يوجد سجل', 'error');
+                window.showToast('خطأ: لا يوجد سجل', 'error');
                 return;
             }
 
@@ -420,7 +420,7 @@ if (!window.RecordsController) {
 
                 if (data.success) {
                     if (data.finished) {
-                        this.showToast(data.message || 'تم الانتهاء من جميع السجلات', 'success');
+                        window.showToast(data.message || 'تم الانتهاء من جميع السجلات', 'success');
 
                         // ✅ FIX: Redirect to clear the current record from view and show next or empty state
                         setTimeout(() => {
@@ -440,16 +440,16 @@ if (!window.RecordsController) {
                 } else {
                     // Handle supplier_required error specially
                     if (data.error === 'supplier_required') {
-                        this.showToast(data.message || 'يجب اختيار مورد من الاقتراحات أو إضافة مورد جديد', 'error');
+                        window.showToast(data.message || 'يجب اختيار مورد من الاقتراحات أو إضافة مورد جديد', 'error');
                         // Show the add supplier button with the name
                         this.showAddSupplierButton(data.supplier_name || '');
                     } else {
-                        this.showToast('خطأ: ' + (data.message || data.error || 'فشل الحفظ'), 'error');
+                        window.showToast('خطأ: ' + (data.message || data.error || 'فشل الحفظ'), 'error');
                     }
                 }
             } catch (error) {
                 console.error('Save error:', error);
-                this.showToast('فشل الحفظ', 'error');
+                window.showToast('فشل الحفظ', 'error');
             } finally {
                 if (target && (!data || !data.success)) {
                     target.disabled = false;
@@ -464,7 +464,7 @@ if (!window.RecordsController) {
 
             const recordIdEl = document.querySelector('[data-record-id]');
             if (!recordIdEl) {
-                this.showToast('خطأ: لا يوجد سجل', 'error');
+                window.showToast('خطأ: لا يوجد سجل', 'error');
                 return;
             }
 
@@ -484,16 +484,16 @@ if (!window.RecordsController) {
                     const msg = errorBody ? errorBody.textContent.trim() : 'فشل التمديد';
 
                     if (msg.includes('No expiry date')) {
-                        this.showToast('عفواً، لا يوجد تاريخ انتهاء محفوظ. يرجى حفظ السجل أولاً.', 'error');
+                        window.showToast('عفواً، لا يوجد تاريخ انتهاء محفوظ. يرجى حفظ السجل أولاً.', 'error');
                     } else {
-                        this.showToast(msg, 'error');
+                        window.showToast(msg, 'error');
                     }
                     return;
                 }
                 window.location.reload();
             } catch (e) {
                 console.error(e);
-                this.showToast('حدث خطأ في الاتصال', 'error');
+                window.showToast('حدث خطأ في الاتصال', 'error');
             }
         }
 
@@ -502,7 +502,7 @@ if (!window.RecordsController) {
 
             const recordIdEl = document.querySelector('[data-record-id]');
             if (!recordIdEl) {
-                this.showToast('خطأ: لا يوجد سجل', 'error');
+                window.showToast('خطأ: لا يوجد سجل', 'error');
                 return;
             }
 
@@ -519,20 +519,20 @@ if (!window.RecordsController) {
                     const doc = parser.parseFromString(text, 'text/html');
                     const errorBody = doc.querySelector('.card-body');
                     const msg = errorBody ? errorBody.textContent.trim() : 'فشل الإفراج';
-                    this.showToast(msg, 'error');
+                    window.showToast(msg, 'error');
                     return;
                 }
                 window.location.reload();
             } catch (e) {
                 console.error(e);
-                this.showToast('حدث خطأ في الاتصال', 'error');
+                window.showToast('حدث خطأ في الاتصال', 'error');
             }
         }
 
         async reduce() {
             const recordIdEl = document.querySelector('[data-record-id]');
             if (!recordIdEl) {
-                this.showToast('خطأ: لا يوجد سجل', 'error');
+                window.showToast('خطأ: لا يوجد سجل', 'error');
                 return;
             }
 
@@ -541,7 +541,7 @@ if (!window.RecordsController) {
 
             const newAmount = parseFloat(newAmountStr);
             if (isNaN(newAmount) || newAmount <= 0) {
-                this.showToast('الرجاء إدخال مبلغ صحيح (أرقام فقط)', 'error');
+                window.showToast('الرجاء إدخال مبلغ صحيح (أرقام فقط)', 'error');
                 return;
             }
 
@@ -561,37 +561,17 @@ if (!window.RecordsController) {
                     const doc = parser.parseFromString(text, 'text/html');
                     const errorBody = doc.querySelector('.card-body');
                     const msg = errorBody ? errorBody.textContent.trim() : 'فشل التخفيض';
-                    this.showToast(msg, 'error');
+                    window.showToast(msg, 'error');
                     return;
                 }
                 window.location.reload();
             } catch (e) {
                 console.error(e);
-                this.showToast('حدث خطأ في الاتصال', 'error');
+                window.showToast('حدث خطأ في الاتصال', 'error');
             }
         }
 
         // Custom UI Helpers
-        showToast(message, type = 'error') {
-            let toast = document.getElementById('bgl-toast');
-            if (!toast) {
-                toast = document.createElement('div');
-                toast.id = 'bgl-toast';
-                toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);padding:15px 25px;color:white;z-index:99999;border-radius:8px;box-shadow:0 4px 15px rgba(0,0,0,0.2);font-weight:bold;font-family:inherit;min-width:300px;text-align:center;transition:all 0.3s ease;';
-                document.body.appendChild(toast);
-            }
-            toast.textContent = message;
-            toast.style.backgroundColor = type === 'error' ? '#ef4444' : '#10b981';
-            toast.style.display = 'block';
-            toast.style.opacity = '1';
-
-            if (this.toastTimeout) clearTimeout(this.toastTimeout);
-            this.toastTimeout = setTimeout(() => {
-                toast.style.opacity = '0';
-                setTimeout(() => toast.style.display = 'none', 300);
-            }, 4000);
-        }
-
         customConfirm(message) {
             return new Promise((resolve) => {
                 const overlay = document.getElementById('bgl-confirm-overlay');
@@ -791,7 +771,7 @@ if (!window.RecordsController) {
             const supplierName = supplierInput?.value?.trim();
 
             if (!supplierName) {
-                this.showToast('الرجاء إدخال اسم المورد أولاً', 'error');
+                window.showToast('الرجاء إدخال اسم المورد أولاً', 'error');
                 return;
             }
 
@@ -819,13 +799,13 @@ if (!window.RecordsController) {
                     // Hide add button
                     this.hideAddSupplierButton();
 
-                    this.showToast(`تم إضافة المورد: ${data.official_name || supplierName}`, 'success');
+                    window.showToast(`تم إضافة المورد: ${data.official_name || supplierName}`, 'success');
                 } else {
-                    this.showToast('خطأ: ' + (data.message || data.error || 'فشل إضافة المورد'), 'error');
+                    window.showToast('خطأ: ' + (data.message || data.error || 'فشل إضافة المورد'), 'error');
                 }
             } catch (error) {
                 console.error('Create supplier error:', error);
-                this.showToast('فشل إضافة المورد', 'error');
+                window.showToast('فشل إضافة المورد', 'error');
             }
         }
 

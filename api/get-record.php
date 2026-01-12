@@ -9,6 +9,7 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
+use App\Support\Settings;
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -20,6 +21,8 @@ try {
     }
     
     $db = Database::connect();
+    $settings = new Settings();
+    $autoThreshold = $settings->get('MATCH_AUTO_THRESHOLD', 90);
     $guaranteeRepo = new GuaranteeRepository($db);
     
     // Get all guarantees IDs
@@ -193,7 +196,7 @@ try {
                 ];
                 
                 // Auto-fill if confidence is high and no decision yet
-                if ($record['status'] === 'pending' && $top['score'] >= 80) {
+                if ($record['status'] === 'pending' && $top['score'] >= $autoThreshold) {
                     try {
                         // 1. Capture snapshot BEFORE change
                         $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);
@@ -233,7 +236,7 @@ try {
                                 $bankId,
                                 $newStatus,
                                 date('Y-m-d H:i:s'),
-                                'ai_quick',
+                                'auto',
                                 date('Y-m-d H:i:s')
                             ]);
                             
@@ -311,7 +314,7 @@ try {
                                 $bank['id'],
                                 $newStatus,
                                 date('Y-m-d H:i:s'),
-                                'direct_match',
+                                'auto',
                                 date('Y-m-d H:i:s')
                             ]);
                             

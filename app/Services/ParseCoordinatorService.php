@@ -444,7 +444,7 @@ class ParseCoordinatorService
             }));
             
             if ($newCount > 0) {
-                $processor = new \App\Services\SmartProcessingService();
+                $processor = new \App\Services\SmartProcessingService('manual', 'web_user');
                 $autoMatchStats = $processor->processNewGuarantees($newCount);
                 error_log("✅ Smart Paste auto-matched: {$autoMatchStats['auto_matched']} out of {$newCount}");
             }

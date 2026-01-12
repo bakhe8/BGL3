@@ -30,6 +30,7 @@ try {
     $db = Database::connect();
     $guaranteeRepo = new GuaranteeRepository($db);
     $currentGuarantee = $guaranteeRepo->find($guaranteeId);
+    $decidedBy = $input['decided_by'] ?? 'web_user';
 
     // Track decision source for AI success metrics
     $decisionSource = null;
@@ -116,6 +117,9 @@ try {
     }
 
 
+    // Any user-triggered save is manual (even if AI suggestion was selected)
+    $decisionSource = 'manual';
+
     // Validation
     if (!$guaranteeId || !$supplierId) {
         $missing = [];
@@ -148,35 +152,17 @@ try {
 
     // Resolve Old Bank Name
     // Bank is set once during import/matching and not changed by this endpoint.
-    // We still need its ID for status evaluation.
+    // We only respect an existing bank_id from guarantee_decisions.
     $bankStmt = $db->prepare('SELECT bank_id FROM guarantee_decisions WHERE guarantee_id = ?');
     $bankStmt->execute([$guaranteeId]);
-    $bankId = $bankStmt->fetchColumn() ?: null; // Get the existing bank_id
+    $bankId = $bankStmt->fetchColumn() ?: null; // Existing bank_id only
 
     if ($bankId) {
         $stmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
         $stmt->execute([$bankId]);
         $oldBank = $stmt->fetchColumn() ?: '';
     } else {
-        // Fallback: Try to resolve Bank ID from raw_data (if SmartProcessing matched it)
-        $rawBankName = $currentGuarantee->rawData['bank'] ?? '';
-        $oldBank = $rawBankName;
-        
-        if ($rawBankName) {
-            // Try exact match on official name (SmartProcessing updates raw_data to official name)
-            $stmt = $db->prepare('SELECT id FROM banks WHERE arabic_name = ?');
-            $stmt->execute([$rawBankName]);
-            $bankId = $stmt->fetchColumn();
-            
-            // If not found, try normalized match (fallback)
-            if (!$bankId) {
-                 require_once __DIR__ . '/../app/Support/BankNormalizer.php';
-                 $norm = \App\Support\BankNormalizer::normalize($rawBankName);
-                 $stmt = $db->prepare("SELECT b.id FROM banks b JOIN bank_alternative_names a ON b.id = a.bank_id WHERE a.normalized_name = ? LIMIT 1");
-                 $stmt->execute([$norm]);
-                 $bankId = $stmt->fetchColumn();
-            }
-        }
+        $oldBank = $currentGuarantee->rawData['bank'] ?? '';
     }
     
     // 1. Check Supplier Change
@@ -196,13 +182,15 @@ try {
     $bankStmt->execute([$guaranteeId]);
     $currentBankId = $bankStmt->fetchColumn() ?: null;
     
-    // Fetch new bank name (which is the current bank name, as it's not being changed here)
-    $bnkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
-    $bnkStmt->execute([$currentBankId]);
-    $newBank = $bnkStmt->fetchColumn();
-    
-    if (trim($oldBank) !== trim($newBank)) {
-        $changes[] = "تغيير البنك من [{$oldBank}] إلى [{$newBank}]";
+    if ($currentBankId) {
+        // Fetch new bank name (which is the current bank name, as it's not being changed here)
+        $bnkStmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
+        $bnkStmt->execute([$currentBankId]);
+        $newBank = $bnkStmt->fetchColumn();
+        
+        if (trim($oldBank) !== trim($newBank)) {
+            $changes[] = "تغيير البنك من [{$oldBank}] إلى [{$newBank}]";
+        }
     }
 
     // ====================================================================
@@ -227,13 +215,16 @@ try {
     if ($existingId) {
         $stmt = $db->prepare('
             UPDATE guarantee_decisions 
-            SET supplier_id = ?, status = ?, decided_at = ?
+            SET supplier_id = ?, status = ?, decided_at = ?, decision_source = ?, decided_by = ?, last_modified_by = ?, last_modified_at = CURRENT_TIMESTAMP
             WHERE guarantee_id = ?
         ');
         $stmt->execute([
             $supplierId,
             $statusToSave,
             $now,
+            $decisionSource,
+            $decidedBy,
+            $decidedBy,
             $guaranteeId
         ]);
      } else {
@@ -243,8 +234,8 @@ try {
         $bankIdSafe = $bankId ? (int)$bankId : null;
         
         $stmt = $db->prepare('
-            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, decided_by, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ');
         $stmt->execute([
             $guaranteeId,
@@ -252,7 +243,8 @@ try {
             $bankIdSafe,
             $statusToSave,
             $now,
-            $decisionSource, // Track if this was AI-matched or manual
+            $decisionSource,
+            $decidedBy,
             $now
         ]);
     }

@@ -123,16 +123,13 @@ try {
     // ADR-007: Timeline is audit-only, not UI data source
     $latestSubtype = null; // Removed Timeline read
     
-    $supplierMatch = [
-        'suggestions' => [],
-        'score' => 0
-    ];
-    if ($record['supplier_name']) {
+    $supplierMatch = null;
+    if (empty($record['supplier_id']) && $record['supplier_name']) {
         // ✅ PHASE 4: Using UnifiedLearningAuthority
         $authority = \App\Services\Learning\AuthorityFactory::create();
         $suggestionDTOs = $authority->getSuggestions($record['supplier_name']);
-        
-        $supplierMatch['suggestions'] = array_map(function($dto) {
+
+        $suggestions = array_map(function($dto) {
             return [
                 'id' => $dto->supplier_id,
                 'name' => $dto->official_name,
@@ -140,9 +137,13 @@ try {
             ];
         }, $suggestionDTOs);
 
+        $supplierMatch = [
+            'suggestions' => $suggestions,
+            'score' => 0
+        ];
+
         if (!empty($suggestions)) {
-            // Note: In DTOs, score is 'confidence'
-            $supplierMatch['score'] = $suggestionDTOs[0]->confidence ?? 0;
+            $supplierMatch['score'] = $suggestions[0]['score'] ?? 0;
         }
     }
     
@@ -189,11 +190,17 @@ try {
     ];
     
     // Return success with snapshot data
-    echo json_encode([
+    $response = [
         'success' => true,
         'snapshot' => $snapshot,
         'latest_event_subtype' => $latestSubtype // Send to frontend
-    ]);
+    ];
+
+    if ($supplierMatch !== null) {
+        $response['supplierMatch'] = $supplierMatch;
+    }
+
+    echo json_encode($response);
     
 } catch (\Exception $e) {
     http_response_code(500);

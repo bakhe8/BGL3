@@ -315,7 +315,7 @@ try {
     $aiStats = $db->query("
         SELECT 
             COUNT(*) as total,
-            COUNT(CASE WHEN decision_source IN ('ai_match', 'ai_quick', 'direct_match') THEN 1 END) as ai_matches,
+            COUNT(CASE WHEN decision_source IN ('auto', 'auto_match', 'ai_match', 'ai_quick', 'direct_match') THEN 1 END) as ai_matches,
             COUNT(CASE WHEN decision_source = 'manual' OR decision_source IS NULL THEN 1 END) as manual
         FROM guarantee_decisions
     ")->fetch(PDO::FETCH_ASSOC);

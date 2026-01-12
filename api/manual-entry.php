@@ -37,7 +37,7 @@ try {
         if (function_exists('fastcgi_finish_request')) {
             fastcgi_finish_request();
         }
-        $processor = new \App\Services\SmartProcessingService();
+        $processor = new \App\Services\SmartProcessingService('manual', 'web_user');
         $processor->processNewGuarantees(1);
     } catch (\Throwable $e) { /* background task */ }
 

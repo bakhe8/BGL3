@@ -15,8 +15,12 @@ $service = new BatchService();
 
 try {
     if ($method === 'POST') {
-        $action = $_POST['action'] ?? '';
-        $importSource = $_POST['import_source'] ?? '';
+        $rawBody = file_get_contents('php://input');
+        $jsonInput = json_decode($rawBody, true);
+        $input = array_merge($_POST, is_array($jsonInput) ? $jsonInput : []);
+
+        $action = $input['action'] ?? '';
+        $importSource = $input['import_source'] ?? '';
         
         if (!$importSource && $action !== 'list') {
             throw new \RuntimeException('import_source مطلوب');
@@ -24,27 +28,37 @@ try {
         
         switch ($action) {
             case 'extend':
-                $newExpiry = $_POST['new_expiry'] ?? '';
-                $result = $service->extendBatch($importSource, $newExpiry, $_POST['user_id'] ?? 'web_user');
+                $newExpiry = $input['new_expiry'] ?? '';
+                $result = $service->extendBatch(
+                    $importSource,
+                    $newExpiry,
+                    $input['user_id'] ?? 'web_user',
+                    $input['guarantee_ids'] ?? null
+                );
                 break;
                 
             case 'release':
-                $reason = $_POST['reason'] ?? null;
-                $result = $service->releaseBatch($importSource, $reason, $_POST['user_id'] ?? 'web_user');
+                $reason = $input['reason'] ?? null;
+                $result = $service->releaseBatch(
+                    $importSource,
+                    $reason,
+                    $input['user_id'] ?? 'web_user',
+                    $input['guarantee_ids'] ?? null
+                );
                 break;
                 
             case 'close':
-                $result = $service->closeBatch($importSource, $_POST['closed_by'] ?? 'web_user');
+                $result = $service->closeBatch($importSource, $input['closed_by'] ?? 'web_user');
                 break;
                 
             case 'update_metadata':  // Decision #2
-                $batchName = $_POST['batch_name'] ?? null;
-                $batchNotes = $_POST['batch_notes'] ?? null;
+                $batchName = $input['batch_name'] ?? null;
+                $batchNotes = $input['batch_notes'] ?? null;
                 $result = $service->updateMetadata($importSource, $batchName, $batchNotes);
                 break;
                 
             case 'reopen':  // Decision #7
-                $result = $service->reopenBatch($importSource, $_POST['reopened_by'] ?? 'web_user');
+                $result = $service->reopenBatch($importSource, $input['reopened_by'] ?? 'web_user');
                 break;
                 
             case 'summary':

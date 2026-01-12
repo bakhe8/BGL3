@@ -87,6 +87,7 @@ if (!$currentRecord) {
         LEFT JOIN suppliers s ON d.supplier_id = s.id
         WHERE 1=1
     ';
+    $defaultRecordParams = [];
     
     if ($searchTerm) {
         // Search Mode: Filter by term across multiple fields
@@ -95,17 +96,28 @@ if (!$currentRecord) {
         // But for better performance/accuracy, let's search raw_data field content
         
         $searchSafe = stripslashes($searchTerm);
+        $searchAny = '%' . $searchSafe . '%';
+        $searchSupplier = '%"supplier":"%' . $searchSafe . '%"%';
+        $searchBank = '%"bank":"%' . $searchSafe . '%"%';
+        $searchContract = '%"contract_number":"%' . $searchSafe . '%"%';
         
         // Search in: Guarantee Number, Supplier, Bank, Contract Number
         // Note: In SQLite/MySQL JSON handling might differ. Using flexible LIKE for now as broadest support
         $defaultRecordQuery .= " AND (
-            g.guarantee_number LIKE '%$searchSafe%' OR
-            g.raw_data LIKE '%\"supplier\":\"%$searchSafe%\"%' OR
-            g.raw_data LIKE '%\"bank\":\"%$searchSafe%\"%' OR
-            g.raw_data LIKE '%\"contract_number\":\"%$searchSafe%\"%' OR
-            g.raw_data LIKE '%$searchSafe%' OR
-            s.official_name LIKE '%$searchSafe%'
+            g.guarantee_number LIKE :search_any OR
+            g.raw_data LIKE :search_supplier OR
+            g.raw_data LIKE :search_bank OR
+            g.raw_data LIKE :search_contract OR
+            g.raw_data LIKE :search_any OR
+            s.official_name LIKE :search_any
         )";
+        
+        $defaultRecordParams = [
+            'search_any' => $searchAny,
+            'search_supplier' => $searchSupplier,
+            'search_bank' => $searchBank,
+            'search_contract' => $searchContract,
+        ];
         
         // If specific status was requested WITH search, we can keep it, but usually search overrides
         // Let's fallback to 'all' behavior within search results unless specifically useful?
@@ -135,7 +147,7 @@ if (!$currentRecord) {
     $defaultRecordQuery .= ' ORDER BY g.id ASC LIMIT 1';
     
     $stmt = $db->prepare($defaultRecordQuery);
-    $stmt->execute();
+    $stmt->execute($defaultRecordParams);
     $firstId = $stmt->fetchColumn();
     if ($firstId) {
         $currentRecord = $guaranteeRepo->find($firstId);
@@ -730,12 +742,6 @@ $formattedSuppliers = array_map(function($s) {
     <?php require __DIR__ . '/partials/manual-entry-modal.php'; ?>
     <?php require __DIR__ . '/partials/paste-modal.php'; ?>
 
-    <!-- JavaScript - Vanilla Controller (No Alpine.js) -->
-    <script src="public/js/main.js?v=<?= time() ?>"></script>
-    <script src="public/js/input-modals.controller.js?v=<?= time() ?>"></script>
-    <script src="public/js/timeline.controller.js?v=<?= time() ?>"></script>
-    <script src="public/js/records.controller.js?v=<?= time() ?>"></script>
-    
     <?php if (!empty($mockRecord['is_locked'])): ?>
     <!-- Released Guarantee: Read-Only Mode -->
     <script>

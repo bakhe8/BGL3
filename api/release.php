@@ -17,6 +17,7 @@ try {
     
     $guaranteeId = $input['guarantee_id'] ?? null;
     $reason = $input['reason'] ?? null; // Optional
+    $decidedBy = $input['decided_by'] ?? 'web_user';
     
     if (!$guaranteeId) {
         throw new \RuntimeException('Missing guarantee_id');
@@ -66,6 +67,16 @@ try {
     
     // Lock the guarantee (set status to 'released')
     $decisionRepo->lock($guaranteeId, 'released');
+    $statusStmt = $db->prepare("
+        UPDATE guarantee_decisions
+        SET status = 'released',
+            decision_source = 'manual',
+            decided_by = ?,
+            last_modified_by = ?,
+            last_modified_at = CURRENT_TIMESTAMP
+        WHERE guarantee_id = ?
+    ");
+    $statusStmt->execute([$decidedBy, $decidedBy, $guaranteeId]);
 
     // 3. NEW (Phase 3): Set Active Action
     $decisionRepo->setActiveAction($guaranteeId, 'release');

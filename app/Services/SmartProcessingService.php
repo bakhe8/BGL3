@@ -29,11 +29,15 @@ class SmartProcessingService
     private \App\Services\Learning\UnifiedLearningAuthority $authority;
     private ConflictDetector $conflictDetector;
     private \App\Support\Settings $settings;
+    private string $decisionSource;
+    private string $decidedBy;
 
-    public function __construct()
+    public function __construct(?string $decisionSource = null, ?string $decidedBy = null)
     {
         $this->db = Database::connect();
         $this->settings = new \App\Support\Settings();
+        $this->decisionSource = $decisionSource ?? 'auto';
+        $this->decidedBy = $decidedBy ?? 'system';
         
         // ✅ PHASE 4 COMPLETE: Using UnifiedLearningAuthority (100% cutover)
         // Legacy LearningService removed
@@ -238,10 +242,18 @@ class SmartProcessingService
         $bankIdSafe = (int)$bankId;
         
         $stmt = $this->db->prepare("
-            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decision_source, confidence_score, created_at)
-            VALUES (?, ?, ?, 'ready', 'auto_match', ?, ?)
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decision_source, decided_by, confidence_score, created_at)
+            VALUES (?, ?, ?, 'ready', ?, ?, ?, ?)
         ");
-        $stmt->execute([$guaranteeId, $supplierIdSafe, $bankIdSafe, $confidence, date('Y-m-d H:i:s')]);
+        $stmt->execute([
+            $guaranteeId,
+            $supplierIdSafe,
+            $bankIdSafe,
+            $this->decisionSource,
+            $this->decidedBy,
+            $confidence,
+            date('Y-m-d H:i:s')
+        ]);
     }
 
     /**
@@ -402,7 +414,7 @@ class SmartProcessingService
     ): TrustDecision {
         // Rule 1: Low confidence - block
         // ✅ DYNAMIC: Use threshold from Settings
-        $threshold = $this->settings->get('MATCH_AUTO_THRESHOLD', 0.90) * 100;
+        $threshold = $this->settings->get('MATCH_AUTO_THRESHOLD', 90);
 
         if ($score < $threshold) {
             return TrustDecision::block(

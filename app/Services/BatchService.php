@@ -43,16 +43,29 @@ class BatchService
     /**
      * Get all guarantees in a batch
      */
-    public function getBatchGuarantees(string $importSource): array
+    /**
+     * @param array<int, int|string>|null $guaranteeIds
+     */
+    public function getBatchGuarantees(string $importSource, ?array $guaranteeIds = null): array
     {
-        $stmt = $this->db->prepare("
-            SELECT g.*, d.status, d.supplier_id, d.bank_id
+        $sql = "
+            SELECT g.*, d.status, d.supplier_id, d.bank_id, d.active_action, d.is_locked
             FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
             WHERE g.import_source = ?
-            ORDER BY g.id
-        ");
-        $stmt->execute([$importSource]);
+        ";
+        $params = [$importSource];
+
+        if (!empty($guaranteeIds)) {
+            $placeholders = implode(',', array_fill(0, count($guaranteeIds), '?'));
+            $sql .= " AND g.id IN ($placeholders)";
+            $params = array_merge($params, $guaranteeIds);
+        }
+
+        $sql .= " ORDER BY g.id";
+
+        $stmt = $this->db->prepare($sql);
+        $stmt->execute($params);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
     
@@ -63,7 +76,7 @@ class BatchService
      * TODO: This needs the actual extend logic from existing code
      * Placeholder for now - will integrate with real extend service
      */
-    public function extendBatch(string $importSource, string $newExpiryDate, string $userId = 'system'): array
+    public function extendBatch(string $importSource, string $newExpiryDate, string $userId = 'system', ?array $guaranteeIds = null): array
     {
         // Check if closed
         if ($this->isBatchClosed($importSource)) {
@@ -72,9 +85,17 @@ class BatchService
                 'error' => 'الدفعة مغلقة - لا يمكن التمديد الجماعي'
             ];
         }
-        
-        // Get all guarantees
-        $guarantees = $this->getBatchGuarantees($importSource);
+
+        $ids = $this->normalizeIds($guaranteeIds);
+        $hasSelection = $guaranteeIds !== null;
+        if ($hasSelection && empty($ids)) {
+            return [
+                'success' => false,
+                'error' => 'لا توجد ضمانات محددة'
+            ];
+        }
+        // Get all guarantees (optionally filtered)
+        $guarantees = $this->getBatchGuarantees($importSource, $hasSelection ? $ids : null);
         
         if (empty($guarantees)) {
             return [
@@ -83,33 +104,41 @@ class BatchService
             ];
         }
         
-        // Check ALL ready (all-or-nothing policy)
-        $notReady = [];
-        foreach ($guarantees as $g) {
-            if ($g['status'] !== 'ready' || !$g['supplier_id']) {
-                $notReady[] = $g['guarantee_number'];
-            }
-        }
-        
-        if (!empty($notReady)) {
-            return [
-                'success' => false,
-                'error' => 'لا يمكن التمديد الجماعي',
-                'reason' => 'بعض الضمانات غير جاهزة',
-                'not_ready_count' => count($notReady),
-                'not_ready_list' => $notReady
-            ];
-        }
-        
         // All ready - extend using INDIVIDUAL logic from extend.php
         $extended = [];
         $errors = [];
+        $blocked = [];
         
         $guaranteeRepo = new \App\Repositories\GuaranteeRepository($this->db);
         $decisionRepo = new \App\Repositories\GuaranteeDecisionRepository($this->db);
         
         foreach ($guarantees as $g) {
             try {
+                if (!empty($g['is_locked'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'مقفل'
+                    ];
+                    continue;
+                }
+                if (!empty($g['active_action'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'تم تنفيذ إجراء سابق'
+                    ];
+                    continue;
+                }
+                if (($g['status'] ?? '') !== 'ready' || !$g['supplier_id']) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'غير جاهز'
+                    ];
+                    continue;
+                }
+
                 // Reuse extend.php logic (lines 53-77)
                 // 1. Snapshot
                 $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
@@ -126,6 +155,17 @@ class BatchService
                 
                 // 3. Set Active Action
                 $decisionRepo->setActiveAction($g['id'], 'extension');
+
+                // 3.1 Track user-driven decision source
+                $decisionUpdate = $this->db->prepare("
+                    UPDATE guarantee_decisions
+                    SET decision_source = 'manual',
+                        decided_by = ?,
+                        last_modified_by = ?,
+                        last_modified_at = CURRENT_TIMESTAMP
+                    WHERE guarantee_id = ?
+                ");
+                $decisionUpdate->execute([$userId, $userId, $g['id']]);
                 
                 // 4. Record in Timeline
                 \App\Services\TimelineRecorder::recordExtensionEvent(
@@ -145,10 +185,14 @@ class BatchService
             }
         }
         
+        $success = count($extended) > 0;
         return [
-            'success' => count($errors) === 0,
+            'success' => $success,
+            'error' => $success ? null : 'لا توجد ضمانات مؤهلة للتمديد',
             'extended_count' => count($extended),
             'extended_ids' => $extended,
+            'blocked_count' => count($blocked),
+            'blocked' => $blocked,
             'errors' => $errors
         ];
     }
@@ -157,7 +201,7 @@ class BatchService
      * Release all guarantees in batch
      * Decision #4: All-or-nothing policy, reuse release.php logic
      */
-    public function releaseBatch(string $importSource, ?string $reason = null, string $userId = 'system'): array
+    public function releaseBatch(string $importSource, ?string $reason = null, string $userId = 'system', ?array $guaranteeIds = null): array
     {
         // Check if closed
         if ($this->isBatchClosed($importSource)) {
@@ -167,8 +211,16 @@ class BatchService
             ];
         }
         
-        // Get all guarantees
-        $guarantees = $this->getBatchGuarantees($importSource);
+        $ids = $this->normalizeIds($guaranteeIds);
+        $hasSelection = $guaranteeIds !== null;
+        if ($hasSelection && empty($ids)) {
+            return [
+                'success' => false,
+                'error' => 'لا توجد ضمانات محددة'
+            ];
+        }
+        // Get all guarantees (optionally filtered)
+        $guarantees = $this->getBatchGuarantees($importSource, $hasSelection ? $ids : null);
         
         if (empty($guarantees)) {
             return [
@@ -177,32 +229,40 @@ class BatchService
             ];
         }
         
-        // Check ALL ready (all-or-nothing policy)
-        $notReady = [];
-        foreach ($guarantees as $g) {
-            if ($g['status'] !== 'ready' || !$g['supplier_id'] || !$g['bank_id']) {
-                $notReady[] = $g['guarantee_number'];
-            }
-        }
-        
-        if (!empty($notReady)) {
-            return [
-                'success' => false,
-                'error' => 'لا يمكن الإفراج الجماعي',
-                'reason' => 'بعض الضمانات غير جاهزة',
-                'not_ready_count' => count($notReady),
-                'not_ready_list' => $notReady
-            ];
-        }
-        
         // All ready - release using INDIVIDUAL logic from release.php
         $released = [];
         $errors = [];
+        $blocked = [];
         
         $decisionRepo = new \App\Repositories\GuaranteeDecisionRepository($this->db);
         
         foreach ($guarantees as $g) {
             try {
+                if (!empty($g['is_locked'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'مقفل'
+                    ];
+                    continue;
+                }
+                if (!empty($g['active_action'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'تم تنفيذ إجراء سابق'
+                    ];
+                    continue;
+                }
+                if (($g['status'] ?? '') !== 'ready' || !$g['supplier_id'] || !$g['bank_id']) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'غير جاهز'
+                    ];
+                    continue;
+                }
+
                 // Reuse release.php logic (lines 53-74)
                 // 1. Snapshot
                 $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
@@ -212,6 +272,17 @@ class BatchService
                 
                 // 3. Set Active Action
                 $decisionRepo->setActiveAction($g['id'], 'release');
+
+                // 3.1 Track user-driven decision source
+                $decisionUpdate = $this->db->prepare("
+                    UPDATE guarantee_decisions
+                    SET decision_source = 'manual',
+                        decided_by = ?,
+                        last_modified_by = ?,
+                        last_modified_at = CURRENT_TIMESTAMP
+                    WHERE guarantee_id = ?
+                ");
+                $decisionUpdate->execute([$userId, $userId, $g['id']]);
                 
                 // 4. Record in Timeline
                 \App\Services\TimelineRecorder::recordReleaseEvent($g['id'], $oldSnapshot, $reason);
@@ -227,12 +298,35 @@ class BatchService
             }
         }
         
+        $success = count($released) > 0;
         return [
-            'success' => count($errors) === 0,
+            'success' => $success,
+            'error' => $success ? null : 'لا توجد ضمانات مؤهلة للإفراج',
             'released_count' => count($released),
             'released_ids' => $released,
+            'blocked_count' => count($blocked),
+            'blocked' => $blocked,
             'errors' => $errors
         ];
+    }
+
+    /**
+     * Normalize and validate guarantee IDs from request payload.
+     *
+     * @param array<int, int|string>|null $guaranteeIds
+     * @return array<int, int>
+     */
+    private function normalizeIds(?array $guaranteeIds): array
+    {
+        if (empty($guaranteeIds)) {
+            return [];
+        }
+
+        $ids = array_filter($guaranteeIds, fn($id) => is_numeric($id));
+        $ids = array_map('intval', $ids);
+        $ids = array_values(array_unique($ids));
+
+        return $ids;
     }
     
     /**

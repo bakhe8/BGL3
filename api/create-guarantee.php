@@ -71,7 +71,7 @@ try {
 
     // ✨ AUTO-MATCHING: Apply Smart Processing
     try {
-        $processor = new \App\Services\SmartProcessingService();
+        $processor = new \App\Services\SmartProcessingService('manual', 'web_user');
         $autoMatchStats = $processor->processNewGuarantees(1);
         
         if ($autoMatchStats['auto_matched'] > 0) {

@@ -20,8 +20,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // Validation
         $errors = [];
         
-        // Validate thresholds (0.0 - 1.0)
-        $thresholds = ['MATCH_AUTO_THRESHOLD', 'MATCH_REVIEW_THRESHOLD', 'MATCH_WEAK_THRESHOLD'];
+        // Validate thresholds
+        if (isset($input['MATCH_AUTO_THRESHOLD'])) {
+            $value = (float)$input['MATCH_AUTO_THRESHOLD'];
+            if ($value < 0.0 || $value > 100.0) {
+                $errors[] = "MATCH_AUTO_THRESHOLD must be between 0 and 100";
+            }
+            $input['MATCH_AUTO_THRESHOLD'] = $value;
+        }
+        $thresholds = ['MATCH_REVIEW_THRESHOLD', 'MATCH_WEAK_THRESHOLD'];
         foreach ($thresholds as $key) {
             if (isset($input[$key])) {
                 $value = (float)$input[$key];
@@ -55,7 +62,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         
         // Logical validation: AUTO >= REVIEW
         if (isset($input['MATCH_AUTO_THRESHOLD']) && isset($input['MATCH_REVIEW_THRESHOLD'])) {
-            if ($input['MATCH_AUTO_THRESHOLD'] < $input['MATCH_REVIEW_THRESHOLD']) {
+            $reviewComparable = $input['MATCH_REVIEW_THRESHOLD'];
+            if ($reviewComparable >= 0.0 && $reviewComparable <= 1.0) {
+                $reviewComparable *= 100;
+            }
+            if ($input['MATCH_AUTO_THRESHOLD'] < $reviewComparable) {
                 $errors[] = "MATCH_AUTO_THRESHOLD must be >= MATCH_REVIEW_THRESHOLD";
             }
         }

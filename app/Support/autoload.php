@@ -28,9 +28,6 @@ if (class_exists('App\\Support\\Settings')) {
     date_default_timezone_set($timezone);
 }
 
-// Load debug helpers
-require_once __DIR__ . '/debug_helpers.php';
-
 // Composer autoload (PhpSpreadsheet)
 $composerAutoload = base_path('vendor/autoload.php');
 if (file_exists($composerAutoload)) {

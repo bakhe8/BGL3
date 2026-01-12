@@ -17,6 +17,7 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     
     $guaranteeId = $input['guarantee_id'] ?? null;
+    $decidedBy = $input['decided_by'] ?? 'web_user';
     
     if (!$guaranteeId) {
         throw new \RuntimeException('Missing guarantee_id');
@@ -86,6 +87,17 @@ try {
 
     // 3. NEW (Phase 3): Set Active Action
     $decisionRepo->setActiveAction($guaranteeId, 'extension');
+    
+    // 3.1 Track manual decision source for user-triggered action
+    $decisionUpdate = $db->prepare("
+        UPDATE guarantee_decisions
+        SET decision_source = 'manual',
+            decided_by = ?,
+            last_modified_by = ?,
+            last_modified_at = CURRENT_TIMESTAMP
+        WHERE guarantee_id = ?
+    ");
+    $decisionUpdate->execute([$decidedBy, $decidedBy, $guaranteeId]);
 
     // 4. RECORD: Strict Event Recording (UE-02 Extend)
     // 🆕 Record ONLY in guarantee_history (no guarantee_actions)

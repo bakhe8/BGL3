@@ -86,7 +86,8 @@ try {
         $autoMatchStats = ['processed' => 0, 'auto_matched' => 0];
         try {
             // "Smart Processing" applies to any new guarantees, regardless of source (Excel, Manual, Paste)
-            $processor = new \App\Services\SmartProcessingService();
+            $importedBy = $_POST['imported_by'] ?? 'web_user';
+            $processor = new \App\Services\SmartProcessingService('manual', $importedBy);
             $autoMatchStats = $processor->processNewGuarantees($result['imported']);
         } catch (\Throwable $e) { /* Ignore automation errors, keep import success */ }
         // ------------------------------

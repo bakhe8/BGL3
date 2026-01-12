@@ -11,7 +11,7 @@
  * 
  * MATCHING THRESHOLDS EXPLAINED:
  * ------------------------------
- * - MATCH_AUTO_THRESHOLD (0.90): Scores >= 90% are auto-accepted
+ * - MATCH_AUTO_THRESHOLD (90): Scores >= 90 are auto-accepted
  * - MATCH_REVIEW_THRESHOLD (0.70): Scores < 70% are HIDDEN from suggestions
  * - MATCH_WEAK_THRESHOLD (0.70): Same as Review (kept for backward compat)
  * 
@@ -35,7 +35,7 @@ class Settings
      */
     private array $defaults = [
         // Matching Thresholds
-        'MATCH_AUTO_THRESHOLD' => Config::MATCH_AUTO_THRESHOLD,      // 0.90 - Auto-accept without review
+        'MATCH_AUTO_THRESHOLD' => Config::MATCH_AUTO_THRESHOLD,      // 90 - Auto-accept without review
         'MATCH_REVIEW_THRESHOLD' => Config::MATCH_REVIEW_THRESHOLD,  // 0.70 - Minimum to show in list
         'MATCH_WEAK_THRESHOLD' => 0.70,                              // Synced with Review Threshold
         'BANK_FUZZY_THRESHOLD' => 0.95,                              // Bank fuzzy match threshold
@@ -82,13 +82,19 @@ class Settings
     public function all(): array
     {
         if (!file_exists($this->path)) {
-            return $this->defaults;
+            $defaults = $this->defaults;
+            $defaults['MATCH_AUTO_THRESHOLD'] = $this->normalizePercentage($defaults['MATCH_AUTO_THRESHOLD']);
+            return $defaults;
         }
         $data = json_decode((string) file_get_contents($this->path), true);
         if (!is_array($data)) {
-            return $this->defaults;
+            $defaults = $this->defaults;
+            $defaults['MATCH_AUTO_THRESHOLD'] = $this->normalizePercentage($defaults['MATCH_AUTO_THRESHOLD']);
+            return $defaults;
         }
-        return array_merge($this->defaults, $data);
+        $merged = array_merge($this->defaults, $data);
+        $merged['MATCH_AUTO_THRESHOLD'] = $this->normalizePercentage($merged['MATCH_AUTO_THRESHOLD'] ?? null);
+        return $merged;
     }
 
     public function save(array $data): array
@@ -103,5 +109,19 @@ class Settings
     {
         $all = $this->all();
         return $all[$key] ?? $default;
+    }
+
+    /**
+     * Normalize percentage values to 0-100 scale.
+     */
+    private function normalizePercentage(mixed $value): mixed
+    {
+        if (is_numeric($value)) {
+            $numeric = (float) $value;
+            if ($numeric >= 0 && $numeric <= 1) {
+                return $numeric * 100;
+            }
+        }
+        return $value;
     }
 }
