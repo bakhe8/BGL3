@@ -36,6 +36,7 @@ $bannerData = $bannerData ?? null; // Should contain ['timestamp' => '...', 'rea
     <!-- Phase 4: Hidden Inputs from DB (Current View) -->
     <input type="hidden" id="decisionStatus" value="<?= htmlspecialchars($record['status'] ?? 'pending') ?>">
     <input type="hidden" id="activeAction" value="<?= htmlspecialchars($record['active_action'] ?? '') ?>">
+    <input type="hidden" id="relatedTo" value="<?= htmlspecialchars($record['related_to'] ?? 'contract') ?>">
      
     <!-- Legacy: Keep for backward compatibility during transition -->
     <input type="hidden" id="eventSubtype" data-preview-field="event_subtype" value="<?= htmlspecialchars($latestEventSubtype ?? '') ?>">

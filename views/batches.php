@@ -47,13 +47,12 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
     <style>
         /* Page-specific styles */
         .page-container {
-            max-width: 1400px;
-            margin: 0 auto;
+            width: 100%;
             padding: var(--space-lg);
         }
         
         .page-title {
-            font-size: var(--font-size-3xl);
+            font-size: var(--font-size-2xl);
             font-weight: var(--font-weight-bold);
             color: var(--text-primary);
             margin-bottom: var(--space-xs);
@@ -62,6 +61,7 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
         .page-subtitle {
             color: var(--text-secondary);
             margin-bottom: var(--space-xl);
+            font-size: var(--font-size-sm);
         }
         
         .section-header {
@@ -72,16 +72,17 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
         }
         
         .section-title {
-            font-size: var(--font-size-2xl);
+            font-size: var(--font-size-xl);
             font-weight: var(--font-weight-bold);
             color: var(--text-primary);
         }
         
         .batch-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
             gap: var(--space-md);
             margin-bottom: var(--space-2xl);
+            width: 100%;
         }
         
         .batch-card {
@@ -89,44 +90,74 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
             border-radius: var(--radius-lg);
             border: 1px solid var(--border-primary);
             box-shadow: var(--shadow-sm);
-            padding: var(--space-lg);
+            padding: var(--space-md);
             transition: all var(--transition-base);
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 180px;
         }
         
         .batch-card:hover {
             box-shadow: var(--shadow-lg);
-            transform: translateY(-2px);
+            transform: translateY(-4px);
+            border-color: var(--accent-primary);
         }
         
         .batch-card.active {
-            border-right: 4px solid var(--accent-success);
+            border-top: 4px solid var(--accent-success);
+            background: linear-gradient(180deg, var(--bg-card) 0%, #f0fdf4 100%);
         }
         
         .batch-card.completed {
-            border-right: 4px solid var(--border-neutral);
+            border-top: 4px solid var(--border-neutral);
             background: var(--bg-secondary);
+            opacity: 0.85;
         }
         
-        .batch-card-title {
-            font-size: var(--font-size-lg);
-            font-weight: var(--font-weight-bold);
+        .batch-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
             margin-bottom: var(--space-sm);
+        }
+
+        .batch-card-title {
+            font-size: var(--font-size-md);
+            font-weight: var(--font-weight-bold);
             color: var(--text-primary);
+            line-height: var(--line-height-tight);
+            margin: 0;
         }
         
+        .batch-type-icon {
+            font-size: 1.2rem;
+            opacity: 0.7;
+        }
+
         .batch-info {
             display: flex;
             flex-direction: column;
-            gap: var(--space-sm);
+            gap: 4px;
             font-size: var(--font-size-sm);
             color: var(--text-secondary);
             margin-bottom: var(--space-md);
         }
         
+        .batch-meta-item {
+            display: flex;
+            align-items: center;
+            gap: var(--space-xs);
+        }
+
         .batch-notes {
             font-size: var(--font-size-xs);
             color: var(--text-muted);
-            margin-top: var(--space-sm);
+            font-style: italic;
+            border-top: 1px solid var(--border-light);
+            padding-top: var(--space-xs);
+            margin-top: var(--space-xs);
         }
         
         .empty-state {
@@ -177,23 +208,39 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
                 </div>
             <?php else: ?>
                 <div class="batch-grid">
-                    <?php foreach ($active as $batch): ?>
+                    <?php foreach ($active as $batch): 
+                        $isExcel = strpos($batch['import_source'], 'excel_') === 0;
+                        $typeIcon = $isExcel ? '📄' : '📝';
+                    ?>
                     <div class="batch-card active">
-                        <h3 class="batch-card-title">
-                            <?= htmlspecialchars($batch['batch_name']) ?>
-                        </h3>
-                        <div class="batch-info">
-                            <p>📦 <?= $batch['guarantee_count'] ?> ضمان</p>
-                            <p>📅 <?= date('Y-m-d H:i', strtotime($batch['created_at'])) ?></p>
-                            <?php if ($batch['batch_notes']): ?>
-                            <p class="batch-notes">
-                                <?= htmlspecialchars(substr($batch['batch_notes'], 0, 50)) ?>
-                                <?= strlen($batch['batch_notes']) > 50 ? '...' : '' ?>
-                            </p>
-                            <?php endif; ?>
+                        <div>
+                            <div class="batch-card-header">
+                                <h3 class="batch-card-title">
+                                    <?= htmlspecialchars($batch['batch_name']) ?>
+                                </h3>
+                                <span class="batch-type-icon" title="<?= $isExcel ? 'ملف Excel' : 'إدخال يدووي/لصق' ?>">
+                                    <?= $typeIcon ?>
+                                </span>
+                            </div>
+                            <div class="batch-info">
+                                <div class="batch-meta-item">
+                                    <span class="icon-sm">📦</span>
+                                    <span><?= $batch['guarantee_count'] ?> ضمان</span>
+                                </div>
+                                <div class="batch-meta-item">
+                                    <span class="icon-sm">📅</span>
+                                    <span><?= date('Y-m-d H:i', strtotime($batch['created_at'])) ?></span>
+                                </div>
+                                <?php if ($batch['batch_notes']): ?>
+                                <p class="batch-notes">
+                                    <?= htmlspecialchars(substr($batch['batch_notes'], 0, 40)) ?>
+                                    <?= strlen($batch['batch_notes']) > 40 ? '...' : '' ?>
+                                </p>
+                                <?php endif; ?>
+                            </div>
                         </div>
                         <a href="/views/batch-detail.php?import_source=<?= urlencode($batch['import_source']) ?>" 
-                           class="btn btn-primary w-full text-center">
+                           class="btn btn-primary btn-sm w-full">
                             فتح الدفعة
                         </a>
                     </div>
@@ -217,21 +264,32 @@ $completed = array_filter($batches, fn($b) => $b['status'] === 'completed');
                 </div>
             <?php else: ?>
                 <div class="batch-grid">
-                    <?php foreach ($completed as $batch): ?>
+                    <?php foreach ($completed as $batch): 
+                        $isExcel = strpos($batch['import_source'], 'excel_') === 0;
+                        $typeIcon = $isExcel ? '📄' : '📝';
+                    ?>
                     <div class="batch-card completed">
-                        <div class="flex justify-between items-start mb-2">
-                            <h3 class="batch-card-title text-muted">
-                                <?= htmlspecialchars($batch['batch_name']) ?>
-                            </h3>
-                            <span class="badge badge-neutral" style="font-size: var(--font-size-xs);">مغلقة</span>
-                        </div>
-                        <div class="batch-info">
-                            <p>📦 <?= $batch['guarantee_count'] ?> ضمان</p>
-                            <p>📅 <?= date('Y-m-d', strtotime($batch['created_at'])) ?></p>
+                        <div>
+                            <div class="batch-card-header">
+                                <h3 class="batch-card-title text-muted">
+                                    <?= htmlspecialchars($batch['batch_name']) ?>
+                                </h3>
+                                <span class="batch-type-icon" style="filter: grayscale(1);">
+                                    <?= $typeIcon ?>
+                                </span>
+                            </div>
+                            <div class="batch-info">
+                                <div class="batch-meta-item">
+                                    <span>📦 <?= $batch['guarantee_count'] ?> ضمان</span>
+                                </div>
+                                <div class="batch-meta-item">
+                                    <span>📅 <?= date('Y-m-d', strtotime($batch['created_at'])) ?></span>
+                                </div>
+                            </div>
                         </div>
                         <a href="/views/batch-detail.php?import_source=<?= urlencode($batch['import_source']) ?>" 
-                           class="btn btn-secondary w-full text-center">
-                            عرض
+                           class="btn btn-secondary btn-sm w-full">
+                            عرض التفاصيل
                         </a>
                     </div>
                     <?php endforeach; ?>

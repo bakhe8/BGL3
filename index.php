@@ -57,6 +57,27 @@ if ($requestedId) {
 
 // If not found or no ID specified, get first record matching the filter
 if (!$currentRecord) {
+    // Check for Jump To Index
+    if (isset($_GET['jump_to_index'])) {
+        $jumpIndex = (int)$_GET['jump_to_index'];
+        $targetId = \App\Services\NavigationService::getIdByIndex($db, $jumpIndex, $statusFilter, $searchTerm);
+        
+        // Preserve current filters in redirect
+        $queryParams = [];
+        if ($statusFilter !== 'all') $queryParams['filter'] = $statusFilter;
+        if ($searchTerm) $queryParams['search'] = $searchTerm;
+        
+        if ($targetId) {
+            $queryParams['id'] = $targetId;
+        } else {
+            // Out of bounds? Fallback to first
+        }
+        
+        $redirectUrl = 'index.php?' . http_build_query($queryParams);
+        header("Location: $redirectUrl");
+        exit;
+    }
+
     // Build query based on status filter
     // ✅ SEARCH LOGIC: If search parameter exists, we ignore status filters temporarily or combine them
     
@@ -418,9 +439,21 @@ $formattedSuppliers = array_map(function($s) {
                         ← السابق
                     </button>
                     
-                    <span class="record-position" style="font-size: 14px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">
-                        <?= $currentIndex ?> / <?= $totalRecords ?>
-                    </span>
+                    <div class="record-position" style="display: flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--text-secondary); white-space: nowrap;">
+                        <form action="index.php" method="GET" style="display: inline-flex; align-items: center; margin: 0;">
+                            <?php if($statusFilter !== 'all'): ?><input type="hidden" name="filter" value="<?= $statusFilter ?>"><?php endif; ?>
+                            <?php if($searchTerm): ?><input type="hidden" name="search" value="<?= htmlspecialchars($searchTerm) ?>"><?php endif; ?>
+                            <input type="number" 
+                                   name="jump_to_index" 
+                                   value="<?= $currentIndex ?>" 
+                                   min="1" 
+                                   max="<?= $totalRecords ?>"
+                                   style="width: 45px; text-align: center; border: 1px solid #d1d5db; border-radius: 4px; padding: 2px 0; font-weight: bold; font-family: inherit; -moz-appearance: textfield; appearance: textfield;"
+                                   onfocus="this.select()"
+                            >
+                        </form>
+                        <span>/ <?= $totalRecords ?></span>
+                    </div>
                     
                     <button class="btn btn-ghost btn-sm" 
                             onclick="window.location.href='?id=<?= $nextId ?? '' ?>&filter=<?= $statusFilter ?>&search=<?= urlencode($searchTerm ?? '') ?>'"
@@ -527,10 +560,12 @@ $formattedSuppliers = array_map(function($s) {
 
                     <!-- Preview Section - Lifecycle Gate -->
                     <?php if ($mockRecord['status'] === 'ready'): ?>
-                        <?php 
-                        $showPlaceholder = true;
-                        require __DIR__ . '/partials/letter-renderer.php'; 
-                        ?>
+                        <div id="preview-section">
+                            <?php 
+                            $showPlaceholder = true;
+                            require __DIR__ . '/partials/letter-renderer.php'; 
+                            ?>
+                        </div>
                     <?php endif; ?>
 
                 </main>

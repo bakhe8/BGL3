@@ -80,7 +80,7 @@
         <div class="preview-subject">
             <div class="preview-subject-label">الموضوع<span class="symbol">:</span>&nbsp;</div>
             <div class="preview-subject-text">
-                <?= $subject_parts['text'] ?> الضمان البنكي رقم (<span dir="ltr" style="display:inline-block;"><?= $subject_parts['guarantee_number'] ?></span>) والعائد <?= $subject_parts['related_label'] ?> (<span lang="en"><?= $subject_parts['contract_number'] ?></span>).
+                <?= $subject_parts['text'] ?> الضمان البنكي رقم (<span data-preview-target="guarantee_number" lang="en" dir="ltr" style="display:inline-block;"><?= $subject_parts['guarantee_number'] ?></span>) والعائد <span data-preview-target="related_label"><?= $subject_parts['related_label'] ?></span> (<span data-preview-target="contract_number" <?= $relatedTo === 'contract' ? 'lang="en"' : 'lang="ar"' ?>><?= $subject_parts['contract_number'] ?></span>).
             </div>
         </div>
         

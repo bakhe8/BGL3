@@ -52,11 +52,13 @@ try {
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
         'type' => $raw['type'] ?? 'Initial',
+        'related_to' => $raw['related_to'] ?? 'contract',
+        'active_action' => null,
         'status' => 'pending'
     ];
     
     // Check for latest decision
-    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
+    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id, active_action FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
     $stmtDec->execute([$guaranteeId]);
     $lastDecision = $stmtDec->fetch(PDO::FETCH_ASSOC);
     
@@ -64,6 +66,7 @@ try {
         $record['status'] = $lastDecision['status'];
         $record['bank_id'] = $lastDecision['bank_id'];
         $record['supplier_id'] = $lastDecision['supplier_id']; // Ensure ID is set
+        $record['active_action'] = $lastDecision['active_action'];
 
         // Resolve Supplier Name from ID
         if ($record['supplier_id']) {

@@ -71,7 +71,9 @@ class LetterBuilder
             'text' => $actionTexts[$action] ?? '',
             'guarantee_number' => htmlspecialchars($data['guarantee_number'] ?? ''),
             'related_label' => $relatedTo === 'purchase_order' ? 'لأمر الشراء رقم' : 'للعقد رقم',
-            'contract_number' => htmlspecialchars($data['contract_number'] ?? ''),
+            'contract_number' => $relatedTo === 'purchase_order' 
+                ? PreviewFormatter::toArabicNumerals(htmlspecialchars($data['contract_number'] ?? ''))
+                : htmlspecialchars($data['contract_number'] ?? ''),
         ];
     }
     

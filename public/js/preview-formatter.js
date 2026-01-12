@@ -50,14 +50,16 @@ if (!window.PreviewFormatter) {
                     continue;
                 }
 
-                // Check if element has lang="en" and contains letters (mixed content)
+                // ✅ TRUST EXPLICIT LANG
                 if (parent && parent.getAttribute('lang') === 'en') {
-                    const fullText = parent.textContent.trim();
-                    // If contains any letters (A-Z), keep as English - don't convert digits
-                    if (/[A-Za-z]/.test(fullText)) {
-                        elementsToKeepEnglish.add(parent);
-                        continue;
-                    }
+                    elementsToKeepEnglish.add(parent);
+                    continue;
+                }
+
+                // 🔄 FORCE CONVERSION FOR LANG="AR"
+                // If it was previously 'en' but now 'ar', we MUST convert
+                if (parent && parent.getAttribute('lang') === 'ar') {
+                    // No-op, just ensure it falls through to elementsToConvert
                 }
 
                 if (/\d/.test(current.nodeValue)) {
@@ -73,10 +75,9 @@ if (!window.PreviewFormatter) {
                 }
                 item.node.nodeValue = toEasternDigits(item.node.nodeValue);
 
-                // Remove lang=en from parent if it was pure numbers
+                // Remove lang=en from parent if it was pure numbers (fallback for auto-detect)
                 if (item.parent && item.parent.getAttribute('lang') === 'en') {
                     const text = item.parent.textContent.trim();
-                    // If text is only Arabic numerals now, remove lang=en
                     if (/^[٠-٩\s\.\-\/\(\)]+$/.test(text)) {
                         item.parent.removeAttribute('lang');
                     }
@@ -92,7 +93,8 @@ if (!window.PreviewFormatter) {
             if (!root) return;
 
             // Regex for detecting primarily English text (Latin characters)
-            const englishPattern = /^[A-Za-z0-9\s\.\,\-\_\@\#\$\%\&\*\(\)\[\]\{\}\:\;\"\'\<\>\/\\\+\=\!\?\|\~\`]+$/;
+            // ✅ FIX: Require at least one letter [A-Za-z] to avoid misidentifying PO numbers
+            const englishPattern = /^(?=.*[A-Za-z])[A-Za-z0-9\s\.\,\-\_\@\#\$\%\&\*\(\)\[\]\{\}\:\;\"\'\<\>\/\\\+\=\!\?\|\~\`]+$/;
 
             // Get all text-containing elements
             const elements = root.querySelectorAll('span, div, p');
@@ -184,8 +186,11 @@ if (!window.PreviewFormatter) {
             }
 
             // Apply formatting in order
-            convertDigitsInNode(root);
+            // ✅ FIX: Mark English first to establish context
             markEnglishText(root);
+
+            // ✅ Then convert digits, respecting the lang="en" established above
+            convertDigitsInNode(root);
         }
 
         // ========================

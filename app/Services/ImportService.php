@@ -170,9 +170,6 @@ class ImportService
                     // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
                     $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
                     $imported++;
-                    // ✅ ARCHITECTURAL ENFORCEMENT: Use Post-Persist State from Repository Object
-                    $importedIdsWithData[] = ['id' => $created->id, 'raw_data' => $created->rawData]; 
-                    $imported++;
                     
                 } catch (\PDOException $e) {
                     // Decision #6: Handle duplicate guarantees
@@ -257,8 +254,8 @@ class ImportService
             'related_to' => $data['related_to'] ?? 'contract', // 🔥 NEW
         ];
 
-        // Decision #11: Daily batch for manual entry (not per-entry)
-        $batchIdentifier = 'manual_' . date('Ymd');  // Daily batch
+        // Decision #11: Daily batch for manual & paste entry (unified)
+        $batchIdentifier = 'manual_paste_' . date('Ymd');  // Daily batch
 
         $guarantee = new Guarantee(
             id: null,
@@ -542,7 +539,7 @@ class ImportService
      * Record a physical occurrence of a guarantee in a batch
      * This is the "Batch as Context" enabler.
      */
-    private function recordOccurrence(int $guaranteeId, string $batchIdentifier, string $type): void
+    public static function recordOccurrence(int $guaranteeId, string $batchIdentifier, string $type): void
     {
         $db = Database::connect();
         // Check if already exists in this batch (idempotency within same batch)

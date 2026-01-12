@@ -506,6 +506,10 @@ class TimelineRecorder {
             return false;
         }
         
+        // ✅ FIX: Fetch fresh snapshot to capture the state AFTER the change 
+        // This ensures 'Status Change' events reflect matched supplier/bank names
+        $currentSnapshot = self::createSnapshot($guaranteeId);
+        
         $changes = [[
             'field' => 'status',
             'old_value' => $oldStatus,
@@ -517,7 +521,7 @@ class TimelineRecorder {
         $extra = ['reason' => $reason];
 
         // SE events are System attributed usually.
-        return self::recordEvent($guaranteeId, 'status_change', $oldSnapshot, $changes, 'System', $extra, 'status_change');
+        return self::recordEvent($guaranteeId, 'status_change', $currentSnapshot, $changes, 'System', $extra, 'status_change');
     }
     
     /**

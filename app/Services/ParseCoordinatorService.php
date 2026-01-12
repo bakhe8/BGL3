@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace App\Services;
 
 use PDO;
+use App\Services\ImportService;
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
 use App\Support\TypeNormalizer;
@@ -311,19 +312,14 @@ class ParseCoordinatorService
         // Check if exists
         $existing = $repo->findByNumber($rowData['guarantee_number']);
         if ($existing) {
-            // Record duplicate import event
-            try {
-                \App\Services\TimelineRecorder::recordDuplicateImportEvent($existing->id, $source);
-            } catch (\Throwable $t) {
-                error_log("Failed to record duplicate import: " . $t->getMessage());
-            }
-            
             return [
                 'id' => $existing->id,
                 'guarantee_number' => $rowData['guarantee_number'],
                 'exists_before' => true
             ];
         }
+        
+        $batchId = 'manual_paste_' . date('Ymd');
         
         // Create new
         $rawData = [
@@ -342,12 +338,15 @@ class ParseCoordinatorService
             id: null,
             guaranteeNumber: $rowData['guarantee_number'],
             rawData: $rawData,
-            importSource: $source === 'smart_paste_multi' ? 'Smart Paste (Multi) ' . date('Y-m-d H:i') : 'Smart Paste (' . date('Y-m-d H:i') . ')',
+            importSource: $batchId,
             importedAt: date('Y-m-d H:i:s'),
             importedBy: 'Web User'
         );
         
         $saved = $repo->create($guaranteeModel);
+
+        // ✅ Record Occurrence
+        ImportService::recordOccurrence($saved->id, $batchId, 'smart_paste');
         
         // Record history event
         try {
@@ -405,16 +404,21 @@ class ParseCoordinatorService
             'detected_intent' => $extracted['intent']
         ];
         
+        $batchId = 'manual_paste_' . date('Ymd');
+
         $guaranteeModel = new Guarantee(
             id: null,
             guaranteeNumber: $extracted['guarantee_number'],
             rawData: $rawData,
-            importSource: 'Smart Paste (' . date('Y-m-d H:i') . ')',
+            importSource: $batchId,
             importedAt: date('Y-m-d H:i:s'),
             importedBy: 'Web User'
         );
         
         $saved = $repo->create($guaranteeModel);
+
+        // ✅ Record Occurrence
+        ImportService::recordOccurrence($saved->id, $batchId, 'smart_paste');
         
         // Record history
         try {

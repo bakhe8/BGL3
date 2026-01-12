@@ -241,46 +241,31 @@ if (!window.RecordsController) {
                 const target = document.querySelector(`[data-preview-target="${fieldName}"]`);
                 if (target && fieldValue) {
                     target.textContent = fieldValue;
+
+                    // ✨ SPECIFIC SYNC: Handle Contract vs PO target attributes
+                    if (fieldName === 'contract_number') {
+                        const relatedToInput = document.getElementById('relatedTo');
+                        const relatedTo = relatedToInput ? relatedToInput.value : 'contract';
+
+                        // 1. Update Lang Attribute: Contract=EN, PO=AR
+                        target.setAttribute('lang', relatedTo === 'contract' ? 'en' : 'ar');
+
+                        // 2. Update Label: Contract=للعقد رقم, PO=لأمر الشراء رقم
+                        const labelTarget = document.querySelector('[data-preview-target="related_label"]');
+                        if (labelTarget) {
+                            labelTarget.textContent = (relatedTo === 'purchase_order') ? 'لأمر الشراء رقم' : 'للعقد رقم';
+                        }
+                    }
                 }
             });
 
-            // ✨ Apply letter formatting after all updates (Arabic numerals, etc.)
-            this.applyLetterFormatting();
-        }
-
-        /**
-         * Convert Western numerals (0-9) to Arabic-Indic numerals (٠-٩)
-         * Applied to letter preview to maintain consistent formatting
-         */
-        convertToArabicNumerals(text) {
-            if (!text) return text;
-            const arabicNumerals = ['٠', '١', '٢', '٣', '٤', '٥', '٦', '٧', '٨', '٩'];
-            return text.toString().replace(/\d/g, d => arabicNumerals[parseInt(d)]);
-        }
-
-        /**
-         * Apply Arabic numeral formatting to letter preview
-         * Called after updatePreviewFromDOM to ensure consistent formatting
-         */
-        applyLetterFormatting() {
-            // Convert numerals in amount field
-            const amountEl = document.querySelector('[data-preview-target="amount"]');
-            if (amountEl && amountEl.textContent) {
-                const formatted = this.convertToArabicNumerals(amountEl.textContent);
-                amountEl.textContent = formatted;
+            // ✨ Apply centralized letter formatting after all updates
+            if (window.PreviewFormatter) {
+                window.PreviewFormatter.applyFormatting();
             }
-
-            // Convert numerals in PO Box
-            const poBox = document.querySelector('[data-field="bankPoBox"]');
-            if (poBox && poBox.textContent) {
-                const formatted = this.convertToArabicNumerals(poBox.textContent);
-                poBox.textContent = formatted;
-            }
-
-            // Note: Dates intentionally use Western numerals as per design
-            // Example: "1 يونيو 2030" is correct
         }
 
+        // Standard helpers
         formatArabicDate(dateStr, arabicMonths) {
             if (!dateStr) return '';
 
@@ -397,7 +382,12 @@ if (!window.RecordsController) {
 
 
         // Save and proceed
-        async saveAndNext() {
+        async saveAndNext(target) {
+            if (target) {
+                const originalContent = target.innerHTML;
+                target.disabled = true;
+                target.innerHTML = '⌛ جاري الحفظ...';
+            }
             const recordIdEl = document.querySelector('[data-record-id]');
             if (!recordIdEl) {
                 this.showToast('خطأ: لا يوجد سجل', 'error');
@@ -414,10 +404,11 @@ if (!window.RecordsController) {
                 supplier_id: document.getElementById('supplierIdHidden')?.value || null,
                 supplier_name: document.getElementById('supplierInput')?.value || '',
                 current_index: document.querySelector('[data-record-index]')?.dataset.recordIndex || 1,
-                status_filter: statusFilter // ✅ FIX: Send current filter to backend
+                status_filter: statusFilter
             };
 
 
+            let data = null;
             try {
                 const response = await fetch('/api/save-and-next.php', {
                     method: 'POST',
@@ -425,11 +416,16 @@ if (!window.RecordsController) {
                     body: JSON.stringify(payload)
                 });
 
-                const data = await response.json();
+                data = await response.json();
 
                 if (data.success) {
                     if (data.finished) {
                         this.showToast(data.message || 'تم الانتهاء من جميع السجلات', 'success');
+
+                        // ✅ FIX: Redirect to clear the current record from view and show next or empty state
+                        setTimeout(() => {
+                            window.location.href = `?filter=${statusFilter}`;
+                        }, 1000);
                         return;
                     }
 
@@ -454,6 +450,11 @@ if (!window.RecordsController) {
             } catch (error) {
                 console.error('Save error:', error);
                 this.showToast('فشل الحفظ', 'error');
+            } finally {
+                if (target && (!data || !data.success)) {
+                    target.disabled = false;
+                    target.innerHTML = '💾 حفظ';
+                }
             }
         }
 
@@ -869,6 +870,10 @@ if (!window.RecordsController) {
                 if (recordSection) {
                     recordSection.outerHTML = html;
                 }
+
+                // 🔥 Notify system that Data Card has been updated
+                // This triggers the preview update via the listener in bindGlobalEvents
+                document.dispatchEvent(new CustomEvent('guarantee:updated'));
 
                 // Sync Timeline (if generic timeline exists)
                 // Note: If using Time Machine timeline, it's separate. 

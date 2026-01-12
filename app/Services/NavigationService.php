@@ -188,4 +188,41 @@ class NavigationService
             return null;
         }
     }
+
+    /**
+     * Get ID of guarantee at specific 1-based index in filtered list
+     */
+    public static function getIdByIndex(
+        PDO $db, 
+        int $index, 
+        string $statusFilter = 'all',
+        ?string $searchTerm = null
+    ): ?int {
+        if ($index < 1) return null;
+        
+        $filterConditions = self::buildFilterConditions($statusFilter, $searchTerm);
+        
+        try {
+            // Offset is index - 1
+            $offset = $index - 1;
+            
+            $query = '
+                SELECT g.id FROM guarantees g
+                LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+                LEFT JOIN suppliers s ON d.supplier_id = s.id
+                WHERE 1=1
+            ' . $filterConditions . '
+                ORDER BY g.id ASC
+                LIMIT 1 OFFSET ?
+            ';
+            
+            $stmt = $db->prepare($query);
+            $stmt->execute([$offset]);
+            $result = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            return $result ? (int)$result['id'] : null;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
 }

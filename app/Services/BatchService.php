@@ -365,6 +365,8 @@ class BatchService
         $sourceType = 'unknown';
         if (strpos($importSource, 'excel_') === 0) {
             $sourceType = 'excel';
+        } elseif (strpos($importSource, 'manual_paste_') === 0) {
+            $sourceType = 'manual_paste';
         } elseif (strpos($importSource, 'manual_') === 0) {
             $sourceType = 'manual';
         }

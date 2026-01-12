@@ -28,6 +28,8 @@ $stmt = $db->prepare("
            b.arabic_name as bank_name,
            d.status as decision_status,
            d.active_action,
+           d.supplier_id,
+           d.bank_id,
            o.occurred_at as occurrence_date -- Get specific occurrence time
     FROM guarantees g
     JOIN guarantee_occurrences o ON g.id = o.guarantee_id
@@ -75,8 +77,14 @@ foreach ($guarantees as &$g) {
 unset($g);
 ?>
 <?php 
-// Calculate ready count for UI logic
-$readyCount = count(array_filter($guarantees, fn($g) => ($g['decision_status'] ?? '') === 'ready'));
+// Calculate ready count for UI logic - 
+// MUST match JS logic: supplier_id, bank_id, and active_action required for printing
+$readyCount = count(array_filter($guarantees, fn($g) => 
+    ($g['decision_status'] ?? '') === 'ready' && 
+    $g['supplier_id'] && 
+    $g['bank_id'] && 
+    $g['active_action']
+));
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -268,7 +276,9 @@ $readyCount = count(array_filter($guarantees, fn($g) => ($g['decision_status'] ?
                                     <?= number_format((float)($g['parsed']['amount'] ?? 0), 2) ?>
                                 </td>
                                 <td class="text-center">
-                                    <?php if ($g['decision_status'] === 'ready'): ?>
+                                    <?php 
+                                    $isReady = ($g['decision_status'] === 'ready' && $g['supplier_id'] && $g['bank_id'] && $g['active_action']);
+                                    if ($isReady): ?>
                                         <div class="text-success flex-center gap-1 text-sm font-bold">
                                             <i data-lucide="check" style="width: 14px;"></i> جاهز
                                         </div>
