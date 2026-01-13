@@ -53,9 +53,8 @@
 - الاستيراد من Excel:
   - في `ImportService::importFromExcel` يتم توليد `batchIdentifier` بالصيغة:
     - `excel_YYYYMMDD_HHMMSS_<filename>`
-  - التعريف يُحسب داخل حلقة الصفوف؛ عادة يكون ثابتًا إن لم تتجاوز المعالجة ثانية واحدة،
-    وقد يتغير إذا استغرق الاستيراد أكثر من ثانية.
-  - النتيجة: الاستيراد الواحد غالبًا يُنتج Batch واحد، لكنه ليس مضمونًا عند طول المعالجة.
+  - التعريف يُحسب مرة واحدة لكل عملية استيراد ويُستخدم لكل الصفوف.
+  - النتيجة: الاستيراد الواحد يُنتج Batch واحد بشكل مضمون.
 - الإدخال اليدوي:
   - `manual-entry.php` يستخدم Batch يومي `manual_paste_YYYYMMDD`.
   - `create-guarantee.php` يستخدم `importSource = "Manual Entry"` ولا يكتب Occurrence.

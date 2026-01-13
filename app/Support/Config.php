@@ -5,7 +5,7 @@ namespace App\Support;
 
 class Config
 {
-    public const MATCH_AUTO_THRESHOLD = 90;
+    public const MATCH_AUTO_THRESHOLD = 95;
     public const MATCH_REVIEW_THRESHOLD = 0.70;
 
     // أوزان المصادر

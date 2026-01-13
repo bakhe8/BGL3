@@ -98,6 +98,9 @@ class ImportService
         $errors = [];
         $importedIds = []; // Track IDs for timeline events
         $importedIdsWithData = []; // Track full records for timeline events
+        // Decision #25: One batch per import (fixed identifier for this file)
+        $filenamePart = $originalFilename ? '_' . $this->sanitizeFilename($originalFilename) : '';
+        $batchIdentifier = 'excel_' . date('Ymd_His') . $filenamePart;
 
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2; // Excel row number (1-indexed + header)
@@ -148,8 +151,6 @@ class ImportService
 
                 // Create Guarantee
                 // Decision #1: Add sanitized filename to import_source
-                $filenamePart = $originalFilename ? '_' . $this->sanitizeFilename($originalFilename) : '';
-                $batchIdentifier = 'excel_' . date('Ymd_His') . $filenamePart; // Define batch ID once
                 
                 $guarantee = new Guarantee(
                     id: null,

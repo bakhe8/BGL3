@@ -214,7 +214,7 @@ $currentSettings = $settings->all();
                     <h2 class="card-title">عتبات المطابقة</h2>
                     <div class="form-group">
                         <label class="form-label">عتبة القبول التلقائي</label>
-                        <span class="form-help">MATCH_AUTO_THRESHOLD (>= 90)</span>
+                        <span class="form-help">MATCH_AUTO_THRESHOLD (>= 95)</span>
                         <input type="number" class="form-input" name="MATCH_AUTO_THRESHOLD" value="<?= $currentSettings['MATCH_AUTO_THRESHOLD'] ?>" min="0" max="100" step="1" required>
                     </div>
                     <div class="form-group">

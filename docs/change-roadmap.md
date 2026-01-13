@@ -37,7 +37,7 @@ Decision | Primary files | Risk | Status / notes
 22 (add supplier button) | `public/js/records.controller.js`, `partials/record-form.php` | Low | Description-only; no change.
 23 (bankSelect) | `public/js/records.controller.js`, `partials/record-form.php` | Low | Description-only; no change.
 24 (decision_source/decided_by) | `api/save-and-next.php`, `api/extend.php`, `api/reduce.php`, `api/release.php`, `app/Services/BatchService.php`, `app/Services/SmartProcessingService.php` | High | Implemented in code.
-25 (batch trace) | `app/Services/ImportService.php`, `api/manual-entry.php`, `app/Services/ParseCoordinatorService.php` | Low | Document-only.
+25 (batch trace) | `app/Services/ImportService.php`, `api/manual-entry.php`, `app/Services/ParseCoordinatorService.php` | Low | Implemented: one batch per Excel import (fixed identifier).
 26 (extended/reduced) | `views/batch-detail.php`, `views/index.php` | Low | Description-only; no change.
 27 (batch JSON contract) | `api/batches.php`, `views/batch-detail.php` | Medium | Implemented in code.
 
@@ -104,7 +104,7 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 
 ### Settings UI
 - Steps:
-  - Set `MATCH_AUTO_THRESHOLD` to a known value (e.g., 90).
+- Set `MATCH_AUTO_THRESHOLD` to a known value (e.g., 95).
   - Save and reopen settings.
 - Expected:
   - Value persists and is used in matching logic.

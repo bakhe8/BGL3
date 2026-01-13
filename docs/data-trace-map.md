@@ -74,9 +74,9 @@ Raw input "ACME CO" -> Authority computes confidence 92 -> API returns `score: 9
 
 ## 4) MATCH_AUTO_THRESHOLD (runtime value and usage)
 Runtime value:
-- Defaults to `90` via `Config::MATCH_AUTO_THRESHOLD` `app/Support/Config.php:8`.
+- Defaults to `95` via `Config::MATCH_AUTO_THRESHOLD` `app/Support/Config.php:8`.
 - If `storage/settings.json` exists, `Settings::get` loads it and normalizes 0-1 values to 0-100 in `app/Support/Settings.php:82`.
-- In this repo, `storage/settings.json` is not present, so default `90` is used at runtime.
+- In this repo, `storage/settings.json` is not present, so default `95` is used at runtime.
 
 Where it is applied:
 - Auto-approval gate in `SmartProcessingService::evaluateTrust` `app/Services/SmartProcessingService.php:417`

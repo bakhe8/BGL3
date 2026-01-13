@@ -11,7 +11,7 @@
  * 
  * MATCHING THRESHOLDS EXPLAINED:
  * ------------------------------
- * - MATCH_AUTO_THRESHOLD (90): Scores >= 90 are auto-accepted
+ * - MATCH_AUTO_THRESHOLD (95): Scores >= 95 are auto-accepted
  * - MATCH_REVIEW_THRESHOLD (0.70): Scores < 70% are HIDDEN from suggestions
  * - MATCH_WEAK_THRESHOLD (0.70): Same as Review (kept for backward compat)
  * 
@@ -35,7 +35,7 @@ class Settings
      */
     private array $defaults = [
         // Matching Thresholds
-        'MATCH_AUTO_THRESHOLD' => Config::MATCH_AUTO_THRESHOLD,      // 90 - Auto-accept without review
+        'MATCH_AUTO_THRESHOLD' => Config::MATCH_AUTO_THRESHOLD,      // 95 - Auto-accept without review
         'MATCH_REVIEW_THRESHOLD' => Config::MATCH_REVIEW_THRESHOLD,  // 0.70 - Minimum to show in list
         'MATCH_WEAK_THRESHOLD' => 0.70,                              // Synced with Review Threshold
         'BANK_FUZZY_THRESHOLD' => 0.95,                              // Bank fuzzy match threshold
