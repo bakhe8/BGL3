@@ -52,7 +52,6 @@ $mockCandidates = [
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     
     <!-- App Logic -->
-    <script defer src="public/js/app.js"></script>
     
     <style>
         /* CSS Variables (Keep original design system) */
