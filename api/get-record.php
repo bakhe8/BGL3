@@ -25,6 +25,55 @@ try {
     $settings = new Settings();
     $autoThreshold = $settings->get('MATCH_AUTO_THRESHOLD', 90);
     $guaranteeRepo = new GuaranteeRepository($db);
+
+    $upsertDecision = function (
+        int $guaranteeId,
+        ?int $supplierId,
+        ?int $bankId,
+        string $status,
+        string $decisionSource
+    ) use ($db): void {
+        $now = date('Y-m-d H:i:s');
+        $chk = $db->prepare('SELECT id FROM guarantee_decisions WHERE guarantee_id = ?');
+        $chk->execute([$guaranteeId]);
+        $exists = $chk->fetchColumn();
+
+        if ($exists) {
+            $stmt = $db->prepare('
+                UPDATE guarantee_decisions
+                SET supplier_id = ?,
+                    bank_id = ?,
+                    status = ?,
+                    decision_source = ?,
+                    decided_at = ?,
+                    last_modified_at = CURRENT_TIMESTAMP
+                WHERE guarantee_id = ?
+            ');
+            $stmt->execute([
+                $supplierId,
+                $bankId,
+                $status,
+                $decisionSource,
+                $now,
+                $guaranteeId
+            ]);
+            return;
+        }
+
+        $stmt = $db->prepare('
+            INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        ');
+        $stmt->execute([
+            $guaranteeId,
+            $supplierId,
+            $bankId,
+            $status,
+            $now,
+            $decisionSource,
+            $now
+        ]);
+    };
     
     // Get all guarantees IDs
     $stmt = $db->query('SELECT id FROM guarantees ORDER BY imported_at DESC LIMIT 100');
@@ -227,19 +276,7 @@ try {
                             
                             $newStatus = ($top['id'] && $bankId) ? 'ready' : 'pending';
 
-                            $stmt = $db->prepare('
-                                INSERT OR REPLACE INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            ');
-                            $stmt->execute([
-                                $guaranteeId,
-                                $top['id'],
-                                $bankId,
-                                $newStatus,
-                                date('Y-m-d H:i:s'),
-                                'auto',
-                                date('Y-m-d H:i:s')
-                            ]);
+                            $upsertDecision($guaranteeId, $top['id'], $bankId, $newStatus, 'auto');
 
                             Logger::info('auto_match_decision', [
                                 'guarantee_id' => $guaranteeId,
@@ -313,20 +350,7 @@ try {
                             
                             $newStatus = ($supplierId && $bank['id']) ? 'ready' : 'pending';
                             
-                            $stmt = $db->prepare('
-                                INSERT OR REPLACE INTO guarantee_decisions 
-                                (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, created_at)
-                                VALUES (?, ?, ?, ?, ?, ?, ?)
-                            ');
-                            $stmt->execute([
-                                $guaranteeId,
-                                $supplierId,
-                                $bank['id'],
-                                $newStatus,
-                                date('Y-m-d H:i:s'),
-                                'auto',
-                                date('Y-m-d H:i:s')
-                            ]);
+                            $upsertDecision($guaranteeId, $supplierId, $bank['id'], $newStatus, 'auto');
 
                             Logger::info('auto_match_decision', [
                                 'guarantee_id' => $guaranteeId,

@@ -257,6 +257,35 @@ class SmartProcessingService
         // Explicit type safety - ensure integers
         $supplierIdSafe = (int)$supplierId;
         $bankIdSafe = (int)$bankId;
+        $now = date('Y-m-d H:i:s');
+        $existing = $this->fetchDecisionRow($guaranteeId);
+
+        if ($existing) {
+            $stmt = $this->db->prepare("
+                UPDATE guarantee_decisions
+                SET supplier_id = ?,
+                    bank_id = ?,
+                    status = 'ready',
+                    decision_source = ?,
+                    decided_by = ?,
+                    confidence_score = ?,
+                    decided_at = ?,
+                    last_modified_at = CURRENT_TIMESTAMP,
+                    last_modified_by = ?
+                WHERE guarantee_id = ?
+            ");
+            $stmt->execute([
+                $supplierIdSafe,
+                $bankIdSafe,
+                $this->decisionSource,
+                $this->decidedBy,
+                $confidence,
+                $now,
+                $this->decidedBy,
+                $guaranteeId
+            ]);
+            return;
+        }
         
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decision_source, decided_by, confidence_score, created_at)
@@ -269,7 +298,7 @@ class SmartProcessingService
             $this->decisionSource,
             $this->decidedBy,
             $confidence,
-            date('Y-m-d H:i:s')
+            $now
         ]);
     }
 
@@ -278,11 +307,39 @@ class SmartProcessingService
      */
     private function createBankOnlyDecision(int $guaranteeId, int $bankId): void
     {
+        $now = date('Y-m-d H:i:s');
+        $existing = $this->fetchDecisionRow($guaranteeId);
+
+        if ($existing) {
+            $supplierId = $existing['supplier_id'] ? (int)$existing['supplier_id'] : null;
+            $status = $supplierId ? 'ready' : 'pending';
+            $stmt = $this->db->prepare("
+                UPDATE guarantee_decisions
+                SET bank_id = ?,
+                    status = ?,
+                    decision_source = ?,
+                    decided_by = ?,
+                    decided_at = ?,
+                    last_modified_at = CURRENT_TIMESTAMP,
+                    last_modified_by = ?
+                WHERE guarantee_id = ?
+            ");
+            $stmt->execute([
+                (int)$bankId,
+                $status,
+                $this->decisionSource,
+                $this->decidedBy,
+                $now,
+                $this->decidedBy,
+                $guaranteeId
+            ]);
+            return;
+        }
+
         $stmt = $this->db->prepare("
             INSERT INTO guarantee_decisions (guarantee_id, bank_id, status, decision_source, decided_by, decided_at, created_at)
             VALUES (?, ?, 'pending', ?, ?, ?, ?)
         ");
-        $now = date('Y-m-d H:i:s');
         $stmt->execute([
             $guaranteeId,
             (int)$bankId,
@@ -291,6 +348,14 @@ class SmartProcessingService
             $now,
             $now
         ]);
+    }
+
+    private function fetchDecisionRow(int $guaranteeId): ?array
+    {
+        $stmt = $this->db->prepare("SELECT supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? LIMIT 1");
+        $stmt->execute([$guaranteeId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row ?: null;
     }
 
     /**
