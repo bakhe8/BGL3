@@ -137,7 +137,7 @@ try {
     $changes = [];
     
     // Determine old state (last decision > raw data)
-    $lastDecStmt = $db->prepare('SELECT supplier_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
+    $lastDecStmt = $db->prepare('SELECT supplier_id FROM guarantee_decisions WHERE guarantee_id = ? LIMIT 1');
     $lastDecStmt->execute([$guaranteeId]);
     $prevDecision = $lastDecStmt->fetch(PDO::FETCH_ASSOC);
     
@@ -403,8 +403,8 @@ try {
         'status' => 'pending'
     ];
     
-    // Check for latest decision
-    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
+    // Check for decision row (single-row policy)
+    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id FROM guarantee_decisions WHERE guarantee_id = ? LIMIT 1');
     $stmtDec->execute([$nextGuaranteeId]);
     $lastDecision = $stmtDec->fetch(PDO::FETCH_ASSOC);
     

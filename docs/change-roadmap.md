@@ -179,7 +179,7 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 - Constraint: `guarantee_decisions` enforces `UNIQUE(guarantee_id)` in schema.
 - Rule: one row per guarantee; all writes must update that row (or upsert if missing).
 - Guidance:
-  - If issues occur, verify there is only one decision row for the guarantee and that it holds the latest supplier_id/bank_id.
+- If issues occur, verify there is only one decision row for the guarantee and that it holds the current supplier_id/bank_id.
 
 ## 10) Manual test case (design-only)
 - Goal: verify single-row update across bank-only -> full decision.

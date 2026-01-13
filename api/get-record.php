@@ -110,8 +110,8 @@ try {
         'status' => 'pending'
     ];
     
-    // Check for latest decision
-    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id, active_action FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1');
+    // Check for decision row (single-row policy)
+    $stmtDec = $db->prepare('SELECT status, supplier_id, bank_id, active_action FROM guarantee_decisions WHERE guarantee_id = ? LIMIT 1');
     $stmtDec->execute([$guaranteeId]);
     $lastDecision = $stmtDec->fetch(PDO::FETCH_ASSOC);
     

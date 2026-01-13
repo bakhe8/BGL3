@@ -34,10 +34,8 @@ $stmt = $db->prepare("
     FROM guarantees g
     JOIN guarantee_occurrences o ON g.id = o.guarantee_id
     
-    -- 1. Get Latest Decision (To ensure we show what the user actually saved)
-    LEFT JOIN guarantee_decisions d ON d.id = (
-        SELECT MAX(id) FROM guarantee_decisions WHERE guarantee_id = g.id
-    )
+    -- 1. Decision row (single-row per guarantee)
+    LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
     
     -- 2. Join Supplier from Decision (Highest Priority)
     LEFT JOIN suppliers s_decided ON d.supplier_id = s_decided.id

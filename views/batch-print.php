@@ -164,7 +164,7 @@ $supplierRepo = new SupplierRepository();
             continue;
 
         // Load decision data
-        $decisionStmt = $db->prepare("SELECT * FROM guarantee_decisions WHERE guarantee_id = ? ORDER BY id DESC LIMIT 1");
+        $decisionStmt = $db->prepare("SELECT * FROM guarantee_decisions WHERE guarantee_id = ? LIMIT 1");
         $decisionStmt->execute([$guaranteeId]);
         $decision = $decisionStmt->fetch(PDO::FETCH_ASSOC);
 
