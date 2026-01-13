@@ -596,7 +596,7 @@ $currentSettings = $settings->all();
              data.is_confirmed = form.is_confirmed.value == '1';
 
             try {
-                const response = await fetch('../api/create_supplier.php', {
+                const response = await fetch('../api/create-supplier.php', {
                     method: 'POST', body: JSON.stringify(data), headers: {'Content-Type': 'application/json'}
                 });
                 const result = await response.json();

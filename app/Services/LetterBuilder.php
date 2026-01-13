@@ -27,7 +27,7 @@ class LetterBuilder
     {
         // Extract related_to (contract or purchase_order)
         $relatedTo = $guaranteeData['related_to'] ?? 'contract';
-        
+
         return [
             'header' => self::buildHeader($guaranteeData),
             'subject' => self::buildSubjectString($guaranteeData, $action, $relatedTo),
@@ -39,7 +39,7 @@ class LetterBuilder
             'relatedTo' => $relatedTo,
         ];
     }
-    
+
     /**
      * Build header: Bank name + Bank details
      */
@@ -49,13 +49,13 @@ class LetterBuilder
             'bank_name' => $data['bank_name'] ?? '',
             'bank_center' => $data['bank_center'] ?? '',
             // Clean duplicate "ص.ب" prefixes if present in data
-            'bank_po_box' => isset($data['bank_po_box']) 
-                ? str_replace(['ص.ب.', 'ص.ب', 'P.O. Box', 'PO Box'], '', PreviewFormatter::toArabicNumerals($data['bank_po_box'])) 
+            'bank_po_box' => isset($data['bank_po_box'])
+                ? str_replace(['ص.ب.', 'ص.ب', 'P.O. Box', 'PO Box'], '', PreviewFormatter::toArabicNumerals($data['bank_po_box']))
                 : '',
             'bank_email' => $data['bank_email'] ?? '',
         ];
     }
-    
+
     /**
      * Build subject line as structured parts (for template with lang attributes)
      */
@@ -66,17 +66,17 @@ class LetterBuilder
             'reduction' => 'طلب تخفيض',
             'release' => 'الإفراج عن',
         ];
-        
+
         return [
             'text' => $actionTexts[$action] ?? '',
             'guarantee_number' => htmlspecialchars($data['guarantee_number'] ?? ''),
             'related_label' => $relatedTo === 'purchase_order' ? 'لأمر الشراء رقم' : 'للعقد رقم',
-            'contract_number' => $relatedTo === 'purchase_order' 
+            'contract_number' => $relatedTo === 'purchase_order'
                 ? PreviewFormatter::toArabicNumerals(htmlspecialchars($data['contract_number'] ?? ''))
                 : htmlspecialchars($data['contract_number'] ?? ''),
         ];
     }
-    
+
     /**
      * Build subject line as plain string (for backward compatibility)
      */
@@ -91,7 +91,7 @@ class LetterBuilder
             $parts['contract_number']
         );
     }
-    
+
     /**
      * Build content: Paragraphs, address box, etc.
      * 
@@ -103,28 +103,28 @@ class LetterBuilder
         switch ($action) {
             case 'release':
                 return self::buildReleaseContent($data);
-            
+
             case 'extension':
             case 'reduction':
                 return self::buildExtensionContent($data);
-            
+
             // 🔮 Future actions can be added here:
             // case 'amendment':
             //     return self::buildAmendmentContent($data);
-            
+
             default:
                 // Fallback: Use extension format for unknown actions
                 return self::buildExtensionContent($data);
         }
     }
-    
+
     /**
      * Content for Release letters
      */
     private static function buildReleaseContent(array $data): array
     {
         $supplierName = htmlspecialchars($data['supplier_name'] ?? '');
-        
+
         return [
             'paragraphs' => [
                 "بهذا نعيد إليكم أصل الضمان البنكي المذكور أعلاه والصادر منكم لصالحنا على حساب <span>{$supplierName}</span>، وذلك لانتهاء الغرض منه."
@@ -132,7 +132,7 @@ class LetterBuilder
             'has_address_box' => false,
         ];
     }
-    
+
     /**
      * Content for Extension / Reduction letters
      * 
@@ -148,31 +148,31 @@ class LetterBuilder
         // - Default → "إشارة إلى الضمان البنكي الموضح أعلاه"
         $rawType = trim($data['type'] ?? '');
         $introPhrase = PreviewFormatter::getIntroPhrase($rawType);
-        
+
         $supplierName = htmlspecialchars($data['supplier_name'] ?? '');
         $arabicAmount = PreviewFormatter::toArabicNumerals(
-            number_format((float)($data['amount'] ?? 0), 2)
+            number_format((float) ($data['amount'] ?? 0), 2)
         );
         $formattedExpiry = PreviewFormatter::formatArabicDate($data['expiry_date'] ?? '');
-        
+
         // First paragraph
         $paragraph1 = sprintf(
-            '<span>%s</span>، والصادر منكم لصالحنا على حساب شركة <span>%s</span> بمبلغ قدره (<span>%s</span>)، نأمل منكم <span class="signature-style">تمديد فترة سريان الضمان حتى تاريخ <span>%s</span>م</span> مع بقاء الشروط الأخرى دون تغيير، وإفادتنا بذلك من خلال البريد الإلكتروني المخصص للضمانات البنكية لدى مستشفى الملك فيصل التخصصي ومركز الأبحاث بالرياض (<span lang="en">bgfinance@kfshrc.edu.sa</span>)، كما نأمل منكم إرسال أصل تمديد الضمان إلى العنوان التالي:',
+            '<span>%s</span>، والصادر منكم لصالحنا على حساب <span>%s</span> بمبلغ قدره (<span>%s</span>)، نأمل منكم <span class="signature-style">تمديد فترة سريان الضمان حتى تاريخ <span>%s</span>م</span> مع بقاء الشروط الأخرى دون تغيير، وإفادتنا بذلك من خلال البريد الإلكتروني المخصص للضمانات البنكية لدى مستشفى الملك فيصل التخصصي ومركز الأبحاث بالرياض (<span lang="en">bgfinance@kfshrc.edu.sa</span>)، كما نأمل منكم إرسال أصل تمديد الضمان إلى العنوان التالي:',
             $introPhrase,
             $supplierName,
             $arabicAmount,
             $formattedExpiry
         );
-        
+
         // Second paragraph
         $paragraph2 = 'علمًا بأنه في حال عدم تمكن البنك من تمديد الضمان المذكور قبل انتهاء مدة سريانه فيجب على البنك دفع قيمة الضمان إلينا حسب النظام.';
-        
+
         return [
             'paragraphs' => [$paragraph1, $paragraph2],
             'has_address_box' => true,
         ];
     }
-    
+
     /**
      * Get signature based on action type
      * 
@@ -188,7 +188,7 @@ class LetterBuilder
                 'margin_top' => '3em',
             ];
         }
-        
+
         // Default signature (for extension, reduction, etc.)
         return [
             'title' => 'مُدير الإدارة العامَّة للعمليَّات المحاسبيَّة',
@@ -196,7 +196,7 @@ class LetterBuilder
             'margin_top' => '3em',
         ];
     }
-    
+
     /**
      * Build CC section (only for release action)
      * 
@@ -208,11 +208,11 @@ class LetterBuilder
         if ($action !== 'release') {
             return null;
         }
-        
+
         // Department label based on related_to
         $departmentLabel = $relatedTo === 'purchase_order' ? 'إدارة المشتريات' : 'إدارة العقود';
         $supplierName = htmlspecialchars($data['supplier_name'] ?? '');
-        
+
         return [
             'recipients' => [
                 $departmentLabel,
@@ -220,7 +220,7 @@ class LetterBuilder
             ]
         ];
     }
-    
+
     /**
      * Render letter HTML using template
      * 

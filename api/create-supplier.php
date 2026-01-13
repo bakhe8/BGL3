@@ -12,9 +12,12 @@ header('Content-Type: application/json; charset=utf-8');
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    $name = trim($input['name'] ?? '');
+    $officialName = trim($input['official_name'] ?? $input['name'] ?? '');
+    $englishNameInput = $input['english_name'] ?? null;
+    $englishName = is_string($englishNameInput) ? trim($englishNameInput) : null;
+    $isConfirmed = isset($input['is_confirmed']) ? (int)$input['is_confirmed'] : null;
     
-    if (!$name) {
+    if (!$officialName) {
         throw new \RuntimeException('اسم المورد مطلوب');
     }
     
@@ -22,18 +25,27 @@ try {
     
     // Smart Detection: Check if name contains Arabic characters
     // Regex: \p{Arabic} detects any Arabic script character
-    $hasArabic = preg_match('/\p{Arabic}/u', $name);
+    $hasArabic = preg_match('/\p{Arabic}/u', $officialName);
     
     // Detailed Logic:
     // 1. If Arabic: Official = Name, English = NULL (Avoid Repetition)
     // 2. If English: Official = Name, English = Name (Common practice for foreign companies)
-    $englishName = $hasArabic ? null : $name;
+    if ($englishName === '') {
+        $englishName = null;
+    }
+    if ($englishName === null) {
+        $englishName = $hasArabic ? null : $officialName;
+    }
 
     // Use unified service
-    $result = \App\Services\SupplierManagementService::create($db, [
-        'official_name' => $name,
+    $data = [
+        'official_name' => $officialName,
         'english_name' => $englishName
-    ]);
+    ];
+    if ($isConfirmed !== null) {
+        $data['is_confirmed'] = $isConfirmed;
+    }
+    $result = \App\Services\SupplierManagementService::create($db, $data);
     
     // Return response in expected format for Decision Flow
     echo json_encode([

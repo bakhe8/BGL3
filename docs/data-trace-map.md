@@ -46,7 +46,7 @@ Notes on `guarantee_number` vs `bg_number`:
   - `public/js/records.controller.js:769` -> `api/create-supplier.php`
   - Uses `SupplierManagementService::create` to add a supplier quickly and return `supplier_id` for the current record.
 - Settings UI (admin table):
-  - `views/settings.php:593` -> `api/create_supplier.php`
+  - `views/settings.php:599` -> `api/create-supplier.php`
   - Uses `SupplierManagementService::create` but returns only `success` (no record binding).
 - Auto-create on save (when user typed a name not found):
   - `api/save-and-next.php:75` -> `SupplierManagementService::create`
@@ -55,6 +55,7 @@ Notes on `guarantee_number` vs `bg_number`:
 Note:
 - These paths are context-specific (record binding vs admin management vs free-text save).
 - There is no single "primary" path; all use `SupplierManagementService::create` but differ in payload and response.
+- The endpoint is unified on `api/create-supplier.php` (legacy `create_supplier.php` removed).
 
 ## 3) Confidence score pipeline (DB -> Service -> API -> UI)
 Data sources (DB) -> repositories -> feeders -> authority -> DTO -> API -> UI:

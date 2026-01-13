@@ -36,6 +36,7 @@ try {
     // Track decision source for AI success metrics
     $decisionSource = null;
     $wasAiMatch = false;
+    $autoCreatedSupplierName = null;
 
     // SAFEGUARD: Check for ID/Name Mismatch
     // If frontend failed to clear ID, but user changed name, we trust the NAME.
@@ -67,13 +68,14 @@ try {
         
         // Strategy B: Normalized Match (Case insensitive)
         if (!$supplierId) {
-             $stmt = $db->prepare('SELECT id FROM suppliers WHERE normalized_name = ?');
-             $stmt->execute([$normStub]);
-             $supplierId = $stmt->fetchColumn();
+            $stmt = $db->prepare('SELECT id FROM suppliers WHERE normalized_name = ?');
+            $stmt->execute([$normStub]);
+            $supplierId = $stmt->fetchColumn();
         }
-        
-            // ✅ Smart Save: Auto-Create Supplier if not found
-             try {
+
+        // ✅ Smart Save: Auto-Create Supplier if not found
+        if (!$supplierId) {
+            try {
                 // Get the original imported name from raw data (if available)
                 $originalImportedName = $currentGuarantee->rawData['supplier'] ?? '';
                 
@@ -99,10 +101,11 @@ try {
                 
                 $supplierId = $createResult['supplier_id'];
                 $decisionSource = 'auto_create_on_save';
+                $autoCreatedSupplierName = $createResult['official_name'] ?? $supplierName;
 
-             } catch (Exception $e) {
-                 // Creation failed (e.g. valid duplicate race condition?)
-                 // Fallback to error
+            } catch (Exception $e) {
+                // Creation failed (e.g. valid duplicate race condition?)
+                // Fallback to error
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
@@ -111,15 +114,18 @@ try {
                     'supplier_name' => $supplierName
                 ]);
                 exit;
-             }
+            }
+        }
     } else if ($supplierId && !$wasAiMatch) {
         // Supplier ID was provided from the start (likely from previous decision)
         $decisionSource = 'manual';
     }
 
 
-    // Any user-triggered save is manual (even if AI suggestion was selected)
-    $decisionSource = 'manual';
+    // Any user-triggered save is manual unless a source was already detected
+    if (!$decisionSource) {
+        $decisionSource = 'manual';
+    }
 
     // Validation
     if (!$guaranteeId || !$supplierId) {
@@ -368,13 +374,22 @@ try {
     
     $nextGuaranteeId = $navInfo['nextId'];
     
+    $meta = [];
+    if ($autoCreatedSupplierName) {
+        $meta['created_supplier_name'] = $autoCreatedSupplierName;
+    }
+
     if (!$nextGuaranteeId) {
         // No more records - finished
-        echo json_encode([
+        $response = [
             'success' => true,
             'finished' => true,
             'message' => 'تم الانتهاء من جميع السجلات'
-        ]);
+        ];
+        if (!empty($meta)) {
+            $response['meta'] = $meta;
+        }
+        echo json_encode($response);
         exit;
     }
     
@@ -426,14 +441,18 @@ try {
     
     // Include partial template to render HTML for next record
     // Return data for next record as JSON
-    echo json_encode([
+    $response = [
         'success' => true,
         'finished' => false,
         'record' => $record,
         'banks' => $banks,
         'currentIndex' => $nextNavInfo['currentIndex'],
         'totalRecords' => $nextNavInfo['totalRecords']
-    ]);
+    ];
+    if (!empty($meta)) {
+        $response['meta'] = $meta;
+    }
+    echo json_encode($response);
     
 } catch (\Exception $e) {
     http_response_code(500);

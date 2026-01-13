@@ -15,6 +15,7 @@ if (!window.RecordsController) {
             this.bindEvents();
             this.bindGlobalEvents();
             this.initializeState();
+            this.flushPendingToast();
             // ADR-007: No auto-preview. Preview only shows after explicit action.
         }
 
@@ -22,6 +23,24 @@ if (!window.RecordsController) {
             // Preview is ALWAYS visible now
             this.previewVisible = true;
             this.printDropdownVisible = false;
+        }
+
+        flushPendingToast() {
+            const raw = sessionStorage.getItem('bgl_pending_toast');
+            if (!raw) return;
+            sessionStorage.removeItem('bgl_pending_toast');
+            try {
+                const payload = JSON.parse(raw);
+                if (payload && payload.message && window.showToast) {
+                    window.showToast(payload.message, payload.type || 'info');
+                }
+            } catch (e) {
+                sessionStorage.removeItem('bgl_pending_toast');
+            }
+        }
+
+        queueToast(message, type = 'info') {
+            sessionStorage.setItem('bgl_pending_toast', JSON.stringify({ message, type }));
         }
 
         bindGlobalEvents() {
@@ -419,6 +438,9 @@ if (!window.RecordsController) {
                 data = await response.json();
 
                 if (data.success) {
+                    if (data.meta && data.meta.created_supplier_name) {
+                        this.queueToast(`تم إنشاء مورد جديد: ${data.meta.created_supplier_name}`, 'success');
+                    }
                     if (data.finished) {
                         window.showToast(data.message || 'تم الانتهاء من جميع السجلات', 'success');
 

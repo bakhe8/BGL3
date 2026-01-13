@@ -118,7 +118,7 @@ Use the same fixed data set across all tests. Define it once and keep it stable.
 ## 5) API contract review (Batch B)
 - Date: 2026-01-13 02:31:17 (local)
 - JSON endpoints verified:
-  - `api/create-bank.php`, `api/create_supplier.php`, `api/update_bank.php`, `api/update_supplier.php`,
+  - `api/create-bank.php`, `api/create-supplier.php`, `api/update_bank.php`, `api/update_supplier.php`,
     `api/delete_bank.php`, `api/delete_supplier.php`, `api/learning-action.php`, `api/settings.php`
   - `api/create-guarantee.php`, `api/parse-paste.php`, `api/save-and-next.php`,
     `api/extend.php`, `api/reduce.php`, `api/release.php`, `api/create-supplier.php`

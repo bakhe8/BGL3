@@ -187,15 +187,16 @@ $actionedCount = count(array_filter($guarantees, fn($g) =>
                                 <button onclick="handleBatchAction('close')" class="btn btn-outline-danger btn-sm" title="إغلاق الدفعة للأرشفة">
                                     <i data-lucide="lock" style="width: 16px;"></i>
                                 </button>
-                                <?php if ($actionedCount > 0): ?>
-                                <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
-                                    <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= $actionedCount ?>)
-                                </button>
-                                <?php endif; ?>
                             <?php else: ?>
                                 <button onclick="handleBatchAction('reopen')" class="btn btn-warning shadow-md">
                                     <i data-lucide="unlock" style="width: 16px;"></i> إعادة فتح الدفعة
                                 </button>
+                            <?php endif; ?>
+
+                            <?php if ($actionedCount > 0): ?>
+                            <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
+                                <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= $actionedCount ?>)
+                            </button>
                             <?php endif; ?>
                         </div>
                     </div>
