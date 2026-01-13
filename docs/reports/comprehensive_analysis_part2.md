@@ -417,10 +417,11 @@ const UserPreferences = {
 
 #### 🟡 متوسطة الأهمية (قبل التوسع)
 
-1. **حل TODOs الستة**
-   - إكمال منطق Audit logging
+1. **حل TODOs الأربعة**
+   - إكمال Audit logging
    - إكمال Entity extraction
-   - تحديث normalized columns
+   - تحسين logging في UnifiedLearningAuthority
+   - مراجعة منطق extend في BatchService
 
 2. **تحسين الأداء**
    - إضافة Database indexes
@@ -505,7 +506,7 @@ const UserPreferences = {
 
 **الأولوية**: 🟡 متوسطة
 
-- [ ] حل جميع TODOs
+- [ ] حل TODOs المتبقية (4)
 - [ ] توحيد Normalizers
 - [ ] إزالة Code duplication
 - [ ] تحسين التسميات

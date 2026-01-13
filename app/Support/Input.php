@@ -73,7 +73,7 @@ class Input
         return $default;
     }
 
-    public static function array(array $input, string $key, array $default = []): array
+    public static function array(array $input, string $key, ?array $default = null): ?array
     {
         if (!array_key_exists($key, $input)) {
             return $default;

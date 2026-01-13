@@ -9,6 +9,7 @@ require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
 use App\Repositories\GuaranteeRepository;
+use App\Support\Input;
 use App\Support\Logger;
 
 header('Content-Type: application/json; charset=utf-8');
@@ -16,12 +17,15 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     // Get POST data
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        $input = [];
+    }
     
-    $guaranteeId = $input['guarantee_id'] ?? null;
-    $supplierId = $input['supplier_id'] ?? null;
-    $supplierName = trim($input['supplier_name'] ?? '');
+    $guaranteeId = Input::int($input, 'guarantee_id');
+    $supplierId = Input::int($input, 'supplier_id');
+    $supplierName = Input::string($input, 'supplier_name', '');
     // Bank is no longer sent - it's set once during import/matching
-    $currentIndex = $input['current_index'] ?? 1;
+    $currentIndex = Input::int($input, 'current_index', 1) ?? 1;
     
     if (!$guaranteeId) {
         echo json_encode(['success' => false, 'error' => 'guarantee_id is required']);
@@ -31,7 +35,7 @@ try {
     $db = Database::connect();
     $guaranteeRepo = new GuaranteeRepository($db);
     $currentGuarantee = $guaranteeRepo->find($guaranteeId);
-    $decidedBy = $input['decided_by'] ?? 'web_user';
+    $decidedBy = Input::string($input, 'decided_by', 'web_user');
 
     // Track decision source for AI success metrics
     $decisionSource = null;
@@ -363,7 +367,7 @@ try {
     
     // ✅ FIX: Use NavigationService for consistent ordering (same as index.php)
     // Get status filter from request (default to 'all')
-    $statusFilter = $input['status_filter'] ?? 'all';
+    $statusFilter = Input::string($input, 'status_filter', 'all');
     
     // Get navigation info using NavigationService
     $navInfo = \App\Services\NavigationService::getNavigationInfo(

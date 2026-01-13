@@ -16,8 +16,7 @@ use App\Repositories\GuaranteeDecisionRepository;
  * - 'historical_frequent' (selected 5+ times)
  * - 'historical_occasional' (selected 1-4 times)
  * 
- * Note: Currently uses fragile JSON search (Query Pattern Audit #3).
- * Phase 6: Will use structured query after schema improvement.
+ * Note: Uses normalized_supplier_name for structured lookup.
  * 
  * Reference: Query Pattern Audit, Query #3 (fragile JSON query)
  */
@@ -36,8 +35,7 @@ class HistoricalSignalFeeder implements SignalFeederInterface
     public function getSignals(string $normalizedInput): array
     {
         // Get historical selections for this input
-        // Note: Uses fragile LIKE query (Phase 1 limitation)
-        // TODO Phase 6: Update to use structured normalized_input column
+        // Note: Uses normalized_supplier_name query via decision repository
         $historicalSelections = $this->decisionRepo->getHistoricalSelections($normalizedInput);
 
         $signals = [];

@@ -7,15 +7,19 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
+use App\Support\Input;
 
 header('Content-Type: application/json; charset=utf-8');
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
-    $officialName = trim($input['official_name'] ?? $input['name'] ?? '');
-    $englishNameInput = $input['english_name'] ?? null;
-    $englishName = is_string($englishNameInput) ? trim($englishNameInput) : null;
-    $isConfirmed = isset($input['is_confirmed']) ? (int)$input['is_confirmed'] : null;
+    if (!is_array($input)) {
+        $input = [];
+    }
+    $fallbackName = Input::string($input, 'name', '');
+    $officialName = Input::string($input, 'official_name', $fallbackName);
+    $englishName = Input::string($input, 'english_name', '');
+    $isConfirmed = Input::int($input, 'is_confirmed');
     
     if (!$officialName) {
         throw new \RuntimeException('اسم المورد مطلوب');

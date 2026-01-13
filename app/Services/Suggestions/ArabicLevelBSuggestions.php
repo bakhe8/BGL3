@@ -13,6 +13,7 @@
 namespace App\Services\Suggestions;
 
 use PDO;
+use App\Support\Logger;
 
 /**
  * Arabic Level B Suggestions Service
@@ -344,10 +345,9 @@ class ArabicLevelBSuggestions
         // For now, just a comment marker
         // In production, this should log to a file or table
         
-        error_log(sprintf(
-            "[ADR-007 Silent Rejection] Input: '%s', Reason: %s",
-            $input,
-            $reason
-        ));
+        Logger::info('ADR-007 Silent Rejection', [
+            'input' => $input,
+            'reason' => $reason
+        ]);
     }
 }

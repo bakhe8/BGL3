@@ -788,7 +788,7 @@ $formattedSuppliers = array_map(function($s) {
             const suggestions = document.getElementById('supplier-suggestions');
             if (suggestions) suggestions.style.display = 'none';
             
-            console.log('🔒 Released guarantee - Read-only mode enabled');
+            BglLogger.debug('🔒 Released guarantee - Read-only mode enabled');
         });
     </script>
     <?php endif; ?>

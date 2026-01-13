@@ -5,6 +5,7 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Repositories\NoteRepository;
+use App\Support\Input;
 
 header('Content-Type: application/json');
 
@@ -16,11 +17,14 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 // Get JSON Input
 $input = json_decode(file_get_contents('php://input'), true);
+if (!is_array($input)) {
+    $input = [];
+}
 
-$guaranteeId = $input['guarantee_id'] ?? null;
-$content = $input['content'] ?? null;
+$guaranteeId = Input::int($input, 'guarantee_id');
+$content = Input::string($input, 'content', '');
 
-if (!$guaranteeId || !$content) {
+if (!$guaranteeId || $content === '') {
     http_response_code(400);
     echo json_encode(['success' => false, 'error' => 'Missing guarantee_id or content']);
     exit;

@@ -674,15 +674,13 @@ git commit -m "Clean up dead code and archive legacy systems"
 
 # القسم التاسع: TODO Items والدين التقني
 
-## 9.1 TODO Comments (6 مواضع)
+## 9.1 TODO Comments (4 مواضع)
 
 | الموقع | الملاحظة | الأولوية |
 |--------|----------|----------|
 | `ArabicLevelBSuggestions.php:343` | Audit logging مفقود | 🟢 منخفضة |
 | `ArabicEntityExtractor.php:13` | منطق غير مكتمل | 🟢 منخفضة |
 | `UnifiedLearningAuthority.php:129` | Proper logging مفقود | 🟢 منخفضة |
-| `LearningSignalFeeder.php:40` | استخدام normalized column | 🟡 متوسطة |
-| `HistoricalSignalFeeder.php:40` | استخدام structured column | 🟡 متوسطة |
 | `BatchService.php:77` | منطق extend غير مكتمل | 🟡 متوسطة |
 
 **التأثير**: لا يوجد bugs، النظام يعمل بدونها
@@ -761,7 +759,7 @@ error_log("✅ Event recorded successfully");
 | # | التوصية | الجهد | الأولوية |
 |---|---------|-------|----------|
 | 3 | توحيد Normalizers | 4 ساعات | 🟡 |
-| 4 | إكمال TODO items | 8 ساعات | 🟡 |
+| 4 | إكمال TODO items (4) | 8 ساعات | 🟡 |
 | 5 | أرشفة Legacy code | 2 ساعات | 🟡 |
 | 6 | إضافة Undo functionality | 1 يوم | 🟡 |
 | 7 | توثيق active_action | 1 ساعة | 🟡 |
@@ -810,7 +808,7 @@ error_log("✅ Event recorded successfully");
   
 الأسبوع 3-4: التحسينات المتوسطة
   ✅ توحيد Normalizers
-  ✅ إكمال TODOs
+  ⬜ إكمال TODOs المتبقية (4)
   ✅ أرشفة Legacy
 ```
 

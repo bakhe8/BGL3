@@ -9,21 +9,26 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\GuaranteeRepository;
 use App\Support\Database;
+use App\Support\Input;
 
 header('Content-Type: text/html; charset=utf-8');
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        $input = [];
+    }
     
-    $guaranteeId = $input['guarantee_id'] ?? null;
-    $decidedBy = $input['decided_by'] ?? 'web_user';
-    $newAmount = $input['new_amount'] ?? null;
+    $guaranteeId = Input::int($input, 'guarantee_id');
+    $decidedBy = Input::string($input, 'decided_by', 'web_user');
+    $newAmountRaw = Input::string($input, 'new_amount', '');
+    $newAmount = is_numeric($newAmountRaw) ? (float) $newAmountRaw : null;
     
     if (!$guaranteeId) {
         throw new \RuntimeException('Missing guarantee_id');
     }
     
-    if (!$newAmount || !is_numeric($newAmount)) {
+    if ($newAmount === null) {
         throw new \RuntimeException('المبلغ غير صحيح');
     }
     

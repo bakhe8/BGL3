@@ -1623,6 +1623,143 @@ body {
     font-size: 18px;
 }
 
+/* ═══════════════════════════════════════════════════════════════
+           CONFIRM MODAL
+           ═══════════════════════════════════════════════════════════════ */
+.confirm-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 99999;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(2px);
+}
+
+.confirm-dialog {
+    background: #ffffff;
+    padding: 24px;
+    border-radius: 12px;
+    text-align: center;
+    min-width: 320px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    transform: scale(0.9);
+    animation: confirmPopIn 0.2s forwards;
+}
+
+@keyframes confirmPopIn {
+    to {
+        transform: scale(1);
+    }
+}
+
+.confirm-title {
+    margin: 0 0 16px;
+    color: #1e293b;
+    font-size: 18px;
+}
+
+.confirm-message {
+    margin-bottom: 24px;
+    color: #64748b;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.confirm-actions {
+    display: flex;
+    justify-content: center;
+    gap: 12px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+           HISTORICAL BANNER
+           ═══════════════════════════════════════════════════════════════ */
+.historical-banner-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: #fef3c7;
+    border: 2px solid #f59e0b;
+    border-radius: 8px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+
+.historical-banner-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.historical-banner-icon {
+    font-size: 20px;
+}
+
+.historical-banner-title {
+    font-weight: 600;
+    color: #92400e;
+}
+
+.historical-banner-subtitle {
+    font-size: 12px;
+    color: #78350f;
+}
+
+.historical-banner-btn {
+    background: #f59e0b;
+    color: #ffffff;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.historical-banner-btn:hover {
+    background: #d97706;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+           PREVIEW PLACEHOLDER
+           ═══════════════════════════════════════════════════════════════ */
+.preview-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    text-align: center;
+    padding: 40px;
+    color: var(--text-muted);
+}
+
+.preview-placeholder-icon {
+    font-size: 64px;
+    margin-bottom: 24px;
+    opacity: 0.6;
+}
+
+.preview-placeholder-title {
+    color: var(--text-primary);
+    margin-bottom: 12px;
+    font-size: 20px;
+    font-weight: 600;
+}
+
+.preview-placeholder-text {
+    margin-bottom: 8px;
+    font-size: 14px;
+    color: var(--text-secondary);
+}
+
+.preview-placeholder-hint {
+    font-size: 13px;
+    color: var(--text-light);
+}
+
 /* Loading state */
 .loading {
     display: none !important;

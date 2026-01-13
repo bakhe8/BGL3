@@ -9,15 +9,19 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\GuaranteeRepository;
 use App\Support\Database;
+use App\Support\Input;
 
 header('Content-Type: text/html; charset=utf-8');
 
 try {
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        $input = [];
+    }
     
-    $guaranteeId = $input['guarantee_id'] ?? null;
-    $reason = $input['reason'] ?? null; // Optional
-    $decidedBy = $input['decided_by'] ?? 'web_user';
+    $guaranteeId = Input::int($input, 'guarantee_id');
+    $reason = Input::string($input, 'reason', '') ?: null; // Optional
+    $decidedBy = Input::string($input, 'decided_by', 'web_user');
     
     if (!$guaranteeId) {
         throw new \RuntimeException('Missing guarantee_id');

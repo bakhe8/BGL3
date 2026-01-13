@@ -16,6 +16,7 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
+use App\Support\Input;
 use App\Services\ParseCoordinatorService;
 
 header('Content-Type: application/json; charset=utf-8');
@@ -26,7 +27,10 @@ header('Content-Type: application/json; charset=utf-8');
 try {
     // Get input
     $input = json_decode(file_get_contents('php://input'), true);
-    $text = $input['text'] ?? '';
+    if (!is_array($input)) {
+        $input = [];
+    }
+    $text = Input::string($input, 'text', '');
 
     if (empty($text)) {
         throw new \RuntimeException("لم يتم إدخال أي نص للتحليل");

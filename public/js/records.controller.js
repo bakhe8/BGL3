@@ -76,14 +76,14 @@ if (!window.RecordsController) {
                 if (typeof this[action] === 'function') {
                     this[action](target);
                 } else {
-                    console.warn(`No handler for action: ${action}`);
+                    BglLogger.warn(`No handler for action: ${action}`);
                 }
             });
 
             // 🔥 NEW: Listen for remote updates (e.g. from Timeline Controller)
             // This ensures preview updates ONLY after the Data Card is updated.
             document.addEventListener('guarantee:updated', () => {
-                console.log('⚡ Guarantee Updated Event Received - Refreshing Preview...');
+                BglLogger.debug('⚡ Guarantee Updated Event Received - Refreshing Preview...');
                 this.updatePreviewFromDOM();
 
                 // ✨ Apply formatting AFTER refresh (fix race condition)
@@ -121,7 +121,7 @@ if (!window.RecordsController) {
             // Handle specific models
             if (model === 'supplier_name') {
                 // Could trigger suggestions fetch here if needed
-                console.log('Supplier changed:', value);
+                BglLogger.debug('Supplier changed:', value);
             }
         }
 
@@ -129,7 +129,7 @@ if (!window.RecordsController) {
         // UI Actions
         togglePreview() {
             // Deprecated: Preview is always visible
-            console.log('Preview toggle is disabled');
+            BglLogger.debug('Preview toggle is disabled');
         }
 
         updatePreviewFromDOM() {
@@ -145,8 +145,8 @@ if (!window.RecordsController) {
                     statusBadge.textContent.includes('pending');
 
                 if (isPending) {
-                    console.log('⚠️ Preview update blocked: guarantee status is pending');
-                    console.log('   Preview will be available once supplier and bank are selected');
+                    BglLogger.debug('⚠️ Preview update blocked: guarantee status is pending');
+                    BglLogger.debug('   Preview will be available once supplier and bank are selected');
                     return; // Exit early - no preview update
                 }
             }
@@ -157,8 +157,8 @@ if (!window.RecordsController) {
             const hasAction = activeActionInput && activeActionInput.value;
 
             if (!hasAction) {
-                console.log('⚠️ Preview update blocked: no action taken');
-                console.log('   User must execute an action (extend/reduce/release) to generate a letter');
+                BglLogger.debug('⚠️ Preview update blocked: no action taken');
+                BglLogger.debug('   User must execute an action (extend/reduce/release) to generate a letter');
                 this.showNoActionState();
                 return; // Exit early - no preview without action
             }
@@ -693,17 +693,6 @@ if (!window.RecordsController) {
                 const url = filter ? `?id=${nextId}&filter=${filter}` : `?id=${nextId}`;
                 window.location.href = url;
             }
-        }
-
-        // Modal Actions (placeholders - implement when modals are needed)
-        openAttachmentsModal() {
-            console.log('Open attachments modal');
-            // TODO: Implement modal functionality
-        }
-
-        openNotesModal() {
-            console.log('Open notes modal');
-            // TODO: Implement modal functionality
         }
 
         processSupplierInput(target) {

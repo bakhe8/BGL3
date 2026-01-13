@@ -6,6 +6,7 @@ use App\Contracts\SignalFeederInterface;
 use App\DTO\SignalDTO;
 use App\DTO\SuggestionDTO;
 use App\Support\Normalizer;
+use App\Support\Logger;
 
 /**
  * Unified Learning Authority
@@ -126,8 +127,10 @@ class UnifiedLearningAuthority
                 $allSignals = array_merge($allSignals, $feederSignals);
             } catch (\Exception $e) {
                 // Log error but continue with other feeders
-                // TODO: Add proper logging
-                error_log("Feeder error: " . $e->getMessage());
+                Logger::error('Feeder error', [
+                    'feeder' => get_class($feeder),
+                    'error' => $e->getMessage()
+                ]);
             }
         }
 

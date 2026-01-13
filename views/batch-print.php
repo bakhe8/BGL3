@@ -30,6 +30,33 @@ $db = Database::connect();
 $guaranteeRepo = new GuaranteeRepository($db);
 $bankRepo = new BankRepository();
 $supplierRepo = new SupplierRepository();
+
+$lastActions = [];
+if (!empty($guaranteeIds)) {
+    $placeholders = implode(',', array_fill(0, count($guaranteeIds), '?'));
+    $stmt = $db->prepare("
+        SELECT gh.guarantee_id,
+               CASE
+                   WHEN gh.event_subtype IN ('extension', 'reduction', 'release') THEN gh.event_subtype
+                   WHEN gh.event_type = 'release' THEN 'release'
+                   ELSE NULL
+               END AS last_action
+        FROM guarantee_history gh
+        WHERE gh.guarantee_id IN ($placeholders)
+          AND gh.id = (
+            SELECT gh2.id
+            FROM guarantee_history gh2
+            WHERE gh2.guarantee_id = gh.guarantee_id
+              AND (gh2.event_subtype IN ('extension', 'reduction', 'release') OR gh2.event_type = 'release')
+            ORDER BY gh2.created_at DESC, gh2.id DESC
+            LIMIT 1
+          )
+    ");
+    $stmt->execute($guaranteeIds);
+    foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+        $lastActions[(int) $row['guarantee_id']] = $row['last_action'];
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -168,6 +195,11 @@ $supplierRepo = new SupplierRepository();
         $decisionStmt->execute([$guaranteeId]);
         $decision = $decisionStmt->fetch(PDO::FETCH_ASSOC);
 
+        $lastAction = $lastActions[(int) $guaranteeId] ?? null;
+        if (!$lastAction) {
+            continue;
+        }
+
         // Prepare data array
         $record = [
             'guarantee_number' => $guarantee->guaranteeNumber,
@@ -178,7 +210,7 @@ $supplierRepo = new SupplierRepository();
             'related_to' => $guarantee->rawData['related_to'] ?? 'contract',
             'supplier_name' => $guarantee->rawData['supplier'] ?? 'غير محدد',
             'bank_name' => $guarantee->rawData['bank'] ?? 'غير محدد',
-            'active_action' => $decision['active_action'] ?? null, // ✅ No default
+            'active_action' => $lastAction ?? ($decision['active_action'] ?? null), // ✅ No default
         ];
 
         // Enrich with relations

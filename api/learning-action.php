@@ -2,6 +2,7 @@
 require __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
+use App\Support\Input;
 
 header('Content-Type: application/json');
 
@@ -13,10 +14,13 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
-    $id = $data['id'] ?? null;
-    $action = $data['action'] ?? null; // 'delete'
+    if (!is_array($data)) {
+        $data = [];
+    }
+    $id = Input::int($data, 'id');
+    $action = Input::string($data, 'action', ''); // 'delete'
 
-    if (!$id || !$action) {
+    if (!$id || $action === '') {
         throw new Exception('Missing parameters');
     }
 

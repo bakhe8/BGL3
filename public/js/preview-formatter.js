@@ -181,7 +181,7 @@ if (!window.PreviewFormatter) {
             }
 
             if (!root) {
-                console.warn('PreviewFormatter: No root element found');
+                BglLogger.warn('PreviewFormatter: No root element found');
                 return;
             }
 

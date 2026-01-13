@@ -1,13 +1,19 @@
 <?php
-require_once __DIR__ . '/../app/Support/Database.php';
+require_once __DIR__ . '/../app/Support/autoload.php';
+
 use App\Support\Database;
+use App\Support\Input;
 
 header('Content-Type: application/json');
 
 try {
     $data = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($data)) {
+        $data = [];
+    }
     
-    if (empty($data['id'])) {
+    $bankId = Input::int($data, 'id');
+    if (!$bankId) {
         throw new Exception('Missing ID');
     }
     
@@ -32,13 +38,13 @@ try {
     
     // Execute with explicit non-null values
     $result = $stmt->execute([
-        $data['arabic_name'] ?? '',
-        $data['english_name'] ?? '',
-        $data['short_name'] ?? '',
-        $data['department'] ?? '',
-        $data['address_line1'] ?? '',
-        $data['contact_email'] ?? '',
-        (int)$data['id']
+        Input::string($data, 'arabic_name', ''),
+        Input::string($data, 'english_name', ''),
+        Input::string($data, 'short_name', ''),
+        Input::string($data, 'department', ''),
+        Input::string($data, 'address_line1', ''),
+        Input::string($data, 'contact_email', ''),
+        $bankId
     ]);
     
     if (!$result) {
@@ -48,7 +54,6 @@ try {
     // ✅ Verify the bank still exists (using direct query due to SQLite PDO bug)
     // Note: rows affected = 0 is OK if data didn't change
     // IMPORTANT: Using direct query because prepared statements fail for some IDs in SQLite
-    $bankId = (int)$data['id'];
     $verifyStmt = $db->query("SELECT id FROM banks WHERE id = $bankId");
     $verified = $verifyStmt->fetchColumn();
     

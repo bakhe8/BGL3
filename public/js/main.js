@@ -79,6 +79,15 @@ window.Toast = {
 };
 window.showToast = window.Toast.show;
 
+// Debug logger (disabled by default)
+window.BGL_DEBUG = window.BGL_DEBUG ?? false;
+window.BglLogger = window.BglLogger || {
+    debug: (...args) => { if (window.BGL_DEBUG) console.log(...args); },
+    info: (...args) => { if (window.BGL_DEBUG) console.info(...args); },
+    warn: (...args) => { if (window.BGL_DEBUG) console.warn(...args); },
+    error: (...args) => { console.error(...args); }
+};
+
 document.addEventListener('DOMContentLoaded', () => {
     const fileInput = document.getElementById('import-file-input');
     if (fileInput) {

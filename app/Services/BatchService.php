@@ -42,18 +42,25 @@ class BatchService
     }
     
     /**
-     * Get all guarantees in a batch
-     */
-    /**
+     * Get all guarantees in a batch (based on occurrences)
+     *
      * @param array<int, int|string>|null $guaranteeIds
      */
     public function getBatchGuarantees(string $importSource, ?array $guaranteeIds = null): array
     {
         $sql = "
-            SELECT g.*, d.status, d.supplier_id, d.bank_id, d.active_action, d.is_locked
+            SELECT g.*, 
+                   d.id as decision_id,
+                   d.status,
+                   d.supplier_id,
+                   d.bank_id,
+                   d.active_action,
+                   d.is_locked,
+                   d.locked_reason
             FROM guarantees g
+            JOIN guarantee_occurrences o ON o.guarantee_id = g.id
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
-            WHERE g.import_source = ?
+            WHERE o.batch_identifier = ?
         ";
         $params = [$importSource];
 
@@ -71,13 +78,9 @@ class BatchService
     }
     
     /**
-     * Extend all guarantees in batch
-     * Decision #4: All-or-nothing policy
-     * 
-     * TODO: This needs the actual extend logic from existing code
-     * Placeholder for now - will integrate with real extend service
+     * Extend guarantees in batch (each guarantee evaluated independently)
      */
-    public function extendBatch(string $importSource, string $newExpiryDate, string $userId = 'system', ?array $guaranteeIds = null): array
+    public function extendBatch(string $importSource, ?string $newExpiryDate, string $userId = 'system', ?array $guaranteeIds = null): array
     {
         // Check if closed
         if ($this->isBatchClosed($importSource)) {
@@ -104,6 +107,16 @@ class BatchService
                 'error' => 'الدفعة فارغة'
             ];
         }
+
+        $foundIds = array_map('intval', array_column($guarantees, 'id'));
+        $invalidIds = $hasSelection ? array_values(array_diff($ids, $foundIds)) : [];
+
+        if ($newExpiryDate !== null && $newExpiryDate !== '' && !$this->isValidDate($newExpiryDate)) {
+            return [
+                'success' => false,
+                'error' => 'تاريخ التمديد غير صالح'
+            ];
+        }
         
         // All ready - extend using INDIVIDUAL logic from extend.php
         $extended = [];
@@ -115,6 +128,14 @@ class BatchService
         
         foreach ($guarantees as $g) {
             try {
+                if (empty($g['decision_id'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'لا يوجد قرار لهذا الضمان'
+                    ];
+                    continue;
+                }
                 if (!empty($g['is_locked'])) {
                     $blocked[] = [
                         'guarantee_id' => $g['id'],
@@ -140,43 +161,82 @@ class BatchService
                     continue;
                 }
 
-                // Reuse extend.php logic (lines 53-77)
-                // 1. Snapshot
-                $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
-                
-                // 2. Update - Calculate new expiry (+1 year)
                 $guarantee = $guaranteeRepo->find($g['id']);
+                if (!$guarantee) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'الضمان غير موجود'
+                    ];
+                    continue;
+                }
+
                 $raw = $guarantee->rawData;
                 $oldExpiry = $raw['expiry_date'] ?? '';
-                $newExpiry = $newExpiryDate; // Use the date passed from batch operation
-                
-                // Update raw_data
-                $raw['expiry_date'] = $newExpiry;
-                $guaranteeRepo->updateRawData($g['id'], json_encode($raw));
-                
-                // 3. Set Active Action
-                $decisionRepo->setActiveAction($g['id'], 'extension');
+                $newExpiry = $this->resolveExpiryDate($oldExpiry, $newExpiryDate);
 
-                // 3.1 Track user-driven decision source
-                $decisionUpdate = $this->db->prepare("
-                    UPDATE guarantee_decisions
-                    SET decision_source = 'manual',
-                        decided_by = ?,
-                        last_modified_by = ?,
-                        last_modified_at = CURRENT_TIMESTAMP
-                    WHERE guarantee_id = ?
-                ");
-                $decisionUpdate->execute([$userId, $userId, $g['id']]);
-                
-                // 4. Record in Timeline
-                \App\Services\TimelineRecorder::recordExtensionEvent(
-                    $g['id'],
-                    $oldSnapshot,
-                    $newExpiry
-                );
-                
-                $extended[] = $g['id'];
-                
+                if (!$newExpiry) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'تاريخ التمديد غير صالح'
+                    ];
+                    continue;
+                }
+
+                if (!$this->isExpiryAfterOld($oldExpiry, $newExpiry)) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'تاريخ التمديد يجب أن يكون بعد التاريخ الحالي'
+                    ];
+                    continue;
+                }
+
+                $this->db->beginTransaction();
+                try {
+                    // 1. Snapshot
+                    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
+                    if (!$oldSnapshot) {
+                        throw new \RuntimeException('تعذر إنشاء Snapshot');
+                    }
+
+                    // 2. Update - Apply new expiry
+                    $raw['expiry_date'] = $newExpiry;
+                    $guaranteeRepo->updateRawData($g['id'], json_encode($raw));
+                    
+                    // 3. Set Active Action
+                    $decisionRepo->setActiveAction($g['id'], 'extension');
+
+                    // 3.1 Track user-driven decision source
+                    $decisionUpdate = $this->db->prepare("
+                        UPDATE guarantee_decisions
+                        SET decision_source = 'manual',
+                            decided_by = ?,
+                            last_modified_by = ?,
+                            last_modified_at = CURRENT_TIMESTAMP
+                        WHERE guarantee_id = ?
+                    ");
+                    $decisionUpdate->execute([$userId, $userId, $g['id']]);
+                    
+                    // 4. Record in Timeline
+                    $eventId = \App\Services\TimelineRecorder::recordExtensionEvent(
+                        $g['id'],
+                        $oldSnapshot,
+                        $newExpiry
+                    );
+                    if (!$eventId) {
+                        throw new \RuntimeException('لم يتم تسجيل حدث التمديد');
+                    }
+
+                    $this->db->commit();
+                    $extended[] = $g['id'];
+                } catch (\Throwable $e) {
+                    if ($this->db->inTransaction()) {
+                        $this->db->rollBack();
+                    }
+                    throw $e;
+                }
             } catch (\Exception $e) {
                 $errors[] = [
                     'guarantee_id' => $g['id'],
@@ -192,6 +252,7 @@ class BatchService
             'user_id' => $userId,
             'selected_ids' => $hasSelection ? $ids : null,
             'processed_ids' => $extended,
+            'invalid_ids' => $invalidIds,
             'blocked' => $blocked,
             'errors' => $errors,
             'success' => $success
@@ -203,13 +264,14 @@ class BatchService
             'extended_ids' => $extended,
             'blocked_count' => count($blocked),
             'blocked' => $blocked,
+            'invalid_count' => count($invalidIds),
+            'invalid_ids' => $invalidIds,
             'errors' => $errors
         ];
     }
     
     /**
-     * Release all guarantees in batch
-     * Decision #4: All-or-nothing policy, reuse release.php logic
+     * Release guarantees in batch (each guarantee evaluated independently)
      */
     public function releaseBatch(string $importSource, ?string $reason = null, string $userId = 'system', ?array $guaranteeIds = null): array
     {
@@ -238,6 +300,9 @@ class BatchService
                 'error' => 'الدفعة فارغة'
             ];
         }
+
+        $foundIds = array_map('intval', array_column($guarantees, 'id'));
+        $invalidIds = $hasSelection ? array_values(array_diff($ids, $foundIds)) : [];
         
         // All ready - release using INDIVIDUAL logic from release.php
         $released = [];
@@ -248,6 +313,14 @@ class BatchService
         
         foreach ($guarantees as $g) {
             try {
+                if (empty($g['decision_id'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'لا يوجد قرار لهذا الضمان'
+                    ];
+                    continue;
+                }
                 if (!empty($g['is_locked'])) {
                     $blocked[] = [
                         'guarantee_id' => $g['id'],
@@ -273,32 +346,44 @@ class BatchService
                     continue;
                 }
 
-                // Reuse release.php logic (lines 53-74)
-                // 1. Snapshot
-                $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
-                
-                // 2. Lock the guarantee
-                $decisionRepo->lock($g['id'], 'released');
-                
-                // 3. Set Active Action
-                $decisionRepo->setActiveAction($g['id'], 'release');
+                $this->db->beginTransaction();
+                try {
+                    // 1. Snapshot
+                    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
+                    if (!$oldSnapshot) {
+                        throw new \RuntimeException('تعذر إنشاء Snapshot');
+                    }
+                    
+                    // 2. Lock the guarantee + status
+                    $decisionRepo->lock($g['id'], 'released');
+                    $statusStmt = $this->db->prepare("
+                        UPDATE guarantee_decisions
+                        SET status = 'released',
+                            decision_source = 'manual',
+                            decided_by = ?,
+                            last_modified_by = ?,
+                            last_modified_at = CURRENT_TIMESTAMP
+                        WHERE guarantee_id = ?
+                    ");
+                    $statusStmt->execute([$userId, $userId, $g['id']]);
+                    
+                    // 3. Set Active Action
+                    $decisionRepo->setActiveAction($g['id'], 'release');
+                    
+                    // 4. Record in Timeline
+                    $eventId = \App\Services\TimelineRecorder::recordReleaseEvent($g['id'], $oldSnapshot, $reason);
+                    if (!$eventId) {
+                        throw new \RuntimeException('لم يتم تسجيل حدث الإفراج');
+                    }
 
-                // 3.1 Track user-driven decision source
-                $decisionUpdate = $this->db->prepare("
-                    UPDATE guarantee_decisions
-                    SET decision_source = 'manual',
-                        decided_by = ?,
-                        last_modified_by = ?,
-                        last_modified_at = CURRENT_TIMESTAMP
-                    WHERE guarantee_id = ?
-                ");
-                $decisionUpdate->execute([$userId, $userId, $g['id']]);
-                
-                // 4. Record in Timeline
-                \App\Services\TimelineRecorder::recordReleaseEvent($g['id'], $oldSnapshot, $reason);
-                
-                $released[] = $g['id'];
-                
+                    $this->db->commit();
+                    $released[] = $g['id'];
+                } catch (\Throwable $e) {
+                    if ($this->db->inTransaction()) {
+                        $this->db->rollBack();
+                    }
+                    throw $e;
+                }
             } catch (\Exception $e) {
                 $errors[] = [
                     'guarantee_id' => $g['id'],
@@ -314,6 +399,7 @@ class BatchService
             'user_id' => $userId,
             'selected_ids' => $hasSelection ? $ids : null,
             'processed_ids' => $released,
+            'invalid_ids' => $invalidIds,
             'blocked' => $blocked,
             'errors' => $errors,
             'success' => $success
@@ -325,6 +411,199 @@ class BatchService
             'released_ids' => $released,
             'blocked_count' => count($blocked),
             'blocked' => $blocked,
+            'invalid_count' => count($invalidIds),
+            'invalid_ids' => $invalidIds,
+            'errors' => $errors
+        ];
+    }
+
+    /**
+     * Reduce guarantees in batch (each guarantee evaluated independently)
+     */
+    public function reduceBatch(string $importSource, ?float $newAmount, string $userId = 'system', ?array $guaranteeIds = null, ?array $amountsById = null): array
+    {
+        if ($this->isBatchClosed($importSource)) {
+            return [
+                'success' => false,
+                'error' => 'الدفعة مغلقة - لا يمكن التخفيض الجماعي'
+            ];
+        }
+
+        $amountsById = $this->normalizeReductionMap($amountsById);
+        $usePerItemAmounts = !empty($amountsById);
+
+        if (!$usePerItemAmounts && ($newAmount === null || $newAmount <= 0)) {
+            return [
+                'success' => false,
+                'error' => 'المبلغ غير صحيح'
+            ];
+        }
+
+        if ($usePerItemAmounts && $guaranteeIds === null) {
+            $guaranteeIds = array_keys($amountsById);
+        }
+
+        $ids = $this->normalizeIds($guaranteeIds);
+        $hasSelection = $guaranteeIds !== null;
+        if ($hasSelection && empty($ids)) {
+            return [
+                'success' => false,
+                'error' => 'لا توجد ضمانات محددة'
+            ];
+        }
+
+        $guarantees = $this->getBatchGuarantees($importSource, $hasSelection ? $ids : null);
+        if (empty($guarantees)) {
+            return [
+                'success' => false,
+                'error' => 'الدفعة فارغة'
+            ];
+        }
+
+        $foundIds = array_map('intval', array_column($guarantees, 'id'));
+        $invalidIds = $hasSelection ? array_values(array_diff($ids, $foundIds)) : [];
+
+        $reduced = [];
+        $errors = [];
+        $blocked = [];
+
+        $guaranteeRepo = new \App\Repositories\GuaranteeRepository($this->db);
+        $decisionRepo = new \App\Repositories\GuaranteeDecisionRepository($this->db);
+
+        foreach ($guarantees as $g) {
+            try {
+                if (empty($g['decision_id'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'لا يوجد قرار لهذا الضمان'
+                    ];
+                    continue;
+                }
+                if (!empty($g['is_locked'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'مقفل'
+                    ];
+                    continue;
+                }
+                if (!empty($g['active_action'])) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'تم تنفيذ إجراء سابق'
+                    ];
+                    continue;
+                }
+                if (($g['status'] ?? '') !== 'ready') {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'غير جاهز'
+                    ];
+                    continue;
+                }
+
+                $guarantee = $guaranteeRepo->find($g['id']);
+                if (!$guarantee) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'الضمان غير موجود'
+                    ];
+                    continue;
+                }
+
+                $raw = $guarantee->rawData;
+                $targetAmount = $usePerItemAmounts ? ($amountsById[(int) $g['id']] ?? null) : $newAmount;
+                if ($targetAmount === null || $targetAmount <= 0) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'لم يتم تحديد مبلغ التخفيض'
+                    ];
+                    continue;
+                }
+
+                $previousAmount = (float)($raw['amount'] ?? 0);
+                if ($previousAmount === (float)$targetAmount) {
+                    $blocked[] = [
+                        'guarantee_id' => $g['id'],
+                        'guarantee_number' => $g['guarantee_number'],
+                        'reason' => 'المبلغ لم يتغير'
+                    ];
+                    continue;
+                }
+
+                $this->db->beginTransaction();
+                try {
+                    $oldSnapshot = \App\Services\TimelineRecorder::createSnapshot($g['id']);
+                    if (!$oldSnapshot) {
+                        throw new \RuntimeException('تعذر إنشاء Snapshot');
+                    }
+
+                    $raw['amount'] = (float)$targetAmount;
+                    $guaranteeRepo->updateRawData($g['id'], json_encode($raw));
+
+                    $decisionRepo->setActiveAction($g['id'], 'reduction');
+                    $decisionUpdate = $this->db->prepare("
+                        UPDATE guarantee_decisions
+                        SET decision_source = 'manual',
+                            decided_by = ?,
+                            last_modified_by = ?,
+                            last_modified_at = CURRENT_TIMESTAMP
+                        WHERE guarantee_id = ?
+                    ");
+                    $decisionUpdate->execute([$userId, $userId, $g['id']]);
+
+                    $eventId = \App\Services\TimelineRecorder::recordReductionEvent(
+                        $g['id'],
+                        $oldSnapshot,
+                        (float)$targetAmount,
+                        $previousAmount
+                    );
+                    if (!$eventId) {
+                        throw new \RuntimeException('لم يتم تسجيل حدث التخفيض');
+                    }
+
+                    $this->db->commit();
+                    $reduced[] = $g['id'];
+                } catch (\Throwable $e) {
+                    if ($this->db->inTransaction()) {
+                        $this->db->rollBack();
+                    }
+                    throw $e;
+                }
+            } catch (\Exception $e) {
+                $errors[] = [
+                    'guarantee_id' => $g['id'],
+                    'guarantee_number' => $g['guarantee_number'],
+                    'error' => $e->getMessage()
+                ];
+            }
+        }
+
+        $success = count($reduced) > 0;
+        Logger::info('batch_reduce', [
+            'import_source' => $importSource,
+            'user_id' => $userId,
+            'selected_ids' => $hasSelection ? $ids : null,
+            'processed_ids' => $reduced,
+            'invalid_ids' => $invalidIds,
+            'blocked' => $blocked,
+            'errors' => $errors,
+            'success' => $success
+        ]);
+        return [
+            'success' => $success,
+            'error' => $success ? null : 'لا توجد ضمانات مؤهلة للتخفيض',
+            'reduced_count' => count($reduced),
+            'reduced_ids' => $reduced,
+            'blocked_count' => count($blocked),
+            'blocked' => $blocked,
+            'invalid_count' => count($invalidIds),
+            'invalid_ids' => $invalidIds,
             'errors' => $errors
         ];
     }
@@ -347,6 +626,63 @@ class BatchService
 
         return $ids;
     }
+
+    /**
+     * @param array<int|string, mixed>|null $amountsById
+     * @return array<int, float>
+     */
+    private function normalizeReductionMap(?array $amountsById): array
+    {
+        if (empty($amountsById)) {
+            return [];
+        }
+
+        $normalized = [];
+        foreach ($amountsById as $id => $amount) {
+            if (!is_numeric($id) || !is_numeric($amount)) {
+                continue;
+            }
+            $normalized[(int) $id] = (float) $amount;
+        }
+
+        return $normalized;
+    }
+
+    private function isValidDate(?string $date): bool
+    {
+        if ($date === null || $date === '') {
+            return false;
+        }
+        $dt = \DateTime::createFromFormat('Y-m-d', $date);
+        return $dt !== false && $dt->format('Y-m-d') === $date;
+    }
+
+    private function resolveExpiryDate(string $oldExpiry, ?string $newExpiryDate): ?string
+    {
+        if ($newExpiryDate !== null && $newExpiryDate !== '') {
+            return $newExpiryDate;
+        }
+        $candidate = trim($oldExpiry) === '' ? ' +1 year' : $oldExpiry . ' +1 year';
+        $timestamp = strtotime($candidate);
+        if ($timestamp === false) {
+            return null;
+        }
+        return date('Y-m-d', $timestamp);
+    }
+
+    private function isExpiryAfterOld(string $oldExpiry, string $newExpiry): bool
+    {
+        if (!$this->isValidDate($oldExpiry) || !$this->isValidDate($newExpiry)) {
+            return true;
+        }
+        $old = \DateTime::createFromFormat('Y-m-d', $oldExpiry);
+        $new = \DateTime::createFromFormat('Y-m-d', $newExpiry);
+        if (!$old || !$new) {
+            return true;
+        }
+        return $new > $old;
+    }
+
     
     /**
      * Update batch metadata

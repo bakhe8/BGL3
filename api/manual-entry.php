@@ -15,6 +15,9 @@ ini_set('display_errors', 1);
 try {
     // Get JSON input
     $input = json_decode(file_get_contents('php://input'), true);
+    if (!is_array($input)) {
+        $input = [];
+    }
     
     if (!$input) {
         throw new \RuntimeException('بيانات غير صالحة');

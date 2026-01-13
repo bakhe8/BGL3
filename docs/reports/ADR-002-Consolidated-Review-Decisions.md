@@ -211,7 +211,7 @@ public static function connect(): PDO {
 
 ### التبرير
 
-#### أ) TODOs (6 مواضع)
+#### أ) TODOs (4 مواضع)
 
 ```php
 // app/Services/Suggestions/ArabicLevelBSuggestions.php:343

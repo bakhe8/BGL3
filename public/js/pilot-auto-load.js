@@ -26,7 +26,7 @@
         // 🔧 FIX: Don't overwrite supplier name if record is already "ready"
         const decisionStatus = document.getElementById('decisionStatus');
         if (decisionStatus && decisionStatus.value === 'ready') {
-            console.log('[Pilot] Skipping auto-load - record already ready with matched supplier');
+            BglLogger.debug('[Pilot] Skipping auto-load - record already ready with matched supplier');
             return;
         }
 
@@ -41,7 +41,7 @@
             });
 
             if (hasHighConfidence) {
-                console.log('[Pilot] Skipping auto-load - PHP already provided high-confidence suggestions');
+                BglLogger.debug('[Pilot] Skipping auto-load - PHP already provided high-confidence suggestions');
                 return;
             }
         }
@@ -49,17 +49,17 @@
         // Get the Excel supplier name from UI
         const excelSupplierEl = document.getElementById('excelSupplier');
         if (!excelSupplierEl) {
-            console.log('[Pilot] No Excel supplier element found');
+            BglLogger.debug('[Pilot] No Excel supplier element found');
             return;
         }
 
         const rawSupplierName = excelSupplierEl.textContent.trim();
         if (!rawSupplierName || rawSupplierName === '-') {
-            console.log('[Pilot] No supplier name to search for');
+            BglLogger.debug('[Pilot] No supplier name to search for');
             return;
         }
 
-        console.log('[Pilot] Auto-loading suggestions for:', rawSupplierName);
+        BglLogger.debug('[Pilot] Auto-loading suggestions for:', rawSupplierName);
 
         // Trigger the existing suggestion mechanism
         const supplierInput = document.getElementById('supplierInput');
@@ -68,9 +68,9 @@
             supplierInput.value = rawSupplierName;
             supplierInput.dispatchEvent(new Event('input', { bubbles: true }));
 
-            console.log('[Pilot] Suggestion search triggered');
+            BglLogger.debug('[Pilot] Suggestion search triggered');
         }
     }
 
-    console.log('[Phase 5] Auto-load glue code loaded');
+    BglLogger.debug('[Phase 5] Auto-load glue code loaded');
 })();

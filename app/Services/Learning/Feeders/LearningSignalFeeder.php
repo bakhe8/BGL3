@@ -16,8 +16,7 @@ use App\Repositories\LearningRepository;
  * - 'learning_confirmation' (user confirmed this supplier)
  * - 'learning_rejection' (user rejected this supplier)
  * 
- * Note: Currently queries by raw_supplier_name (fragmentation issue).
- * Phase 6: Will query by normalized_supplier_name after schema update.
+ * Note: Uses normalized_supplier_name for consistent matching.
  * 
  * Reference: Query Pattern Audit, Query #2 (known fragmentation)
  */
@@ -36,8 +35,7 @@ class LearningSignalFeeder implements SignalFeederInterface
     public function getSignals(string $normalizedInput): array
     {
         // Get user feedback aggregated by supplier
-        // Note: This uses raw_supplier_name (Phase 1 limitation)
-        // TODO Phase 6: Update to use normalized_supplier_name
+        // Note: Uses normalized_supplier_name via LearningRepository
         $feedback = $this->learningRepo->getUserFeedback($normalizedInput);
 
         $signals = [];

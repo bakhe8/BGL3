@@ -173,7 +173,7 @@ CREATE INDEX IF NOT EXISTS idx_banks_normalized_name ON banks(normalized_name);
 
 #### أ) TODOs غير منجزة
 
-**العدد**: 6 مواضع  
+**العدد**: 4 مواضع  
 **الشدة**: 🟡 متوسطة
 
 **القائمة**:
@@ -181,9 +181,7 @@ CREATE INDEX IF NOT EXISTS idx_banks_normalized_name ON banks(normalized_name);
 1. `ArabicLevelBSuggestions.php:343` - تسجيل Audit مفقود
 2. `ArabicEntityExtractor.php:13` - منطق استخراج الكيانات غير مكتمل
 3. `UnifiedLearningAuthority.php:129` - تسجيل Logging مفقود
-4. `LearningSignalFeeder.php:40` - تحديث لاستخدام `normalized_supplier_name`
-5. `HistoricalSignalFeeder.php:40` - تحديث لاستخدام عمود منظم
-6. `BatchService.php:77` - منطق extend غير مكتمل
+4. `BatchService.php:77` - منطق extend غير مكتمل
 
 **التوصية**: جدولة هذه المهام وإكمالها قبل الإنتاج.
 

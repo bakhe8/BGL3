@@ -23,7 +23,7 @@ if (!window.TimelineController) {
                 }
             });
 
-            console.log('✅ Timeline Controller initialized');
+            BglLogger.debug('✅ Timeline Controller initialized');
         }
 
         processTimelineClick(element) {
@@ -61,7 +61,7 @@ if (!window.TimelineController) {
         }
 
         displayHistoricalState(snapshot, eventId) {
-            console.log('📜 Displaying historical state:', snapshot);
+            BglLogger.debug('📜 Displaying historical state:', snapshot);
 
             // Parse snapshot if it's a string
             let snapshotData = snapshot;
@@ -76,7 +76,7 @@ if (!window.TimelineController) {
 
             // Check if snapshot is empty or legacy
             if (!snapshotData || Object.keys(snapshotData).length === 0 || snapshotData._no_snapshot) {
-                console.warn('⚠️ No snapshot data available');
+                BglLogger.warn('⚠️ No snapshot data available');
                 if (window.showToast) window.showToast('لا توجد بيانات تاريخية لهذا الحدث', 'error');
                 return;
             }
@@ -95,7 +95,7 @@ if (!window.TimelineController) {
             // ✨ NEW: Conditional Snapshot Selection (After State for Actions)
             const eventElement = document.querySelector(`[data-event-id="${eventId}"]`);
             this.currentEventSubtype = eventElement?.dataset.eventSubtype || null;
-            console.log('📋 Event subtype:', this.currentEventSubtype);
+            BglLogger.debug('📋 Event subtype:', this.currentEventSubtype);
 
             let dataToDisplay = snapshotData;
             let htmlSnapshotUsed = false;  // Track if we used HTML snapshot
@@ -110,7 +110,7 @@ if (!window.TimelineController) {
                 if (letterSnapshotRaw && letterSnapshotRaw !== 'null') {
                     // Check if it's HTML (not JSON)
                     if (!letterSnapshotRaw.trim().startsWith('{')) {
-                        console.log('✨ Using HTML letter_snapshot (After State) for action event');
+                        BglLogger.debug('✨ Using HTML letter_snapshot (After State) for action event');
 
                         // Replace preview section with pre-rendered HTML
                         const previewSection = document.getElementById('preview-section');
@@ -129,11 +129,11 @@ if (!window.TimelineController) {
                         try {
                             const letterSnapshot = JSON.parse(letterSnapshotRaw);
                             if (letterSnapshot && Object.keys(letterSnapshot).length > 0) {
-                                console.log('📦 Using JSON letter_snapshot (legacy)');
+                                BglLogger.debug('📦 Using JSON letter_snapshot (legacy)');
                                 dataToDisplay = letterSnapshot;
                             }
                         } catch (e) {
-                            console.warn('⚠️ Failed to parse letter_snapshot, using snapshot_data');
+                            BglLogger.warn('⚠️ Failed to parse letter_snapshot, using snapshot_data');
                         }
                     }
                 }
@@ -185,7 +185,7 @@ if (!window.TimelineController) {
 
 
         updateFormFields(snapshot) {
-            console.log('🔄 Updating fields with snapshot:', snapshot);
+            BglLogger.debug('🔄 Updating fields with snapshot:', snapshot);
 
             // Update supplier input (ID: supplierInput)
             // Always update to prevent "leakage" from previous events
@@ -194,14 +194,14 @@ if (!window.TimelineController) {
                 // Use official name OR raw name fallback
                 const nameToShow = snapshot.supplier_name || snapshot.raw_supplier_name || '';
                 supplierInput.value = nameToShow;
-                console.log('✓ Updated supplier:', nameToShow || '(cleared)');
+                BglLogger.debug('✓ Updated supplier:', nameToShow || '(cleared)');
             }
 
             // Update hidden supplier ID (ID: supplierIdHidden)
             const supplierIdHidden = document.getElementById('supplierIdHidden');
             if (supplierIdHidden) {
                 supplierIdHidden.value = snapshot.supplier_id || '';
-                console.log('✓ Updated supplier ID:', snapshot.supplier_id || '(cleared)');
+                BglLogger.debug('✓ Updated supplier ID:', snapshot.supplier_id || '(cleared)');
             }
 
             // Bank is now in Info Grid - updated via label matching below
@@ -210,7 +210,7 @@ if (!window.TimelineController) {
             const bankSelect = document.getElementById('bankSelect');
             if (bankSelect) {
                 bankSelect.value = snapshot.bank_id || '';
-                console.log('✓ Updated bank ID:', snapshot.bank_id || '(cleared)');
+                BglLogger.debug('✓ Updated bank ID:', snapshot.bank_id || '(cleared)');
             }
 
             // Update info-value elements by matching labels
@@ -233,9 +233,9 @@ if (!window.TimelineController) {
                     if (!isNaN(amountValue) && isFinite(amountValue)) {
                         const formattedAmount = new Intl.NumberFormat('en-US').format(amountValue);
                         valueEl.textContent = formattedAmount + ' ر.س';
-                        console.log('✓ Updated amount:', formattedAmount);
+                        BglLogger.debug('✓ Updated amount:', formattedAmount);
                     } else {
-                        console.warn('⚠️ Invalid amount value:', snapshot.amount);
+                        BglLogger.warn('⚠️ Invalid amount value:', snapshot.amount);
                         valueEl.textContent = 'قيمة غير صحيحة ر.س';
                     }
                 }
@@ -243,19 +243,19 @@ if (!window.TimelineController) {
                 // Expiry date
                 if (label.includes('تاريخ الانتهاء') && snapshot.expiry_date) {
                     valueEl.textContent = snapshot.expiry_date;
-                    console.log('✓ Updated expiry:', snapshot.expiry_date);
+                    BglLogger.debug('✓ Updated expiry:', snapshot.expiry_date);
                 }
 
                 // Issue date
                 if (label.includes('تاريخ الإصدار') && snapshot.issue_date) {
                     valueEl.textContent = snapshot.issue_date;
-                    console.log('✓ Updated issue date:', snapshot.issue_date);
+                    BglLogger.debug('✓ Updated issue date:', snapshot.issue_date);
                 }
 
                 // Bank name
                 if (label.includes('البنك') && snapshot.bank_name) {
                     valueEl.textContent = snapshot.bank_name;
-                    console.log('✓ Updated bank:', snapshot.bank_name);
+                    BglLogger.debug('✓ Updated bank:', snapshot.bank_name);
                 }
             });
 
@@ -264,7 +264,7 @@ if (!window.TimelineController) {
             if (statusBadge && snapshot.status) {
                 this.updateStatusBadge(statusBadge, snapshot.status);
                 this.updateStatusBadge(statusBadge, snapshot.status);
-                console.log('✓ Updated status:', snapshot.status);
+                BglLogger.debug('✓ Updated status:', snapshot.status);
             }
 
             // 🔥 Update Hidden Event Context (Bridge to RecordsController)
@@ -274,7 +274,7 @@ if (!window.TimelineController) {
                 // Note: snapshot.event_subtype comes from backend createSnapshot or logEvent
                 const subtype = snapshot.event_subtype || '';
                 eventSubtypeInput.value = subtype;
-                console.log('✓ Updated event context:', subtype || '(none)');
+                BglLogger.debug('✓ Updated event context:', subtype || '(none)');
             }
         }
 
@@ -345,7 +345,7 @@ if (!window.TimelineController) {
         }
 
         async loadCurrentState() {
-            console.log('🔄 Loading current state from server');
+            BglLogger.debug('🔄 Loading current state from server');
 
             this.removeHistoricalBanner();
 
@@ -409,7 +409,7 @@ if (!window.TimelineController) {
                 // We only need to apply formatting, not rebuild the preview
                 // updatePreviewFromDOM() would hide preview if no activeAction exists (ADR-007)
 
-                console.log('✅ Current state loaded from server');
+                BglLogger.debug('✅ Current state loaded from server');
             } catch (error) {
                 console.error('Failed to load current state:', error);
                 if (window.showToast) {

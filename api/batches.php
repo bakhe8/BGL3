@@ -7,6 +7,7 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Services\BatchService;
+use App\Support\Input;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -19,8 +20,8 @@ try {
         $jsonInput = json_decode($rawBody, true);
         $input = array_merge($_POST, is_array($jsonInput) ? $jsonInput : []);
 
-        $action = $input['action'] ?? '';
-        $importSource = $input['import_source'] ?? '';
+        $action = Input::string($input, 'action', '');
+        $importSource = Input::string($input, 'import_source', '');
         
         if (!$importSource && $action !== 'list') {
             throw new \RuntimeException('import_source مطلوب');
@@ -28,37 +29,87 @@ try {
         
         switch ($action) {
             case 'extend':
-                $newExpiry = $input['new_expiry'] ?? '';
+                $newExpiry = Input::string($input, 'new_expiry', '');
+                $newExpiry = $newExpiry !== '' ? $newExpiry : null;
                 $result = $service->extendBatch(
                     $importSource,
                     $newExpiry,
-                    $input['user_id'] ?? 'web_user',
-                    $input['guarantee_ids'] ?? null
+                    Input::string($input, 'user_id', 'web_user'),
+                    Input::array($input, 'guarantee_ids', null)
                 );
                 break;
                 
             case 'release':
-                $reason = $input['reason'] ?? null;
+                $reason = Input::string($input, 'reason', '');
+                $reason = $reason !== '' ? $reason : null;
                 $result = $service->releaseBatch(
                     $importSource,
                     $reason,
-                    $input['user_id'] ?? 'web_user',
-                    $input['guarantee_ids'] ?? null
+                    Input::string($input, 'user_id', 'web_user'),
+                    Input::array($input, 'guarantee_ids', null)
+                );
+                break;
+
+            case 'reduce':
+                $reductionsRaw = Input::array($input, 'reductions', null);
+                $reductions = [];
+                if (is_array($reductionsRaw) && !empty($reductionsRaw)) {
+                    $isAssoc = array_keys($reductionsRaw) !== range(0, count($reductionsRaw) - 1);
+                    if ($isAssoc) {
+                        foreach ($reductionsRaw as $gid => $amount) {
+                            if (is_numeric($gid) && is_numeric($amount)) {
+                                $reductions[(int) $gid] = (float) $amount;
+                            }
+                        }
+                    } else {
+                        foreach ($reductionsRaw as $item) {
+                            if (!is_array($item)) {
+                                continue;
+                            }
+                            $gid = $item['guarantee_id'] ?? $item['id'] ?? null;
+                            $amount = $item['new_amount'] ?? $item['amount'] ?? null;
+                            if (is_numeric($gid) && is_numeric($amount)) {
+                                $reductions[(int) $gid] = (float) $amount;
+                            }
+                        }
+                    }
+                }
+
+                $newAmountRaw = Input::string($input, 'new_amount', '');
+                $newAmount = null;
+                if ($newAmountRaw !== '') {
+                    if (!is_numeric($newAmountRaw)) {
+                        throw new \RuntimeException('المبلغ غير صحيح');
+                    }
+                    $newAmount = (float) $newAmountRaw;
+                }
+
+                if (empty($reductions) && ($newAmount === null || $newAmount <= 0)) {
+                    throw new \RuntimeException('المبلغ غير صحيح');
+                }
+                $result = $service->reduceBatch(
+                    $importSource,
+                    $newAmount,
+                    Input::string($input, 'user_id', 'web_user'),
+                    Input::array($input, 'guarantee_ids', null),
+                    !empty($reductions) ? $reductions : null
                 );
                 break;
                 
             case 'close':
-                $result = $service->closeBatch($importSource, $input['closed_by'] ?? 'web_user');
+                $result = $service->closeBatch($importSource, Input::string($input, 'closed_by', 'web_user'));
                 break;
                 
             case 'update_metadata':  // Decision #2
-                $batchName = $input['batch_name'] ?? null;
-                $batchNotes = $input['batch_notes'] ?? null;
+                $batchName = Input::string($input, 'batch_name', '');
+                $batchNotes = Input::string($input, 'batch_notes', '');
+                $batchName = $batchName !== '' ? $batchName : null;
+                $batchNotes = $batchNotes !== '' ? $batchNotes : null;
                 $result = $service->updateMetadata($importSource, $batchName, $batchNotes);
                 break;
                 
             case 'reopen':  // Decision #7
-                $result = $service->reopenBatch($importSource, $input['reopened_by'] ?? 'web_user');
+                $result = $service->reopenBatch($importSource, Input::string($input, 'reopened_by', 'web_user'));
                 break;
                 
             case 'summary':
