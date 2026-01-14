@@ -1,7 +1,7 @@
 /**
  * Records Controller - Vanilla JavaScript
- * No dependencies on Alpine.js or any external libraries
- * Pure DOM manipulation and event handling
+ * Pure Vanilla JavaScript - No External Dependencies
+ * DOM manipulation and event handling only
  */
 
 if (!window.RecordsController) {

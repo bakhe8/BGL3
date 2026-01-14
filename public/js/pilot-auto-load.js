@@ -23,10 +23,10 @@
             return;
         }
 
-        // 🔧 FIX: Don't overwrite supplier name if record is already "ready"
+        // 🔧 FIX: Don't overwrite supplier name if record is already "ready" or "released"
         const decisionStatus = document.getElementById('decisionStatus');
-        if (decisionStatus && decisionStatus.value === 'ready') {
-            BglLogger.debug('[Pilot] Skipping auto-load - record already ready with matched supplier');
+        if (decisionStatus && (decisionStatus.value === 'ready' || decisionStatus.value === 'released')) {
+            BglLogger.debug('[Pilot] Skipping auto-load - record already has matched supplier');
             return;
         }
 

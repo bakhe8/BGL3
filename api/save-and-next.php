@@ -131,14 +131,19 @@ try {
         $decisionSource = 'manual';
     }
 
-    // Validation
+    // Basic validation (bank_id will be validated later after fetching from DB)
     if (!$guaranteeId || !$supplierId) {
         $missing = [];
         if (!$guaranteeId) $missing[] = 'Guarantee ID';
         if (!$supplierId) $missing[] = "Supplier (Unknown" . ($supplierError ? ": $supplierError" : "") . ")";
         
         http_response_code(400); // Bad Request
-        echo json_encode(['success' => false, 'error' => 'Missing fields: ' . implode(', ', $missing)]);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'Missing required fields', 
+            'message' => 'حقول مطلوبة مفقودة: ' . implode(', ', $missing),
+            'missing_fields' => $missing
+        ]);
         exit;
     }
     
@@ -166,7 +171,21 @@ try {
     // We only respect an existing bank_id from guarantee_decisions.
     $bankStmt = $db->prepare('SELECT bank_id FROM guarantee_decisions WHERE guarantee_id = ?');
     $bankStmt->execute([$guaranteeId]);
-    $bankId = $bankStmt->fetchColumn() ?: null; // Existing bank_id only
+    $bankIdRaw = $bankStmt->fetchColumn();
+    // ✅ FIX: Convert 0 or false to NULL for foreign key compliance
+    $bankId = ($bankIdRaw && $bankIdRaw > 0) ? (int)$bankIdRaw : null;
+
+    // ✅ VALIDATION: Ensure bank_id exists (after fetching from DB)
+    if (!$bankId) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false, 
+            'error' => 'bank_required',
+            'message' => 'لم يتم تحديد البنك - يجب مطابقة البنك تلقائياً أولاً. يرجى التأكد من وجود البنك في قاعدة البيانات.',
+            'details' => 'Bank ID is missing from guarantee_decisions'
+        ]);
+        exit;
+    }
 
     if ($bankId) {
         $stmt = $db->prepare('SELECT arabic_name FROM banks WHERE id = ?');
@@ -240,9 +259,9 @@ try {
         ]);
      } else {
         // Create new decision
-        // ✅ TYPE SAFETY: Ensure IDs are integers or NULL (not empty strings)
-        $supplierIdSafe = $supplierId ? (int)$supplierId : null;
-        $bankIdSafe = $bankId ? (int)$bankId : null;
+        // ✅ TYPE SAFETY: Ensure IDs are integers or NULL (not empty strings or 0)
+        $supplierIdSafe = ($supplierId && $supplierId > 0) ? (int)$supplierId : null;
+        $bankIdSafe = ($bankId && $bankId > 0) ? (int)$bankId : null;
         
         $stmt = $db->prepare('
             INSERT INTO guarantee_decisions (guarantee_id, supplier_id, bank_id, status, decided_at, decision_source, decided_by, created_at)

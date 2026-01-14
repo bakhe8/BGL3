@@ -232,10 +232,14 @@ if ($currentRecord) {
             try {
                 $supplier = $supplierRepo->find($decision->supplierId);
                 if ($supplier) {
+                    // ✅ FIX: Properly override the Excel name with official Arabic name
                     $mockRecord['supplier_name'] = $supplier->officialName;
+                    $mockRecord['supplier_english_name'] = $supplier->englishName ?? '';
                 }
             } catch (\Exception $e) {
                 // Keep Excel name if supplier not found
+                error_log("Failed to load supplier {$decision->supplierId}: " . $e->getMessage());
+                // DEBUG: Last code update - 2026-01-14 03:21
             }
         }
         
@@ -347,7 +351,7 @@ $formattedSuppliers = array_map(function($s) {
     <!-- Letter Preview Styles (Classic Theme) -->
     <link rel="stylesheet" href="assets/css/letter.css">
     
-    <!-- Alpine.js removed - using vanilla JavaScript instead -->
+    <!-- Pure Vanilla JavaScript - No External Dependencies -->
     
     <!-- Main Application Styles -->
     <link rel="stylesheet" href="public/css/index-main.css">
@@ -436,8 +440,16 @@ $formattedSuppliers = array_map(function($s) {
                     <?php if ($currentRecord): ?>
                         <?php
                             // Display status badge based on actual status
-                            $statusClass = ($mockRecord['status'] === 'ready') ? 'badge-approved' : 'badge-pending';
-                            $statusText = ($mockRecord['status'] === 'ready') ? 'جاهز' : 'يحتاج قرار';
+                            if ($mockRecord['status'] === 'released') {
+                                $statusClass = 'badge-released';
+                                $statusText = 'مُفرج عنه';
+                            } elseif ($mockRecord['status'] === 'ready') {
+                                $statusClass = 'badge-approved';
+                                $statusText = 'جاهز';
+                            } else {
+                                $statusClass = 'badge-pending';
+                                $statusText = 'يحتاج قرار';
+                            }
                         ?>
                         <span class="badge <?= $statusClass ?>"><?= $statusText ?></span>
                     <?php endif; ?>
@@ -570,8 +582,8 @@ $formattedSuppliers = array_map(function($s) {
                         ?>
                     </div>
 
-                    <!-- Preview Section - Lifecycle Gate -->
-                    <?php if ($mockRecord['status'] === 'ready'): ?>
+                    <!-- Preview Section - Show for ready and released guarantees -->
+                    <?php if ($mockRecord['status'] === 'ready' || $mockRecord['status'] === 'released'): ?>
                         <div id="preview-section">
                             <?php 
                             $showPlaceholder = true;

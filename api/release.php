@@ -8,8 +8,10 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\GuaranteeRepository;
+use App\Repositories\SupplierRepository;
 use App\Support\Database;
 use App\Support\Input;
+use App\Services\LetterBuilder;
 
 header('Content-Type: text/html; charset=utf-8');
 
@@ -94,11 +96,25 @@ try {
     $guarantee = $guaranteeRepo->find($guaranteeId);
     $raw = $guarantee->rawData;
     
+    // Get supplier name (Arabic) from suppliers table
+    $supplierRepo = new SupplierRepository($db);
+    $supplier_name = $raw['supplier'] ?? ''; // Default to Excel name
+    if ($decision && $decision->supplierId) {
+        try {
+            $supplier = $supplierRepo->find($decision->supplierId);
+            if ($supplier) {
+                $supplier_name = $supplier->officialName; // ✅ Use Arabic official name
+            }
+        } catch (\Exception $e) {
+            // Keep Excel name if supplier not found
+        }
+    }
+    
     // Prepare record data
     $record = [
         'id' => $guarantee->id,
         'guarantee_number' => $guarantee->guaranteeNumber,
-        'supplier_name' => $raw['supplier'] ?? '',
+        'supplier_name' => $supplier_name, // ✅ Now using Arabic name
         'bank_name' => $raw['bank'] ?? '',
         'bank_id' => null,
         'amount' => $raw['amount'] ?? 0,
@@ -106,8 +122,13 @@ try {
         'issue_date' => $raw['issue_date'] ?? '',
         'contract_number' => $raw['contract_number'] ?? '',
         'type' => $raw['type'] ?? 'Initial',
-        'status' => 'released'
+        'status' => 'released',
+        'related_to' => $raw['related_to'] ?? 'contract' // ✅ For LetterBuilder
     ];
+    
+    // 🆕 Generate Release Letter using LetterBuilder
+    $letterData = LetterBuilder::prepare($record, 'release');
+    $letterHtml = LetterBuilder::render($letterData);
     
     // Get banks for dropdown
     $banksStmt = $db->query('SELECT id, arabic_name as official_name FROM banks ORDER BY arabic_name');
@@ -116,6 +137,12 @@ try {
     // Include partial template
     echo '<div id="record-form-section" class="decision-card" data-current-event-type="current">';
     include __DIR__ . '/../partials/record-form.php';
+    
+    // 🆕 Display Letter Preview Section
+    echo '<div class="letter-preview-section" style="margin-top: 24px; background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">';
+    echo '<div style="padding: 16px; background: #f8fafc; border-bottom: 1px solid #e2e8f0; font-weight: bold;">📄 خطاب الإفراج</div>';
+    echo $letterHtml;
+    echo '</div>';
     echo '</div>';
     
 } catch (\Throwable $e) {
