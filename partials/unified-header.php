@@ -22,6 +22,10 @@ function isActive($page, $currentPage, $currentDir)
 
 // Determine base path (root or views/)
 $basePath = ($currentDir === 'views') ? '../' : './';
+
+// Check Production Mode for conditional menu items
+$headerSettings = \App\Support\Settings::getInstance();
+$isProductionMode = $headerSettings->isProductionMode();
 ?>
 
 <header class="top-bar">
@@ -62,9 +66,11 @@ $basePath = ($currentDir === 'views') ? '../' : './';
             class="btn-global <?= isActive('settings', $currentPage, $currentDir) ? 'active' : '' ?>">
             ⚙ إعدادات
         </a>
+        <?php if (!$isProductionMode): ?>
         <a href="<?= $basePath ?>views/maintenance.php"
             class="btn-global <?= isActive('maintenance', $currentPage, $currentDir) ? 'active' : '' ?>">
             🛠️ صيانة
         </a>
+        <?php endif; ?>
     </nav>
 </header>

@@ -1,3 +1,57 @@
+<?php
+require_once __DIR__ . '/../vendor/autoload.php';
+
+use App\Repositories\GuaranteeRepository;
+use App\Support\Database;
+use App\Support\Settings;
+
+$db = Database::connect();
+$repo = new GuaranteeRepository($db);
+
+// Get statistics
+$stats = $repo->getTestDataStats();
+$realCount = $repo->count();
+$testCount = $repo->count(['test_data_only' => true]);
+$totalCount = $repo->count(['include_test_data' => true]);
+
+// Handle deletion requests
+$deleteResult = null;
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $confirmation = $_POST['confirmation'] ?? '';
+    
+    if ($confirmation !== 'DELETE') {
+        $deleteResult = ['success' => false, 'message' => 'كلمة التأكيد غير صحيحة'];
+    } else {
+        try {
+            $action = $_POST['action'];
+            
+            switch ($action) {
+                case 'delete_test_data':
+                    $deleted = $repo->deleteTestData();
+                    $deleteResult = ['success' => true, 'message' => "تم حذف {$deleted} ضمان اختباري بنجاح"];
+                    break;
+                    
+                default:
+                    $deleteResult = ['success' => false, 'message' => 'إجراء غير معروف'];
+            }
+            
+            // Refresh stats after deletion
+            if ($deleteResult['success']) {
+                $stats = $repo->getTestDataStats();
+                $realCount = $repo->count();
+                $testCount = $repo->count(['test_data_only' => true]);
+                $totalCount = $repo->count(['include_test_data' => true]);
+            }
+            
+        } catch (Exception $e) {
+            $deleteResult = ['success' => false, 'message' => 'خطأ: ' . $e->getMessage()];
+        }
+    }
+}
+
+$settings = Settings::getInstance();
+$isProd = $settings->isProductionMode();
+?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -8,9 +62,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <!-- Core Styles -->
     <link rel="stylesheet" href="../public/css/design-system.css">
+    <link rel="stylesheet" href="../public/css/components.css">
     <link rel="stylesheet" href="../public/css/layout.css">
-    <!-- Main Styles -->
-    <link rel="stylesheet" href="../public/css/index-main.css">
     <style>
         /* FIX: Enable scrolling for maintenance page */
         body {
@@ -113,75 +166,8 @@
     </style>
 </head>
 <body>
-    <?php
-    require_once __DIR__ . '/../vendor/autoload.php';
     
-    use App\Repositories\GuaranteeRepository;
-    use App\Support\Database;
-    use App\Support\Settings;
-    
-    $db = Database::connect();
-    $repo = new GuaranteeRepository($db);
-    
-    // Get statistics
-    $stats = $repo->getTestDataStats();
-    $realCount = $repo->count();
-    $testCount = $repo->count(['test_data_only' => true]);
-    $totalCount = $repo->count(['include_test_data' => true]);
-    
-    // Handle deletion requests
-    $deleteResult = null;
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
-        $confirmation = $_POST['confirmation'] ?? '';
-        
-        if ($confirmation !== 'DELETE') {
-            $deleteResult = ['success' => false, 'message' => 'كلمة التأكيد غير صحيحة'];
-        } else {
-            try {
-                $deletedCount = 0;
-                
-                switch ($_POST['action']) {
-                    case 'delete_all':
-                        $deletedCount = $repo->deleteTestData();
-                        $deleteResult = ['success' => true, 'message' => "تم حذف $deletedCount ضماناً تجريبياً"];
-                        break;
-                        
-                    case 'delete_batch':
-                        $batchId = $_POST['batch_id'] ?? '';
-                        if (empty($batchId)) {
-                            $deleteResult = ['success' => false, 'message' => 'يرجى إدخال معرف الدفعة'];
-                        } else {
-                            $deletedCount = $repo->deleteTestData($batchId);
-                            $deleteResult = ['success' => true, 'message' => "تم حذف $deletedCount ضماناً من الدفعة '$batchId'"];
-                        }
-                        break;
-                        
-                    case 'delete_older':
-                        $date = $_POST['older_than'] ?? '';
-                        if (empty($date)) {
-                            $deleteResult = ['success' => false, 'message' => 'يرجى إدخال التاريخ'];
-                        } else {
-                            $deletedCount = $repo->deleteTestData(null, $date);
-                            $deleteResult = ['success' => true, 'message' => "تم حذف $deletedCount ضماناً أقدم من $date"];
-                        }
-                        break;
-                }
-                
-                // Refresh stats after deletion
-                if ($deleteResult['success']) {
-                    $stats = $repo->getTestDataStats();
-                    $realCount = $repo->count();
-                    $testCount = $repo->count(['test_data_only' => true]);
-                    $totalCount = $repo->count(['include_test_data' => true]);
-                }
-                
-            } catch (Exception $e) {
-                $deleteResult = ['success' => false, 'message' => 'خطأ: ' . $e->getMessage()];
-            }
-        }
-    }
-    ?>
-    
+    <!-- Unified Header -->
     <?php include __DIR__ . '/../partials/unified-header.php'; ?>
     
     <div class="container" style="max-width: 1200px; margin: 2rem auto; padding: 0 1rem;">

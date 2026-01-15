@@ -79,11 +79,9 @@ try {
     $topRecurring = $db->query("
         SELECT 
             g.guarantee_number,
-            s.official_name as supplier,
-            b.arabic_name as bank,
-            COUNT(o.id) as occurrence_count,
-            MIN(o.occurred_at) as first_seen,
-            MAX(o.occurred_at) as last_seen
+            COALESCE(s.official_name, 'غير محدد') as supplier,
+            COALESCE(b.arabic_name, 'غير محدد') as bank,
+            COUNT(o.id) as occurrence_count
         FROM guarantee_occurrences o
         JOIN guarantees g ON o.guarantee_id = g.id
         LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
@@ -91,8 +89,7 @@ try {
         LEFT JOIN banks b ON d.bank_id = b.id
         $whereG
         GROUP BY g.id
-        HAVING occurrence_count > 1
-        ORDER BY occurrence_count DESC
+        ORDER BY occurrence_count DESC, g.imported_at DESC
         LIMIT 5
     ")->fetchAll(PDO::FETCH_ASSOC);
 
@@ -132,11 +129,8 @@ try {
         FROM suppliers s
         JOIN guarantee_decisions d ON s.id = d.supplier_id
         JOIN guarantees g ON d.guarantee_id = g.id
-        LEFT JOIN guarantee_history h ON d.guarantee_id = h.guarantee_id AND h.event_type = 'modified'
-        WHERE h.id IS NULL
-        $andG
+        $whereG
         GROUP BY s.id
-        HAVING count >= 2
         ORDER BY count DESC
         LIMIT 5
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -309,6 +303,7 @@ try {
 
     // 4C: Actions
     $actions = $db->query("
+        SELECT
             COUNT(CASE WHEN h.event_subtype = 'extension' THEN 1 END) as extensions,
             COUNT(CASE WHEN h.event_subtype = 'reduction' THEN 1 END) as reductions,
             COUNT(CASE WHEN h.event_type = 'released' THEN 1 END) as releases,
@@ -356,6 +351,7 @@ try {
     // SECTION 5: AI & MACHINE LEARNING
     // ============================================
     $aiStats = $db->query("
+        SELECT
             COUNT(*) as total,
             COUNT(CASE WHEN d.decision_source IN ('auto', 'auto_match', 'ai_match', 'ai_quick', 'direct_match') THEN 1 END) as ai_matches,
             COUNT(CASE WHEN d.decision_source = 'manual' OR d.decision_source IS NULL THEN 1 END) as manual
