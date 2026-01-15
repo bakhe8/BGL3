@@ -32,10 +32,30 @@ try {
         throw new \RuntimeException('المبلغ غير صحيح');
     }
     
+    // Validate positive amount
+    if ($newAmount <= 0) {
+        throw new \RuntimeException('المبلغ يجب أن يكون أكبر من صفر');
+    }
+    
     // Initialize services
     $db = Database::connect();
     $decisionRepo = new GuaranteeDecisionRepository($db);
     $guaranteeRepo = new GuaranteeRepository($db);
+    
+    // ===== CRITICAL FIX: Validate new amount is LESS than current amount =====
+    $currentAmountCheck = $db->prepare("SELECT raw_data FROM guarantees WHERE id = ?");
+    $currentAmountCheck->execute([$guaranteeId]);
+    $guaranteeData = $currentAmountCheck->fetch(PDO::FETCH_ASSOC);
+    
+    if ($guaranteeData) {
+        $rawData = json_decode($guaranteeData['raw_data'], true);
+        $currentAmount = (float)($rawData['amount'] ?? 0);
+        
+        if ($newAmount >= $currentAmount) {
+            throw new \RuntimeException('المبلغ الجديد يجب أن يكون أقل من المبلغ الحالي (' . number_format($currentAmount, 2) . ' ر.س)');
+        }
+    }
+    // =========================================================================
     
     // ===== LIFECYCLE GATE: Prevent reduction on pending/locked guarantees =====
     $statusCheck = $db->prepare("

@@ -92,14 +92,15 @@ class SmartProcessingService
             
             if (!empty($bankName)) {
                 $normalized = BankNormalizer::normalize($bankName);
+                // ✅ ENHANCED: Search in both alternative_names AND short_name
                 $stmt2 = $this->db->prepare("
-                    SELECT b.id, b.arabic_name
+                    SELECT DISTINCT b.id, b.arabic_name
                     FROM banks b
-                    JOIN bank_alternative_names a ON b.id = a.bank_id
-                    WHERE a.normalized_name = ?
+                    LEFT JOIN bank_alternative_names a ON b.id = a.bank_id
+                    WHERE a.normalized_name = ? OR LOWER(b.short_name) = LOWER(?)
                     LIMIT 1
                 ");
-                $stmt2->execute([$normalized]);
+                $stmt2->execute([$normalized, $bankName]);
                 $bank = $stmt2->fetch(PDO::FETCH_ASSOC);
                 
                 if ($bank) {

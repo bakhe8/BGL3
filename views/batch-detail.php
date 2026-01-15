@@ -103,7 +103,7 @@ unset($g);
 // Calculate ready count for UI logic - 
 // MUST match JS logic: supplier_id, bank_id, and active_action required for printing
 $readyCount = count(array_filter($guarantees, fn($g) => 
-    ($g['decision_status'] ?? '') === 'ready' && 
+    in_array($g['decision_status'] ?? '', ['ready', 'released']) && 
     $g['supplier_id'] && 
     $g['bank_id'] && 
     $g['active_action']
@@ -300,7 +300,7 @@ $readyCount = count(array_filter($guarantees, fn($g) =>
                                 </td>
                                 <td class="text-center">
                                     <?php 
-                                    $isReady = ($g['decision_status'] === 'ready' && $g['supplier_id'] && $g['bank_id'] && $g['active_action']);
+                                    $isReady = (in_array($g['decision_status'] ?? '', ['ready', 'released']) && $g['supplier_id'] && $g['bank_id'] && $g['active_action']);
                                     if ($isReady): ?>
                                         <div class="text-success flex-center gap-1 text-sm font-bold">
                                             <i data-lucide="check" style="width: 14px;"></i> جاهز

@@ -20,6 +20,6 @@
     "LEVEL_B_THRESHOLD": 85,
     "LEVEL_C_THRESHOLD": 65,
     "TIMEZONE": "Asia\/Riyadh",
-    "PRODUCTION_MODE": 1,
+    "PRODUCTION_MODE": 0,
     "CANDIDATES_LIMIT": 20
 }
