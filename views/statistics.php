@@ -29,24 +29,25 @@ $andG   = $isProd ? " AND (g.is_test_data = 0 OR g.is_test_data IS NULL) " : "";
 $whereD = $isProd ? " WHERE (is_test_data = 0 OR is_test_data IS NULL) " : " WHERE 1=1 ";
 $andD   = $isProd ? " AND (is_test_data = 0 OR is_test_data IS NULL) " : "";
 
-// Special joins for tables that don't have the flag (need to join guarantees g)
-$joinG  = $isProd ? " JOIN guarantees g ON g.id = " : ""; // incomplete, usage depends on context
-// Better to just write the manual JOINS where needed
-
 try {
     // ============================================
     // SECTION 1: GLOBAL METRICS (ASSET vs OCCURRENCE)
     // ============================================
+    // For subquery with JOIN, we need proper WHERE clause
+    $occurrencesQuery = $isProd 
+        ? "SELECT COUNT(*) FROM guarantee_occurrences o JOIN guarantees g ON o.guarantee_id = g.id WHERE (g.is_test_data = 0 OR g.is_test_data IS NULL)"
+        : "SELECT COUNT(*) FROM guarantee_occurrences o JOIN guarantees g ON o.guarantee_id = g.id";
+    
     $overview = $db->query("
         SELECT 
             (SELECT COUNT(*) FROM guarantees $whereD) as total_assets,
-            (SELECT COUNT(*) FROM guarantee_occurrences o JOIN guarantees g ON o.guarantee_id = g.id $whereG) as total_occurrences,
-            (SELECT COUNT(*) FROM guarantees WHERE json_extract(raw_data, '$.expiry_date') >= date('now') $andD) as active_assets,
+            ($occurrencesQuery) as total_occurrences,
+            (SELECT COUNT(*) FROM guarantees WHERE json_extract(raw_data, '\$.expiry_date') >= date('now') $andD) as active_assets,
             (SELECT COUNT(*) FROM batch_metadata WHERE status='active') as active_batches,
-            (SELECT SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as total_amount,
-            (SELECT AVG(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as avg_amount,
-            (SELECT MAX(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as max_amount,
-            (SELECT MIN(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as min_amount
+            (SELECT SUM(CAST(json_extract(raw_data, '\$.amount') AS REAL)) FROM guarantees $whereD) as total_amount,
+            (SELECT AVG(CAST(json_extract(raw_data, '\$.amount') AS REAL)) FROM guarantees $whereD) as avg_amount,
+            (SELECT MAX(CAST(json_extract(raw_data, '\$.amount') AS REAL)) FROM guarantees $whereD) as max_amount,
+            (SELECT MIN(CAST(json_extract(raw_data, '\$.amount') AS REAL)) FROM guarantees $whereD) as min_amount
     ")->fetch(PDO::FETCH_ASSOC);
 
     $efficiencyRatio = $overview['total_assets'] > 0 
