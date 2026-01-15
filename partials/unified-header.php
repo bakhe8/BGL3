@@ -62,5 +62,9 @@ $basePath = ($currentDir === 'views') ? '../' : './';
             class="btn-global <?= isActive('settings', $currentPage, $currentDir) ? 'active' : '' ?>">
             ⚙ إعدادات
         </a>
+        <a href="<?= $basePath ?>views/maintenance.php"
+            class="btn-global <?= isActive('maintenance', $currentPage, $currentDir) ? 'active' : '' ?>">
+            🛠️ صيانة
+        </a>
     </nav>
 </header>

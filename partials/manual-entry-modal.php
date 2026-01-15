@@ -142,6 +142,49 @@
                     onblur="this.style.borderColor='#d1d5db'; this.style.boxShadow='none'"></textarea>
             </div>
 
+            <!-- Test Data Marker -->
+            <?php 
+            $settings = \App\Support\Settings::getInstance();
+            if (!$settings->isProductionMode()):
+            ?>
+            <div style="margin-top: 16px; padding: 12px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;">
+                <label style="display: flex; align-items: start; gap: 10px; cursor: pointer;">
+                    <input type="checkbox" id="manualIsTestData" name="is_test_data" value="1" 
+                        style="width: 20px; height: 20px; margin-top: 2px; cursor: pointer; accent-color: #f59e0b;">
+                    <div>
+                        <div style="font-weight: 600; color: #92400e; font-size: 14px;">🧪 تمييز كضمان تجريبي</div>
+                        <div style="font-size: 12px; color: #78350f; margin-top: 4px;">
+                            البيانات المُميزة كتجريبية لن تؤثر على الإحصائيات ونظام التعلم
+                        </div>
+                    </div>
+                </label>
+                <div id="testBatchIdContainer" style="margin-top: 12px; display: none;">
+                    <input type="text" id="manualTestBatchId" name="test_batch_id" 
+                        placeholder="معرف الدفعة (اختياري - للحذف الجماعي)"
+                        style="width: 100%; padding: 8px 10px; border: 1px solid #fbbf24; border-radius: 6px; font-size: 13px;">
+                    <textarea id="manualTestNote" name="test_note" rows="2"
+                        placeholder="ملاحظة عن هذه البيانات التجريبية (اختياري)"
+                        style="width: 100%; margin-top: 8px; padding: 8px 10px; border: 1px solid #fbbf24; border-radius: 6px; font-size: 13px; resize: vertical;"></textarea>
+                </div>
+            </div>
+            <?php endif; ?>
+
+            <script>
+                // Show/hide test data fields
+                document.getElementById('manualIsTestData')?.addEventListener('change', function() {
+                    const container = document.getElementById('testBatchIdContainer');
+                    if (container) {
+                        container.style.display = this.checked ? 'block' : 'none';
+                    }
+                });
+            </script>
+
+            <!-- Required fields legend -->
+            <div style="margin-top: 16px; padding: 8px 12px; background: #f3f4f6; border-radius: 6px; font-size: 12px; color: #6b7280; display: flex; align-items: center; gap: 6px;">
+                <span style="color: #dc2626; font-weight: bold;">*</span>
+                <span>الحقول المطلوبة</span>
+            </div>
+
             <div id="manualEntryError" style="margin-top: 12px; color: #dc2626; font-size: 14px; font-weight: 700; display: none;"></div>
         </form>
 
@@ -153,3 +196,82 @@
         </div>
     </div>
 </div>
+
+                <!-- Hidden Confidence Metadata (for Audit) -->
+                <input type="hidden" id="manualConfidenceMetadata" value="">
+            </div>
+            
+            <script>
+(function() {
+    // Track if form has been modified
+    let formModified = false;
+    const form = document.getElementById('manualEntryForm');
+    
+    // Listen for input changes
+    if (form) {
+        const inputs = form.querySelectorAll('input, textarea, select');
+        inputs.forEach(input => {
+            input.addEventListener('change', () => {
+                formModified = true;
+            });
+            input.addEventListener('input', () => {
+                formModified = true;
+            });
+        });
+    }
+    
+    // Warning before leaving
+    window.addEventListener('beforeunload', (e) => {
+        // Only warn if form is modified and modal is visible
+        const modal = document.getElementById('manualEntryModal');
+        if (formModified && modal && modal.style.display !== 'none') {
+            e.preventDefault();
+            e.returnValue = 'لديك تعديلات غير محفوظة. هل تريد المغادرة؟';
+            return e.returnValue;
+        }
+    });
+    
+    // Reset flag when form is submitted/saved
+    const btnSave = document.getElementById('btnSaveManualEntry');
+    const btnCancel = document.getElementById('btnCancelManualEntry');
+    const btnClose = document.getElementById('btnCloseManualEntry');
+    
+    if (btnSave) {
+        btnSave.addEventListener('click', () => {
+            formModified = false; // Reset on save
+        });
+    }
+    
+    if (btnCancel) {
+        btnCancel.addEventListener('click', () => {
+            if (formModified) {
+                if (confirm('لديك تعديلات غير محفوظة. هل تريد الإلغاء؟')) {
+                    formModified = false;
+                    document.getElementById('manualEntryModal').style.display = 'none';
+                    form.reset();
+                }
+            } else {
+                formModified = false;
+                document.getElementById('manualEntryModal').style.display = 'none';
+                form.reset();
+            }
+        });
+    }
+    
+    if (btnClose) {
+        btnClose.addEventListener('click', () => {
+            if (formModified) {
+                if (confirm('لديك تعديلات غير محفوظة. هل تريد الإغلاق؟')) {
+                    formModified = false;
+                    document.getElementById('manualEntryModal').style.display = 'none';
+                    form.reset();
+                }
+            } else {
+                formModified = false;
+                document.getElementById('manualEntryModal').style.display = 'none';
+                form.reset();
+            }
+        });
+    }
+})();
+</script>

@@ -18,13 +18,43 @@
 
             <textarea id="smartPasteInput" style="width: 100%; height: 192px; padding: 16px; border: 2px dashed #d1d5db; border-radius: 8px; background: #f9fafb; font-family: monospace; font-size: 14px; line-height: 1.5; resize: vertical;" placeholder="مثال: يرجى إصدار ضمان بنكي بمبلغ 50,000 ريال لصالح شركة المراعي..." onfocus="this.style.background='white'; this.style.borderColor='#3b82f6'" onblur="this.style.background='#f9fafb'; this.style.borderColor='#d1d5db'"></textarea>
             
-            <!-- Extraction Results Preview -->
+            <!-- Extraction Results Preview (Enhanced with Confidence) -->
             <div id="extractionPreview" style="margin-top: 16px; display: none;">
                 <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 16px; margin-bottom: 12px;">
-                    <div style="font-size: 14px; font-weight: 700; color: #15803d; margin-bottom: 12px;">✅ نتائج الاستخراج</div>
-                    <div id="extractionFields" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; font-size: 13px;"></div>
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+                        <div style="font-size: 14px; font-weight: 700; color: #15803d;">✅ نتائج الاستخراج</div>
+                        <div id="overallConfidence" style="font-size: 12px; font-weight: 600;"></div>
+                    </div>
+                    <div id="extractionFields" style="display: flex; flex-direction: column; gap: 12px;"></div>
                 </div>
             </div>
+
+
+            <!-- Test Data Option -->
+            <?php 
+            $settings = \App\Support\Settings::getInstance();
+            if (!$settings->isProductionMode()):
+            ?>
+            <div style="margin-top: 16px; padding: 16px; background: #fef3c7; border: 1px solid #fbbf24; border-radius: 8px;">
+                <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 14px; font-weight: 600; color: #92400e;">
+                    <input type="checkbox" id="pasteIsTestData" style="width: 18px; height: 18px; cursor: pointer;" onchange="document.getElementById('pasteTestFields').style.display = this.checked ? 'block' : 'none'">
+                    🧪 تمييز كضمان تجريبي (لأغراض الاختبار فقط)
+                </label>
+                
+                <div id="pasteTestFields" style="display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid #fbbf24;">
+                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #451a03;">معرّف الدفعة (Batch ID)</label>
+                            <input type="text" id="pasteTestBatchId" placeholder="مثل: TEST-BATCH-001" style="width: 100%; padding: 8px; border: 1px solid #fbbf24; border-radius: 4px; font-size: 13px;">
+                        </div>
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-size: 12px; font-weight: 600; color: #451a03;">ملاحظة (اختياري)</label>
+                            <input type="text" id="pasteTestNote" placeholder="مثل: اختبار Smart Paste" style="width: 100%; padding: 8px; border: 1px solid #fbbf24; border-radius: 4px; font-size: 13px;">
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
 
             <div id="smartPasteError" style="margin-top: 12px; padding: 12px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #dc2626; font-size: 14px; display: none;">
                 <div style="font-weight: 700; margin-bottom: 8px;">❌ فشل الاستخراج</div>

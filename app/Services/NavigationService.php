@@ -66,6 +66,13 @@ class NavigationService
      */
     private static function buildFilterConditions(string $filter, ?string $searchTerm = null): array
     {
+        // Production Mode: Check if we should exclude test data
+        $settings = \App\Support\Settings::getInstance();
+        $testDataFilter = '';
+        if ($settings->isProductionMode()) {
+            $testDataFilter = ' AND (g.is_test_data = 0 OR g.is_test_data IS NULL)';
+        }
+        
         // ✅ Search Mode: Overrides standard status filters
         if ($searchTerm) {
             $searchSafe = stripslashes($searchTerm);
@@ -77,7 +84,7 @@ class NavigationService
                     g.guarantee_number LIKE :search_any OR
                     g.raw_data LIKE :search_any OR
                     s.official_name LIKE :search_any
-                )",
+                )" . $testDataFilter,
                 'params' => [
                     'search_any' => $searchAny,
                 ],
@@ -87,7 +94,7 @@ class NavigationService
         if ($filter === 'released') {
             // Show only released
             return [
-                'sql' => ' AND d.is_locked = 1',
+                'sql' => ' AND d.is_locked = 1' . $testDataFilter,
                 'params' => [],
             ];
         } else {
@@ -103,7 +110,7 @@ class NavigationService
             // 'all' filter has no additional conditions
             
             return [
-                'sql' => $conditions,
+                'sql' => $conditions . $testDataFilter,
                 'params' => [],
             ];
         }

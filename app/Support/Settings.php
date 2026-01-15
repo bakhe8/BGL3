@@ -112,6 +112,30 @@ class Settings
     }
 
     /**
+     * Get singleton instance for global access
+     * 
+     * @return Settings
+     */
+    public static function getInstance(): Settings
+    {
+        static $instance = null;
+        if ($instance === null) {
+            $instance = new Settings();
+        }
+        return $instance;
+    }
+
+    /**
+     * Check if production mode is enabled
+     * 
+     * @return bool
+     */
+    public function isProductionMode(): bool
+    {
+        return (bool) $this->get('PRODUCTION_MODE', false);
+    }
+
+    /**
      * Normalize percentage values to 0-100 scale.
      */
     private function normalizePercentage(mixed $value): mixed

@@ -68,7 +68,11 @@ async function submitManualEntry() {
         type: document.getElementById('manualType')?.value,
         issue_date: document.getElementById('manualIssue')?.value,
         comment: document.getElementById('manualComment')?.value,
-        related_to: document.querySelector('input[name="relatedTo"]:checked')?.value || 'contract' // 🔥 NEW
+        related_to: document.querySelector('input[name="relatedTo"]:checked')?.value || 'contract', // 🔥 NEW
+        // ✅ NEW: Test Data Isolation (Phase 1)
+        is_test_data: document.getElementById('manualIsTestData')?.checked ? 1 : 0,
+        test_batch_id: document.getElementById('manualTestBatchId')?.value,
+        test_note: document.getElementById('manualTestNote')?.value
     };
 
     try {
@@ -111,10 +115,18 @@ async function parsePasteData() {
     document.getElementById('smartPasteError').style.display = 'none';
 
     try {
+        // Call the parse API (now with built-in confidence support)
         const response = await fetch('/api/parse-paste.php', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ text })
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                text: text,
+                is_test_data: isTestData,
+                test_batch_id: testBatchId,
+                test_note: testNote
+            })
         });
 
         const data = await response.json();
@@ -179,14 +191,55 @@ async function parsePasteData() {
             };
 
             let fieldsHTML = '';
+            const hasConfidence = data.confidence && Object.keys(data.confidence).length > 0;
+
+            // Show overall confidence if available
+            if (hasConfidence && data.overall_confidence) {
+                const overallDiv = document.getElementById('overallConfidence');
+                const level = data.overall_confidence >= 90 ? '✅ عالية' :
+                    data.overall_confidence >= 70 ? '⚠️ متوسطة' : '❌ منخفضة';
+                const color = data.overall_confidence >= 90 ? '#15803d' :
+                    data.overall_confidence >= 70 ? '#d97706' : '#dc2626';
+                overallDiv.innerHTML = `<span style="color: ${color}">الثقة الإجمالية: ${level} (${data.overall_confidence}%)</span>`;
+            }
+
             for (const [key, label] of Object.entries(fieldLabels)) {
                 const value = data.extracted[key];
-                const status = data.field_status?.[key] || '⚠️';
                 if (value) {
+                    // Get confidence data for this field
+                    const conf = hasConfidence ? data.confidence[key] : null;
+                    const confScore = conf ? conf.confidence : null;
+                    const confReason = conf ? conf.reason : '';
+
+                    // Determine confidence badge
+                    let confBadge = '';
+                    let bgColor = 'white';
+                    let borderColor = '#d1fae5';
+
+                    if (conf) {
+                        if (confScore >= 90) {
+                            confBadge = `<span style="color: #15803d; font-size: 11px;">✓ ${confScore}%</span>`;
+                            bgColor = '#f0fdf4';
+                            borderColor = '#86efac';
+                        } else if (confScore >= 70) {
+                            confBadge = `<span style="color: #d97706; font-size: 11px;">⚠ ${confScore}%</span>`;
+                            bgColor = '#fef3c7';
+                            borderColor = '#fbbf24';
+                        } else {
+                            confBadge = `<span style="color: #dc2626; font-size: 11px;">⚠ ${confScore}% - ${confReason}</span>`;
+                            bgColor = '#fee2e2';
+                            borderColor = '#fca5a5';
+                        }
+                    }
+
                     fieldsHTML += `
-                        <div style="padding: 6px 10px; background: white; border-radius: 6px; border: 1px solid #d1fae5;">
-                            <div style="color: #6b7280; font-size: 11px;">${status} ${label}</div>
-                            <div style="color: #1f2937; font-weight: 600; margin-top: 2px;">${value}</div>
+                        <div style="padding: 8px 12px; background: ${bgColor}; border-radius: 6px; border: 1px solid ${borderColor};">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                <div style="color: #6b7280; font-size: 11px; font-weight: 600;">${label}</div>
+                                ${confBadge}
+                            </div>
+                            <div style="color: #1f2937; font-weight: 600; font-size: 14px;">${value}</div>
+                            ${conf && conf.reason ? `<div style="color: #6b7280; font-size: 10px; margin-top: 2px;">${conf.reason}</div>` : ''}
                         </div>
                     `;
                 }
@@ -248,6 +301,79 @@ async function parsePasteData() {
     }
 }
 
+// دالة لفتح modal استيراد Excel
+function showImportModal() {
+    const modal = document.getElementById('excelImportModal');
+    if (modal) {
+        modal.style.display = 'flex';
+    }
+}
+
+// Placeholder for uploadExcelFile function (to be defined elsewhere or added)
+async function uploadExcelFile() {
+    const fileInput = document.getElementById('excelFileInput');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        showToast('يرجى اختيار ملف Excel أولاً', 'error');
+        return;
+    }
+
+    // Show loading indicator
+    const loadingMsg = document.createElement('div');
+    loadingMsg.id = 'uploadProgress';
+    loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 24px 48px; border-radius: 12px; box-shadow: 0 25px 50px rgba(0,0,0,0.3); z-index: 10000; text-align: center;';
+    loadingMsg.innerHTML = '<div style="font-size: 18px; font-weight: 700; color: #1f2937;">جاري تحميل الملف...</div><div style="margin-top: 12px; font-size: 14px; color: #6b7280;">' + file.name + '</div>';
+    loadingMsg.innerHTML = '<div style="font-size: 18px; font-weight: 700; color: #1f2937;">جاري تحميل الملف...</div><div style="margin-top: 12px; font-size: 14px; color: #6b7280;">' + file.name + '</div>';
+    document.body.appendChild(loadingMsg);
+
+    // Create FormData
+    const formData = new FormData();
+    formData.append('file', file);
+
+    // ✅ NEW: Add test data parameters (Phase 1)
+    const isTestData = document.getElementById('excelIsTestData')?.checked;
+    if (isTestData) {
+        formData.append('is_test_data', '1');
+        formData.append('test_batch_id', document.getElementById('excelTestBatchId')?.value || '');
+        formData.append('test_note', document.getElementById('excelTestNote')?.value || '');
+    }
+
+    // Close modal before upload
+    closeAllModals();
+
+    try {
+        const response = await fetch('/api/import.php', { // Assuming the same import endpoint
+            method: 'POST',
+            body: formData
+        });
+
+        const data = await response.json();
+
+        // Remove loading
+        loadingMsg.remove();
+
+        if (data.success) {
+            const importedCount = data.data?.imported || data.imported || 0;
+            showToast(`تم الاستيراد بنجاح!\n${importedCount} سجل تم إضافته.`, 'success');
+            setTimeout(() => window.location.reload(), 1500);
+        } else {
+            showToast('خطأ: ' + (data.error || 'فشل الاستيراد'), 'error');
+        }
+    } catch (error) {
+        loadingMsg.remove();
+        console.error('Error:', error);
+        showToast('حدث خطأ في الاتصال', 'error');
+    }
+
+
+    // Reset form
+    fileInput.value = '';
+    document.getElementById('selectedFileName').textContent = 'لم يتم اختيار ملف';
+    document.getElementById('excelIsTestData').checked = false;
+    document.getElementById('excelTestFields').style.display = 'none';
+}
+
 // إعداد الـ event listeners عند تحميل الصفحة
 document.addEventListener('DOMContentLoaded', function () {
     // Manual Entry Modal handlers
@@ -282,6 +408,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     if (btnProcessPaste) {
         btnProcessPaste.addEventListener('click', parsePasteData);
+    }
+
+    // ✅ NEW: Excel Import Modal handlers
+    const btnCloseExcel = document.getElementById('btnCloseExcelModal');
+    const btnCancelExcel = document.getElementById('btnCancelExcel');
+    const btnUploadExcel = document.getElementById('btnUploadExcel');
+    const excelFileInput = document.getElementById('excelFileInput');
+
+    if (btnCloseExcel) {
+        btnCloseExcel.addEventListener('click', closeAllModals);
+    }
+
+    if (btnCancelExcel) {
+        btnCancelExcel.addEventListener('click', closeAllModals);
+    }
+
+    if (excelFileInput) {
+        excelFileInput.addEventListener('change', function () {
+            const fileName = this.files[0]?.name || 'لم يتم اختيار ملف';
+            document.getElementById('selectedFileName').textContent = fileName;
+            document.getElementById('btnUploadExcel').disabled = !this.files[0];
+        });
+    }
+
+    if (btnUploadExcel) {
+        btnUploadExcel.addEventListener('click', uploadExcelFile);
     }
 
     // Close modals on ESC key

@@ -7,8 +7,10 @@ require_once __DIR__ . '/../app/Services/TimelineRecorder.php';
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeDecisionRepository;
 use App\Repositories\SupplierRepository;
+use App\Repositories\BatchMetadataRepository;
 use App\Support\Database;
 use App\Support\Input;
+use App\Support\Settings;
 use App\Models\Guarantee;
 use App\Models\GuaranteeDecision;
 
@@ -18,6 +20,17 @@ try {
     $input = json_decode(file_get_contents('php://input'), true);
     if (!is_array($input)) {
         $input = [];
+    }
+
+    // Production Mode: Block test data creation
+    $settings = Settings::getInstance();
+    if (!empty($input['is_test_data']) && $settings->isProductionMode()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error' => 'لا يمكن إنشاء بيانات اختبار في وضع الإنتاج'
+        ]);
+        exit;
     }
 
     // Validate required fields
@@ -67,17 +80,40 @@ try {
     }
 
     // Create Model Instance
+    // ✅ BATCH LOGIC: Daily Separated Batches (Real vs Test)
+    $isTestData = !empty($input['is_test_data']);
+    $batchPrefix = $isTestData ? 'test_paste_' : 'manual_paste_';
+    $batchId = $batchPrefix . date('Ymd');
+
     $guaranteeModel = new Guarantee(
         id: null,
         guaranteeNumber: $guaranteeNumber,
         rawData: $rawData,
-        importSource: 'Manual Entry',
+        importSource: $batchId,
         importedAt: date('Y-m-d H:i:s'),
         importedBy: 'Web User'
     );
 
+    // ✅ ARABIC NAME LOGIC
+    $arabicName = $isTestData 
+        ? 'دفعة اختبار: إدخال/لصق (' . date('Y/m/d') . ')' 
+        : 'دفعة إدخال يدوي/ذكي (' . date('Y/m/d') . ')';
+
+    // Ensure metadata exists
+    $metaRepo = new BatchMetadataRepository($repo->getDb());
+    $metaRepo->ensureBatchName($batchId, $arabicName);
+
     $savedGuarantee = $repo->create($guaranteeModel);
     $guaranteeId = $savedGuarantee->id;
+    
+    // ✅ NEW: Handle test data marking (Phase 1)
+    if (!empty($input['is_test_data'])) {
+        $repo->markAsTestData(
+            $guaranteeId,
+            $input['test_batch_id'] ?? null,
+            $input['test_note'] ?? null
+        );
+    }
     
     // Record History Event (SmartProcessingService will handle all matching & decision creation!)
     $snapshot = \App\Services\TimelineRecorder::createSnapshot($guaranteeId);

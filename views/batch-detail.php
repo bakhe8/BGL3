@@ -7,6 +7,7 @@
 
 require_once __DIR__ . '/../app/Support/autoload.php';
 use App\Support\Database;
+use App\Support\Settings;
 
 $db = Database::connect();
 $importSource = $_GET['import_source'] ?? '';
@@ -20,7 +21,7 @@ $metadataStmt = $db->prepare("SELECT * FROM batch_metadata WHERE import_source =
 $metadataStmt->execute([$importSource]);
 $metadata = $metadataStmt->fetch(PDO::FETCH_ASSOC);
 
-// ✅ UPDATED: Batch-as-Context Model (Query from Occurrences)
+// ✅ UPDATED: Hybrid query handles both old (no occurrences) and new (with occurrences) data
 $stmt = $db->prepare("
     SELECT g.*, 
            -- Prefer simple resolved name from decision, then fallback to inferred match, then raw
@@ -36,9 +37,10 @@ $stmt = $db->prepare("
                ELSE NULL
            END as last_action,
            h.created_at as last_action_at,
-           o.occurred_at as occurrence_date -- Get specific occurrence time
+           COALESCE(o.occurred_at, g.imported_at) as occurrence_date
     FROM guarantees g
-    JOIN guarantee_occurrences o ON g.id = o.guarantee_id
+    -- LEFT JOIN for occurrences (old guarantees don't have them)
+    LEFT JOIN guarantee_occurrences o ON g.id = o.guarantee_id
     
     -- 1. Decision row (single-row per guarantee)
     LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
@@ -57,15 +59,24 @@ $stmt = $db->prepare("
     -- 3. Join for inferred supplier (Fallback)
     LEFT JOIN suppliers s ON g.normalized_supplier_name = s.official_name 
          OR json_extract(g.raw_data, '$.supplier') = s.official_name
-         OR json_extract(g.raw_data, '$.supplier') = s.english_name -- ✅ Added: Match English Name
+         OR json_extract(g.raw_data, '$.supplier') = s.english_name
          
     LEFT JOIN banks b ON json_extract(g.raw_data, '$.bank') = b.english_name 
          OR json_extract(g.raw_data, '$.bank') = b.arabic_name
-    WHERE o.batch_identifier = ?
+    -- Match either old (import_source) or new (batch_identifier in occurrences)
+    WHERE g.import_source = ? OR o.batch_identifier = ?
     ORDER BY g.id ASC
 ");
-$stmt->execute([$importSource]);
+$stmt->execute([$importSource, $importSource]);
 $guarantees = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Production Mode: Filter out test guarantees
+$settings = Settings::getInstance();
+if ($settings->isProductionMode()) {
+    $guarantees = array_filter($guarantees, fn($g) => empty($g['is_test_data']));
+    // Re-index array after filtering
+    $guarantees = array_values($guarantees);
+}
 
 // Calculate stats based on occurrences
 $totalAmount = 0;
@@ -89,8 +100,14 @@ foreach ($guarantees as &$g) {
 unset($g);
 ?>
 <?php 
-// Calculate actioned count for UI logic - must match JS logic (last_action)
-$actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_action'])));
+// Calculate ready count for UI logic - 
+// MUST match JS logic: supplier_id, bank_id, and active_action required for printing
+$readyCount = count(array_filter($guarantees, fn($g) => 
+    ($g['decision_status'] ?? '') === 'ready' && 
+    $g['supplier_id'] && 
+    $g['bank_id'] && 
+    $g['active_action']
+));
 ?>
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
@@ -196,16 +213,15 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                                 <button onclick="handleBatchAction('close')" class="btn btn-outline-danger btn-sm" title="إغلاق الدفعة للأرشفة">
                                     <i data-lucide="lock" style="width: 16px;"></i>
                                 </button>
+                                <?php if ($readyCount > 0): ?>
+                                <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
+                                    <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= $readyCount ?>)
+                                </button>
+                                <?php endif; ?>
                             <?php else: ?>
                                 <button onclick="handleBatchAction('reopen')" class="btn btn-warning shadow-md">
                                     <i data-lucide="unlock" style="width: 16px;"></i> إعادة فتح الدفعة
                                 </button>
-                            <?php endif; ?>
-
-                            <?php if ($actionedCount > 0): ?>
-                            <button onclick="printReadyGuarantees()" class="btn btn-success shadow-md">
-                                <i data-lucide="printer" style="width: 18px;"></i> طباعة خطابات (<?= $actionedCount ?>)
-                            </button>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -214,15 +230,12 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
         </div>
 
         <!-- Actions Toolbar -->
-        <?php if (!$isClosed): ?>
+        <?php if (!$isClosed && $readyCount > 0): ?>
         <div class="card mb-4" id="actions-toolbar">
             <div class="card-body p-3 flex-between align-center">
                 <div class="flex-align-center gap-2">
                     <button id="btn-extend" onclick="executeBulkAction('extend')" class="btn btn-primary btn-sm">
                         <i data-lucide="calendar-plus" style="width: 16px;"></i> تمديد المحدد
-                    </button>
-                    <button id="btn-reduce" onclick="executeBulkAction('reduce')" class="btn btn-secondary btn-sm">
-                        <i data-lucide="minus-circle" style="width: 16px;"></i> تخفيض المحدد
                     </button>
                     <button id="btn-release" onclick="executeBulkAction('release')" class="btn btn-success btn-sm">
                         <i data-lucide="check-circle-2" style="width: 16px;"></i> إفراج المحدد
@@ -274,14 +287,12 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                                 <td><?= htmlspecialchars($g['supplier_name']) ?></td>
                                 <td><?= htmlspecialchars($g['bank_name']) ?></td>
                                 <td class="text-center">
-                                    <?php if ($g['last_action'] == 'release'): ?>
+                                    <?php if ($g['active_action'] == 'release'): ?>
                                         <span class="badge badge-success">إفراج</span>
-                                    <?php elseif ($g['last_action'] == 'extension'): ?>
+                                    <?php elseif ($g['active_action'] == 'extension'): ?>
                                         <span class="badge badge-info">تمديد</span>
-                                    <?php elseif ($g['last_action'] == 'reduction'): ?>
-                                        <span class="badge badge-warning">تخفيض</span>
                                     <?php else: ?>
-                                        <span class="text-muted">لم يحدث بعد</span>
+                                        <span class="text-muted">-</span>
                                     <?php endif; ?>
                                 </td>
                                 <td class="font-mono text-left" dir="ltr">
@@ -289,7 +300,7 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                                 </td>
                                 <td class="text-center">
                                     <?php 
-                                    $isReady = !empty($g['last_action']);
+                                    $isReady = ($g['decision_status'] === 'ready' && $g['supplier_id'] && $g['bank_id'] && $g['active_action']);
                                     if ($isReady): ?>
                                         <div class="text-success flex-center gap-1 text-sm font-bold">
                                             <i data-lucide="check" style="width: 14px;"></i> جاهز
@@ -319,10 +330,43 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
     </div>
 
     <!-- JavaScript Application Logic -->
-    <script src="../public/js/main.js?v=<?= time() ?>"></script>
     <script>
         // --- 1. System Components (Toast, Modal, API) ---
         // Kept lightweight and clean
+
+        const Toast = {
+            show(message, type = 'info', duration = 3000) {
+                const container = document.getElementById('toast-container');
+                const toast = document.createElement('div');
+                
+                // Simple standard toast styling
+                let typeColor = type === 'success' ? 'var(--accent-success)' : (type === 'error' ? 'var(--accent-danger)' : 'var(--accent-info)');
+                
+                toast.className = 'card p-3 shadow-md flex-align-center gap-3 animate-slide-in';
+                toast.style.borderRight = `4px solid ${typeColor}`;
+                toast.style.background = 'white';
+                toast.style.minWidth = '300px';
+
+                const icons = {
+                    success: '<i data-lucide="check-circle" style="color:var(--accent-success)"></i>',
+                    error: '<i data-lucide="alert-circle" style="color:var(--accent-danger)"></i>',
+                    warning: '<i data-lucide="alert-triangle" style="color:var(--accent-warning)"></i>',
+                    info: '<i data-lucide="info" style="color:var(--accent-info)"></i>'
+                };
+                
+                toast.innerHTML = `${icons[type] || icons.info} <span class="font-medium">${message}</span>`;
+                
+                container.appendChild(toast);
+                lucide.createIcons();
+
+                setTimeout(() => {
+                    toast.style.opacity = '0';
+                    toast.style.transform = 'translateY(-20px)';
+                    toast.style.transition = 'all 0.3s ease';
+                    setTimeout(() => toast.remove(), 300);
+                }, duration);
+            }
+        };
 
         const Modal = {
             el: document.getElementById('modal-backdrop'),
@@ -358,7 +402,7 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                         })
                     };
 
-                    if (!['extend', 'release', 'reduce'].includes(action)) {
+                    if (action !== 'extend' && action !== 'release') {
                          const formData = new FormData();
                          formData.append('action', action);
                          formData.append('import_source', <?= json_encode($importSource) ?>);
@@ -379,26 +423,6 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
             }
         };
 
-        const batchGuarantees = <?= json_encode($guarantees, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) ?>;
-        const guaranteeMap = new Map(batchGuarantees.map((g) => [String(g.id), g]));
-        let pendingReduceIds = [];
-
-        const escapeHtml = (value) => String(value ?? '').replace(/[&<>"']/g, (char) => ({
-            '&': '&amp;',
-            '<': '&lt;',
-            '>': '&gt;',
-            '"': '&quot;',
-            "'": '&#039;'
-        }[char]));
-
-        const formatAmount = (value) => {
-            const num = Number(value);
-            if (!Number.isFinite(num)) {
-                return '-';
-            }
-            return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-        };
-
         // --- 2. Feature Logic ---
 
         const TableManager = {
@@ -410,105 +434,6 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                 return Array.from(document.querySelectorAll('.guarantee-checkbox:checked')).map(cb => cb.value);
             }
         };
-
-        function openReduceModal(ids) {
-            pendingReduceIds = ids;
-            const rows = ids.map((id) => {
-                const guarantee = guaranteeMap.get(String(id));
-                const number = guarantee?.guarantee_number ?? id;
-                const amount = guarantee?.parsed?.amount ?? 0;
-
-                return `
-                    <tr>
-                        <td class="font-bold">${escapeHtml(number)}</td>
-                        <td class="font-mono text-left" dir="ltr">${formatAmount(amount)}</td>
-                        <td>
-                            <input type="number" step="0.01" min="0.01" class="form-input reduce-amount-input" data-id="${id}">
-                        </td>
-                    </tr>
-                `;
-            }).join('');
-
-            Modal.open(`
-                <div class="p-4">
-                    <h3 class="text-xl font-bold mb-2">تخفيض الضمانات المحددة</h3>
-                    <p class="text-secondary text-sm mb-4">أدخل المبلغ الجديد لكل ضمان.</p>
-                    <div class="table-responsive" style="max-height: 320px; overflow: auto;">
-                        <table class="table table-hover">
-                            <thead>
-                                <tr>
-                                    <th>رقم الضمان</th>
-                                    <th class="text-left">القيمة الحالية</th>
-                                    <th>القيمة الجديدة</th>
-                                </tr>
-                            </thead>
-                            <tbody>${rows}</tbody>
-                        </table>
-                    </div>
-                    <div class="flex-end gap-2 mt-4">
-                        <button onclick="cancelReduceModal()" class="btn btn-secondary">إلغاء</button>
-                        <button onclick="confirmReduce()" class="btn btn-primary">تنفيذ التخفيض</button>
-                    </div>
-                </div>
-            `);
-        }
-
-        function cancelReduceModal() {
-            pendingReduceIds = [];
-            Modal.close();
-        }
-
-        async function confirmReduce() {
-            const inputs = Array.from(document.querySelectorAll('.reduce-amount-input'));
-            const reductions = {};
-            const invalid = [];
-
-            for (const input of inputs) {
-                const id = input.dataset.id;
-                const value = parseFloat(input.value);
-                if (isNaN(value) || value <= 0) {
-                    invalid.push(id);
-                    continue;
-                }
-                reductions[id] = value;
-            }
-
-            if (invalid.length > 0) {
-                window.showToast('الرجاء إدخال مبلغ صحيح لكل ضمان محدد', 'warning');
-                return;
-            }
-
-            Modal.close();
-            try {
-                document.getElementById('table-loading').style.display = 'flex';
-                const res = await API.post('reduce', { guarantee_ids: pendingReduceIds, reductions });
-
-                const processed = res.reduced_count || 0;
-                const blocked = res.blocked_count || 0;
-                const invalidIds = res.invalid_count || 0;
-                const failed = (res.errors && res.errors.length) ? res.errors.length : 0;
-
-                let message = `تم تخفيض ${processed} ضمان`;
-                if (blocked > 0) {
-                    message += `، تم استبعاد ${blocked}`;
-                }
-                if (invalidIds > 0) {
-                    message += `، غير ضمن الدفعة ${invalidIds}`;
-                }
-                if (failed > 0) {
-                    message += `، فشل ${failed}`;
-                }
-
-                const toastType = (blocked > 0 || failed > 0) ? 'warning' : 'success';
-                window.showToast(message, toastType);
-                setTimeout(() => location.reload(), 1000);
-            } catch (e) {
-                document.getElementById('table-loading').style.display = 'none';
-                window.showToast(e.message, 'error');
-            } finally {
-                pendingReduceIds = [];
-            }
-        }
 
         function handleBatchAction(action) {
             const actionText = action === 'close' ? 'إغلاق الدفعة' : 'إعادة فتح الدفعة';
@@ -537,23 +462,18 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
             try {
                 document.getElementById('table-loading').style.display = 'flex';
                 await API.post(action);
-                window.showToast('تم تنفيذ العملية بنجاح', 'success');
+                Toast.show('تم تنفيذ العملية بنجاح', 'success');
                 setTimeout(() => location.reload(), 1000);
             } catch (e) {
                 document.getElementById('table-loading').style.display = 'none';
-                window.showToast(e.message, 'error');
+                Toast.show(e.message, 'error');
             }
         }
 
         async function executeBulkAction(type) {
             const ids = TableManager.getSelected();
             if (ids.length === 0) {
-                window.showToast('الرجاء اختيار ضمان واحد على الأقل', 'warning');
-                return;
-            }
-
-            if (type === 'reduce') {
-                openReduceModal(ids);
+                Toast.show('الرجاء اختيار ضمان واحد على الأقل', 'warning');
                 return;
             }
 
@@ -563,44 +483,23 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
                 let data = { guarantee_ids: ids };
                 
                 if (type === 'extend') {
-                    // Let server compute expiry per guarantee unless a date is provided
+                    data.new_expiry = new Date(new Date().setFullYear(new Date().getFullYear() + 1))
+                        .toISOString().split('T')[0];
                 } else if (type === 'release') {
                     data.reason = 'إفراج جماعي';
                 }
 
                 const res = await API.post(type, data);
                 
-                const processed = type === 'extend'
-                    ? (res.extended_count || 0)
-                    : type === 'release'
-                        ? (res.released_count || 0)
-                        : (res.reduced_count || 0);
-                const blocked = res.blocked_count || 0;
-                const invalid = res.invalid_count || 0;
-                const failed = (res.errors && res.errors.length) ? res.errors.length : 0;
-
-                let message = type === 'extend'
-                    ? `تم تمديد ${processed} ضمان`
-                    : type === 'release'
-                        ? `تم إفراج ${processed} ضمان`
-                        : `تم تخفيض ${processed} ضمان`;
-                if (blocked > 0) {
-                    message += `، تم استبعاد ${blocked}`;
-                }
-                if (invalid > 0) {
-                    message += `، غير ضمن الدفعة ${invalid}`;
-                }
-                if (failed > 0) {
-                    message += `، فشل ${failed}`;
-                }
-
-                const toastType = (blocked > 0 || failed > 0) ? 'warning' : 'success';
-                window.showToast(message, toastType);
+                Toast.show(
+                    type === 'extend' ? `تم تمديد ${res.extended} ضمان` : `تم إفراج ${res.released} ضمان`, 
+                    'success'
+                );
                 setTimeout(() => location.reload(), 1000);
 
             } catch (e) {
                 document.getElementById('table-loading').style.display = 'none';
-                window.showToast(e.message, 'error');
+                Toast.show(e.message, 'error');
             }
         }
 
@@ -631,24 +530,25 @@ $actionedCount = count(array_filter($guarantees, fn($g) => !empty($g['last_actio
             try {
                 await API.post('update_metadata', { batch_name: name, batch_notes: notes });
                 Modal.close();
-                window.showToast('تم حفظ البيانات بنجاح', 'success');
+                Toast.show('تم حفظ البيانات بنجاح', 'success');
                 setTimeout(() => location.reload(), 800);
             } catch (e) {
-                window.showToast(e.message, 'error');
+                Toast.show(e.message, 'error');
             }
         }
 
         function printReadyGuarantees() {
-            const ready = batchGuarantees.filter(g => g.last_action);
+            const guarantees = <?= json_encode($guarantees) ?>;
+            const ready = guarantees.filter(g => g.supplier_id && g.bank_id && g.active_action);
             
             if (ready.length === 0) {
-                window.showToast('لا توجد ضمانات جاهزة للطباعة', 'warning');
+                Toast.show('لا توجد ضمانات جاهزة للطباعة', 'warning');
                 return;
             }
 
             const ids = ready.map(g => g.id);
             window.open(`/views/batch-print.php?ids=${ids.join(',')}`);
-            window.showToast(`تم فتح نافذة الطباعة لـ ${ids.length} خطاب`, 'success');
+            Toast.show(`تم فتح نافذة الطباعة لـ ${ids.length} خطاب`, 'success');
         }
 
         // Initialize Icons

@@ -26,7 +26,27 @@ if (empty($guaranteeIds)) {
 }
 
 // 2. Data Fetching
+use App\Support\Settings;
+
 $db = Database::connect();
+
+// Production Mode: Filter out test guarantees
+$settings = Settings::getInstance();
+if ($settings->isProductionMode() && !empty($guaranteeIds)) {
+    $placeholders = implode(',', array_fill(0, count($guaranteeIds), '?'));
+    $stmt = $db->prepare("
+        SELECT id FROM guarantees 
+        WHERE id IN ($placeholders) 
+        AND (is_test_data = 0 OR is_test_data IS NULL)
+    ");
+    $stmt->execute($guaranteeIds);
+    $guaranteeIds = $stmt->fetchAll(PDO::FETCH_COLUMN);
+    
+    if (empty($guaranteeIds)) {
+        die('<div style="padding: 20px; font-family: sans-serif; text-align: center;">لا توجد سجلات صالحة للطباعة في وضع الإنتاج.</div>');
+    }
+}
+
 $guaranteeRepo = new GuaranteeRepository($db);
 $bankRepo = new BankRepository();
 $supplierRepo = new SupplierRepository();

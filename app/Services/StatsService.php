@@ -28,6 +28,13 @@ class StatsService
      */
     public static function getImportStats(PDO $db): array
     {
+        // Production Mode: Exclude test data
+        $settings = \App\Support\Settings::getInstance();
+        $testDataFilter = '';
+        if ($settings->isProductionMode()) {
+            $testDataFilter = ' WHERE (g.is_test_data = 0 OR g.is_test_data IS NULL)';
+        }
+        
         $query = $db->prepare('
             SELECT 
                 COUNT(*) as total,
@@ -36,6 +43,7 @@ class StatsService
                 SUM(CASE WHEN d.is_locked = 1 THEN 1 ELSE 0 END) as released
             FROM guarantees g
             LEFT JOIN guarantee_decisions d ON d.guarantee_id = g.id
+            ' . $testDataFilter . '
         ');
         
         $query->execute();

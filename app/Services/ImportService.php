@@ -8,6 +8,7 @@ use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
 use App\Support\SimpleXlsxReader;
 use App\Support\TypeNormalizer;
+use App\Repositories\BatchMetadataRepository; // ✅ NEW
 use RuntimeException;
 
 /**
@@ -50,7 +51,7 @@ class ImportService
      * @param string $originalFilename Original filename for import_source
      * @return array Result with count, errors, skipped
      */
-    public function importFromExcel(string $filePath, string $importedBy = 'system', string $originalFilename = ''): array
+    public function importFromExcel(string $filePath, string $importedBy = 'system', string $originalFilename = '', bool $isTestData = false): array
     {
         if (!file_exists($filePath)) {
             throw new RuntimeException('الملف غير موجود');
@@ -67,8 +68,6 @@ class ImportService
         if (count($rows) < 2) {
             throw new RuntimeException('الملف فارغ أو لا يحتوي على بيانات');
         }
-
-
 
         // Smart Header Detection: Try first 5 rows to find the actual headers
         $headerMap = null;
@@ -98,9 +97,28 @@ class ImportService
         $errors = [];
         $importedIds = []; // Track IDs for timeline events
         $importedIdsWithData = []; // Track full records for timeline events
+
         // Decision #25: One batch per import (fixed identifier for this file)
         $filenamePart = $originalFilename ? '_' . $this->sanitizeFilename($originalFilename) : '';
-        $batchIdentifier = 'excel_' . date('Ymd_His') . $filenamePart;
+        
+        // ✅ BATCH LOGIC: Separated Excel Batches (Real vs Test)
+        $batchPrefix = $isTestData ? 'test_excel_' : 'excel_';
+        $batchIdentifier = $batchPrefix . date('Ymd_His') . $filenamePart;
+
+        // ✅ ARABIC NAME LOGIC
+        // "دفعة إكسل: {filename} (DD/MM/YYYY)"
+        // "دفعة اختبار: إكسل - {filename} (DD/MM/YYYY)"
+        $displayFilename = $originalFilename ?: 'Unknown';
+        $dateStr = date('Y/m/d');
+        
+        $arabicName = $isTestData 
+            ? "دفعة اختبار: إكسل - {$displayFilename} ({$dateStr})"
+            : "دفعة إكسل: {$displayFilename} ({$dateStr})";
+
+        // Create metadata immediately
+        $db = Database::connect();
+        $metaRepo = new BatchMetadataRepository($db);
+        $metaRepo->ensureBatchName($batchIdentifier, $arabicName);
 
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2; // Excel row number (1-indexed + header)
@@ -268,6 +286,15 @@ class ImportService
         );
 
         $created = $this->guaranteeRepo->create($guarantee);
+        
+        // ✅ NEW: Handle test data marking (Phase 1)
+        if (!empty($data['is_test_data'])) {
+            $this->guaranteeRepo->markAsTestData(
+                $created->id,
+                $data['test_batch_id'] ?? null,
+                $data['test_note'] ?? null
+            );
+        }
         
         // ✅ [NEW] Record Occurrence for manual entry
         $this->recordOccurrence($created->id, $batchIdentifier, 'manual');

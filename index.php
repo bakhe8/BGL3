@@ -20,6 +20,7 @@ header("Pragma: no-cache");
 require_once __DIR__ . '/app/Support/autoload.php';
 
 use App\Support\Database;
+use App\Support\Settings;
 use App\Services\Learning\AuthorityFactory;
 use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeDecisionRepository;
@@ -35,6 +36,12 @@ $db = Database::connect();
 // Get filter parameter for status filtering (Defined EARLY)
 $statusFilter = $_GET['filter'] ?? 'all'; // all, ready, pending
 $searchTerm = isset($_GET['search']) ? trim($_GET['search']) : null;
+
+// Production Mode: Auto-exclude test data
+$settings = Settings::getInstance();
+if ($settings->isProductionMode()) {
+    $_GET['exclude_test'] = '1'; // Force exclude test data
+}
 
 $guaranteeRepo = new GuaranteeRepository($db);
 $decisionRepo = new GuaranteeDecisionRepository($db);
@@ -53,6 +60,16 @@ $currentRecord = null;
 if ($requestedId) {
     // Find the guarantee by ID directly
     $currentRecord = $guaranteeRepo->find($requestedId);
+    
+    // Production Mode: Skip test data guarantees
+    if ($currentRecord && $settings->isProductionMode()) {
+        $stmt = $db->prepare("SELECT is_test_data FROM guarantees WHERE id = ?");
+        $stmt->execute([$requestedId]);
+        $isTestData = $stmt->fetchColumn();
+        if ($isTestData) {
+            $currentRecord = null; // Treat as not found
+        }
+    }
 }
 
 // If not found or no ID specified, get first record matching the filter
@@ -88,6 +105,11 @@ if (!$currentRecord) {
         WHERE 1=1
     ';
     $defaultRecordParams = [];
+    
+    // Production Mode: Exclude test data
+    if ($settings->isProductionMode()) {
+        $defaultRecordQuery .= ' AND (g.is_test_data = 0 OR g.is_test_data IS NULL)';
+    }
     
     if ($searchTerm) {
         // Search Mode: Filter by term across multiple fields
@@ -154,6 +176,20 @@ if (!$currentRecord) {
     }
 }
 
+// Load test data info if available
+$testDataInfo = null;
+if ($currentRecord) {
+    $stmt = $db->prepare("SELECT is_test_data, test_batch_id, test_note FROM guarantees WHERE id = ?");
+    $stmt->execute([$currentRecord->id]);
+    $testDataInfo = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Production Mode: If this is test data, treat as not found
+    if ($settings->isProductionMode() && !empty($testDataInfo['is_test_data'])) {
+        $currentRecord = null;
+        $testDataInfo = null;
+    }
+}
+
 // Get navigation information using NavigationService
 $navInfo = \App\Services\NavigationService::getNavigationInfo(
     $db,
@@ -204,7 +240,12 @@ if ($currentRecord) {
         'decided_at' => null,
         'decided_by' => null,
         'is_locked' => false,
-        'locked_reason' => null
+        'locked_reason' => null,
+        
+        // Test data info
+        'is_test_data' => $testDataInfo['is_test_data'] ?? 0,
+        'test_batch_id' => $testDataInfo['test_batch_id'] ?? null,
+        'test_note' => $testDataInfo['test_note'] ?? null
     ];
     
     // Get decision if exists - Load ALL decision data
@@ -352,6 +393,7 @@ $formattedSuppliers = array_map(function($s) {
     <link rel="stylesheet" href="assets/css/letter.css">
     
     <!-- Pure Vanilla JavaScript - No External Dependencies -->
+    <script src="public/js/convert-to-real.js"></script>
     
     <!-- Main Application Styles -->
     <link rel="stylesheet" href="public/css/index-main.css">
@@ -516,6 +558,31 @@ $formattedSuppliers = array_map(function($s) {
             <?php include __DIR__ . '/partials/historical-banner.php'; ?>
         </div>
 
+        <!-- Test Data Banner (Hidden in Production Mode) -->
+        <?php if (!empty($mockRecord['is_test_data']) && !$settings->isProductionMode()): ?>
+        <div style="display: flex; align-items: center; gap: 12px; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px; padding: 14px 18px; margin-bottom: 16px;">
+            <div style="font-size: 24px;">🧪</div>
+            <div style="flex: 1;">
+                <div style="font-weight: 700; color: #92400e; font-size: 15px;">ضمان تجريبي - لأغراض الاختبار فقط</div>
+                <div style="font-size: 13px; color: #78350f; margin-top: 4px;">
+                    هذه البيانات لن تؤثر على الإحصائيات أو نظام التعلم
+                    <?php if (!empty($mockRecord['test_batch_id'])): ?>
+                        • الدفعة: <strong><?= htmlspecialchars($mockRecord['test_batch_id']) ?></strong>
+                    <?php endif; ?>
+                    <?php if (!empty($mockRecord['test_note'])): ?>
+                        <br><?= htmlspecialchars($mockRecord['test_note']) ?>
+                    <?php endif; ?>
+                </div>
+            </div>
+            <a href="#" onclick="convertToReal(<?= $mockRecord['id'] ?>); return false;" 
+               style="padding: 6px 12px; background: white; border: 1px solid #f59e0b; border-radius: 6px; font-size: 13px; color: #92400e; text-decoration: none; white-space: nowrap; font-weight: 600;"
+               onmouseover="this.style.background='#fffbeb'"
+               onmouseout="this.style.background='white'">
+                تحويل إلى حقيقي
+            </a>
+        </div>
+        <?php endif; ?>
+
         <!-- Decision Cards -->
                     <div class="decision-card">
                         
@@ -630,6 +697,35 @@ $formattedSuppliers = array_map(function($s) {
                         <span style="color: #dc2626;">🔓 <?= $importStats['released'] ?? 0 ?></span>
                     </a>
                 </div>
+                
+                <!-- ✅ NEW: Test Data Filter Toggle (Phase 1) -->
+                <?php 
+                $settings = \App\Support\Settings::getInstance();
+                if (!$settings->isProductionMode()): 
+                ?>
+                <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">
+                    <div style="font-size: 11px; font-weight: 600; color: #6b7280; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px;">بيانات الاختبار</div>
+                    <a href="<?php 
+                        $currentParams = $_GET;
+                        if (isset($currentParams['include_test_data'])) {
+                            unset($currentParams['include_test_data']);
+                            echo '/?' . http_build_query($currentParams);
+                        } else {
+                            $currentParams['include_test_data'] = '1';
+                            echo '/?' . http_build_query($currentParams);
+                        }
+                    ?>" 
+                       style="display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 4px; text-decoration: none; transition: all 0.2s; <?= isset($_GET['include_test_data']) ? 'background: #fef3c7; font-weight: 600;' : '' ?>"
+                       onmouseover="if(!<?= isset($_GET['include_test_data']) ? 'true' : 'false' ?>) this.style.background='#f1f5f9'"
+                       onmouseout="if(!<?= isset($_GET['include_test_data']) ? 'true' : 'false' ?>) this.style.background='transparent'">
+                        <span style="font-size: 16px;"><?= isset($_GET['include_test_data']) ? '✅' : '🧪' ?></span>
+                        <span style="flex: 1; font-size: 13px; color: <?= isset($_GET['include_test_data']) ? '#92400e' : '#6b7280' ?>;">
+                            <?= isset($_GET['include_test_data']) ? 'إخفاء التجريبية' : 'عرض التجريبية' ?>
+                        </span>
+                    </a>
+                </div>
+                <?php endif; ?>
+                
                 <?php else: ?>
                 <div class="toolbar-label">إدخال جديد</div>
                 <?php endif; ?>
@@ -753,6 +849,7 @@ $formattedSuppliers = array_map(function($s) {
     <!-- Modals - Using existing partials -->
     <?php require __DIR__ . '/partials/manual-entry-modal.php'; ?>
     <?php require __DIR__ . '/partials/paste-modal.php'; ?>
+    <?php require __DIR__ . '/partials/excel-import-modal.php'; ?>
 
     <?php if (!empty($mockRecord['is_locked'])): ?>
     <!-- Released Guarantee: Read-Only Mode -->

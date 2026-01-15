@@ -8,6 +8,8 @@ use App\Services\ImportService;
 use App\Repositories\GuaranteeRepository;
 use App\Models\Guarantee;
 use App\Support\TypeNormalizer;
+use App\Services\SmartPaste\ConfidenceCalculator;  // ✅ NEW (Phase 2)
+use App\Repositories\BatchMetadataRepository; // ✅ NEW (Phase 3)
 
 /**
  * ParseCoordinatorService
@@ -31,27 +33,36 @@ class ParseCoordinatorService
      * @param PDO $db Database connection
      * @return array Result with success status and created guarantees
      */
-    public static function parseText(string $text, PDO $db): array
+    /**
+     * Parse text and create guarantees
+     * Main entry point for parse-paste functionality
+     * 
+     * @param string $text Input text from user
+     * @param PDO $db Database connection
+     * @param array $options Optional parameters (e.g., ['is_test_data' => true])
+     * @return array Result with success status and created guarantees
+     */
+    public static function parseText(string $text, PDO $db, array $options = []): array
     {
         // Try table detection first
         $tableRows = TableDetectionService::detectTable($text);
         
         if ($tableRows && is_array($tableRows) && count($tableRows) > 1) {
             // Multi-row table detected
-            return self::processMultiRow($tableRows, $text, $db);
+            return self::processMultiRow($tableRows, $text, $db, $options);
         } elseif ($tableRows && is_array($tableRows) && count($tableRows) === 1) {
             // Single row from table
-            return self::processSingleTableRow($tableRows[0], $text, $db);
+            return self::processSingleTableRow($tableRows[0], $text, $db, $options);
         } else {
             // Non-table text - use regex extraction
-            return self::processSingleText($text, $db);
+            return self::processSingleText($text, $db, $options);
         }
     }
     
     /**
      * Process multiple table rows
      */
-    private static function processMultiRow(array $tableRows, string $text, PDO $db): array
+    private static function processMultiRow(array $tableRows, string $text, PDO $db, array $options = []): array
     {
         error_log("🎯 [MULTI] Processing " . count($tableRows) . " guarantees from multi-row table");
         
@@ -60,11 +71,11 @@ class ParseCoordinatorService
         
         foreach ($tableRows as $rowData) {
             try {
-                // Remove confidence score (internal field)
-                unset($rowData['_confidence']);
+                // Keep confidence score for logging
+                // unset($rowData['_confidence']);
                 
                 // Process row
-                $result = self::createGuaranteeFromRow($rowData, $text, $repo, 'smart_paste_multi');
+                $result = self::createGuaranteeFromRow($rowData, $text, $repo, 'smart_paste_multi', $options);
                 $results[] = $result;
                 
                 error_log(sprintf(
@@ -97,7 +108,7 @@ class ParseCoordinatorService
     /**
      * Process single row from table
      */
-    private static function processSingleTableRow(array $rowData, string $text, PDO $db): array
+    private static function processSingleTableRow(array $rowData, string $text, PDO $db, array $options = []): array
     {
         error_log("🎯 [TABLE] Using single row from table");
         
@@ -117,19 +128,19 @@ class ParseCoordinatorService
         $extracted = array_merge($extracted, array_filter($rowData));
         
         // Validate and create
-        return self::validateAndCreate($extracted, $text, $db);
+        return self::validateAndCreate($extracted, $text, $db, $options);
     }
     
     /**
      * Process single non-table text
      */
-    private static function processSingleText(string $text, PDO $db): array
+    private static function processSingleText(string $text, PDO $db, array $options = []): array
     {
         // Extract all fields using regex patterns
         $extracted = self::extractFieldsFromText($text);
         
         // Validate and create
-        return self::validateAndCreate($extracted, $text, $db);
+        return self::validateAndCreate($extracted, $text, $db, $options);
     }
     
     /**
@@ -226,7 +237,7 @@ class ParseCoordinatorService
     /**
      * Validate fields and create guarantee
      */
-    private static function validateAndCreate(array $extracted, string $text, PDO $db): array
+    private static function validateAndCreate(array $extracted, string $text, PDO $db, array $options = []): array
     {
         // Check for mandatory fields
         $missing = [];
@@ -261,9 +272,17 @@ class ParseCoordinatorService
             ];
         }
         
+        // ✅ NEW (Phase 2): Calculate confidence scores
+        $confidence = self::calculateConfidenceScores($extracted, $text);
+        $overallConfidence = self::calculateOverallConfidence($confidence);
+        
+        // Inject confidence into extracted data for storage
+        $extracted['_confidence'] = $confidence;
+        $extracted['_overall_confidence'] = $overallConfidence;
+
         // Create guarantee
         $repo = new GuaranteeRepository($db);
-        $result = self::createGuaranteeFromExtracted($extracted, $text, $repo);
+        $result = self::createGuaranteeFromExtracted($extracted, $text, $repo, $options);
         
         // Trigger auto-matching for single guarantee
         if (!$result['exists_before']) {
@@ -275,10 +294,92 @@ class ParseCoordinatorService
             'id' => $result['id'],
             'extracted' => $extracted,
             'field_status' => $fieldStatus,
+            'confidence' => $confidence,  // ✅ NEW
+            'overall_confidence' => $overallConfidence,  // ✅ NEW
             'exists_before' => $result['exists_before'],
             'intent' => $extracted['intent'],
             'message' => $result['exists_before'] ? 'تم العثور على الضمان' : 'تم إنشاء ضمان جديد بنجاح'
         ];
+    }
+    
+    /**
+     * ✅ NEW (Phase 2): Calculate confidence scores for extracted fields
+     * 
+     * @param array $extracted Extracted field data
+     * @param string $text Original text
+     * @return array Confidence data for each field
+     */
+    private static function calculateConfidenceScores(array $extracted, string $text): array
+    {
+        $calculator = new ConfidenceCalculator();
+        $confidence = [];
+        
+        // Calculate confidence for supplier (if extracted)
+        if (!empty($extracted['supplier'])) {
+            $confidence['supplier'] = $calculator->calculateSupplierConfidence(
+                $text,
+                $extracted['supplier'],
+                'fuzzy',  // Default to fuzzy since we don't track match type here
+                85,  // Assume decent similarity
+                0   // No historical count
+            );
+        }
+        
+        // Calculate confidence for bank (if extracted)
+        if (!empty($extracted['bank'])) {
+            $confidence['bank'] = $calculator->calculateBankConfidence(
+                $text,
+                $extracted['bank'],
+                'fuzzy',
+                85
+            );
+        }
+        
+        // Calculate confidence for amount (if extracted)
+        if (!empty($extracted['amount'])) {
+            $confidence['amount'] = $calculator->calculateAmountConfidence(
+                $text,
+                floatval($extracted['amount'])
+            );
+        }
+        
+        // Calculate confidence for dates
+        if (!empty($extracted['expiry_date'])) {
+            $confidence['expiry_date'] = $calculator->calculateDateConfidence(
+                $text,
+                $extracted['expiry_date']
+            );
+        }
+        
+        if (!empty($extracted['issue_date'])) {
+            $confidence['issue_date'] = $calculator->calculateDateConfidence(
+                $text,
+                $extracted['issue_date']
+            );
+        }
+        
+        return $confidence;
+    }
+    
+    /**
+     * ✅ NEW (Phase 2): Calculate overall confidence from individual field scores
+     * 
+     * @param array $confidence Field confidence data
+     * @return int Overall confidence percentage
+     */
+    private static function calculateOverallConfidence(array $confidence): int
+    {
+        if (empty($confidence)) {
+            return 0;
+        }
+        
+        // Extract confidence scores
+        $scores = array_column($confidence, 'confidence');
+        
+        // Calculate average
+        $average = array_sum($scores) / count($scores);
+        
+        return (int)round($average);
     }
     
     /**
@@ -288,8 +389,10 @@ class ParseCoordinatorService
         array $rowData, 
         string $text, 
         GuaranteeRepository $repo,
-        string $source = 'smart_paste'
+        string $source = 'smart_paste',
+        array $options = []
     ): array {
+        // ... (date and amount parsing logic typically here, keeping distinct)
         // Convert date format if needed
         $expiryDate = $rowData['expiry_date'];
         if ($expiryDate && preg_match('/([0-9]{1,2})[-\/](Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[-\/]([0-9]{4})/i', $expiryDate, $m)) {
@@ -319,7 +422,10 @@ class ParseCoordinatorService
             ];
         }
         
-        $batchId = 'manual_paste_' . date('Ymd');
+        // ✅ BATCH LOGIC: Daily Separated Batches (Real vs Test)
+        $isTestData = !empty($options['is_test_data']);
+        $batchPrefix = $isTestData ? 'test_paste_' : 'manual_paste_';
+        $batchId = $batchPrefix . date('Ymd');
         
         // Create new
         $rawData = [
@@ -331,7 +437,9 @@ class ParseCoordinatorService
             'contract_number' => $rowData['contract_number'],
             'type' => TypeNormalizer::normalize($rowData['type'] ?? $rowData['guarantee_type'] ?? ''), 
             'source' => $source,
-            'original_text' => $text
+            'original_text' => $text,
+            'confidence' => $rowData['_confidence'] ?? null,  // ✅ Log Table Confidence
+            'test_data' => $isTestData // Pass Internal flag
         ];
         
         $guaranteeModel = new Guarantee(
@@ -344,6 +452,15 @@ class ParseCoordinatorService
         );
         
         $saved = $repo->create($guaranteeModel);
+
+        // ✅ ARABIC NAME LOGIC
+        $arabicName = $isTestData 
+            ? 'دفعة اختبار: إدخال/لصق (' . date('Y/m/d') . ')' 
+            : 'دفعة إدخال يدوي/ذكي (' . date('Y/m/d') . ')';
+
+        // Ensure metadata exists
+        $metaRepo = new BatchMetadataRepository($repo->getDb());
+        $metaRepo->ensureBatchName($batchId, $arabicName);
 
         // ✅ Record Occurrence
         ImportService::recordOccurrence($saved->id, $batchId, 'smart_paste');
@@ -370,7 +487,8 @@ class ParseCoordinatorService
     private static function createGuaranteeFromExtracted(
         array $extracted, 
         string $text, 
-        GuaranteeRepository $repo
+        GuaranteeRepository $repo,
+        array $options = []
     ): array {
         // Check if exists
         $existing = $repo->findByNumber($extracted['guarantee_number']);
@@ -389,6 +507,11 @@ class ParseCoordinatorService
             ];
         }
         
+        // ✅ BATCH LOGIC: Daily Separated Batches (Real vs Test)
+        $isTestData = !empty($options['is_test_data']);
+        $batchPrefix = $isTestData ? 'test_paste_' : 'manual_paste_';
+        $batchId = $batchPrefix . date('Ymd');
+
         // Create new
         $rawData = [
             'bg_number' => $extracted['guarantee_number'],
@@ -401,11 +524,13 @@ class ParseCoordinatorService
             'type' => TypeNormalizer::normalize($extracted['type']),
             'source' => 'smart_paste',
             'original_text' => $text,
-            'detected_intent' => $extracted['intent']
+            'detected_intent' => $extracted['intent'],
+            'test_data' => $isTestData, // Pass Internal flag
+            // ✅ LOG CONFIDENCE SCORES
+            'confidence' => $extracted['_confidence'] ?? null,
+            'overall_confidence' => $extracted['_overall_confidence'] ?? null
         ];
         
-        $batchId = 'manual_paste_' . date('Ymd');
-
         $guaranteeModel = new Guarantee(
             id: null,
             guaranteeNumber: $extracted['guarantee_number'],
@@ -416,6 +541,15 @@ class ParseCoordinatorService
         );
         
         $saved = $repo->create($guaranteeModel);
+
+        // ✅ ARABIC NAME LOGIC
+        $arabicName = $isTestData 
+            ? 'دفعة اختبار: إدخال/لصق (' . date('Y/m/d') . ')' 
+            : 'دفعة إدخال يدوي/ذكي (' . date('Y/m/d') . ')';
+
+        // Ensure metadata exists
+        $metaRepo = new BatchMetadataRepository($repo->getDb());
+        $metaRepo->ensureBatchName($batchId, $arabicName);
 
         // ✅ Record Occurrence
         ImportService::recordOccurrence($saved->id, $batchId, 'smart_paste');

@@ -6,24 +6,60 @@
 
 require_once __DIR__ . '/../app/Support/autoload.php';
 use App\Support\Database;
+use App\Support\Settings;
 
 $db = Database::connect();
 
-// Get all batches (implicit + explicit)
+// Get all batches (hybrid: shows all, uses occurrence counts when available)
 $batches = $db->query("
     SELECT 
         g.import_source,
         COALESCE(bm.batch_name, 'دفعة ' || SUBSTR(g.import_source, 1, 25)) as batch_name,
         COALESCE(bm.status, 'active') as status,
         COALESCE(bm.batch_notes, '') as batch_notes,
-        COUNT(g.id) as guarantee_count,
+        COALESCE(occ.count, COUNT(g.id)) as guarantee_count,
         MIN(g.imported_at) as created_at,
         GROUP_CONCAT(DISTINCT g.imported_by) as imported_by
     FROM guarantees g
     LEFT JOIN batch_metadata bm ON bm.import_source = g.import_source
+    LEFT JOIN (
+        SELECT batch_identifier, COUNT(DISTINCT guarantee_id) as count
+        FROM guarantee_occurrences GROUP BY batch_identifier
+    ) occ ON occ.batch_identifier = g.import_source
     GROUP BY g.import_source
     ORDER BY MIN(g.imported_at) DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
+
+// Production Mode: Filter out test batches
+$settings = Settings::getInstance();
+if ($settings->isProductionMode()) {
+    // Filter by import_source prefix AND by checking if batch has non-test guarantees
+    $filteredBatches = [];
+    foreach ($batches as $batch) {
+        // Skip test batches by name
+        if (str_starts_with($batch['import_source'], 'test_')) {
+            continue;
+        }
+        
+        // Check if this batch has any non-test guarantees
+        $stmt = $db->prepare("
+            SELECT COUNT(*) as count 
+            FROM guarantees 
+            WHERE import_source = ? 
+            AND (is_test_data = 0 OR is_test_data IS NULL)
+        ");
+        $stmt->execute([$batch['import_source']]);
+        $nonTestCount = $stmt->fetch(PDO::FETCH_ASSOC)['count'];
+        
+        // Only include batch if it has non-test guarantees
+        if ($nonTestCount > 0) {
+            // Update guarantee_count to reflect only non-test guarantees
+            $batch['guarantee_count'] = $nonTestCount;
+            $filteredBatches[] = $batch;
+        }
+    }
+    $batches = $filteredBatches;
+}
 
 // Separate active and completed
 $active = array_filter($batches, fn($b) => $b['status'] === 'active');

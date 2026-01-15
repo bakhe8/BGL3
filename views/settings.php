@@ -347,11 +347,17 @@ $currentSettings = $settings->all();
                             <input type="checkbox" name="PRODUCTION_MODE" value="1" 
                                    <?= !empty($currentSettings['PRODUCTION_MODE']) ? 'checked' : '' ?>
                                    style="width: 20px; height: 20px; cursor: pointer;">
-                            <span>🚀 Production Mode (وضع الإنتاج)</span>
+                            <span>🚀 Production Mode (وضع الإنتاج) - تحذير هام</span>
                         </label>
-                        <small class="form-help" style="color: #666; margin-top: 5px;">
-                            ⚠️ عند التفعيل: جميع رسائل Debug ستكون صامتة (مُوصى به للإنتاج فقط)
-                        </small>
+                        <div style="background: #fff7ed; border: 1px solid #ea580c; border-radius: 8px; padding: 12px; margin-top: 8px;">
+                            <strong style="color: #c2410c; display: block; margin-bottom: 6px;">⚠️ عند تفعيل هذا الوضع:</strong>
+                            <ul style="margin: 0; padding-right: 20px; color: #9a3412; font-size: 13px; line-height: 1.6;">
+                                <li>سيتم <strong>إخفاء</strong> جميع خيارات إنشاء بيانات الاختبار (UI).</li>
+                                <li>سيتم <strong>فلترة</strong> جميع بيانات الاختبار من لوحات القيادة والإحصائيات والتقارير.</li>
+                                <li>سيتم <strong>منع</strong> إنشاء بيانات اختبار جديدة عبر الواجهة البرمجية (API).</li>
+                                <li>لن تظهر أدوات الصيانة وحذف بيانات الاختبار.</li>
+                            </ul>
+                        </div>
                     </div>
                 </div>
 
@@ -765,9 +771,19 @@ $currentSettings = $settings->all();
             hideAlerts();
             const formData = new FormData(form);
             const settings = {};
+            
+            // Collect all input values
             for (let [key, value] of formData.entries()) {
                 settings[key] = isNaN(value) ? value : parseFloat(value);
             }
+            
+            // ✅ FIX: Explicitly handle checkboxes (they don't appear in FormData when unchecked)
+            const checkboxes = form.querySelectorAll('input[type="checkbox"]');
+            checkboxes.forEach(checkbox => {
+                // Set to 1 if checked, 0 if unchecked
+                settings[checkbox.name] = checkbox.checked ? 1 : 0;
+            });
+            
             try {
                 const response = await fetch('../api/settings.php', {
                     method: 'POST',
@@ -775,8 +791,15 @@ $currentSettings = $settings->all();
                     body: JSON.stringify(settings)
                 });
                 const data = await response.json();
-                if (data.success) showAlert('success', '✅ تم حفظ الإعدادات بنجاح');
-                else showAlert('error', '❌ خطأ: ' + (data.errors ? data.errors.join(', ') : data.error));
+                if (data.success) {
+                    showAlert('success', '✅ تم حفظ الإعدادات بنجاح');
+                    // Reload page after 1.5 seconds to reflect changes
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 1500);
+                } else {
+                    showAlert('error', '❌ خطأ: ' + (data.errors ? data.errors.join(', ') : data.error));
+                }
             } catch (error) {
                 showAlert('error', '❌ خطأ في الاتصال: ' + error.message);
             }

@@ -15,20 +15,38 @@ function formatNumber($num) { return number_format((float)$num); }
 
 $db = Database::connect();
 
+// Initialize ROI variables to prevent undefined warnings
+$totalHoursSaved = 0;
+$fteMonthsSaved = 0;
+$costSaved = 0;
+
+// Production Mode: Test Data Filtering Setup
+$settings = \App\Support\Settings::getInstance();
+$isProd = $settings->isProductionMode();
+// G = with alias 'g', D = direct no alias
+$whereG = $isProd ? " WHERE (g.is_test_data = 0 OR g.is_test_data IS NULL) " : " WHERE 1=1 ";
+$andG   = $isProd ? " AND (g.is_test_data = 0 OR g.is_test_data IS NULL) " : "";
+$whereD = $isProd ? " WHERE (is_test_data = 0 OR is_test_data IS NULL) " : " WHERE 1=1 ";
+$andD   = $isProd ? " AND (is_test_data = 0 OR is_test_data IS NULL) " : "";
+
+// Special joins for tables that don't have the flag (need to join guarantees g)
+$joinG  = $isProd ? " JOIN guarantees g ON g.id = " : ""; // incomplete, usage depends on context
+// Better to just write the manual JOINS where needed
+
 try {
     // ============================================
     // SECTION 1: GLOBAL METRICS (ASSET vs OCCURRENCE)
     // ============================================
     $overview = $db->query("
         SELECT 
-            (SELECT COUNT(*) FROM guarantees) as total_assets,
-            (SELECT COUNT(*) FROM guarantee_occurrences) as total_occurrences,
-            (SELECT COUNT(*) FROM guarantees WHERE json_extract(raw_data, '$.expiry_date') >= date('now')) as active_assets,
+            (SELECT COUNT(*) FROM guarantees $whereD) as total_assets,
+            (SELECT COUNT(*) FROM guarantee_occurrences o JOIN guarantees g ON o.guarantee_id = g.id $whereG) as total_occurrences,
+            (SELECT COUNT(*) FROM guarantees WHERE json_extract(raw_data, '$.expiry_date') >= date('now') $andD) as active_assets,
             (SELECT COUNT(*) FROM batch_metadata WHERE status='active') as active_batches,
-            (SELECT SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as total_amount,
-            (SELECT AVG(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as avg_amount,
-            (SELECT MAX(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as max_amount,
-            (SELECT MIN(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees) as min_amount
+            (SELECT SUM(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as total_amount,
+            (SELECT AVG(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as avg_amount,
+            (SELECT MAX(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as max_amount,
+            (SELECT MIN(CAST(json_extract(raw_data, '$.amount') AS REAL)) FROM guarantees $whereD) as min_amount
     ")->fetch(PDO::FETCH_ASSOC);
 
     $efficiencyRatio = $overview['total_assets'] > 0 
@@ -50,6 +68,7 @@ try {
         FROM guarantee_occurrences o
         JOIN guarantees g ON o.guarantee_id = g.id
         LEFT JOIN batch_metadata m ON o.batch_identifier = m.import_source
+        $whereG
         GROUP BY o.batch_identifier
         ORDER BY import_date DESC
         LIMIT 5
@@ -69,6 +88,7 @@ try {
         LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
         LEFT JOIN suppliers s ON d.supplier_id = s.id
         LEFT JOIN banks b ON d.bank_id = b.id
+        $whereG
         GROUP BY g.id
         HAVING occurrence_count > 1
         ORDER BY occurrence_count DESC
@@ -82,6 +102,8 @@ try {
         SELECT s.official_name, COUNT(*) as count
         FROM guarantee_decisions d
         JOIN suppliers s ON d.supplier_id = s.id
+        JOIN guarantees g ON d.guarantee_id = g.id 
+        $whereG
         GROUP BY s.id
         ORDER BY count DESC
         LIMIT 10
@@ -98,6 +120,7 @@ try {
         FROM guarantee_decisions d
         JOIN banks b ON d.bank_id = b.id
         JOIN guarantees g ON d.guarantee_id = g.id
+        $whereG
         GROUP BY b.id
         ORDER BY count DESC
         LIMIT 10
@@ -107,8 +130,10 @@ try {
         SELECT s.official_name, COUNT(DISTINCT d.guarantee_id) as count
         FROM suppliers s
         JOIN guarantee_decisions d ON s.id = d.supplier_id
+        JOIN guarantees g ON d.guarantee_id = g.id
         LEFT JOIN guarantee_history h ON d.guarantee_id = h.guarantee_id AND h.event_type = 'modified'
         WHERE h.id IS NULL
+        $andG
         GROUP BY s.id
         HAVING count >= 2
         ORDER BY count DESC
@@ -126,7 +151,9 @@ try {
                    CAST(COUNT(DISTINCT d.guarantee_id) AS REAL) * 100, 1) as risk_score
         FROM suppliers s
         JOIN guarantee_decisions d ON s.id = d.supplier_id
+        JOIN guarantees g ON d.guarantee_id = g.id
         LEFT JOIN guarantee_history h ON d.guarantee_id = h.guarantee_id
+        $whereG
         GROUP BY s.id
         HAVING total >= 2
         ORDER BY risk_score DESC
@@ -137,7 +164,9 @@ try {
         SELECT s.official_name, COUNT(*) as manual_count
         FROM guarantee_decisions d
         JOIN suppliers s ON d.supplier_id = s.id
-        WHERE d.decision_source = 'manual' OR d.decision_source IS NULL
+        JOIN guarantees g ON d.guarantee_id = g.id
+        WHERE (d.decision_source = 'manual' OR d.decision_source IS NULL)
+        $andG
         GROUP BY s.id
         ORDER BY manual_count DESC
         LIMIT 5
@@ -145,9 +174,11 @@ try {
     
     $uniqueCounts = $db->query("
         SELECT 
-            COUNT(DISTINCT supplier_id) as suppliers,
-            COUNT(DISTINCT bank_id) as banks
-        FROM guarantee_decisions
+            COUNT(DISTINCT d.supplier_id) as suppliers,
+            COUNT(DISTINCT d.bank_id) as banks
+        FROM guarantee_decisions d
+        JOIN guarantees g ON d.guarantee_id = g.id
+        $whereG
     ")->fetch(PDO::FETCH_ASSOC);
     
     $bankSupplierPairs = $db->query("
@@ -158,6 +189,8 @@ try {
         FROM guarantee_decisions d
         JOIN banks b ON d.bank_id = b.id
         JOIN suppliers s ON d.supplier_id = s.id
+        JOIN guarantees g ON d.guarantee_id = g.id
+        $whereG
         GROUP BY b.id, s.id
         ORDER BY count DESC
         LIMIT 10
@@ -165,10 +198,12 @@ try {
     
     $exclusiveSuppliers = $db->query("
         SELECT COUNT(*) FROM (
-            SELECT supplier_id
-            FROM guarantee_decisions
-            GROUP BY supplier_id
-            HAVING COUNT(DISTINCT bank_id) = 1
+            SELECT d.supplier_id
+            FROM guarantee_decisions d
+            JOIN guarantees g ON d.guarantee_id = g.id
+            $whereG
+            GROUP BY d.supplier_id
+            HAVING COUNT(DISTINCT d.bank_id) = 1
         )
     ")->fetchColumn();
 
@@ -183,12 +218,14 @@ try {
             MAX(CAST((julianday(d.decided_at) - julianday(g.imported_at)) * 24 AS REAL)) as max_hours
         FROM guarantee_decisions d
         JOIN guarantees g ON d.guarantee_id = g.id
-        WHERE d.decided_at IS NOT NULL
+        WHERE d.decided_at IS NOT NULL $andG
     ")->fetch(PDO::FETCH_ASSOC);
     
     $peakHour = $db->query("
-        SELECT strftime('%H', created_at) as hour, COUNT(*) as count
-        FROM guarantee_history
+        SELECT strftime('%H', h.created_at) as hour, COUNT(*) as count
+        FROM guarantee_history h
+        JOIN guarantees g ON h.guarantee_id = g.id
+        $whereG
         GROUP BY hour
         ORDER BY count DESC
         LIMIT 1
@@ -203,6 +240,7 @@ try {
                           THEN g.id END) as complex
         FROM guarantees g
         LEFT JOIN guarantee_history h ON g.id = h.guarantee_id AND h.event_type = 'modified'
+        $whereG
     ")->fetch(PDO::FETCH_ASSOC);
     
     $firstTimeRight = $qualityMetrics['total'] > 0 ? round(($qualityMetrics['ftr'] / $qualityMetrics['total']) * 100, 1) : 0;
@@ -226,6 +264,7 @@ try {
             COUNT(CASE WHEN imported_at >= date('now', '-7 days') THEN 1 END) as this_week,
             COUNT(CASE WHEN imported_at >= date('now', '-14 days') AND imported_at < date('now', '-7 days') THEN 1 END) as last_week
         FROM guarantees
+        $whereD
     ")->fetch(PDO::FETCH_ASSOC);
 
     $trendPercent = 0;
@@ -245,6 +284,7 @@ try {
             COUNT(CASE WHEN json_extract(raw_data, '$.expiry_date') BETWEEN date('now') AND date('now', '+30 days') THEN 1 END) as next_30,
             COUNT(CASE WHEN json_extract(raw_data, '$.expiry_date') BETWEEN date('now') AND date('now', '+90 days') THEN 1 END) as next_90
         FROM guarantees
+        $whereD
     ")->fetch(PDO::FETCH_ASSOC);
 
     // Peak Month
@@ -268,20 +308,22 @@ try {
 
     // 4C: Actions
     $actions = $db->query("
-        SELECT 
-            COUNT(CASE WHEN event_subtype = 'extension' THEN 1 END) as extensions,
-            COUNT(CASE WHEN event_subtype = 'reduction' THEN 1 END) as reductions,
-            COUNT(CASE WHEN event_type = 'released' THEN 1 END) as releases,
-            COUNT(CASE WHEN event_type = 'released' AND created_at >= date('now', '-7 days') THEN 1 END) as recent_releases
-        FROM guarantee_history
+            COUNT(CASE WHEN h.event_subtype = 'extension' THEN 1 END) as extensions,
+            COUNT(CASE WHEN h.event_subtype = 'reduction' THEN 1 END) as reductions,
+            COUNT(CASE WHEN h.event_type = 'released' THEN 1 END) as releases,
+            COUNT(CASE WHEN h.event_type = 'released' AND h.created_at >= date('now', '-7 days') THEN 1 END) as recent_releases
+        FROM guarantee_history h
+        JOIN guarantees g ON h.guarantee_id = g.id
+        $whereG
     ")->fetch(PDO::FETCH_ASSOC);
 
     $multipleExtensions = $db->query("
         SELECT COUNT(*) FROM (
-            SELECT guarantee_id
-            FROM guarantee_history
-            WHERE event_subtype = 'extension'
-            GROUP BY guarantee_id
+            SELECT h.guarantee_id
+            FROM guarantee_history h
+            JOIN guarantees g ON h.guarantee_id = g.id
+            WHERE h.event_subtype = 'extension' $andG
+            GROUP BY h.guarantee_id
             HAVING COUNT(*) > 1
         )
     ")->fetchColumn();
@@ -313,11 +355,12 @@ try {
     // SECTION 5: AI & MACHINE LEARNING
     // ============================================
     $aiStats = $db->query("
-        SELECT 
             COUNT(*) as total,
-            COUNT(CASE WHEN decision_source IN ('auto', 'auto_match', 'ai_match', 'ai_quick', 'direct_match') THEN 1 END) as ai_matches,
-            COUNT(CASE WHEN decision_source = 'manual' OR decision_source IS NULL THEN 1 END) as manual
-        FROM guarantee_decisions
+            COUNT(CASE WHEN d.decision_source IN ('auto', 'auto_match', 'ai_match', 'ai_quick', 'direct_match') THEN 1 END) as ai_matches,
+            COUNT(CASE WHEN d.decision_source = 'manual' OR d.decision_source IS NULL THEN 1 END) as manual
+        FROM guarantee_decisions d
+        JOIN guarantees g ON d.guarantee_id = g.id
+        $whereG
     ")->fetch(PDO::FETCH_ASSOC);
     
     $aiMatchRate = $aiStats['total'] > 0 ? round(($aiStats['ai_matches'] / $aiStats['total']) * 100, 1) : 0;
@@ -326,9 +369,11 @@ try {
     
     $autoMatchEvents = $db->query("
         SELECT COUNT(*) 
-        FROM guarantee_history 
-        WHERE event_type IN ('auto_matched', 'modified')
-        AND event_subtype IN ('auto_match', 'bank_match', 'ai_match')
+        FROM guarantee_history h
+        JOIN guarantees g ON h.guarantee_id = g.id
+        WHERE h.event_type IN ('auto_matched', 'modified')
+        AND h.event_subtype IN ('auto_match', 'bank_match', 'ai_match')
+        $andG
     ")->fetchColumn();
     
     // ML from learning_confirmations
@@ -383,6 +428,8 @@ try {
     
     $mlAccuracy = $mlStats['total'] > 0 ? round(($mlStats['confirmations'] / $mlStats['total']) * 100, 1) : 0;
     $timeSaved = round(($aiStats['ai_matches'] ?? 0) * 2 / 60, 1); // 2 min per decision
+    
+    // ✅ Fix: ROI Variables (Moved to top of file)
 
 
     // ============================================
@@ -392,6 +439,7 @@ try {
     $typeDistribution = $db->query("
         SELECT json_extract(raw_data, '$.type') as type, COUNT(*) as count
         FROM guarantees
+        $whereD
         GROUP BY type
         ORDER BY count DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -408,6 +456,7 @@ try {
             ROUND(CAST(COUNT(DISTINCT h.guarantee_id) AS REAL) / CAST(COUNT(DISTINCT g.id) AS REAL) * 100, 1) as ext_rate
         FROM guarantees g
         LEFT JOIN guarantee_history h ON g.id = h.guarantee_id AND h.event_subtype = 'extension'
+        $whereG
         GROUP BY range
         ORDER BY ext_rate DESC
     ")->fetchAll(PDO::FETCH_ASSOC);
@@ -612,7 +661,11 @@ try {
                 <div class="roi-sub">مقارنة بالعمل اليدوي</div>
             </div>
             <div class="roi-metric">
-                <div class="roi-value text-success"><?= $fteMonthsSaved ?><span class="text-sm font-normal text-muted"> شهر</span></div>
+                <?php if ($fteMonthsSaved > 0): ?>
+                    <div class="roi-value text-success"><?= $fteMonthsSaved ?><span class="text-sm font-normal text-muted"> شهر</span></div>
+                <?php else: ?>
+                    <div class="roi-value text-secondary" style="font-size: 18px;">أقل من شهر</div>
+                <?php endif; ?>
                 <div class="roi-label">إنتاجية موظف (FTE)</div>
                 <div class="roi-sub">بناءً على 160 ساعة/شهر</div>
             </div>

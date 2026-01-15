@@ -9,6 +9,7 @@ require_once __DIR__ . '/../vendor/autoload.php';
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Services\ImportService;
+use App\Support\Settings;
 
 header('Content-Type: application/json; charset=utf-8');
 ini_set('memory_limit', '512M');
@@ -33,6 +34,17 @@ try {
 
     $file = $_FILES['file'];
 
+    // Production Mode: Block test data creation
+    $settings = Settings::getInstance();
+    if (!empty($_POST['is_test_data']) && $settings->isProductionMode()) {
+        http_response_code(403);
+        echo json_encode([
+            'success' => false,
+            'error' => 'لا يمكن إنشاء بيانات اختبار في وضع الإنتاج'
+        ]);
+        exit;
+    }
+
     // Validate extension
     $filename = $file['name'];
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
@@ -56,9 +68,21 @@ try {
     try {
         // Import using service
         $service = new ImportService();
-        $result = $service->importFromExcel($tempPath, $_POST['imported_by'] ?? 'web_user', $filename);
+        $isTestData = !empty($_POST['is_test_data']);
+        $result = $service->importFromExcel($tempPath, $_POST['imported_by'] ?? 'web_user', $filename, $isTestData);
 
-
+        // ✅ NEW: Mark as test data if requested (Phase 1)
+        if (!empty($_POST['is_test_data']) && !empty($result['imported_records'])) {
+            $testBatchId = $_POST['test_batch_id'] ?? null;
+            $testNote = $_POST['test_note'] ?? null;
+            
+            $db = \App\Support\Database::connect();
+            $repo = new \App\Repositories\GuaranteeRepository($db);
+            
+            foreach ($result['imported_records'] as $record) {
+                $repo->markAsTestData($record['id'], $testBatchId, $testNote);
+            }
+        }
 
         // --- RECORD IMPORT EVENTS (Before Smart Processing!) ---
         try {
