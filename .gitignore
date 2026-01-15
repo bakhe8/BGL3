@@ -2,6 +2,10 @@
 /vendor/
 /node_modules/
 
+# PHP Portable (اختياري للمستخدمين)
+/php/
+composer.phar
+
 # Environment
 .env
 .env.local
@@ -26,7 +30,7 @@ desktop.ini
 ehthumbs.db
 
 # IDE
-.vscode/
+# .vscode/  ← تم السماح بـ .vscode للمشروع
 .idea/
 *.swp
 *.swo
@@ -53,4 +57,7 @@ copy_*.php
 # Test coverage
 /coverage/
 .phpunit.result.cache
+
+# Server PID file
+server.pid
 

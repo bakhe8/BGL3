@@ -1,16 +1,16 @@
 <?php return array(
     'root' => array(
-        'name' => 'bgl/guarantee-management-system',
+        'name' => 'bakhe8/bgl3',
         'pretty_version' => '1.0.0',
         'version' => '1.0.0.0',
         'reference' => null,
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
-        'dev' => true,
+        'dev' => false,
     ),
     'versions' => array(
-        'bgl/guarantee-management-system' => array(
+        'bakhe8/bgl3' => array(
             'pretty_version' => '1.0.0',
             'version' => '1.0.0.0',
             'reference' => null,
@@ -108,15 +108,6 @@
             'install_path' => __DIR__ . '/../psr/simple-cache',
             'aliases' => array(),
             'dev_requirement' => false,
-        ),
-        'staabm/side-effects-detector' => array(
-            'pretty_version' => '1.0.5',
-            'version' => '1.0.5.0',
-            'reference' => 'd8334211a140ce329c13726d4a715adbddd0a163',
-            'type' => 'library',
-            'install_path' => __DIR__ . '/../staabm/side-effects-detector',
-            'aliases' => array(),
-            'dev_requirement' => true,
         ),
     ),
 );
