@@ -1,0 +1,23 @@
+intents:
+  - id: "configuration_tuning"
+    signals:
+      roles: ["CORE_LOGIC_CONFIG"]
+      logic_hits: ["threshold", "score", "weight", "cap", "delta"]
+      behavior: ["single_tweak", "bulk_action"]
+      min_confidence: 0.6
+  - id: "security_logic_update"
+    signals:
+      roles: ["BUSINESS_LOGIC", "EXTERNAL_INTERFACE"]
+      logic_hits: ["verify", "auth", "session", "validate", "token", "hash"]
+      behavior: ["manual_coding", "single_tweak", "bulk_action"]
+      min_confidence: 0.8
+  - id: "interface_refinement"
+    signals:
+      roles: ["REPRESENTATION", "UI_LOGIC"]
+      logic_hits: ["view", "render", "display", "controller"]
+      min_confidence: 0.4
+default_intent: "general_development"
+confidence_weights:
+  role_match: 0.4
+  logic_hit: 0.4
+  behavior_match: 0.2

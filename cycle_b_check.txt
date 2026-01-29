@@ -1,0 +1,10 @@
+JSONL: FOUND
+{"ts": "2026-01-29T18:24:39.804089+00:00", "event": "aggregate", "window_ms": 1000.0, "window_start_ts": "2026-01-29T18:24:38.796417+00:00", "window_end_ts": "2026-01-29T18:24:39.804089+00:00", "counts": {"created": 0, "modified": 6, "deleted": 0}, "debounced_skipped": 13}
+{"id": "77974586-1926-44dc-93c0-f66a3fcfca4d", "seq": 1581, "ts": "2026-01-29T18:24:39.806287+00:00", "event": "modified", "path_rel": ".guardian\\agent\\events.jsonl", "path_abs": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.guardian\\agent\\events.jsonl", "is_dir": false}
+{"id": "4676a9e8-b494-4f08-8d35-efbbc37ba5b0", "seq": 1582, "ts": "2026-01-29T18:24:39.813500+00:00", "event": "modified", "path_rel": "agent\\events.jsonl", "path_abs": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agent\\events.jsonl", "is_dir": false}
+LOG: FOUND
+2026-01-29 21:24:39,814 - INFO - MODIFIED - agent\events.jsonl
+2026-01-29 21:24:39,814 - INFO - MODIFIED - agent\events.jsonl
+2026-01-29 21:24:39,936 - INFO - MODIFIED - .guardian\agent\events.log
+2026-01-29 21:24:39,936 - INFO - MODIFIED - .guardian\agent\events.log
+2026-01-29 21:24:39,936 - INFO - MODIFIED - .guardian\agent\events.log

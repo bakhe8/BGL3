@@ -1,0 +1,4 @@
+Agent Dir: C:\Users\Bakheet\Documents\Projects\BGL3\.guardian\agent
+Project Root: C:\Users\Bakheet\Documents\Projects\BGL3
+Watch Path (Config): C:\Users\Bakheet\Documents\Projects\BGL3
+Log Path: C:\Users\Bakheet\Documents\Projects\BGL3\agent\events.log

@@ -1,0 +1,15 @@
+ontology:
+  - path: "storage/settings.json"
+    role: "CORE_LOGIC_CONFIG"
+    sensitivity: 10
+  - path: "app/Services/"
+    role: "BUSINESS_LOGIC"
+    sensitivity: 8
+  - path: "views/"
+    role: "REPRESENTATION"
+    sensitivity: 3
+default_sensitivity: 4
+file_type_weights:
+  .py: 1.2
+  .php: 1.2
+  .json: 1.0
