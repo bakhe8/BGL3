@@ -1,0 +1,46 @@
+[
+  {
+    "case": "Structural_Rename",
+    "status": "SUCCESS",
+    "latency_sec": 5.864,
+    "checks": [
+      "lint",
+      "phpunit_simulated",
+      "architectural_audit"
+    ],
+    "rollback": false,
+    "message": "File patched successfully"
+  },
+  {
+    "case": "Logic_Addition",
+    "status": "SUCCESS",
+    "latency_sec": 5.747,
+    "checks": [
+      "lint",
+      "phpunit_simulated",
+      "architectural_audit"
+    ],
+    "rollback": false,
+    "message": "File patched successfully"
+  },
+  {
+    "case": "Integrity_Violation",
+    "status": "FAILED",
+    "latency_sec": 0.0,
+    "checks": [],
+    "rollback": false,
+    "message": "Guardrail violation: Path config/app.php is blocked or not allowed."
+  },
+  {
+    "case": "Architectural_Audit",
+    "status": "SUCCESS",
+    "latency_sec": 5.615,
+    "checks": [
+      "lint",
+      "phpunit_simulated",
+      "architectural_audit"
+    ],
+    "rollback": false,
+    "message": "Task completed"
+  }
+]
