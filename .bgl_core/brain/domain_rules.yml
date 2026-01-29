@@ -1,0 +1,43 @@
+# دستور عمل مشروع BGL3 (BGL3 Architectural Constitution)
+# يعرّف هذا الملف القواعد المعمارية التي يجب على الوكيل حمايتها.
+
+# 1. التعريفات (Classifications)
+# تساعد الوكيل على معرفة "نوع" الكلاس بناءً على السمة أو المسار.
+classifications:
+  controller:
+    path_contains: "Http/Controllers"
+    suffix: "Controller"
+  service:
+    path_contains: "app/Services"
+    suffix: "Service"
+  repository:
+    path_contains: "app/Repositories"
+    suffix: "Repository"
+  model:
+    path_contains: "app/Models"
+
+# 2. القواعد المعمارية (Architectural Rules)
+rules:
+  # منع الوصول المباشر من Controller إلى Model (لفرض استخدام Service Layer)
+  - id: "R001"
+    name: "Controller-to-Model Encapsulation"
+    description: "Forbidden: Controllers must not access Models directly. Use Services."
+    from_type: "controller"
+    to_type: "model"
+    action: "BLOCK" # BLOCK means it triggers a high-severity alert
+
+  # منع الوصول المباشر من Controller إلى Repository
+  - id: "R002"
+    name: "Controller-to-Repository Separation"
+    description: "Forbidden: Controllers must not access Repositories directly. Use Services."
+    from_type: "controller"
+    to_type: "repository"
+    action: "BLOCK"
+
+  # قواعد التسمية (Consistency)
+  - id: "R003"
+    name: "Service Consistency"
+    description: "Policy: Any class in app/Services must have a 'Service' suffix."
+    path_match: "app/Services"
+    must_have_suffix: "Service"
+    action: "WARN"

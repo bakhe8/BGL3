@@ -3,7 +3,13 @@
     "description": "نظام إدارة الضمانات البنكية - BGL System v3",
     "version": "1.0.0",
     "type": "project",
-    "keywords": ["guarantee", "bank", "management", "php", "sqlite"],
+    "keywords": [
+        "guarantee",
+        "bank",
+        "management",
+        "php",
+        "sqlite"
+    ],
     "license": "proprietary",
     "require": {
         "php": ">=8.0",
@@ -20,6 +26,6 @@
         }
     },
     "require-dev": {
-        "phpunit/phpunit": "^12.5"
+        "phpunit/phpunit": "^10.5"
     }
 }

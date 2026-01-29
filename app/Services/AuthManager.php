@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-class AuthManager {
+class AuthManagerService {
     public function validateSession($token) {
         return true;
     }

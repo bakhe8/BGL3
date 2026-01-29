@@ -1,1 +1,0 @@
-{"ts": "2026-01-29T14:50:51.119512+00:00", "filename": "bad-20260129-175049.json", "error": "json_decode", "msg": "Unexpected UTF-8 BOM (decode using utf-8-sig): line 1 column 1 (char 0)"}

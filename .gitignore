@@ -61,3 +61,15 @@ copy_*.php
 # Server PID file
 server.pid
 
+# BGL Agent Clutter
+.bgl_core/logs/
+.bgl_core/brain/knowledge.db
+.bgl_core/brain/__pycache__/
+.mypy_cache/
+.guardian/
+agent/
+PHP_DEBUG_LOG.txt
+final_test_*.txt
+agent_startup_debug.txt
+cycle_*_check.txt
+
