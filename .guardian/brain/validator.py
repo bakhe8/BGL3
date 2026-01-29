@@ -1,6 +1,9 @@
-from typing import Dict, Any, Optional
-import json
-from .schema import AgentEvent, SemanticEvent, AdvisoryProposal, ValidationResult
+from typing import Dict, Any
+
+try:
+    from schema import AgentEvent, SemanticEvent, AdvisoryProposal, ValidationResult
+except ImportError:
+    from .schema import AgentEvent, SemanticEvent, AdvisoryProposal, ValidationResult  # type: ignore
 
 
 class BrainValidator:

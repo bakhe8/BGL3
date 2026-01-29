@@ -15,6 +15,16 @@ from typing import Dict, Any, List, Set, cast
 from pathlib import Path
 from datetime import datetime, timezone
 
+try:
+    # Try absolute import first (for IDE/Linter)
+    from validator import BrainValidator
+except ImportError:
+    # Fallback to local (if running as script)
+    import sys
+
+    sys.path.append(str(Path(__file__).parent))
+    from validator import BrainValidator  # type: ignore
+
 # Configuration
 CONFIG: Dict[str, Any] = {
     "SENSOR_LOG": "../agent/events.jsonl",
@@ -262,6 +272,7 @@ class SemanticBrain:
         self.advisor = DecisionEngine(
             self.base_dir / Path(str(CONFIG["DECISION_FILE"]))
         )
+        self.validator = BrainValidator(strict_mode=True)
         self.last_pos = 0
         self.current_burst = []
         self.last_event_ts = 0.0
@@ -291,8 +302,9 @@ class SemanticBrain:
 
             # --- VALIDATION GATE ---
             validation = self.validator.validate_agent_event(raw)
-            if not validation.is_valid:
-                print(f"⚠️ Dropped Invalid Event: {validation.error}")
+            if not validation.is_valid or validation.sanitized_data is None:
+                if not validation.is_valid:
+                    print(f"⚠️ Dropped Invalid Event: {validation.error}")
                 return
 
             event = validation.sanitized_data
@@ -381,7 +393,7 @@ class SemanticBrain:
         ).timestamp()
         duration = max(0.0, round(self.last_event_ts - first_ts, 2))
         density = round(count / (duration if duration > 0.05 else 1), 2)
-        behavior = self.classify_behavior(count, duration, paths)
+        behavior = self.classify_behavior(count, duration, set(paths))
 
         # If no roles matched, pass UNKNOWN to resolver
         effective_roles = roles if roles else {"UNKNOWN"}
