@@ -1,0 +1,82 @@
+2026-01-30 21:31:29 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:31 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:36 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:38 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:39 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:43 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:44 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-30 21:31:46 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-31 16:46:26 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:49:07 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:49:55 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:50:47 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:51:57 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:52:24 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:52:58 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:53:07 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:53:26 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:55:33 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:55:42 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:57:11 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:57:16 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-31 16:57:22 EXCEPTION: لم يتم استلام الملف أو حدث خطأ في الرفع
+Stack: #0 {main}
+2026-01-31 16:58:26 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 16:58:43 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:00:36 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:01:48 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:08:52 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:09:49 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:09:55 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:10:22 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:10:46 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:11:02 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:11:12 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:11:20 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:11:52 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:12:02 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:12:19 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:12:27 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:12:52 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:13:00 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}
+2026-01-31 17:14:12 EXCEPTION: نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)
+Stack: #0 {main}

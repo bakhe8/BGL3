@@ -1,0 +1,48 @@
+#!/usr/bin/env php
+<?php
+$args = $argv;
+array_shift($args);
+$command = $args[0] ?? 'list';
+
+if ($command === 'list') {
+    echo "backup:export    Export lightweight JSON backup\n";
+    exit(0);
+}
+
+if ($command === 'backup:export') {
+    $base = __DIR__;
+    $outDir = $base . '/storage/backups';
+    if (!is_dir($outDir)) {
+        mkdir($outDir, 0755, true);
+    }
+    $ts = date('Ymd_His');
+    $file = $outDir . "/backup_{$ts}.json";
+
+    // Minimal dataset: settings + empty collections if DB not available
+    $settingsFile = $base . '/storage/settings.json';
+    $settings = file_exists($settingsFile) ? json_decode(file_get_contents($settingsFile), true) : [];
+    $data = [
+        'exported_at' => date('c'),
+        'settings' => $settings,
+        'banks' => [],
+        'suppliers' => [],
+    ];
+
+    // Try fetch banks/suppliers via existing APIs if reachable
+    $apiBase = getenv('BGL_BASE_URL') ?: 'http://localhost:8000';
+    $endpoints = ['banks' => '/api/get_banks.php', 'suppliers' => '/api/get_suppliers.php'];
+    foreach ($endpoints as $key => $ep) {
+        $url = rtrim($apiBase, '/') . $ep;
+        $resp = @file_get_contents($url);
+        if ($resp) {
+            $data[$key] = $resp;
+        }
+    }
+
+    file_put_contents($file, json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    echo "Backup created: $file\n";
+    exit(0);
+}
+
+fwrite(STDERR, "Unknown command\n");
+exit(1);

@@ -1,0 +1,16 @@
+# Style & Naming Conventions (non-domain)
+#
+# These rules are advisory/lint-level and should NOT block domain decisions.
+#
+# action meanings:
+#   WARN   -> log and suggest fix
+#   INFO   -> informational only
+
+rules:
+  - id: S001
+    name: Service Suffix Consistency
+    description: "Any class under app/Services should end with 'Service'."
+    path_match: app/Services
+    must_have_suffix: Service
+    action: WARN
+    rationale: "Keeps service discovery predictable; does not impact domain flow."

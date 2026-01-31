@@ -33,6 +33,14 @@ Write-Host "   تشغيل السيرفر" -ForegroundColor Green
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 Write-Host ""
 
+# [Gatekeeper] التحقق من وجود دستور المشروع (Architectural Constitution)
+$rulesFile = Join-Path $projectPath ".bgl_core\brain\domain_rules.yml"
+if (-not (Test-Path $rulesFile)) {
+    Write-Host "✗ خطأ قاتل: ملف القواعد المعمارية (domain_rules.yml) مفقود!" -ForegroundColor Red
+    Write-Host "  لا يمكن للوكيل حماية المشروع بدون هذا الملف." -ForegroundColor Gray
+    exit 1
+}
+
 # إنشاء مجلد logs إذا لم يكن موجوداً
 $logsDir = Join-Path $projectPath "storage\logs"
 if (-not (Test-Path $logsDir)) {

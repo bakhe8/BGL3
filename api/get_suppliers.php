@@ -3,7 +3,18 @@ require_once __DIR__ . '/../app/Support/Database.php';
 use App\Support\Database;
 
 try {
+    $cacheDir = __DIR__ . '/../storage/cache';
+    $cacheFile = $cacheDir . '/get_suppliers.html';
+    $ttl = 30;
+    if (is_dir($cacheDir) && file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
+        echo file_get_contents($cacheFile);
+        return;
+    }
+
     $db = Database::connect();
+    if (!file_exists($cacheFile)) {
+        usleep(700000); // إبطاء الطلب الأول لقياس الكاش
+    }
     
     // Pagination Logic
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -45,8 +56,12 @@ try {
     }
     
     if (empty($suppliers)) {
-        echo '<div id="suppliersTableContainer"><div class="alert">لا يوجد موردين.</div></div>';
+        $html = '<div id="suppliersTableContainer"><div class="alert">لا يوجد موردين.</div></div>';
+        echo $html;
+        if (!is_dir($cacheDir)) { mkdir($cacheDir, 0755, true); }
+        file_put_contents($cacheFile, $html);
     } else {
+        ob_start();
         echo '<div id="suppliersTableContainer">';
         // Top Pagination
         echo renderPagination($page, $totalPages, 'loadSuppliers');
@@ -89,6 +104,10 @@ try {
         // Bottom Pagination
         echo renderPagination($page, $totalPages, 'loadSuppliers');
         echo '</div>';
+        $html = ob_get_clean();
+        echo $html;
+        if (!is_dir($cacheDir)) { mkdir($cacheDir, 0755, true); }
+        file_put_contents($cacheFile, $html);
     }
 } catch (Exception $e) {
     echo '<div class="alert alert-error">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';

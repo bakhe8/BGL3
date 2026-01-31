@@ -1,0 +1,62 @@
+[
+  {
+    "id": "PAT_RATE_LIMIT",
+    "check": "missing_rate_limit_middleware",
+    "recommendation": "apply playbooks/rate_limit.md",
+    "scope": "api"
+  },
+  {
+    "id": "PAT_AUDIT_TRAIL",
+    "check": "missing_audit_trail",
+    "recommendation": "apply playbooks/audit_trail.md",
+    "scope": "app"
+  },
+  {
+    "id": "PAT_DATA_VALIDATION",
+    "check": "missing_validation_guards",
+    "recommendation": "apply playbooks/data_validation.md",
+    "scope": "api"
+  },
+  {
+    "id": "PAT_IMPORT_SAFETY",
+    "check": "missing_import_safety",
+    "recommendation": "apply playbooks/import_safety.md",
+    "scope": "api"
+  },
+  {
+    "id": "PAT_ALERTS",
+    "check": "missing_alerts_aggregator",
+    "recommendation": "apply playbooks/alerts.md",
+    "scope": "ops"
+  },
+  {
+    "id": "PAT_CACHING",
+    "check": "missing_caching_reports",
+    "recommendation": "apply playbooks/caching.md",
+    "scope": "reports"
+  },
+  {
+    "id": "PAT_DB_INDEX_MISSING",
+    "check": "db_index_missing",
+    "recommendation": "add indexes for reporting/filters (see db_schema.md)",
+    "scope": "db"
+  },
+  {
+    "id": "PAT_DB_FK_MISSING",
+    "check": "db_fk_missing",
+    "recommendation": "add foreign keys guarantees->bank/supplier",
+    "scope": "db"
+  },
+  {
+    "id": "PAT_CSS_BLOAT",
+    "check": "css_bloat",
+    "recommendation": "refactor large CSS files (split, purge unused, minify)",
+    "scope": "ui"
+  },
+  {
+    "id": "PAT_JS_BLOAT",
+    "check": "js_bloat",
+    "recommendation": "refactor/minify large JS files; split controllers by feature",
+    "scope": "ui"
+  }
+]

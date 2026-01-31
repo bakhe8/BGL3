@@ -101,7 +101,18 @@ class Settings
     {
         $current = $this->all();
         $merged = array_merge($current, $data);
-        file_put_contents($this->path, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+        $dir = dirname($this->path);
+        if (!is_dir($dir)) {
+            if (!mkdir($dir, 0755, true) && !is_dir($dir)) {
+                throw new \RuntimeException("Cannot create settings directory: {$dir}");
+            }
+        }
+        if (!is_writable($dir)) {
+            throw new \RuntimeException("Settings directory is not writable: {$dir}");
+        }
+        if (file_put_contents($this->path, json_encode($merged, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE)) === false) {
+            throw new \RuntimeException("Failed to write settings file: {$this->path}");
+        }
         return $merged;
     }
 

@@ -1,0 +1,74 @@
+# Domain Map (draft) — BGL3
+# الهدف: إعطاء الوكيل (والبشر) خريطة كيانات وقواعد عمل عالية المستوى.
+
+entities:
+  bank:
+    description: بنك/جهة ضامنة ضمن النظام.
+    key_fields: [id, name, iban, swift, country, status, contact_email]
+    lifecycle: [created, active, suspended]
+    rules:
+      - "iban فريد وصالح"
+      - "status=suspended يمنع إنشاء ضمانات جديدة"
+
+  supplier:
+    description: مورد يتعامل مع النظام ويستقبل الضمانات/المدفوعات.
+    key_fields: [id, name, email, phone, country, status, tax_id]
+    lifecycle: [created, verified, blocked]
+    rules:
+      - "email/phone/tax_id يجب أن تكون صالحة وفريدة"
+      - "blocked suppliers لا يتلقون ضمانات جديدة"
+
+  guarantee:
+    description: ضمان/Letter of Guarantee بين بنك ومورد.
+    key_fields: [id, bank_id, supplier_id, amount, currency, status, start_date, end_date, type]
+    lifecycle: [created, active, extended, released, reduced, expired]
+    rules:
+      - "لا يمكن release أو reduce إلا إذا status=active"
+      - "extend يزيد end_date ولا يغيّر start_date"
+      - "type يحدد سياسات الرسوم/الفترات"
+
+  attachment:
+    description: ملفات داعمة للطلبات/الضمانات.
+    key_fields: [id, guarantee_id, path, mime, size]
+
+relations:
+  - bank 1---* guarantee
+  - supplier 1---* guarantee
+  - guarantee 1---* attachment
+
+invariants:
+  - "iban للبنك فريد وصالح (playbook data_validation)"
+  - "supplier email/phone/tax_id صالحة"
+  - "guarantee amount > 0"
+  - "released guarantees لا تُمدّد"
+
+critical_flows:
+  - create_guarantee
+  - extend_guarantee
+  - release_guarantee
+  - import_suppliers
+  - import_banks
+  - export_suppliers
+  - export_banks
+  - update_bank
+  - update_supplier
+
+operational_kpis:
+  - name: import_success_rate
+    target: ">= 99%"
+    scope: [import_banks, import_suppliers]
+  - name: api_error_rate
+    target: "<= 1% للأخطاء 5xx/4xx على المسارات الحرجة"
+    scope: [/api/create-guarantee.php, /api/update_bank.php, /api/update_supplier.php]
+  - name: contract_latency_ms
+    target: "<= 1000"
+    scope: [API write endpoints]
+  - name: validation_failure_rate
+    target: "<= 3% من طلبات الكتابة"
+    scope: [create_guarantee, update_bank, update_supplier]
+  - name: data_quality_score
+    target: ">= 95% حقول صالحة (IBAN/Email/Phone/Tax)"
+    scope: [imports, create/update endpoints]
+
+review_notes: |
+  هذا الملف مسودة أولى. حدّث key_fields والقواعد بحسب الواقع الفعلي للكود/البيانات.

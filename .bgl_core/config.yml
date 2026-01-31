@@ -1,0 +1,32 @@
+base_url: "http://localhost:8000"
+headless: 1                 # 0 = visible, 1 = headless (إجباري لتجنب فتح نوافذ مرئية)
+run_scenarios: 1            # تفعيل تشغيل السيناريوهات التلقائي
+keep_browser: 0             # لا تُبقِ المتصفح مفتوحاً بعد السيناريوهات
+diagnostic_timeout_sec: 300
+agent_mode: "assisted"      # safe | assisted | auto
+browser_enabled: 1          # تفعيل فحص المتصفح في Safety/Guardian
+browser_mode: "headless"    # off|headless|visible
+max_pages: 3                # حد أقصى للصفحات المفتوحة
+page_idle_timeout: 120      # إغلاق الصفحات الخاملة بعد 120 ثانية
+browser_cpu_max: null       # اختياري: حد أعلى للـ CPU٪ لإيقاف التنقل (مثلاً 85)
+browser_ram_min_gb: null    # اختياري: حد أدنى للذاكرة الحرة بالجيجابايت (مثلاً 0.5)
+run_gap_tests: 1            # تشغيل مجموعة Gap Tests تلقائياً
+run_api_contract: 1         # تشغيل اختبارات العقود (Schemathesis/Dredd) إن وُجدت المواصفات
+feature_flags:
+  deprecated_routes: []     # استخدمها للكبح التلقائي للاقتراحات على المسارات المتقادمة
+
+# سياسات القرار (مبسطة لمشروع BGL3 فقط)
+decision:
+  mode: "assisted"          # safe | assisted | auto
+  auto_fix:
+    min_confidence: 0.75
+    max_risk: "low"
+  refactor:
+    requires_human: true
+  reindex_full:
+    requires_human: true
+
+# وضع التنفيذ الافتراضي
+# sandbox: كل الأفعال الكتابية تتم في ساندبوكس، ثم تُطبق الفروق
+# direct: يُسمح بالعمل على الشجرة الحية (يجب أن يبقى استثناءً وتحسب تبعاته)
+execution_mode: "sandbox"

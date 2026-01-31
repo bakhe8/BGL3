@@ -1,0 +1,56 @@
+[
+  {
+    "path": "public\\css\\index-main.css",
+    "bytes": 39390,
+    "lines": 1479,
+    "sha1": "221ccf9398e4"
+  },
+  {
+    "path": "public\\css\\components.css",
+    "bytes": 18356,
+    "lines": 791,
+    "sha1": "cba8f149b9d4"
+  },
+  {
+    "path": "assets\\css\\letter.css",
+    "bytes": 11044,
+    "lines": 400,
+    "sha1": "4f6c4cafbbad"
+  },
+  {
+    "path": "public\\css\\layout.css",
+    "bytes": 8869,
+    "lines": 265,
+    "sha1": "1c932cd56443"
+  },
+  {
+    "path": "agentfrontend\\theme.css",
+    "bytes": 8265,
+    "lines": 113,
+    "sha1": "a9a05680ab72"
+  },
+  {
+    "path": "public\\css\\design-system.css",
+    "bytes": 6512,
+    "lines": 214,
+    "sha1": "5345e5ffda22"
+  },
+  {
+    "path": "public\\css\\design-tokens.css",
+    "bytes": 2213,
+    "lines": 75,
+    "sha1": "e6663a7384e9"
+  },
+  {
+    "path": "public\\css\\confidence-indicators.css",
+    "bytes": 2055,
+    "lines": 106,
+    "sha1": "6ffb5d65d9a1"
+  },
+  {
+    "path": "public\\css\\batch-detail.css",
+    "bytes": 2052,
+    "lines": 86,
+    "sha1": "838cf64e6856"
+  }
+]

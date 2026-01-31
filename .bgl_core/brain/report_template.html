@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>BGL3 Diagnostic Report</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #0b0f16; color: #e8e8e8; padding: 20px; }
+    h1, h2 { color: #00f2ff; }
+    .section { margin-bottom: 20px; border: 1px solid #1e2633; padding: 12px; border-radius: 8px; background: #111722; }
+    .ok { color: #00ff88; }
+    .warn { color: #ffcc00; }
+    .fail { color: #ff4d4d; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 6px; border-bottom: 1px solid #1e2633; }
+  </style>
+</head>
+<body>
+  <h1>BGL3 Diagnostic Report</h1>
+  <div class="section">
+    <h2>Summary</h2>
+    <p>Timestamp: {{ timestamp }}</p>
+    <p>Health Score: {{ health_score|round(1) }}%</p>
+    <p>Routes scanned: {{ route_scan_limit }} (mode: {{ route_scan_mode }})</p>
+    {% if callgraph_meta %}
+    <p>Route map: {{ callgraph_meta.total_routes|default(0) }} routes (mapped controllers: {{ callgraph_meta.mapped_controllers|default(0) }})</p>
+    {% endif %}
+    <p>Execution mode: {{ execution_mode }}</p>
+    {% if execution_stats and execution_stats.direct_attempts is defined %}
+    <p>Direct attempts recorded: {{ execution_stats.direct_attempts }}</p>
+    {% endif %}
+    <p>Scan duration: {{ scan_duration_seconds|round(2) }}s (target {{ target_duration_seconds|round(2) }}s)</p>
+    {% if performance %}
+    <p>Perf (home): {% if performance.home_error %}<span class="warn">{{ performance.home_error }}</span>{% else %}{{ performance.home_status|default('n/a') }} in {{ performance.home_load_ms|round(1) }} ms ({{ performance.home_bytes|default(0) }} bytes){% endif %}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Vitals</h2>
+    <ul>
+      <li>Infrastructure: <span class="{{ 'ok' if vitals.infrastructure else 'fail' }}">{{ vitals.infrastructure }}</span></li>
+      <li>Business Logic: <span class="{{ 'ok' if vitals.business_logic else 'warn' }}">{{ vitals.business_logic }}</span></li>
+      <li>Architecture: <span class="{{ 'ok' if vitals.architecture else 'fail' }}">{{ vitals.architecture }}</span></li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>Permission Issues</h2>
+    {% if permission_issues %}
+      <ul>{% for p in permission_issues %}<li class="warn">{{ p }}</li>{% endfor %}</ul>
+    {% else %}<p class="ok">None</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Failing Routes</h2>
+    {% if failing_routes %}
+      <table>
+        <tr><th>URI</th><th>Errors</th></tr>
+        {% for fr in failing_routes %}
+          <tr><td>{{ fr.uri }}</td><td>{{ fr.errors|join('; ') }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">All healthy</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Worst Routes (by recent errors/latency)</h2>
+    {% if worst_routes %}
+      <ul>{% for wr in worst_routes %}<li>{{ wr.uri }} — score {{ wr.score }}</li>{% endfor %}</ul>
+    {% else %}<p>No hot routes.</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Recent Experiences</h2>
+    {% if experiences %}
+      <ul>{% for e in experiences %}<li>{{ e.scenario }} — {{ e.summary }}</li>{% endfor %}</ul>
+    {% else %}<p>No experiences recorded.</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Suggestions</h2>
+    {% if suggestions %}
+      <ul>{% for s in suggestions %}<li>{{ s }}</li>{% endfor %}</ul>
+    {% else %}<p class="ok">No suggestions.</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Intent & Decision</h2>
+    {% if intent %}
+      <p><strong>Intent:</strong> {{ intent.intent }} ({{ (intent.confidence * 100)|round(1) }}%)</p>
+      <p><strong>Reason:</strong> {{ intent.reason }}</p>
+      <p><strong>Scope:</strong> {{ intent.scope }}</p>
+      {% if intent.maturity %}<p><strong>Maturity:</strong> {{ intent.maturity.level|default('experimental') }}</p>{% endif %}
+      {% if intent.conflicts_with %}<p><strong>Conflicts:</strong> {{ intent.conflicts_with|length }}</p>{% endif %}
+    {% else %}
+      <p>لا يوجد intent مسجل.</p>
+    {% endif %}
+    {% if decision %}
+      <p><strong>Decision:</strong> {{ decision.decision }}</p>
+      <p><strong>Risk:</strong> {{ decision.risk_level }}</p>
+      <p><strong>Requires Human:</strong> {{ decision.requires_human }}</p>
+      {% if decision.justification %}<p><strong>Justification:</strong> {{ decision.justification|join('; ') }}</p>{% endif %}
+      {% if decision.maturity %}<p><strong>Decision Maturity:</strong> {{ decision.maturity.level|default('experimental') }}</p>{% endif %}
+      {% if decision.conflicts_with %}<p><strong>Conflicts:</strong> {{ decision.conflicts_with|length }}</p>{% endif %}
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Interpretation (Executive Summary)</h2>
+    {% if interpretation.items_list %}
+      <ul>{% for i in interpretation.items_list %}<li>{{ i }}</li>{% endfor %}</ul>
+    {% else %}
+      <p>لا يوجد تفسير إضافي.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Gap Tests</h2>
+    {% if gap_tests %}
+      <ul>{% for g in gap_tests %}<li>{{ g.id if g.id else 'gap' }} — {{ 'PASS' if g.passed else 'FAIL' }} {% if g.evidence %}(evidence: {{ g.evidence }}){% endif %}</li>{% endfor %}</ul>
+    {% else %}
+      <p>No gap tests recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>External Checks (Patterns)</h2>
+    {% if external_checks %}
+      <ul>
+      {% for c in external_checks %}
+        {% set cls = 'ok' if c.passed else 'warn' %}
+        <li class="{{ cls }}">
+          {{ c.id or c.check or 'check' }} — {{ 'PASS' if c.passed else 'WARN/FAIL' }}
+          {% if c.evidence %}( {{ c.evidence|join('; ') }} ){% endif %}
+        </li>
+      {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">لا توجد تحذيرات خارجية.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Proposals</h2>
+    {% if proposals %}
+      <ul>
+        {% for p in proposals %}
+          <li>
+            {{ p.name or p.id or 'proposal' }}
+            {% if p.recommendation %}: {{ p.recommendation }}{% endif %}
+            {% if p.maturity %} (maturity: {{ p.maturity.level|default('experimental') }}){% endif %}
+            {% if p.conflicts_with %} | conflicts: {{ p.conflicts_with|length }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}<p>No proposals.</p>{% endif %}
+  </div>
+</body>
+</html>

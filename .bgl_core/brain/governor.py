@@ -5,21 +5,33 @@ from typing import List, Dict, Any
 
 
 class BGLGovernor:
-    def __init__(self, db_path: Path, rules_path: Path):
+    def __init__(self, db_path: Path, rules_path: Path, style_rules_path: Path | None = None):
         self.db_path = db_path
         self.rules_path = rules_path
+        self.style_rules_path = style_rules_path
         self.conn = sqlite3.connect(db_path)
         self.conn.row_factory = sqlite3.Row
         self.rules = self._load_rules()
 
     def _load_rules(self) -> Dict[str, Any]:
+        base = {}
         with open(self.rules_path, "r", encoding="utf-8") as f:
-            return yaml.safe_load(f)
+            base = yaml.safe_load(f) or {}
+
+        # Optionally merge style rules as non-blocking naming policies
+        if self.style_rules_path and self.style_rules_path.exists():
+            with open(self.style_rules_path, "r", encoding="utf-8") as f:
+                style = yaml.safe_load(f) or {}
+                # merge style rules into a separate list to process alongside
+                base.setdefault("style_rules", style.get("rules", []))
+
+        return base
 
     def audit(self) -> List[Dict[str, Any]]:
         violations = []
         classifications = self.rules.get("classifications", {})
         rules = self.rules.get("rules", [])
+        style_rules = self.rules.get("style_rules", [])
 
         # 1. Map all entities to their types
         entity_types = self._classify_entities(classifications)
@@ -29,6 +41,11 @@ class BGLGovernor:
             if "from_type" in rule and "to_type" in rule:
                 violations.extend(self._check_relationship_rule(rule, entity_types))
 
+            if "must_have_suffix" in rule:
+                violations.extend(self._check_naming_rule(rule))
+
+        # 3. Style naming (non-blocking by design)
+        for rule in style_rules:
             if "must_have_suffix" in rule:
                 violations.extend(self._check_naming_rule(rule))
 
@@ -102,10 +119,11 @@ class BGLGovernor:
                 violations.append(
                     {
                         "rule_id": rule["id"],
-                        "severity": rule["action"],
-                        "message": f"Violation {rule['id']}: {call['source_name']} calls {call['target_entity']} directly. {rule['description']}",
+                        "severity": rule.get("severity", rule.get("action", "WARN")),
+                        "message": f"Violation {rule['id']}: {call['source_name']} calls {call['target_entity']} directly. {rule.get('description','')}",
                         "file": call["path"],
                         "line": call["line"],
+                        "rationale": rule.get("rationale", ""),
                     }
                 )
 
@@ -131,10 +149,11 @@ class BGLGovernor:
                 violations.append(
                     {
                         "rule_id": rule["id"],
-                        "severity": rule["action"],
+                        "severity": rule.get("severity", rule.get("action", "WARN")),
                         "message": f"Naming Violation {rule['id']}: Entity {ent['name']} in {path_match} missing suffix '{suffix}'",
                         "file": ent["path"],
                         "line": 0,
+                        "rationale": rule.get("rationale", ""),
                     }
                 )
         return violations
@@ -159,8 +178,9 @@ if __name__ == "__main__":
     ROOT = Path(__file__).parent.parent.parent
     DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
     RULES = ROOT / ".bgl_core" / "brain" / "domain_rules.yml"
+    STYLE = ROOT / ".bgl_core" / "brain" / "style_rules.yml"
 
-    gov = BGLGovernor(DB, RULES)
+    gov = BGLGovernor(DB, RULES, STYLE)
     report = gov.audit()
 
     print(f"--- BGL3 Architectural Audit Report ---")

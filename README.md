@@ -30,13 +30,29 @@ Detailed technical manuals are available for each layer of the system:
 - **Perception Layer (Sensors)**: Deep structural insight powered by `nikic/php-parser`.
 - **Governance Layer (Audit)**: Continuous domain rule enforcement via `BGLGovernor`.
 
-## 🛠️ Entry Point
+## 🛡️ Autonomous Governance & Monitoring
 
-To interact with the BGL3 Agent or trigger an architectural audit:
+BGL3 maintains a continuous audit cycle through its **Command Center**. This interface allows for real-time monitoring of agent reasoning, deployment of autonomous rules, and security clearance management.
 
-```bash
-python .bgl_core/brain/orchestrator.py --task <spec.json>
-```
+### 🎮 The Command Center (Dashboard)
+
+To monitor the agent's "Explained AI" reasoning and approve strategic deployments, access:
+`http://localhost:8000/agent-dashboard.php`
+
+### 🧬 Logical Core
+
+The agent's "Brain" is located in `.bgl_core/brain/`. Key operational files:
+
+- **[CORE_OPERATIONS.md](file:///c:/Users/Bakheet/Documents/Projects/BGL3/.bgl_core/brain/CORE_OPERATIONS.md)**: The persistent technical manual for agent behavior.
+- **[Production_Readiness.md](file:///c:/Users/Bakheet/.gemini/antigravity/brain/abfa5b10-b1ec-4349-8550-5f68aa189083/Production_Readiness.md)**: Full environmental requirements.
+- **Governance quick map (ما يُنفَّذ فعلياً):**
+  - Domain rules: `.bgl_core/brain/domain_rules.yml` (BLOCK/WARN مع rationale/severity؛ WARN لا تحجب).
+  - Style rules: `.bgl_core/brain/style_rules.yml` (غير حاجبة).
+  - Runtime safety: `.bgl_core/brain/runtime_safety.yml` (إذن كتابة وفحوص تشغيلية).
+  - Playbook rename: `.bgl_core/brain/playbooks/rename_class.md` + ADR `docs/adr/ADR-rename-class-sandbox-autoload.md`.
+  - Adaptive route scan (mode=auto افتراضياً) يوازن عدد المسارات مع موارد الجهاز/الزمن التاريخي؛ حارس زمن مفعّل.
+  - BrowserCore موحّد (متصفح/صفحة واحدة، قفل وتسلسل، heartbeat وإعادة تشغيل تلقائية).
+  - Reporting: `master_verify` يولّد HTML في `.bgl_core/logs/latest_report.html` يلخّص health/permissions/routes/experiences.
 
 ---
-*For a developer handover and technical implementation details, see [`.bgl_core/README.md`](file:///c:/Users/Bakheet/Documents/Projects/BGL3/.bgl_core/README.md).*
+*For a complete system evolution history, see the [`Final_Handover.md`](file:///c:/Users/Bakheet/.gemini/antigravity/brain/abfa5b10-b1ec-4349-8550-5f68aa189083/Final_Handover.md).*

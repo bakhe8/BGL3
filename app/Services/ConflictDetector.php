@@ -5,6 +5,7 @@ namespace App\Services;
 
 use App\Support\Config;
 use App\Support\Settings;
+use App\Support\Database;
 
 class ConflictDetector
 {
@@ -89,6 +90,23 @@ class ConflictDetector
             $rawShort = mb_strlen(trim((string)$record['raw_bank_name'])) < 3;
             if ($rawShort) {
                 $conflicts[] = 'اسم البنك الخام قصير جداً بعد التطبيع';
+            }
+        }
+
+        // === NEW: Historical Pattern Detection (The Agent Memory) ===
+        // الوكيل يتحقق: هل قمنا بتغيير هذا الاسم لهذا المورد سابقاً؟
+        if (!empty($record['raw_supplier_name']) && !empty($candidates['supplier']['candidates'][0]['id'])) {
+            $topCandidateId = $candidates['supplier']['candidates'][0]['id'];
+            $db = Database::connect();
+            // البحث عن قرارات سابقة لنفس الاسم الخام ولكن تم ربطها بمورد مختلف
+            $stmt = $db->prepare("
+                SELECT COUNT(*) FROM guarantee_decisions d
+                JOIN guarantees g ON d.guarantee_id = g.id
+                WHERE g.raw_supplier = ? AND d.supplier_id != ? AND d.status = 'released'
+            ");
+            $stmt->execute([$record['raw_supplier_name'], $topCandidateId]);
+            if ($stmt->fetchColumn() > 0) {
+                $conflicts[] = 'تنبيه ذكي: هذا الاسم الخام تم ربطه بمورد مختلف في قرارات سابقة ناجحة!';
             }
         }
 

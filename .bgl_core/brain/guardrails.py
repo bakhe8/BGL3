@@ -7,13 +7,23 @@ class BGLGuardrails:
         self.root_dir = root_dir
         self.max_files = 10
         self.max_lines = 500
-        self.allowlist: Set[str] = {"app", "database", "routes"}
+        # Allowlist broadened to cover primary project surfaces while still excluding infrastructure/system dirs
+        self.allowlist: Set[str] = {
+            "app",
+            "api",
+            "routes",
+            "public",
+            "resources",
+            "config",
+            "templates",
+            "views",
+            "partials",
+            "docs",
+        }
         self.blocklist: Set[str] = {
             "vendor",
-            "config",
             "storage",
             "bootstrap",
-            "public",
             ".git",
             ".bgl_core",
         }

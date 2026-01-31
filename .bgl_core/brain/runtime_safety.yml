@@ -1,0 +1,90 @@
+# Runtime Safety Checks (operational, non-domain)
+#
+# These rules can be consumed by safety/governor layers to gate risky operations.
+# Use action WARN unless a failure should hard-stop.
+
+rules:
+  - id: RS001
+    name: Automated Writability Check
+    description: "Verify file/folder permissions before performing write operations."
+    action: WARN
+    rationale: "Prevents task failure and partial writes when OS denies access."
+    scope: filesystem
+
+  - id: RS002
+    name: Sandbox Vendor Link Guard
+    description: "Skip creating vendor junction if target exists to avoid mklink errors."
+    action: INFO
+    rationale: "Documents the current sandbox behavior; prevents noisy failures."
+
+  - id: RS003
+    name: Canonical Rename Pipeline Enforcement
+    description: "rename_class must follow playbook rename_class (update refs incl. tests, refresh autoload, use sandbox DB copy). PHPUnit must not run before autoload refresh."
+    action: WARN
+    rationale: "Prevents inconsistent state during rename; avoids repeated failures."
+    scope: sandbox
+
+  - id: RS004
+    name: Production Mode Write Lock
+    description: "When PRODUCTION_MODE is enabled, all API write operations must be centrally blocked (e.g., in autoload/middleware) with explicit 403, except whitelisted maintenance endpoints."
+    action: WARN
+    rationale: "Prevents تسلل بيانات اختبار/تعديلات غير مقصودة في بيئة الإنتاج."
+    scope: api
+
+  - id: RS005
+    name: Rate Limit Guard
+    description: "API write endpoints should enforce a rate limiting middleware/guard with configurable thresholds."
+    action: WARN
+    rationale: "يمنع إساءة الاستخدام والضغط المفاجئ على مسارات الكتابة."
+    scope: api
+
+# Auto-added playbook guards
+- id: RS006
+  name: audit_trail_required
+  description: Ensure audit trail exists for CRUD on banks/suppliers
+  action: WARN
+  rationale: Track sensitive changes for compliance
+  scope: app
+- id: RS007
+  name: data_validation_required
+  description: Enforce IBAN/email/phone validation on write/import
+  action: WARN
+  rationale: Prevent bad data and user-facing errors
+  scope: app
+- id: RS008
+  name: alerts_on_failures
+  description: Alert on repeated API/import failures
+  action: WARN
+  rationale: Early warning for production incidents
+  scope: api
+- id: RS009
+  name: caching_for_reports
+  description: Add caching for heavy dashboard/report queries
+  action: WARN
+  rationale: Improve performance while respecting consistency
+  scope: app
+- id: RS010
+  name: critical_tests_presence
+  description: Critical PHPUnit group for create/update/export
+  action: WARN
+  rationale: Guard key flows with fast tests
+  scope: tests
+- id: RS011
+  name: settings_ux_feedback
+  description: Settings page should auto-save with user/time indicator
+  action: WARN
+  rationale: Reduce config errors and improve UX
+  scope: ui
+- id: RS012
+  name: import_safety_guards
+  description: Enforce size/type checks and sanitization on imports
+  action: WARN
+  rationale: Prevent crashes and unsafe data on bulk imports
+  scope: api
+- id: RS013
+  name: backup_export_available
+  description: Provide lightweight backup/export with partial restore
+  action: WARN
+  rationale: Recoverability for critical master data
+  scope: ops
+

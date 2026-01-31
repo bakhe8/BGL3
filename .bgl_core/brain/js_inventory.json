@@ -1,0 +1,50 @@
+[
+  {
+    "path": "public\\js\\records.controller.js",
+    "bytes": 41666,
+    "lines": 923,
+    "sha1": "6892601e119b"
+  },
+  {
+    "path": "public\\js\\input-modals.controller.js",
+    "bytes": 21710,
+    "lines": 500,
+    "sha1": "dfbfd5436a1b"
+  },
+  {
+    "path": "public\\js\\timeline.controller.js",
+    "bytes": 19361,
+    "lines": 437,
+    "sha1": "55cd094f6c74"
+  },
+  {
+    "path": "public\\js\\main.js",
+    "bytes": 9646,
+    "lines": 279,
+    "sha1": "3af94d3c9ef3"
+  },
+  {
+    "path": "public\\js\\preview-formatter.js",
+    "bytes": 8362,
+    "lines": 208,
+    "sha1": "06a2a794b61a"
+  },
+  {
+    "path": "public\\js\\confidence-ui.js",
+    "bytes": 5448,
+    "lines": 178,
+    "sha1": "c784ebec4fec"
+  },
+  {
+    "path": "public\\js\\pilot-auto-load.js",
+    "bytes": 3022,
+    "lines": 77,
+    "sha1": "30fd96ca60f8"
+  },
+  {
+    "path": "public\\js\\convert-to-real.js",
+    "bytes": 1134,
+    "lines": 32,
+    "sha1": "b269f6e72264"
+  }
+]

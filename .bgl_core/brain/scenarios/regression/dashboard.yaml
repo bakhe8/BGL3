@@ -1,0 +1,8 @@
+name: regression-dashboard
+description: Basic regression on dashboard page (non-blocking)
+steps:
+  - action: goto
+    url: /agent-dashboard.php
+    wait_until: networkidle
+  - action: wait
+    ms: 1500

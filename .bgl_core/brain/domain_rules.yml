@@ -1,43 +1,33 @@
-# دستور عمل مشروع BGL3 (BGL3 Architectural Constitution)
-# يعرّف هذا الملف القواعد المعمارية التي يجب على الوكيل حمايتها.
-
-# 1. التعريفات (Classifications)
-# تساعد الوكيل على معرفة "نوع" الكلاس بناءً على السمة أو المسار.
 classifications:
   controller:
-    path_contains: "Http/Controllers"
-    suffix: "Controller"
+    path_contains: Http/Controllers
+    suffix: Controller
+    confidence: high
   service:
-    path_contains: "app/Services"
-    suffix: "Service"
+    path_contains: app/Services
+    suffix: Service
+    confidence: high
   repository:
-    path_contains: "app/Repositories"
-    suffix: "Repository"
+    path_contains: app/Repositories
+    suffix: Repository
+    confidence: high
   model:
-    path_contains: "app/Models"
-
-# 2. القواعد المعمارية (Architectural Rules)
+    path_contains: app/Models
+    confidence: high
 rules:
-  # منع الوصول المباشر من Controller إلى Model (لفرض استخدام Service Layer)
-  - id: "R001"
-    name: "Controller-to-Model Encapsulation"
-    description: "Forbidden: Controllers must not access Models directly. Use Services."
-    from_type: "controller"
-    to_type: "model"
-    action: "BLOCK" # BLOCK means it triggers a high-severity alert
-
-  # منع الوصول المباشر من Controller إلى Repository
-  - id: "R002"
-    name: "Controller-to-Repository Separation"
-    description: "Forbidden: Controllers must not access Repositories directly. Use Services."
-    from_type: "controller"
-    to_type: "repository"
-    action: "BLOCK"
-
-  # قواعد التسمية (Consistency)
-  - id: "R003"
-    name: "Service Consistency"
-    description: "Policy: Any class in app/Services must have a 'Service' suffix."
-    path_match: "app/Services"
-    must_have_suffix: "Service"
-    action: "WARN"
+- id: R001
+  name: Controller-to-Model Encapsulation
+  description: 'Forbidden: Controllers must not access Models directly. Use Services.'
+  from_type: controller
+  to_type: model
+  action: BLOCK
+  rationale: "Prevent fat controllers and enforce domain orchestration via services layer."
+  severity: critical
+- id: R002
+  name: Controller-to-Repository Separation
+  description: 'Forbidden: Controllers must not access Repositories directly. Use Services.'
+  from_type: controller
+  to_type: repository
+  action: BLOCK
+  rationale: "Keep controllers thin; repositories are orchestrated through services."
+  severity: critical

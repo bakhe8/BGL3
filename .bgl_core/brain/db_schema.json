@@ -1,0 +1,1680 @@
+{
+  "engine": "sqlite",
+  "tables": [
+    {
+      "name": "guarantees",
+      "sql": "CREATE TABLE guarantees (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_number TEXT NOT NULL,\r\n    \r\n    -- Raw Data (JSON - immutable source of truth)\r\n    raw_data JSON NOT NULL,\r\n    /*\r\n    Example structure:\r\n    {\r\n      \"supplier\": \"K.F.S.H\",\r\n      \"bank\": \"\u0627\u0644\u0631\u0627\u062c\u062d\u064a\",\r\n      \"amount\": \"500000.00\",\r\n      \"issue_date\": \"2024-01-15\",\r\n      \"expiry_date\": \"2025-01-15\",\r\n      \"document_reference\": \"C-2024-100\",\r\n      \"related_to\": \"contract\",  -- or \"purchase_order\"\r\n      \"type\": \"FINAL\",\r\n      \"comment\": null\r\n    }\r\n    */\r\n    \r\n    -- Import Tracking (per guarantee)\r\n    import_source TEXT NOT NULL,  -- 'excel', 'smart_paste', 'manual'\r\n    imported_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,\r\n    imported_by TEXT, normalized_supplier_name TEXT, test_batch_id TEXT NULL, test_note TEXT NULL, is_test_data INTEGER DEFAULT 0 NOT NULL,  -- Future: username\r\n    \r\n    -- Constraints\r\n    UNIQUE(guarantee_number)\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_number",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "raw_data",
+          "type": "JSON",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "import_source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "imported_at",
+          "type": "DATETIME",
+          "notnull": true,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "imported_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "normalized_supplier_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "test_batch_id",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "test_note",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 9,
+          "name": "is_test_data",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": "0",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_guarantees_is_test_data",
+          "unique": false,
+          "columns": [
+            "is_test_data"
+          ]
+        },
+        {
+          "name": "idx_guarantees_test_batch",
+          "unique": false,
+          "columns": [
+            "test_batch_id"
+          ]
+        },
+        {
+          "name": "idx_guarantees_normalized_supplier",
+          "unique": false,
+          "columns": [
+            "normalized_supplier_name"
+          ]
+        },
+        {
+          "name": "idx_guarantees_related_to",
+          "unique": false,
+          "columns": [
+            ""
+          ]
+        },
+        {
+          "name": "idx_guarantees_type",
+          "unique": false,
+          "columns": [
+            ""
+          ]
+        },
+        {
+          "name": "idx_guarantees_expiry",
+          "unique": false,
+          "columns": [
+            ""
+          ]
+        },
+        {
+          "name": "idx_guarantees_date_source",
+          "unique": false,
+          "columns": [
+            "",
+            "import_source"
+          ]
+        },
+        {
+          "name": "idx_guarantees_imported_at",
+          "unique": false,
+          "columns": [
+            "imported_at"
+          ]
+        },
+        {
+          "name": "idx_guarantees_import_source",
+          "unique": false,
+          "columns": [
+            "import_source"
+          ]
+        },
+        {
+          "name": "idx_guarantees_number",
+          "unique": false,
+          "columns": [
+            "guarantee_number"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_guarantees_1",
+          "unique": true,
+          "columns": [
+            "guarantee_number"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "supplier_learning_cache",
+      "sql": "CREATE TABLE supplier_learning_cache (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    normalized_input TEXT NOT NULL,\r\n    supplier_id INTEGER NOT NULL,\r\n    \r\n    -- Scoring Components (from ScoringConfig)\r\n    fuzzy_score REAL DEFAULT 0.0 CHECK(fuzzy_score >= 0.0 AND fuzzy_score <= 1.0),\r\n    source_weight INTEGER DEFAULT 0,\r\n    usage_count INTEGER DEFAULT 0,\r\n    block_count INTEGER DEFAULT 0,\r\n    \r\n    -- Computed Scores (GENERATED columns for performance)\r\n    total_score REAL GENERATED ALWAYS AS (\r\n        (fuzzy_score * 100) + \r\n        source_weight + \r\n        CASE \r\n            WHEN (usage_count * 15) > 75 THEN 75\r\n            ELSE (usage_count * 15)\r\n        END\r\n    ) STORED,\r\n    \r\n    effective_score REAL GENERATED ALWAYS AS (\r\n        (fuzzy_score * 100) + \r\n        source_weight + \r\n        CASE \r\n            WHEN (usage_count * 15) > 75 THEN 75\r\n            ELSE (usage_count * 15)\r\n        END - \r\n        (block_count * 50)\r\n    ) STORED,\r\n    \r\n    star_rating INTEGER GENERATED ALWAYS AS (\r\n        CASE\r\n            WHEN ((fuzzy_score * 100) + source_weight + \r\n                  CASE WHEN (usage_count * 15) > 75 THEN 75 ELSE (usage_count * 15) END) >= 200\r\n            THEN 3\r\n            WHEN ((fuzzy_score * 100) + source_weight + \r\n                  CASE WHEN (usage_count * 15) > 75 THEN 75 ELSE (usage_count * 15) END) >= 120\r\n            THEN 2\r\n            ELSE 1\r\n        END\r\n    ) STORED,\r\n    \r\n    -- Metadata\r\n    last_used_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n    \r\n    FOREIGN KEY (supplier_id) REFERENCES \"suppliers_old\"(id) ON DELETE CASCADE,\r\n    UNIQUE(normalized_input, supplier_id)\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "normalized_input",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "fuzzy_score",
+          "type": "REAL",
+          "notnull": false,
+          "dflt": "0.0",
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "source_weight",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "usage_count",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "block_count",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "last_used_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "suppliers_old",
+          "from_col": "supplier_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_learning_last_used",
+          "unique": false,
+          "columns": [
+            "last_used_at"
+          ]
+        },
+        {
+          "name": "idx_learning_supplier",
+          "unique": false,
+          "columns": [
+            "supplier_id"
+          ]
+        },
+        {
+          "name": "idx_learning_normalized_score",
+          "unique": false,
+          "columns": [
+            "normalized_input",
+            "effective_score"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_supplier_learning_cache_1",
+          "unique": true,
+          "columns": [
+            "normalized_input",
+            "supplier_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "supplier_decisions_log",
+      "sql": "CREATE TABLE supplier_decisions_log (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_id INTEGER NOT NULL,\r\n    \r\n    -- Input\r\n    raw_input TEXT NOT NULL,\r\n    normalized_input TEXT NOT NULL,\r\n    \r\n    -- Decision\r\n    chosen_supplier_id INTEGER NOT NULL,\r\n    chosen_supplier_name TEXT NOT NULL,\r\n    \r\n    -- Context\r\n    decision_source TEXT NOT NULL CHECK(decision_source IN ('manual', 'ai_quick', 'ai_assisted', 'propagated', 'auto_match')),\r\n    confidence_score REAL,\r\n    was_top_suggestion BOOLEAN DEFAULT 0,  -- For analysis\r\n    \r\n    -- Timestamps\r\n    decided_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n    \r\n    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE,\r\n    FOREIGN KEY (chosen_supplier_id) REFERENCES \"suppliers_old\"(id) ON DELETE CASCADE\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "raw_input",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "normalized_input",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "chosen_supplier_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "chosen_supplier_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "decision_source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "confidence_score",
+          "type": "REAL",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "was_top_suggestion",
+          "type": "BOOLEAN",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 9,
+          "name": "decided_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "suppliers_old",
+          "from_col": "chosen_supplier_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        },
+        {
+          "id": 1,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_supplier_log_normalized_supplier",
+          "unique": false,
+          "columns": [
+            "normalized_input",
+            "chosen_supplier_id"
+          ]
+        },
+        {
+          "name": "idx_supplier_log_supplier",
+          "unique": false,
+          "columns": [
+            "chosen_supplier_id"
+          ]
+        },
+        {
+          "name": "idx_supplier_log_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        },
+        {
+          "name": "idx_supplier_log_decided_at",
+          "unique": false,
+          "columns": [
+            "decided_at"
+          ]
+        },
+        {
+          "name": "idx_supplier_log_source",
+          "unique": false,
+          "columns": [
+            "decision_source"
+          ]
+        },
+        {
+          "name": "idx_supplier_log_normalized",
+          "unique": false,
+          "columns": [
+            "normalized_input"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "supplier_alternative_names",
+      "sql": "CREATE TABLE supplier_alternative_names (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    supplier_id INTEGER NOT NULL,\r\n    alternative_name TEXT NOT NULL,\r\n    normalized_name TEXT,\r\n    source TEXT DEFAULT 'manual',\r\n    usage_count INTEGER DEFAULT 1,\r\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\r\n    FOREIGN KEY (supplier_id) REFERENCES \"suppliers_old\"(id) ON DELETE CASCADE\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "alternative_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "normalized_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "source",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": "'manual'",
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "usage_count",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "1",
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "suppliers_old",
+          "from_col": "supplier_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_supplier_norm_name",
+          "unique": false,
+          "columns": [
+            "normalized_name"
+          ]
+        },
+        {
+          "name": "idx_alt_names_norm",
+          "unique": false,
+          "columns": [
+            "normalized_name"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "guarantee_attachments",
+      "sql": "CREATE TABLE guarantee_attachments (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_id INTEGER NOT NULL,\r\n    file_name TEXT NOT NULL,\r\n    file_path TEXT NOT NULL,\r\n    file_size INTEGER,\r\n    file_type TEXT,\r\n    uploaded_by TEXT DEFAULT 'system',\r\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\r\n    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "file_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "file_path",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "file_size",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "file_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "uploaded_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": "'system'",
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_attachments_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "guarantee_notes",
+      "sql": "CREATE TABLE guarantee_notes (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_id INTEGER NOT NULL,\r\n    content TEXT NOT NULL,\r\n    created_by TEXT DEFAULT 'system',\r\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,\r\n    updated_at TIMESTAMP,\r\n    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "content",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "created_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": "'system'",
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "updated_at",
+          "type": "TIMESTAMP",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_notes_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "guarantee_history",
+      "sql": "CREATE TABLE \"guarantee_history\" (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_id INTEGER NOT NULL,\r\n    event_type TEXT NOT NULL,\r\n    event_subtype TEXT,\r\n    snapshot_data TEXT,\r\n    event_details TEXT,\r\n    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n    created_by TEXT, letter_snapshot TEXT NULL,\r\n    \r\n    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "event_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "event_subtype",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "snapshot_data",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "event_details",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "created_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "created_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "letter_snapshot",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_history_created_at",
+          "unique": false,
+          "columns": [
+            "created_at"
+          ]
+        },
+        {
+          "name": "idx_history_subtype",
+          "unique": false,
+          "columns": [
+            "event_subtype"
+          ]
+        },
+        {
+          "name": "idx_history_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "bank_alternative_names",
+      "sql": "CREATE TABLE bank_alternative_names (\r\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n            bank_id INTEGER NOT NULL,\r\n            alternative_name TEXT NOT NULL,\r\n            normalized_name TEXT NOT NULL,\r\n            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n            FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE CASCADE\r\n        )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "bank_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "alternative_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "normalized_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "banks",
+          "from_col": "bank_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_bank_alt_bank_id",
+          "unique": false,
+          "columns": [
+            "bank_id"
+          ]
+        },
+        {
+          "name": "idx_bank_alt_normalized",
+          "unique": false,
+          "columns": [
+            "normalized_name"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "learning_confirmations",
+      "sql": "CREATE TABLE learning_confirmations (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    raw_supplier_name TEXT NOT NULL,\r\n    supplier_id INTEGER NOT NULL,\r\n    confidence INTEGER,\r\n    matched_anchor TEXT,\r\n    anchor_type TEXT,\r\n    action TEXT CHECK(action IN ('confirm', 'reject')),\r\n    decision_time_seconds REAL,\r\n    guarantee_id INTEGER,\r\n    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, count INTEGER DEFAULT 1, updated_at DATETIME, normalized_supplier_name TEXT,\r\n    FOREIGN KEY (supplier_id) REFERENCES \"suppliers_old\"(id)\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "raw_supplier_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "confidence",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "matched_anchor",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "anchor_type",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "action",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "decision_time_seconds",
+          "type": "REAL",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 9,
+          "name": "created_at",
+          "type": "TIMESTAMP",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 10,
+          "name": "count",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "1",
+          "pk": false
+        },
+        {
+          "cid": 11,
+          "name": "updated_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 12,
+          "name": "normalized_supplier_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "suppliers_old",
+          "from_col": "supplier_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_learning_confirmations_normalized",
+          "unique": false,
+          "columns": [
+            "normalized_supplier_name",
+            "action"
+          ]
+        },
+        {
+          "name": "idx_learning_confirmations_raw_supplier",
+          "unique": false,
+          "columns": [
+            "raw_supplier_name"
+          ]
+        },
+        {
+          "name": "idx_learning_action",
+          "unique": false,
+          "columns": [
+            "action"
+          ]
+        },
+        {
+          "name": "idx_learning_raw_name",
+          "unique": false,
+          "columns": [
+            "raw_supplier_name"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "banks",
+      "sql": "CREATE TABLE \"banks\"(\n  id,\n  arabic_name TEXT,\n  english_name TEXT,\n  short_name TEXT,\n  created_at NUM,\n  updated_at NUM,\n  department TEXT,\n  address_line1 TEXT,\n  contact_email TEXT\n, normalized_name TEXT)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 1,
+          "name": "arabic_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "english_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "short_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "created_at",
+          "type": "NUM",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "updated_at",
+          "type": "NUM",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "department",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "address_line1",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "contact_email",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 9,
+          "name": "normalized_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_banks_normalized_name",
+          "unique": false,
+          "columns": [
+            "normalized_name"
+          ]
+        },
+        {
+          "name": "idx_banks_short_name",
+          "unique": false,
+          "columns": [
+            "short_name"
+          ]
+        },
+        {
+          "name": "idx_banks_arabic_name",
+          "unique": false,
+          "columns": [
+            "arabic_name"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "suppliers",
+      "sql": "CREATE TABLE suppliers (\r\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n        official_name TEXT NOT NULL,\r\n        display_name TEXT,\r\n        normalized_name TEXT NOT NULL,\r\n        supplier_normalized_key TEXT,\r\n        is_confirmed INTEGER DEFAULT 0,\r\n        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n        english_name TEXT\r\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "official_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "display_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "normalized_name",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "supplier_normalized_key",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "is_confirmed",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "created_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "english_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": []
+    },
+    {
+      "name": "batch_metadata",
+      "sql": "CREATE TABLE batch_metadata (\r\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n            import_source TEXT NOT NULL UNIQUE,\r\n            \r\n            -- User fields only\r\n            batch_name TEXT,\r\n            batch_notes TEXT,\r\n            status TEXT DEFAULT 'active' CHECK(status IN ('active', 'completed')),\r\n            \r\n            -- Timestamps\r\n            created_at DATETIME DEFAULT CURRENT_TIMESTAMP\r\n        )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "import_source",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "batch_name",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "batch_notes",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "status",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": "'active'",
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "created_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [],
+      "indexes": [
+        {
+          "name": "idx_batch_metadata_status",
+          "unique": false,
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "idx_batch_metadata_source",
+          "unique": false,
+          "columns": [
+            "import_source"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_batch_metadata_1",
+          "unique": true,
+          "columns": [
+            "import_source"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "guarantee_decisions",
+      "sql": "CREATE TABLE \"guarantee_decisions\" (\r\n    id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n    guarantee_id INTEGER NOT NULL,\r\n    status TEXT NOT NULL DEFAULT 'pending',\r\n    is_locked BOOLEAN DEFAULT 0,\r\n    locked_reason TEXT,\r\n    supplier_id INTEGER,\r\n    bank_id INTEGER,\r\n    decision_source TEXT DEFAULT 'manual',\r\n    confidence_score REAL,\r\n    decided_at DATETIME,\r\n    decided_by TEXT,\r\n    last_modified_at DATETIME,\r\n    last_modified_by TEXT,\r\n    manual_override BOOLEAN DEFAULT 0,\r\n    active_action TEXT NULL,\r\n    active_action_set_at TEXT NULL,\r\n    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,\r\n    FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE,\r\n    FOREIGN KEY (supplier_id) REFERENCES suppliers(id) ON DELETE SET NULL,\r\n    FOREIGN KEY (bank_id) REFERENCES banks(id) ON DELETE SET NULL,\r\n    UNIQUE(guarantee_id)\r\n)",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "status",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": "'pending'",
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "is_locked",
+          "type": "BOOLEAN",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "locked_reason",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "supplier_id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "bank_id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 7,
+          "name": "decision_source",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": "'manual'",
+          "pk": false
+        },
+        {
+          "cid": 8,
+          "name": "confidence_score",
+          "type": "REAL",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 9,
+          "name": "decided_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 10,
+          "name": "decided_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 11,
+          "name": "last_modified_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 12,
+          "name": "last_modified_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 13,
+          "name": "manual_override",
+          "type": "BOOLEAN",
+          "notnull": false,
+          "dflt": "0",
+          "pk": false
+        },
+        {
+          "cid": 14,
+          "name": "active_action",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 15,
+          "name": "active_action_set_at",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 16,
+          "name": "created_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 17,
+          "name": "updated_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "banks",
+          "from_col": "bank_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        },
+        {
+          "id": 1,
+          "seq": 0,
+          "table": "suppliers",
+          "from_col": "supplier_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "SET NULL",
+          "match": "NONE"
+        },
+        {
+          "id": 2,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_guarantee_decisions_status",
+          "unique": false,
+          "columns": [
+            "status"
+          ]
+        },
+        {
+          "name": "idx_guarantee_decisions_guarantee_id",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_guarantee_decisions_1",
+          "unique": true,
+          "columns": [
+            "guarantee_id"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "guarantee_occurrences",
+      "sql": "CREATE TABLE guarantee_occurrences (\r\n            id INTEGER PRIMARY KEY AUTOINCREMENT,\r\n            guarantee_id INTEGER NOT NULL,\r\n            batch_identifier VARCHAR(255) NOT NULL,\r\n            batch_type VARCHAR(50) NOT NULL,\r\n            occurred_at DATETIME NOT NULL,\r\n            raw_hash CHAR(64),\r\n            FOREIGN KEY (guarantee_id) REFERENCES guarantees(id)\r\n        )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "batch_identifier",
+          "type": "VARCHAR(255)",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "batch_type",
+          "type": "VARCHAR(50)",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "occurred_at",
+          "type": "DATETIME",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "raw_hash",
+          "type": "CHAR(64)",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "NO ACTION",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_occurrences_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        },
+        {
+          "name": "idx_occurrences_batch",
+          "unique": false,
+          "columns": [
+            "batch_identifier"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "batch_actions",
+      "sql": "CREATE TABLE batch_actions (\n        id INTEGER PRIMARY KEY AUTOINCREMENT,\n        batch_identifier TEXT NOT NULL,\n        guarantee_id INTEGER NOT NULL,\n        action_type TEXT NOT NULL,\n        action_payload TEXT,\n        action_at DATETIME DEFAULT CURRENT_TIMESTAMP,\n        action_by TEXT,\n        UNIQUE(batch_identifier, guarantee_id),\n        FOREIGN KEY (guarantee_id) REFERENCES guarantees(id) ON DELETE CASCADE\n    )",
+      "columns": [
+        {
+          "cid": 0,
+          "name": "id",
+          "type": "INTEGER",
+          "notnull": false,
+          "dflt": null,
+          "pk": true
+        },
+        {
+          "cid": 1,
+          "name": "batch_identifier",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 2,
+          "name": "guarantee_id",
+          "type": "INTEGER",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 3,
+          "name": "action_type",
+          "type": "TEXT",
+          "notnull": true,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 4,
+          "name": "action_payload",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        },
+        {
+          "cid": 5,
+          "name": "action_at",
+          "type": "DATETIME",
+          "notnull": false,
+          "dflt": "CURRENT_TIMESTAMP",
+          "pk": false
+        },
+        {
+          "cid": 6,
+          "name": "action_by",
+          "type": "TEXT",
+          "notnull": false,
+          "dflt": null,
+          "pk": false
+        }
+      ],
+      "foreign_keys": [
+        {
+          "id": 0,
+          "seq": 0,
+          "table": "guarantees",
+          "from_col": "guarantee_id",
+          "to_col": "id",
+          "on_update": "NO ACTION",
+          "on_delete": "CASCADE",
+          "match": "NONE"
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_batch_actions_guarantee",
+          "unique": false,
+          "columns": [
+            "guarantee_id"
+          ]
+        },
+        {
+          "name": "idx_batch_actions_batch",
+          "unique": false,
+          "columns": [
+            "batch_identifier"
+          ]
+        },
+        {
+          "name": "sqlite_autoindex_batch_actions_1",
+          "unique": true,
+          "columns": [
+            "batch_identifier",
+            "guarantee_id"
+          ]
+        }
+      ]
+    }
+  ]
+}

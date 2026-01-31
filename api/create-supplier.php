@@ -8,6 +8,8 @@ require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Support\Database;
 use App\Support\Input;
+use App\Support\Validation;
+use App\Models\AuditLog;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -41,6 +43,14 @@ try {
         $englishName = $hasArabic ? null : $officialName;
     }
 
+    // Basic validation (reuse bank validation for email/phone/iban if present)
+    $errors = Validation::validateBank($input);
+    if (!empty($errors)) {
+        http_response_code(422);
+        echo json_encode(['success' => false, 'errors' => $errors]);
+        exit;
+    }
+
     // Use unified service
     $data = [
         'official_name' => $officialName,
@@ -61,6 +71,9 @@ try {
             'name' => $result['official_name']
         ]
     ]);
+    
+    // Audit trail
+    AuditLog::record('supplier', $result['supplier_id'] ?? null, 'create', $data);
     
 } catch (\Throwable $e) {
     http_response_code(400); // Bad Request

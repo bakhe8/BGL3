@@ -3,6 +3,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Support\Settings;
+
 /**
  * ScoringConfig - ثوابت نظام التقييم والنجوم
  * 
@@ -75,8 +77,13 @@ class ScoringConfig
      */
     public static function getStarRating(float $totalScore): int
     {
-        if ($totalScore >= self::STAR_3_THRESHOLD) return 3;
-        if ($totalScore >= self::STAR_2_THRESHOLD) return 2;
+        // Evolutionary Memory: Fetch dynamic thresholds if available, fallback to constants
+        $settings = new Settings();
+        $th3 = (int)$settings->get('SCORING_STAR_3_THRESHOLD', self::STAR_3_THRESHOLD);
+        $th2 = (int)$settings->get('SCORING_STAR_2_THRESHOLD', self::STAR_2_THRESHOLD);
+
+        if ($totalScore >= $th3) return 3;
+        if ($totalScore >= $th2) return 2;
         return 1;
     }
     

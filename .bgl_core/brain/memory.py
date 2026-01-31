@@ -1,22 +1,28 @@
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, List, Optional
-import json
+from typing import Dict, Any, List
 
 
 class StructureMemory:
     def __init__(self, db_path: Path):
         self.db_path = db_path
-        self.conn = None
-        self._connect()
-        self._init_schema()
+        self._init_schema_once()
 
-    def _connect(self):
-        self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
-        self.conn.row_factory = sqlite3.Row
+    def _connect(self) -> sqlite3.Connection:
+        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        # If running in sandbox (temp DB), use WAL for better concurrency
+        try:
+            if "AppData\\Local\\Temp" in str(self.db_path) or os.environ.get("BGL_SANDBOX_DB"):
+                conn.execute("PRAGMA journal_mode=WAL;")
+                conn.execute("PRAGMA synchronous=OFF;")
+        except Exception:
+            pass
+        return conn
 
-    def _init_schema(self):
-        cursor = self.conn.cursor()
+    def _init_schema_once(self):
+        conn = self._connect()
+        cursor = conn.cursor()
 
         # Files table
         cursor.execute("""
@@ -68,17 +74,56 @@ class StructureMemory:
             )
         """)
 
-        self.conn.commit()
+        # Routes (Web/API Mapping)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS routes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                uri TEXT NOT NULL,
+                http_method TEXT NOT NULL,
+                controller TEXT,
+                action TEXT,
+                file_path TEXT,
+                last_validated REAL DEFAULT 0,
+                status_score INTEGER DEFAULT 100,
+                UNIQUE(uri, http_method)
+            )
+        """)
 
-    def _ensure_conn(self) -> sqlite3.Connection:
-        if self.conn is None:
-            self._connect()
-        if self.conn is None:
-            raise ConnectionError("Failed to connect to database")
-        return self.conn
+        # Runtime events captured from the browser bridge
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS runtime_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                session TEXT,
+                event_type TEXT NOT NULL,
+                route TEXT,
+                method TEXT,
+                target TEXT,
+                payload TEXT,
+                status INTEGER,
+                latency_ms REAL,
+                error TEXT
+            )
+        """)
+
+        # Experiential memory (summaries derived from runtime events)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS experiences (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                created_at REAL NOT NULL,
+                scenario TEXT,
+                summary TEXT,
+                related_files TEXT,
+                confidence REAL,
+                evidence_count INTEGER DEFAULT 0
+            )
+        """)
+
+        conn.commit()
+        conn.close()
 
     def register_file(self, rel_path: str, mtime: float) -> int:
-        conn = self._ensure_conn()
+        conn = self._connect()
         cursor = conn.cursor()
         cursor.execute(
             """
@@ -89,20 +134,21 @@ class StructureMemory:
             (rel_path, mtime, mtime),
         )
         conn.commit()
-
         cursor.execute("SELECT id FROM files WHERE path=?", (rel_path,))
         row = cursor.fetchone()
+        conn.close()
         return row["id"]
 
     def clear_file_data(self, file_id: int):
-        conn = self._ensure_conn()
+        conn = self._connect()
         cursor = conn.cursor()
         # Dependencies cascade delete entities -> methods -> calls
         cursor.execute("DELETE FROM entities WHERE file_id=?", (file_id,))
         conn.commit()
+        conn.close()
 
     def store_nested_symbols(self, file_id: int, symbols: List[Dict[str, Any]]):
-        conn = self._ensure_conn()
+        conn = self._connect()
         cursor = conn.cursor()
 
         for item in symbols:
@@ -189,8 +235,8 @@ class StructureMemory:
                         )
 
         conn.commit()
+        conn.close()
 
     def close(self):
-        if self.conn:
-            self.conn.close()
-            self.conn = None
+        # Kept for compatibility; connections are short-lived now
+        pass

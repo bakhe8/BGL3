@@ -1,0 +1,8 @@
+name: critical-api-smoke
+description: Hit a key API endpoint to ensure runtime signals are captured
+steps:
+  - action: goto
+    url: /api/get-record.php?index=1
+    wait_until: networkidle
+  - action: wait
+    ms: 500

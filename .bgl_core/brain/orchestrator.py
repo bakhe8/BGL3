@@ -1,10 +1,15 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, Any, List, TypedDict
+from typing import Dict, Any, List, Optional, TypedDict
 from patcher import BGLPatcher
 from guardrails import BGLGuardrails
 from safety import SafetyNet
+
+try:
+    from .guardian import BGLGuardian  # type: ignore
+except ImportError:
+    from guardian import BGLGuardian
 from sandbox import BGLSandbox
 
 
@@ -15,6 +20,8 @@ class ExecutionReport(TypedDict):
     checks: List[str]
     rollback_performed: bool
     message: str
+    unified_logs: List[Dict[str, Any]]
+    guardian_insights: Optional[Dict[str, Any]]
 
 
 class BGLOrchestrator:
@@ -22,6 +29,7 @@ class BGLOrchestrator:
         self.root_dir = root_dir
         self.guardrails = BGLGuardrails(root_dir)
         self.safety = SafetyNet(root_dir)
+        self.guardian = BGLGuardian(root_dir)
 
     def execute_task(self, task_spec: Dict[str, Any]) -> ExecutionReport:
         """
@@ -40,6 +48,8 @@ class BGLOrchestrator:
             "checks": [],
             "rollback_performed": False,
             "message": "",
+            "unified_logs": [],
+            "guardian_insights": None,
         }
 
         # Determine relative path
@@ -75,6 +85,7 @@ class BGLOrchestrator:
             # Pass the main vendor path to the sandbox
             main_vendor = str(self.root_dir / "vendor")
             os.environ["BGL_VENDOR_PATH"] = main_vendor
+            os.environ["BGL_MAIN_ROOT"] = str(self.root_dir)
 
             print(f"[*] Executing task '{task_name}' in sandbox: {rel_path}...")
 
@@ -97,16 +108,32 @@ class BGLOrchestrator:
 
             # Map patcher results to the unified report
             if res.get("status") == "success":
-                report["status"] = "SUCCESS"
-                report["changes"].append(rel_path)
-                report["message"] = res.get("message", "Task completed")
-                report["checks"] = ["lint", "phpunit_simulated", "architectural_audit"]
+                # 3. Safety Check (Unified Perception)
+                val_res = self.safety.validate(sandbox_target_path)
+                report["unified_logs"] = val_res.get("logs", [])
+
+                if val_res["valid"]:
+                    report["status"] = "SUCCESS"
+                    report["changes"].append(rel_path)
+                    report["message"] = res.get(
+                        "message", "Task completed and verified"
+                    )
+                    report["checks"] = [
+                        "lint",
+                        "phpunit",
+                        "browser_audit",
+                        "architectural_audit",
+                    ]
+                else:
+                    report["status"] = "FAILED"
+                    report["message"] = f"Validation Failed: {val_res.get('reason')}"
+                    report["rollback_performed"] = not dry_run
             else:
                 report["status"] = "FAILED"
-                report["message"] = res.get("message", "Unknown error")
+                report["message"] = res.get("message", "Patching failed")
                 report["rollback_performed"] = not dry_run
 
-            # 3. If success and not dry run, apply to main
+            # 4. If success and not dry run, apply to main
             if report["status"] == "SUCCESS" and not dry_run:
                 sandbox.apply_to_main(rel_path)
 

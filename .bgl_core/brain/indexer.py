@@ -11,6 +11,19 @@ class EntityIndexer:
         self.root_dir = root_dir
         self.memory = StructureMemory(db_path)
         self.sensor_path = self.root_dir / ".bgl_core" / "sensors" / "ast_bridge.php"
+        self.skip_dirs = {"vendor", "node_modules", ".git", ".bgl_core", ".mypy_cache", ".vscode"}
+        self.skip_suffixes = {".bak", ".tmp"}
+        self._closed = False
+
+    def update_impacted(self, rel_paths: list[str]):
+        """
+        Re-index only the provided relative paths (for targeted updates after patch).
+        """
+        for rel in rel_paths:
+            abs_path = self.root_dir / rel
+            if abs_path.exists() and abs_path.suffix == ".php":
+                self._index_file(abs_path, rel)
+        self.close()
 
     def index_project(self):
         print(f"[*] Starting indexing project at {self.root_dir}")
@@ -33,6 +46,12 @@ class EntityIndexer:
                         count += 1
 
         print(f"[+] Indexing complete. Processed {count} files.")
+        self.close()
+
+    def close(self):
+        if not self._closed:
+            self.memory.close()
+            self._closed = True
 
     def _should_index(self, abs_path: Path, rel_path: str) -> bool:
         # Simple for now: index everything.
@@ -53,11 +72,7 @@ class EntityIndexer:
             if output.get("status") == "success":
                 mtime = os.path.getmtime(abs_path)
                 file_id = self.memory.register_file(rel_path, mtime)
-
-                # Clear old data for this file
                 self.memory.clear_file_data(file_id)
-
-                # Store new data
                 self.memory.store_nested_symbols(file_id, output.get("data", []))
                 # print(f"    Indexed: {rel_path}")
             else:

@@ -10,6 +10,7 @@ require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Services\ImportService;
 use App\Support\Settings;
+use App\Support\Alert;
 
 header('Content-Type: application/json; charset=utf-8');
 ini_set('memory_limit', '512M');
@@ -21,6 +22,7 @@ register_shutdown_function(function() {
     $error = error_get_last();
     if ($error && in_array($error['type'], [E_ERROR, E_PARSE, E_CORE_ERROR, E_COMPILE_ERROR])) {
         file_put_contents(__DIR__ . '/../debug_import_error.txt', date('Y-m-d H:i:s') . " FATAL: " . json_encode($error));
+        Alert::logFailure('/api/import.php', 500, $e->getMessage());
         http_response_code(500);
         echo json_encode(['success' => false, 'error' => 'Fatal Error', 'details' => $error]);
     }
@@ -45,12 +47,24 @@ try {
         exit;
     }
 
-    // Validate extension
+    // Validate extension + mime + size
     $filename = $file['name'];
     $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+    $mime = mime_content_type($file['tmp_name']);
+    $maxSize = 1 * 1024 * 1024; // 1MB حد أولي لتفعيل الحارس بوضوح
 
     if (!in_array($ext, ['xlsx', 'xls'])) {
         throw new \RuntimeException('نوع الملف غير مسموح. يجب أن يكون ملف Excel (.xlsx أو .xls)');
+    }
+    if (!in_array($mime, ['application/vnd.ms-excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'])) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'نوع الميديا غير مسموح. الرجاء رفع ملف Excel صالح']);
+        exit;
+    }
+    if ($file['size'] > $maxSize) {
+        http_response_code(400);
+        echo json_encode(['success' => false, 'error' => 'حجم الملف يتجاوز الحد المسموح (1MB)']);
+        exit;
     }
 
     // Move to temporary location
@@ -140,6 +154,7 @@ try {
 
 } catch (\Throwable $e) {
     // Log exception to file since user cannot see JSON response easily
+    Alert::logFailure('/api/import.php', 500, $e->getMessage());
     file_put_contents(__DIR__ . '/../debug_exception.txt', date('Y-m-d H:i:s') . " EXCEPTION: " . $e->getMessage() . "\nStack: " . $e->getTraceAsString() . "\n", FILE_APPEND);
     
     http_response_code(500);

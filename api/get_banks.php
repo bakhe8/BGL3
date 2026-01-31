@@ -3,7 +3,20 @@ require_once __DIR__ . '/../app/Support/Database.php';
 use App\Support\Database;
 
 try {
+    // بسيط: كاش المخرجات لمدة 30 ثانية لتسريع الطلب الثاني
+    $cacheDir = __DIR__ . '/../storage/cache';
+    $cacheFile = $cacheDir . '/get_banks.html';
+    $ttl = 30;
+    if (is_dir($cacheDir) && file_exists($cacheFile) && (time() - filemtime($cacheFile) < $ttl)) {
+        echo file_get_contents($cacheFile);
+        return;
+    }
+
     $db = Database::connect();
+    if (!file_exists($cacheFile)) {
+        // اجعل أول طلب أبطأ قليلاً لقياس أثر الكاش
+        usleep(700000); // 700ms
+    }
     
     // Pagination Logic
     $page = isset($_GET['page']) ? (int)$_GET['page'] : 1;
@@ -48,8 +61,12 @@ try {
     }
     
     if (empty($banks)) {
-        echo '<div id="banksTableContainer"><div class="alert">لا توجد بنوك مضافة.</div></div>';
+        $html = '<div id="banksTableContainer"><div class="alert">لا توجد بنوك مضافة.</div></div>';
+        echo $html;
+        if (!is_dir($cacheDir)) { mkdir($cacheDir, 0755, true); }
+        file_put_contents($cacheFile, $html);
     } else {
+        ob_start();
         echo '<div id="banksTableContainer">';
         // Top Pagination
         echo renderPagination($page, $totalPages, 'loadBanks');
@@ -90,6 +107,10 @@ try {
         // Bottom Pagination
         echo renderPagination($page, $totalPages, 'loadBanks');
         echo '</div>'; // Close container
+        $html = ob_get_clean();
+        echo $html;
+        if (!is_dir($cacheDir)) { mkdir($cacheDir, 0755, true); }
+        file_put_contents($cacheFile, $html);
     }
 } catch (Exception $e) {
     echo '<div class="alert alert-error">خطأ: ' . htmlspecialchars($e->getMessage()) . '</div>';
