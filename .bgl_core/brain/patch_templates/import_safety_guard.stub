@@ -1,0 +1,14 @@
+<?php
+/**
+ * Template: Import safety guard
+ * Placeholders: {{max_size_mb}}, {{allowed_mimes}}
+ */
+
+$maxSize = 100 * 1024 * 1024; 
+$allowed = ['text/csv'];      
+
+if (isset($_FILES['file']) && $_FILES['file']['size'] > $maxSize) {
+    http_response_code(400);
+    exit;
+}
+?>

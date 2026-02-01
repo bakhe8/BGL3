@@ -1,0 +1,13 @@
+name: "batches_page"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1500
+  - action: wait
+    ms: 1200
+  - action: click
+    selector: "a[href*='batches.php']"
+    timeout: 8000
+  - action: wait
+    ms: 1200

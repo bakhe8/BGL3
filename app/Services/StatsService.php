@@ -3,15 +3,17 @@
 namespace App\Services;
 
 use PDO;
+use App\Support\Settings;
 
 class StatsService {
     /**
      * Get statistics for import/dashboard
      * 
      * @param PDO $db
+     * @param bool $excludeTestData
      * @return array ['total', 'ready', 'pending', 'released']
      */
-    public static function getImportStats(PDO $db): array {
+    public static function getImportStats(PDO $db, bool $excludeTestData = false): array {
         // Initialize defaults
         $stats = [
             'total' => 0,
@@ -20,20 +22,24 @@ class StatsService {
             'released' => 0
         ];
 
+        $testFilter = $excludeTestData ? ' AND (g.is_test_data = 0 OR g.is_test_data IS NULL)' : '';
+
         try {
             // Count released (is_locked = 1)
             $stmt = $db->query("
                 SELECT COUNT(*) 
-                FROM guarantee_decisions 
-                WHERE is_locked = 1
+                FROM guarantee_decisions d
+                JOIN guarantees g ON d.guarantee_id = g.id
+                WHERE d.is_locked = 1 {$testFilter}
             ");
             $stats['released'] = (int)$stmt->fetchColumn();
 
             // Count ready (status = 'ready' AND not locked)
             $stmt = $db->query("
                 SELECT COUNT(*) 
-                FROM guarantee_decisions 
-                WHERE status = 'ready' AND (is_locked = 0 OR is_locked IS NULL)
+                FROM guarantee_decisions d
+                JOIN guarantees g ON d.guarantee_id = g.id
+                WHERE d.status = 'ready' AND (d.is_locked = 0 OR d.is_locked IS NULL) {$testFilter}
             ");
             $stats['ready'] = (int)$stmt->fetchColumn();
 
@@ -45,8 +51,9 @@ class StatsService {
             // First, count strictly pending decisions
             $stmt = $db->query("
                 SELECT COUNT(*) 
-                FROM guarantee_decisions 
-                WHERE status = 'pending' AND (is_locked = 0 OR is_locked IS NULL)
+                FROM guarantee_decisions d
+                JOIN guarantees g ON d.guarantee_id = g.id
+                WHERE d.status = 'pending' AND (d.is_locked = 0 OR d.is_locked IS NULL) {$testFilter}
             ");
             $pendingDecisions = (int)$stmt->fetchColumn();
 
@@ -55,7 +62,7 @@ class StatsService {
                 SELECT COUNT(g.id) 
                 FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
-                WHERE d.id IS NULL
+                WHERE d.id IS NULL " . ($excludeTestData ? " AND (g.is_test_data = 0 OR g.is_test_data IS NULL)" : "")
             ");
             $noDecisions = (int)$stmt->fetchColumn();
 

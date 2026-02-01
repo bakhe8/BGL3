@@ -379,6 +379,16 @@ try {
                     ]);
                 }
             }
+            // ✅ Step 3: Log to detailed Audit Log (PHASE C)
+            $learningRepo->logSupplierDecision([
+                'guarantee_id' => $guaranteeId,
+                'raw_input' => $rawSupplierName,
+                'chosen_supplier_id' => $supplierId,
+                'chosen_supplier_name' => $newSupplier,
+                'decision_source' => $decisionSource,
+                'confidence_score' => $wasAiMatch ? 1.0 : null,
+                'was_top_suggestion' => $wasAiMatch ? 1 : 0
+            ]);
         }
     } catch (\Throwable $e) { 
         error_log("Learning log error: " . $e->getMessage());

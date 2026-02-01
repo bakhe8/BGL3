@@ -3,6 +3,9 @@ from pathlib import Path
 from typing import List, Dict, Any
 import json
 import importlib
+import os
+import urllib.request
+import urllib.error
 
 
 class InferenceEngine:
@@ -21,6 +24,38 @@ class InferenceEngine:
             "Timeout",
             "SSL",
         ]
+        self.openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
+
+    def _query_llm(self, prompt: str) -> Dict[str, Any]:
+        """Queries OpenAI API with zero external dependencies."""
+        if not self.openai_key:
+            return {}
+
+        url = "https://api.openai.com/v1/chat/completions"
+        headers = {
+            "Content-Type": "application/json",
+            "Authorization": f"Bearer {self.openai_key}",
+        }
+        payload = {
+            "model": "gpt-4",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "You are an expert software architect analyzing error logs.",
+                },
+                {"role": "user", "content": prompt},
+            ],
+            "temperature": 0.2,
+        }
+
+        try:
+            req = urllib.request.Request(url, json.dumps(payload).encode(), headers)
+            # 10s timeout to avoid hanging the agent
+            with urllib.request.urlopen(req, timeout=10) as response:
+                return json.loads(response.read().decode())
+        except Exception as e:
+            print(f"[!] Inference: LLM call failed: {e}")
+            return {}
 
     def analyze_patterns(self) -> List[Dict[str, Any]]:
         """
@@ -67,9 +102,16 @@ class InferenceEngine:
 
         # Synthesis Logic: Create proposals for clusters with >= 2 items
         for theme, items in clusters.items():
+            # Skip "General" here if we have LLM capability (handled below)
+            if theme == "General" and self.openai_key:
+                continue
+
             if len(items) >= 2:
-                # The _synthesize_rule method now handles persistence with duplicate checking
                 self._synthesize_rule(theme, len(items), items)
+
+        # Hybrid Intelligence: Ask GPT-4 about confusing "General" items
+        if self.openai_key and len(clusters["General"]) >= 2:
+            self._analyze_complex_cluster(clusters["General"])
 
         # Return ACTUAL persisted proposals from the database
         try:
@@ -103,7 +145,9 @@ class InferenceEngine:
             if not check_name:
                 continue
             try:
-                module = importlib.import_module(f".checks.{check_name}", package="brain")
+                module = importlib.import_module(
+                    f".checks.{check_name}", package="brain"
+                )
             except Exception:
                 try:
                     module = importlib.import_module(f"checks.{check_name}")
@@ -137,7 +181,7 @@ class InferenceEngine:
             out_path = project_root / ".bgl_core" / "brain" / "proposed_patterns.json"
             try:
                 out_path.parent.mkdir(parents=True, exist_ok=True)
-                existing = []
+                existing: List[Dict[str, Any]] = []
                 if out_path.exists():
                     existing = json.loads(out_path.read_text(encoding="utf-8")) or []
                 existing_ids = {p.get("id") for p in existing}
@@ -240,6 +284,52 @@ class InferenceEngine:
             conn.close()
         except Exception as e:
             print(f"[!] Inference: Persist error: {e}")
+
+    def _analyze_complex_cluster(self, items: List[Dict[str, Any]]):
+        """Offloads complex pattern recognition to LLM."""
+        print(f"[*] Inference: Offloading {len(items)} complex items to GPT-4...")
+        prompt = "Analyze these software errors and propose a single architectural mitigation rule (JSON format with name, description, action=WARN/BLOCK, impact, solution, expectation):\n"
+        for item in items[:5]:  # Limit to 5
+            prompt += f"- {item['reason']} (Task: {item['task_name']})\n"
+
+        resp = self._query_llm(prompt)
+        content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+
+        try:
+            # Basic parsing attempt (LLM can return markdown)
+            json_str = content.replace("```json", "").replace("```", "").strip()
+            rule = json.loads(json_str)
+
+            if "name" in rule:
+                # Direct persistence of the high-quality rule from LLM
+                conn = sqlite3.connect(str(self.db_path))
+                cursor = conn.cursor()
+
+                # Check for duplicates
+                cursor.execute(
+                    "SELECT id FROM agent_proposals WHERE name = ?", (rule["name"],)
+                )
+                if not cursor.fetchone():
+                    cursor.execute(
+                        """
+                        INSERT INTO agent_proposals (name, description, action, count, evidence, impact, solution, expectation)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            rule.get("name", "LLM Insight"),
+                            rule.get("description", "AI-Generated advice"),
+                            rule.get("action", "WARN"),
+                            len(items),
+                            "Hybrid Intelligence Analysis",
+                            rule.get("impact", "Unknown"),
+                            rule.get("solution", "Review logs"),
+                            rule.get("expectation", "Improvement"),
+                        ),
+                    )
+                    conn.commit()
+                conn.close()
+        except Exception as e:
+            print(f"[!] Inference: LLM extraction failed: {e}")
 
 
 if __name__ == "__main__":

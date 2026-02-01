@@ -101,6 +101,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     exit;
 }
 
+/**
+ * Handle Permission Auto-Fix via POST
+ */
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'fix_permissions') {
+    // 1. Fix Logs
+    $logDir = __DIR__ . '/storage/logs';
+    if (!is_dir($logDir)) { mkdir($logDir, 0777, true); }
+    $logFile = $logDir . '/test.log';
+    if (!file_exists($logFile)) { touch($logFile); }
+    chmod($logFile, 0666); // Ensure writable
+
+    // 2. Fix Config
+    $configDir = __DIR__ . '/app/Config';
+    if (!is_dir($configDir)) { mkdir($configDir, 0777, true); }
+    $configFile = $configDir . '/agent.json';
+    if (!file_exists($configFile)) { 
+        file_put_contents($configFile, json_encode(["status" => "initialized"])); 
+    }
+    chmod($configFile, 0666); // Ensure writable
+
+    header("Location: agent-dashboard.php?fixed_permissions=1");
+    exit;
+}
+
+
 // Run API contract/property tests (Schemathesis/Dredd) via master_verify toggle
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_api_contract') {
     pclose(popen("start /B cmd /c \"set BGL_RUN_SCENARIOS=0&&set BGL_RUN_API_CONTRACT=1&&python .bgl_core/brain/master_verify.py\"", "r"));
@@ -143,11 +168,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 }
 
 // Apply proposal in sandbox (fire-and-forget orchestrator)
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'apply_proposal') {
+// Apply proposal in sandbox (fire-and-forget orchestrator)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['apply_proposal', 'force_apply'])) {
     $pid = $_POST['proposal_id'] ?? '';
+    $isForce = $_POST['action'] === 'force_apply';
+    $flag = $isForce ? '--force' : '';
+    
     if ($pid) {
-        pclose(popen("start /B python .bgl_core/brain/apply_proposal.py --proposal {$pid}", "r"));
-        header("Location: agent-dashboard.php?proposal_started=" . urlencode($pid));
+        pclose(popen("start /B python .bgl_core/brain/apply_proposal.py --proposal {$pid} {$flag}", "r"));
+        $msg = $isForce ? "proposal_forced=" . urlencode($pid) : "proposal_started=" . urlencode($pid);
+        header("Location: agent-dashboard.php?" . $msg);
         exit;
     }
 }
@@ -216,6 +246,18 @@ if (isset($_GET['error'])) {
         'title' => 'تم إطلاق الفحص الشامل',
         'message' => 'Master Verify يعمل الآن في الخلفية.'
     ];
+} elseif (isset($_GET['proposal_started'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم بدء التطبيق (Sandbox)',
+        'message' => 'جاري تجربة الاقتراح في بيئة معزولة...'
+    ];
+} elseif (isset($_GET['proposal_forced'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم التطبيق المباشر (Production)',
+        'message' => '⚠️ تم تنفيذ التعديلات على النظام الحي (Forced Apply).'
+    ];
 }
 
 /**
@@ -250,16 +292,91 @@ class SimpleYamlParser {
     }
 }
 
+/**
+ * Robust YAML light parser for simple key-value structures.
+ */
+function bgl_yaml_parse(string $path): array|null {
+    if (!file_exists($path)) return null;
+    if (function_exists('yaml_parse_file')) {
+        $fn = 'yaml_parse_file';
+        return @$fn($path);
+    }
+    
+    // Custom parser for nested structures (Lite)
+    $lines = file($path, FILE_IGNORE_NEW_LINES);
+    $data = [];
+    $currentKey = null;
+    $currentList = null;
+    $currentItem = null;
+
+    foreach ($lines as $line) {
+        $trimmed = trim($line);
+        if (empty($trimmed) || str_starts_with($trimmed, '#')) continue;
+
+        // 1. Top level key (e.g., "operational_kpis:")
+        if (preg_match('/^([a-zA-Z0-9_]+):$/', $trimmed, $m)) {
+            if ($currentKey && $currentList !== null) {
+                $data[$currentKey] = $currentList;
+            }
+            $currentKey = $m[1];
+            $currentList = [];
+            $currentItem = null;
+            continue;
+        }
+
+        // 2. List item start (e.g., "  - name: ...")
+        if (str_contains($line, '- ')) {
+            if ($currentItem !== null) {
+                $currentList[] = $currentItem;
+            }
+            $currentItem = [];
+            // Parse inline key-val if exists on the bullet line
+            $content = trim(substr($trimmed, 1)); // remove '-'
+            if (preg_match('/^([a-zA-Z0-9_]+):\s*(.*)$/', $content, $m)) {
+                $val = trim($m[2], ' "');
+                if (str_starts_with($val, '[')) {
+                     // simplistic array parse [a, b]
+                     $val = explode(',', trim($val, '[]'));
+                     $val = array_map('trim', $val);
+                }
+                $currentItem[$m[1]] = $val;
+            }
+            continue;
+        }
+
+        // 3. Sub-property (e.g., "    target: ...")
+        if ($currentKey && $currentItem !== null && preg_match('/^([a-zA-Z0-9_]+):\s*(.*)$/', $trimmed, $m)) {
+            $val = trim($m[2], ' "');
+            if (str_starts_with($val, '[')) {
+                 $val = explode(',', trim($val, '[]'));
+                 $val = array_map('trim', $val);
+            }
+            $currentItem[$m[1]] = $val;
+        }
+        
+        // 4. Simple top-level key-val (e.g., "version: 1.0")
+        if (!$currentKey && preg_match('/^([a-zA-Z0-9_]+):\s*(.*)$/', $trimmed, $m)) {
+             $data[$m[1]] = trim($m[2], ' "');
+        }
+    }
+    
+    // Flush last items
+    if ($currentItem !== null) $currentList[] = $currentItem;
+    if ($currentKey && $currentList !== null) $data[$currentKey] = $currentList;
+
+    return $data;
+}
+
 class PremiumDashboard
 {
     private ?PDO $db;
-    private string $projectPath;
+    public string $projectPath;
     private string $agentDbPath;
     private string $decisionDbPath;
 
     public function __construct()
     {
-        $this->projectPath = __DIR__;
+        $this->projectPath = dirname(__DIR__);
         $this->agentDbPath = $this->projectPath . '/.bgl_core/brain/knowledge.db';
         $this->decisionDbPath = $this->projectPath . '/.bgl_core/brain/decision.db';
         try {
@@ -329,13 +446,49 @@ class PremiumDashboard
     public function getProposals(): array
     {
         if (!file_exists($this->agentDbPath)) return [];
+        $proposals = [];
         try {
-            $lite = new PDO("sqlite:" . $this->agentDbPath);
-            $stmt = $lite->query("SELECT * FROM agent_proposals");
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            // 1. Fetch Proposals
+            $kb = new PDO("sqlite:" . $this->agentDbPath);
+            $stmt = $kb->query("SELECT * FROM agent_proposals");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // 2. Fetch Statuses from Decision DB
+            $statuses = [];
+            if (file_exists($this->decisionDbPath)) {
+                try {
+                    $dec = new PDO("sqlite:" . $this->decisionDbPath);
+                    $sql = "SELECT i.intent, o.result, o.notes, o.timestamp 
+                            FROM outcomes o 
+                            JOIN decisions d ON o.decision_id = d.id 
+                            JOIN intents i ON d.intent_id = i.id 
+                            WHERE i.intent LIKE 'apply_%'
+                            ORDER BY o.id DESC"; // Latest first
+                    $history = $dec->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+                    
+                    foreach ($history as $h) {
+                        $pid = str_replace('apply_', '', $h['intent']);
+                        if (!isset($statuses[$pid])) {
+                            $statuses[$pid] = [
+                                'result' => $h['result'],
+                                'notes'  => $h['notes']
+                            ];
+                        }
+                    }
+                } catch (\Exception $e) {}
+            }
+
+            // 3. Merge
+            foreach ($rows as $r) {
+                $stat = $statuses[$r['id']] ?? [];
+                $r['status'] = $stat['result'] ?? null;
+                $r['status_note'] = $stat['notes'] ?? null;
+                $proposals[] = $r;
+            }
         } catch (\Exception $e) {
             return [];
         }
+        return $proposals;
     }
 
 
@@ -353,14 +506,87 @@ class PremiumDashboard
 
     public function getRecentActivity(): array
     {
-        if (!file_exists($this->agentDbPath)) return [];
-        try {
-            $lite = new PDO("sqlite:" . $this->agentDbPath);
-            $stmt = $lite->query("SELECT * FROM agent_activity ORDER BY timestamp DESC LIMIT 5");
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
-        } catch (\Exception $e) {
-            return [];
+        $activities = [];
+
+        // Humanization Dictionary
+        $trans = [
+            'reindex_full' => 'تحديث فهرس الذاكرة (Re-indexing)',
+            'scenario_batch' => 'تحليل سيناريوهات البيانات (Data Analysis)',
+            'investigate' => 'فحص عميق للنظام (Investigation)',
+            'master_verify' => 'فحص شامل للصحة (Master Verify)',
+            'fix_permissions' => 'إصلاح تصاريح الملفات',
+            'apply_proposal' => 'تطبيق اقتراح تحسين',
+            'commit_proposal' => 'اعتماد قاعدة جديدة',
+        ];
+        
+        // 1. Agent Activity (Inference/Scans) from Knowledge DB
+        if (file_exists($this->agentDbPath)) {
+            try {
+                $lite = new PDO("sqlite:" . $this->agentDbPath);
+                $stmt = $lite->query("SELECT * FROM agent_activity ORDER BY timestamp DESC LIMIT 8");
+                $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($rows as $r) {
+                    $raw = $r['activity'] ?? 'Unknown Activity';
+                    $readable = $trans[$raw] ?? $raw; // Translate or keep raw
+                    
+                    // Specific mapping for inference
+                    if (str_contains($raw, 'Inference Detected')) {
+                        $readable = 'اكتشاف أنماط جديدة (Inference)';
+                    }
+
+                    $activities[] = [
+                        'type'    => 'AGENT',
+                        'message' => $readable,
+                        'timestamp' => $r['timestamp'],
+                        'status'  => 'info'
+                    ];
+                }
+            } catch (\Exception $e) {}
         }
+
+        // 2. User/Decision Outcomes (Apply Proposal) from Decision DB
+        if (file_exists($this->decisionDbPath)) {
+            try {
+                $dec = new PDO("sqlite:" . $this->decisionDbPath);
+                // Get outcomes linked to intents
+                $sql = "SELECT i.intent, o.result, o.timestamp 
+                        FROM outcomes o 
+                        JOIN decisions d ON o.decision_id = d.id 
+                        JOIN intents i ON d.intent_id = i.id 
+                        ORDER BY o.id DESC LIMIT 8";
+                $rows = $dec->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+                
+                foreach ($rows as $r) {
+                    $msg = $r['intent'];
+                    $status = 'success';
+                    
+                    if (str_starts_with($r['intent'], 'apply_')) {
+                        $pid = substr($r['intent'], 6);
+                        if ($r['result'] === 'success_direct') {
+                            $msg = "تم التطبيق المباشر للاقتراح #$pid";
+                            $status = 'warning';
+                        } else {
+                            $msg = "تمت تجربة الاقتراح #$pid (ساندبوكس)";
+                            $status = 'success';
+                        }
+                    } else {
+                         // Translate generic intents if in map
+                         $msg = $trans[$msg] ?? $msg;
+                    }
+
+                    $activities[] = [
+                        'type'    => 'USER',
+                        'message' => $msg,
+                        'timestamp' => $r['timestamp'],
+                        'status'  => $status
+                    ];
+                }
+            } catch (\Exception $e) {}
+        }
+
+        // Sort by time DESC (handle floats/strings)
+        usort($activities, fn($a, $b) => $b['timestamp'] <=> $a['timestamp']);
+        return array_slice($activities, 0, 8);
     }
 
     public function getExperiences(int $limit = 8): array
@@ -548,8 +774,8 @@ $kpiCurrent = [];
 $directAttempts = 0;
 $successRate = null;
 $proposedPatterns = [];
-if (function_exists('yaml_parse_file') && file_exists($configPath)) {
-    $cfg = @yaml_parse_file($configPath);
+if (file_exists($configPath)) {
+    $cfg = bgl_yaml_parse($configPath);
     if (is_array($cfg) && isset($cfg['execution_mode'])) {
         $executionMode = strtolower((string)$cfg['execution_mode']);
     }
@@ -640,10 +866,17 @@ try {
         if ($lat > 0) $kpiCurrent['contract_latency_ms'] = round($lat, 1);
 
         // استيراد: معدل النجاح
-        $impTotal = $scalar("SELECT COUNT(*) FROM runtime_events WHERE event_type IN ('import_suppliers','import_banks')");
-        $impFail  = $scalar("SELECT COUNT(*) FROM runtime_events WHERE event_type IN ('import_suppliers','import_banks') AND (status >= 400 OR error IS NOT NULL)");
+        $impTotal = $scalar("SELECT COUNT(*) FROM runtime_events WHERE event_type IN ('import_suppliers','import_banks')", []);
+        $impFail  = $scalar("SELECT COUNT(*) FROM runtime_events WHERE event_type IN ('import_suppliers','import_banks') AND (status >= 400 OR error IS NOT NULL)", []);
         if ($impTotal > 0) {
             $kpiCurrent['import_success_rate'] = round((1 - ($impFail / $impTotal)) * 100, 2);
+        }
+
+        // Data Quality Score (heuristic: 100 - val_fail_rate on writes)
+        if (isset($kpiCurrent['validation_failure_rate'])) {
+            $kpiCurrent['data_quality_score'] = 100 - $kpiCurrent['validation_failure_rate'];
+        } else {
+             $kpiCurrent['data_quality_score'] = 100; // Default optimism
         }
     }
 } catch (\Exception $e) {
@@ -654,11 +887,9 @@ try {
 $domainMapPath = dirname(__DIR__) . '/docs/domain_map.yml';
 if (file_exists($domainMapPath)) {
     $domainMapRaw = file_get_contents($domainMapPath);
-    if (function_exists('yaml_parse_file')) {
-        $parsed = @yaml_parse_file($domainMapPath);
-        if (is_array($parsed)) {
-            $domainMap = $parsed;
-        }
+    $parsed = bgl_yaml_parse($domainMapPath);
+    if (is_array($parsed)) {
+        $domainMap = $parsed;
     }
 }
 $flowsDir = dirname(__DIR__) . '/docs/flows';

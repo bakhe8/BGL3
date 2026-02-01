@@ -54,5 +54,9 @@ The agent's "Brain" is located in `.bgl_core/brain/`. Key operational files:
   - BrowserCore موحّد (متصفح/صفحة واحدة، قفل وتسلسل، heartbeat وإعادة تشغيل تلقائية).
   - Reporting: `master_verify` يولّد HTML في `.bgl_core/logs/latest_report.html` يلخّص health/permissions/routes/experiences.
 
+### 🚀 أوامر جاهزة للوكيل
+- مراجعة بصرية سريعة: `.\run_ui.ps1`
+- تشغيل قياس/CI: `.\run_ci.ps1` (يشمل metrics_summary + metrics_guard + check_mouse_layer)
+
 ---
 *For a complete system evolution history, see the [`Final_Handover.md`](file:///c:/Users/Bakheet/.gemini/antigravity/brain/abfa5b10-b1ec-4349-8550-5f68aa189083/Final_Handover.md).*

@@ -1,0 +1,19 @@
+<?php
+/**
+ * Template: Critical PHPUnit test skeleton
+ * Placeholders: {{class_name}}, {{endpoint}}
+ */
+
+namespace BGL\Templates;
+
+use PHPUnit\Framework\TestCase;
+
+class CriticalTestTemplate extends TestCase
+{
+    public function test_endpoint_behaves()
+    {
+        $response = 'dummy'; // {{endpoint}}
+        $this->assertNotEmpty($response);
+    }
+}
+?>

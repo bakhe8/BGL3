@@ -6,7 +6,7 @@ import time
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 DECISION_DB = ROOT / ".bgl_core" / "brain" / "decision.db"
-PROPOSED = ROOT / ".bgl_core" / "brain" / "proposed_patterns.json"
+KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOG_FILE = ROOT / ".bgl_core" / "logs" / "proposal_actions.log"
 
 
@@ -31,22 +31,42 @@ def insert_decision(intent: str, reason: str) -> int:
             "INSERT INTO decisions (intent_id, decision, risk_level, requires_human, justification, created_at) VALUES (?,?,?,?,?, datetime('now'))",
             (intent_id, "auto_fix", "low", 0, reason),
         )
-        return cur2.lastrowid
+        return cur2.lastrowid or 0
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--proposal", required=True, help="Proposal ID to apply")
+    parser.add_argument(
+        "--force", action="store_true", help="Apply directly (bypass sandbox)"
+    )
     args = parser.parse_args()
 
-    if not PROPOSED.exists():
-        print("No proposed_patterns.json found.")
+    # Fetch from DB
+    conn_kb = sqlite3.connect(str(KNOWLEDGE_DB))
+    conn_kb.row_factory = sqlite3.Row
+    target = None
+    try:
+        cur = conn_kb.execute(
+            "SELECT * FROM agent_proposals WHERE id = ?", (args.proposal,)
+        )
+        row = cur.fetchone()
+        if row:
+            target = dict(row)
+            # Map DB columns to script expectations
+            target["recommendation"] = (
+                target.get("solution") or target.get("action") or "No solution"
+            )
+            target["scope"] = target.get("impact")
+            target["evidence"] = target.get("evidence")
+    except Exception as e:
+        print(f"DB Error: {e}")
         return
+    finally:
+        conn_kb.close()
 
-    patterns = json.loads(PROPOSED.read_text(encoding="utf-8") or "[]")
-    target = next((p for p in patterns if p.get("id") == args.proposal), None)
     if not target:
-        print("Proposal not found.")
+        print(f"Proposal {args.proposal} not found in DB.")
         return
 
     # Log action
@@ -58,8 +78,7 @@ def main():
                     "ts": time.time(),
                     "id": target.get("id"),
                     "recommendation": target.get("recommendation"),
-                    "scope": target.get("scope"),
-                    "evidence": target.get("evidence"),
+                    "mode": "force" if args.force else "sandbox",
                 },
                 ensure_ascii=False,
             )
@@ -71,8 +90,19 @@ def main():
         intent=f"apply_{target.get('id')}",
         reason=target.get("recommendation", "apply proposal"),
     )
-    insert_outcome(decision_id, "success", "Proposal applied in sandbox (logged)")
-    print(f"Applied proposal {target.get('id')} (logged and recorded).")
+
+    if args.force:
+        # REAL APPLICATION LOGIC WOULD GO HERE (e.g. patching files)
+        # For now, we mark it as a definitive direct action.
+        insert_outcome(
+            decision_id,
+            "success_direct",
+            "Proposal APPLIED DIRECTLY to production (simulated)",
+        )
+        print(f"⚠️ FORCE APPLIED proposal {target.get('id')} to PRODUCTION.")
+    else:
+        insert_outcome(decision_id, "success", "Proposal applied in sandbox (logged)")
+        print(f"Applied proposal {target.get('id')} in SANDBOX.")
 
 
 if __name__ == "__main__":

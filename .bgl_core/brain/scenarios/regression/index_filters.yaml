@@ -1,0 +1,28 @@
+name: "index_filters"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1500
+  - action: wait
+    ms: 800
+  - action: click
+    selector: "a[href='/?filter=all']"
+    timeout: 5000
+  - action: wait
+    ms: 500
+  - action: click
+    selector: "a[href='/?filter=ready']"
+    timeout: 5000
+  - action: wait
+    ms: 500
+  - action: click
+    selector: "a[href='/?filter=pending']"
+    timeout: 5000
+  - action: wait
+    ms: 500
+  - action: click
+    selector: "a[href='/?filter=released']"
+    timeout: 5000
+  - action: wait
+    ms: 800

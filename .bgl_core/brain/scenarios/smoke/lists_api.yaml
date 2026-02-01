@@ -1,0 +1,13 @@
+name: "lists_api"
+steps:
+  - action: goto
+    url: "/api/get_suppliers.php"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 500
+  - action: goto
+    url: "/api/get_banks.php"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 500
+

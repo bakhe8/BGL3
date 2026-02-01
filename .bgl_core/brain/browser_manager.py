@@ -6,18 +6,18 @@ from typing import Optional, List, Dict, Any
 
 from playwright.async_api import async_playwright, Browser, BrowserContext, Page
 
-
 class BrowserManager:
     """
     Singleton-style manager for Playwright browser/context reuse.
     Controls max pages, idle time, and restart on failure.
     """
-    def __init__(self, base_url: str, headless: bool = True, max_pages: int = 3, idle_timeout: int = 120, persist: bool = False):
+    def __init__(self, base_url: str, headless: bool = True, max_pages: int = 3, idle_timeout: int = 120, persist: bool = False, slow_mo_ms: int = 0):
         self.base_url = base_url
         self.headless = headless
         self.max_pages = max_pages
         self.idle_timeout = idle_timeout
         self.persist = persist
+        self.slow_mo_ms = slow_mo_ms
         self._playwright = None
         self._browser: Optional[Browser] = None
         self._context: Optional[BrowserContext] = None
@@ -29,8 +29,15 @@ class BrowserManager:
         if self._browser:
             return
         self._playwright = await async_playwright().start()
-        self._browser = await self._playwright.chromium.launch(headless=self.headless)
-        self._context = await self._browser.new_context(base_url=self.base_url)
+        self._browser = await self._playwright.chromium.launch(headless=self.headless, slow_mo=self.slow_mo_ms or None)
+        # إعداد تسجيل الفيديو لرؤية التفاعل
+        video_dir = Path("storage/logs/playwright_video")
+        video_dir.mkdir(parents=True, exist_ok=True)
+        self._context = await self._browser.new_context(
+            base_url=self.base_url,
+            record_video_dir=str(video_dir),
+            record_video_size={"width": 1280, "height": 720},
+        )
         self._last_restart = time.time()
         self._pages = []
 
@@ -60,7 +67,6 @@ class BrowserManager:
     async def get_page(self) -> Page:
         async with self._lock:
             await self._ensure_browser()
-            await self._cleanup_idle_pages()
             # Reuse an open page if available
             for page in self._pages:
                 if not page.is_closed():
@@ -80,7 +86,6 @@ class BrowserManager:
     async def new_page(self) -> Page:
         async with self._lock:
             await self._ensure_browser()
-            await self._cleanup_idle_pages()
             if len(self._pages) >= self.max_pages:
                 try:
                     oldest = self._pages.pop(0)

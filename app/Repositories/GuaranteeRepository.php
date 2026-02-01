@@ -291,7 +291,8 @@ class GuaranteeRepository
         if (empty($ids)) {
             return 0;
         }
-        
+        $this->db->beginTransaction();
+        try {
         // Delete from related tables first (cascade)
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
         
@@ -346,6 +347,10 @@ class GuaranteeRepository
         $this->db->commit();
         
         return $deletedCount;
+        } catch (\Exception $e) {
+            $this->db->rollBack();
+            throw $e;
+        }
     }
     
     /**

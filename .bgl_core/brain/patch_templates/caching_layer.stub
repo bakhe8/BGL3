@@ -1,0 +1,19 @@
+<?php
+/**
+ * Template: Simple per-route cache wrapper for expensive report endpoints.
+ * Placeholders: {{cache_key}}, {{ttl_seconds}}
+ */
+
+namespace BGL\Templates;
+
+use Illuminate\Support\Facades\Cache;
+
+class CachingTemplate {
+    public function cached_report_response(string $key, callable $generator)
+    {
+        $cacheKey = '{{cache_key}}'; 
+        $ttl      = 300; 
+        return Cache::remember($cacheKey, $ttl, $generator);
+    }
+}
+?>

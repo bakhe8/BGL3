@@ -204,8 +204,9 @@ $prevId = $navInfo['prevId'];
 $nextId = $navInfo['nextId'];
 
 // Get import statistics (ready vs pending vs released)
-// Note: Stats always show ALL counts regardless of filter
-$importStats = \App\Services\StatsService::getImportStats($db);
+// متسقة مع فلترة بيانات الاختبار: نستبعد test data في الإنتاج أو عند طلب exclude_test
+$excludeTest = $settings->isProductionMode() || (!empty($_GET['exclude_test']) && $_GET['exclude_test'] === '1');
+$importStats = \App\Services\StatsService::getImportStats($db, $excludeTest);
 // Update total to exclude released for display consistency with filters
 $displayTotal = $importStats['ready'] + $importStats['pending'];
 
@@ -1042,17 +1043,18 @@ $formattedSuppliers = array_map(function($s) {
     </script>
 
     
-    <script src="/public/js/pilot-auto-load.js?v=<?= time() ?>"></script>
-
-    
     <!-- ✅ UX UNIFICATION: Old Level B handler and modal removed -->
     <!-- Level B handler disabled by UX_UNIFICATION_ENABLED flag -->
     <!-- Modal no longer needed - Selection IS the confirmation -->
     
+    <!-- Core scripts before pilot auto-load to ensure BglLogger is available -->
     <script src="/public/js/preview-formatter.js?v=<?= time() ?>"></script>
     <script src="/public/js/main.js?v=<?= time() ?>"></script>
     <script src="/public/js/input-modals.controller.js?v=<?= time() ?>"></script>
     <script src="/public/js/timeline.controller.js?v=<?= time() ?>"></script>
     <script src="/public/js/records.controller.js?v=<?= time() ?>"></script>
+
+    <!-- Pilot auto-load (after main.js) -->
+    <script src="/public/js/pilot-auto-load.js?v=<?= time() ?>"></script>
 </body>
 </html>

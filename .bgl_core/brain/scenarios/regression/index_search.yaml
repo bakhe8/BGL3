@@ -1,0 +1,30 @@
+name: "index_search"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1500
+  - action: wait
+    ms: 800
+  - action: click
+    selector: "input[name='search']"
+    timeout: 4000
+  - action: type
+    selector: "input[name='search']"
+    text: "TEST"
+  - action: press
+    selector: "input[name='search']"
+    key: "Enter"
+  - action: wait
+    ms: 1200
+  - action: click
+    selector: "input[name='search']"
+    timeout: 4000
+  - action: type
+    selector: "input[name='search']"
+    text: "عينة"
+  - action: press
+    selector: "input[name='search']"
+    key: "Enter"
+  - action: wait
+    ms: 1200

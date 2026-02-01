@@ -91,4 +91,38 @@ class LearningRepository
             $data['guarantee_id'] ?? null
         ]);
     }
+
+    public function logSupplierDecision(array $data): void
+    {
+        $normalized = \App\Support\ArabicNormalizer::normalize($data['raw_input']);
+        
+        $stmt = $this->db->prepare("
+            INSERT INTO supplier_decisions_log (
+                guarantee_id, raw_input, normalized_input, chosen_supplier_id, 
+                chosen_supplier_name, decision_source, confidence_score, was_top_suggestion,
+                decided_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
+        ");
+        
+        $stmt->execute([
+            $data['guarantee_id'],
+            $data['raw_input'],
+            $normalized,
+            $data['chosen_supplier_id'],
+            $data['chosen_supplier_name'],
+            $data['decision_source'],
+            $data['confidence_score'] ?? null,
+            $data['was_top_suggestion'] ?? 0
+        ]);
+    }
+
+    public function pruneOldDecisions(int $hours = 48): int
+    {
+        $stmt = $this->db->prepare("
+            DELETE FROM supplier_decisions_log 
+            WHERE decided_at < datetime('now', '-' || ? || ' hours')
+        ");
+        $stmt->execute([$hours]);
+        return $stmt->rowCount();
+    }
 }

@@ -1,0 +1,18 @@
+<?php
+/**
+ * Patch Template: Rate Limit Middleware Registration (Laravel-style)
+ */
+
+namespace BGL\Templates;
+
+use Illuminate\Support\Facades\Route;
+
+class RateLimitTemplate {
+    public function register() {
+        // {RATE_LIMIT}
+        Route::middleware(['throttle:60,1'])->group(function () {
+             // {ROUTE_GROUP}
+        });
+    }
+}
+?>

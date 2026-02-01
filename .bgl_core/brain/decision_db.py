@@ -1,6 +1,5 @@
 import sqlite3
 from pathlib import Path
-from typing import Any, Dict, Optional
 
 
 def init_db(db_path: Path, schema_path: Path):
@@ -57,13 +56,15 @@ def insert_decision(
         return cur.lastrowid
 
 
-def insert_outcome(db_path: Path, decision_id: int, result: str, notes: str = ""):
+def insert_outcome(
+    db_path: Path, decision_id: int, result: str, notes: str = "", backup_path: str = ""
+):
     conn = _connect(db_path)
     with conn:
         conn.execute(
             """
-            INSERT INTO outcomes (decision_id, result, notes, timestamp)
-            VALUES (?, ?, ?, datetime('now'))
+            INSERT INTO outcomes (decision_id, result, notes, backup_path, timestamp)
+            VALUES (?, ?, ?, ?, datetime('now'))
             """,
-            (decision_id, result, notes),
+            (decision_id, result, notes, backup_path),
         )

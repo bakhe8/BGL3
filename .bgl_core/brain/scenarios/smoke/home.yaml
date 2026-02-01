@@ -1,8 +1,8 @@
-name: smoke-home
-description: Quick load of home page to gather runtime signals
+name: "home_index"
 steps:
   - action: goto
-    url: /
-    wait_until: networkidle
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1500
   - action: wait
-    ms: 1000
+    ms: 1200

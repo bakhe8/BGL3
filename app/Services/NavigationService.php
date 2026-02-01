@@ -69,7 +69,8 @@ class NavigationService
         // Production Mode: Check if we should exclude test data
         $settings = \App\Support\Settings::getInstance();
         $testDataFilter = '';
-        if ($settings->isProductionMode()) {
+        $excludeTest = $settings->isProductionMode() || (!empty($_GET['exclude_test']) && $_GET['exclude_test'] === '1');
+        if ($excludeTest) {
             $testDataFilter = ' AND (g.is_test_data = 0 OR g.is_test_data IS NULL)';
         }
         

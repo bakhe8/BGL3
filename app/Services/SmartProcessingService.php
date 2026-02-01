@@ -32,6 +32,7 @@ class SmartProcessingService
     private \App\Support\Settings $settings;
     private string $decisionSource;
     private string $decidedBy;
+    private \App\Repositories\LearningRepository $learningRepo;
 
     public function __construct(?string $decisionSource = null, ?string $decidedBy = null)
     {
@@ -44,6 +45,7 @@ class SmartProcessingService
         // Legacy LearningService removed
         $this->authority = \App\Services\Learning\AuthorityFactory::create();
         $this->conflictDetector = new ConflictDetector();
+        $this->learningRepo = new \App\Repositories\LearningRepository($this->db);
     }
 
 
@@ -219,6 +221,17 @@ class SmartProcessingService
                 );
                 
                 $stats['auto_matched']++;
+
+                // ✅ PHASE C: Log SUCCESSFUL auto-match
+                $this->learningRepo->logSupplierDecision([
+                    'guarantee_id' => $guaranteeId,
+                    'raw_input' => $supplierName,
+                    'chosen_supplier_id' => $supplierId,
+                    'chosen_supplier_name' => $finalSupplierName,
+                    'decision_source' => 'auto_match',
+                    'confidence_score' => $supplierConfidence,
+                    'was_top_suggestion' => 1
+                ]);
             } else {
                 if ($trustDecision && !$trustDecision->allowed) {
                     // EXPLAINABLE TRUST GATE: Log why auto-approval was blocked
@@ -243,8 +256,25 @@ class SmartProcessingService
                     // Bank is deterministic and should be persisted even if supplier is pending.
                     $this->createBankOnlyDecision($guaranteeId, $bankId);
                 }
+
+                // ✅ PHASE C: Log REJECTED/CONFLICTED decision
+                if ($supplierId) {
+                    $this->learningRepo->logSupplierDecision([
+                        'guarantee_id' => $guaranteeId,
+                        'raw_input' => $supplierName,
+                        'chosen_supplier_id' => $supplierId,
+                        'chosen_supplier_name' => $finalSupplierName,
+                        'decision_source' => $this->decisionSource,
+                        'confidence_score' => $supplierConfidence,
+                        'was_top_suggestion' => 1, // It was the top suggestion, but blocked
+                        'notes' => 'Blocked by: ' . (empty($conflicts) ? ($trustDecision->reason ?? 'Trust Gate') : 'Conflicts detected')
+                    ]);
+                }
             }
         }
+
+        // Maintenance: Prune old decisions (Phase C)
+        $this->learningRepo->pruneOldDecisions(48);
 
         return $stats;
     }

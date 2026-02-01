@@ -1,0 +1,38 @@
+name: "dom_change"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1200
+  - action: click
+    selector: "button[data-action='showManualInput']"
+    hover_wait_ms: 100
+    click_post_wait_ms: 800
+  - action: wait
+    ms: 800
+  - action: press
+    selector: "body"
+    key: "Escape"
+    timeout: 5000
+  - action: wait
+    ms: 500
+  - action: click
+    selector: "button[data-action='showImportModal']"
+    hover_wait_ms: 100
+    click_post_wait_ms: 800
+  - action: wait
+    ms: 800
+  - action: click
+    selector: "input[name='search']"
+    hover_wait_ms: 80
+    click_post_wait_ms: 300
+  - action: type
+    selector: "input[name='search']"
+    text: "اختبار"
+    timeout: 5000
+  - action: press
+    selector: "input[name='search']"
+    key: "Enter"
+    timeout: 5000
+  - action: wait
+    ms: 1500

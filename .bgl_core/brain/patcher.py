@@ -4,14 +4,12 @@ import os
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, cast
 from safety import SafetyNet
 from execution_gate import check
 from decision_engine import decide
-from intent_resolver import resolve_intent
 from config_loader import load_config
 from decision_db import init_db, insert_intent, insert_decision, insert_outcome
-import json
 
 
 class BGLPatcher:
@@ -24,8 +22,14 @@ class BGLPatcher:
         self.composer_path = self._discover_composer(project_root)
         self.config = load_config(project_root)
         env_decision_db = os.environ.get("BGL_SANDBOX_DECISION_DB")
-        self.decision_db_path = Path(env_decision_db) if env_decision_db else project_root / ".bgl_core" / "brain" / "decision.db"
-        self.decision_schema = project_root / ".bgl_core" / "brain" / "decision_schema.sql"
+        self.decision_db_path = (
+            Path(env_decision_db)
+            if env_decision_db
+            else project_root / ".bgl_core" / "brain" / "decision.db"
+        )
+        self.decision_schema = (
+            project_root / ".bgl_core" / "brain" / "decision_schema.sql"
+        )
         if self.decision_schema.exists():
             init_db(self.decision_db_path, self.decision_schema)
         self.execution_mode = str(self.config.get("execution_mode", "sandbox")).lower()
@@ -65,7 +69,7 @@ class BGLPatcher:
             effective_mode = "direct"
 
         # Decision layer: resolve intent and gate execution (observe-first)
-        intent_payload = {
+        intent_payload: Dict[str, Any] = {
             "intent": "refactor" if action == "rename_class" else "auto_fix",
             "confidence": 0.8,
             "reason": f"{action} requested on {file_path.name}",
@@ -82,9 +86,9 @@ class BGLPatcher:
         decision_payload = decide(intent_payload, policy)
         intent_id = insert_intent(
             self.decision_db_path,
-            intent_payload["intent"],
-            intent_payload["confidence"],
-            intent_payload["reason"],
+            cast(str, intent_payload["intent"]),
+            cast(float, intent_payload["confidence"]),
+            cast(str, intent_payload["reason"]),
             json.dumps(intent_payload["scope"]),
             json.dumps(intent_payload["context_snapshot"]),
             source="patcher",
@@ -92,25 +96,37 @@ class BGLPatcher:
         decision_id = insert_decision(
             self.decision_db_path,
             intent_id,
-            decision_payload.get("decision", "observe"),
-            decision_payload.get("risk_level", "low"),
+            cast(str, decision_payload.get("decision", "observe")),
+            cast(str, decision_payload.get("risk_level", "low")),
             bool(decision_payload.get("requires_human", False)),
-            "; ".join(decision_payload.get("justification", [])),
+            "; ".join(cast(List[str], decision_payload.get("justification", []))),
         )
         # Allow only if gate passes
         if not check(decision_payload, action):
-            insert_outcome(self.decision_db_path, decision_id, "blocked", "Gate blocked action")
-            return {"status": "blocked", "message": "Execution blocked by decision gate (needs approval)."}
+            insert_outcome(
+                self.decision_db_path, decision_id, "blocked", "Gate blocked action"
+            )
+            return {
+                "status": "blocked",
+                "message": "Execution blocked by decision gate (needs approval).",
+            }
 
         # Execution mode enforcement / telemetry
         if effective_mode == "direct":
-            insert_outcome(self.decision_db_path, decision_id, "mode_direct", "Executed in direct mode (live tree)")
+            insert_outcome(
+                self.decision_db_path,
+                decision_id,
+                "mode_direct",
+                "Executed in direct mode (live tree)",
+            )
 
         if not file_path.exists():
             # Attempt to copy from main working tree if available (to handle untracked files)
             main_root = os.environ.get("BGL_MAIN_ROOT")
             if main_root:
-                main_candidate = Path(main_root) / file_path.relative_to(self.project_root)
+                main_candidate = Path(main_root) / file_path.relative_to(
+                    self.project_root
+                )
                 if main_candidate.exists():
                     file_path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copy2(main_candidate, file_path)
@@ -123,10 +139,14 @@ class BGLPatcher:
         # Preflight runtime safety rules (writability, etc.)
         preflight = self.safety.preflight(file_path)
         if not preflight.get("valid", True):
-            return {"status": "error", "message": preflight.get("reason", "Preflight failed")}
+            return {
+                "status": "error",
+                "message": preflight.get("reason", "Preflight failed"),
+            }
 
+        backup_path = ""
         if not dry_run:
-            self.safety.create_backup(file_path)
+            backup_path = str(self.safety.create_backup(file_path))
 
         try:
             # Use environment variable if set by orchestrator, else default to project root / vendor
@@ -152,7 +172,9 @@ class BGLPatcher:
             if output.get("status") == "success" and not dry_run:
                 # Update references (including tests) before running validation
                 if action == "rename_class":
-                    self._update_references(params.get("old_name", ""), params.get("new_name", ""))
+                    self._update_references(
+                        params.get("old_name", ""), params.get("new_name", "")
+                    )
 
                 # Regenerate autoload in sandbox to reflect new classmap (simplest reliable fix; can be optimized لاحقاً)
                 if not self._refresh_autoload():
@@ -168,29 +190,55 @@ class BGLPatcher:
                 impacted_files: set[Path] = set([file_path])
                 if action == "rename_class":
                     path_info = file_path.with_name(
-                        file_path.name.replace(params.get("old_name", ""), params.get("new_name", ""))
+                        file_path.name.replace(
+                            params.get("old_name", ""), params.get("new_name", "")
+                        )
                     )
                     # safer: recompute with new class name
-                    target_path = file_path.with_name(f"{params.get('new_name','')}.php")
+                    target_path = file_path.with_name(
+                        f"{params.get('new_name', '')}.php"
+                    )
                     if not target_path.exists() and path_info.exists():
                         target_path = path_info
-                    impacted_tests = self._derive_impacted_tests(params.get("old_name", ""), params.get("new_name", ""))
-                    impacted_files |= self._derive_impacted_files(params.get("old_name", ""), params.get("new_name", ""))
+                    impacted_tests = self._derive_impacted_tests(
+                        params.get("old_name", ""), params.get("new_name", "")
+                    )
+                    impacted_files |= self._derive_impacted_files(
+                        params.get("old_name", ""), params.get("new_name", "")
+                    )
                     impacted_files.add(target_path)
                 # Selective reindex: only impacted files
                 self._post_patch_index(list(impacted_files))
 
-                validation = self.safety.validate(target_path, impacted_tests=impacted_tests)
+                validation = self.safety.validate(
+                    target_path, impacted_tests=impacted_tests
+                )
                 if not validation["valid"]:
                     self.safety.rollback(file_path)
                     msg = validation.get("reason", "Validation failed")
-                    if 'decision_id' in locals():
-                        insert_outcome(self.decision_db_path, decision_id, "fail", msg)
-                    return {"status": "error", "message": msg, "logs": validation.get("logs", [])}
+                    if "decision_id" in locals():
+                        insert_outcome(
+                            self.decision_db_path,
+                            decision_id,
+                            "fail",
+                            msg,
+                            backup_path=backup_path,
+                        )
+                    return {
+                        "status": "error",
+                        "message": msg,
+                        "logs": validation.get("logs", []),
+                    }
                 self.safety.clear_backup(file_path)
 
-            if 'decision_id' in locals():
-                insert_outcome(self.decision_db_path, decision_id, "success", "Action completed")
+            if "decision_id" in locals():
+                insert_outcome(
+                    self.decision_db_path,
+                    decision_id,
+                    "success",
+                    "Action completed",
+                    backup_path=backup_path,
+                )
             return output
 
         except subprocess.CalledProcessError as e:
@@ -209,7 +257,7 @@ class BGLPatcher:
                 pass
 
             error_msg = (e.stdout + "\n" + e.stderr).strip()
-            if 'decision_id' in locals():
+            if "decision_id" in locals():
                 insert_outcome(self.decision_db_path, decision_id, "fail", error_msg)
             return {
                 "status": "error",
@@ -218,7 +266,7 @@ class BGLPatcher:
         except Exception as e:
             if not dry_run:
                 self.safety.rollback(file_path)
-            if 'decision_id' in locals():
+            if "decision_id" in locals():
                 insert_outcome(self.decision_db_path, decision_id, "fail", str(e))
             return {"status": "error", "message": str(e)}
 
@@ -256,7 +304,12 @@ class BGLPatcher:
 
     def _derive_impacted_tests(self, old_class: str, new_class: str) -> list[str]:
         """Find tests touching callers of the renamed class using call graph (entity+method) and fallback heuristics."""
-        db_path = Path(os.environ.get("BGL_SANDBOX_DB", self.project_root / ".bgl_core" / "brain" / "knowledge.db"))
+        db_path = Path(
+            os.environ.get(
+                "BGL_SANDBOX_DB",
+                self.project_root / ".bgl_core" / "brain" / "knowledge.db",
+            )
+        )
         tests: set[str] = set()
         try:
             conn = sqlite3.connect(str(db_path))
@@ -288,7 +341,12 @@ class BGLPatcher:
 
     def _derive_impacted_files(self, old_class: str, new_class: str) -> set[Path]:
         """Find caller files of the renamed class to reindex selectively."""
-        db_path = Path(os.environ.get("BGL_SANDBOX_DB", self.project_root / ".bgl_core" / "brain" / "knowledge.db"))
+        db_path = Path(
+            os.environ.get(
+                "BGL_SANDBOX_DB",
+                self.project_root / ".bgl_core" / "brain" / "knowledge.db",
+            )
+        )
         files: set[Path] = set()
         try:
             conn = sqlite3.connect(str(db_path))
@@ -324,7 +382,11 @@ class BGLPatcher:
             from .indexer import EntityIndexer  # type: ignore
 
         sandbox_db_env = os.environ.get("BGL_SANDBOX_DB")
-        db_path = Path(sandbox_db_env) if sandbox_db_env else self.project_root / ".bgl_core" / "brain" / "knowledge.db"
+        db_path = (
+            Path(sandbox_db_env)
+            if sandbox_db_env
+            else self.project_root / ".bgl_core" / "brain" / "knowledge.db"
+        )
         indexer = EntityIndexer(self.project_root, db_path)
         rels = [str(p.relative_to(self.project_root)) for p in paths if p.exists()]
         if rels:
@@ -339,7 +401,11 @@ class BGLPatcher:
             from .indexer import EntityIndexer  # type: ignore
 
         sandbox_db_env = os.environ.get("BGL_SANDBOX_DB")
-        db_path = Path(sandbox_db_env) if sandbox_db_env else self.project_root / ".bgl_core" / "brain" / "knowledge.db"
+        db_path = (
+            Path(sandbox_db_env)
+            if sandbox_db_env
+            else self.project_root / ".bgl_core" / "brain" / "knowledge.db"
+        )
         indexer = EntityIndexer(self.project_root, db_path)
         indexer.index_project()
         indexer.close()
@@ -347,9 +413,9 @@ class BGLPatcher:
     def _discover_composer(self, root: Path) -> list[str] | None:
         """Find composer executable/phar. Hard requirement: return path or None (fail)."""
         env_path = os.environ.get("BGL_COMPOSER_PATH")
-        candidates = []
+        candidates: List[Path] = []
         if env_path:
-            candidates.append(env_path)
+            candidates.append(Path(env_path))
         candidates.extend(
             [
                 root / "composer.bat",
@@ -369,7 +435,7 @@ class BGLPatcher:
                 ]
             )
         for cand in candidates:
-            c = Path(cand)
+            c = cand
             if c.exists():
                 if c.suffix == ".phar":
                     return ["php", str(c)]
@@ -406,7 +472,9 @@ class BGLPatcher:
             cmd = [*self.composer_path, "dump-autoload"]
             shell = False
             # On Windows .bat files need shell=True
-            if len(self.composer_path) == 1 and self.composer_path[0].lower().endswith(".bat"):
+            if len(self.composer_path) == 1 and self.composer_path[0].lower().endswith(
+                ".bat"
+            ):
                 shell = True
                 cmd = " ".join(cmd)
             proc = subprocess.run(

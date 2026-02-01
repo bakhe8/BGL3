@@ -1,0 +1,7 @@
+name: "perf_dashboard_load"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 2000

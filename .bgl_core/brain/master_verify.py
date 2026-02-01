@@ -4,20 +4,35 @@ import subprocess
 import os
 from pathlib import Path
 import json
+import sqlite3
+import time
 
 # Fix path to find brain modules in all execution contexts
 current_dir = str(Path(__file__).parent)
 if current_dir not in sys.path:
     sys.path.append(current_dir)
 
-from agency_core import AgencyCore
-from config_loader import load_config
-from report_builder import build_report
-from generate_playbooks import generate_from_proposed
-from contract_tests import run_contract_suite
-from utils import load_route_usage
-from callgraph_builder import build_callgraph
-from generate_openapi import generate as generate_openapi
+from agency_core import AgencyCore  # noqa: E402
+from config_loader import load_config  # noqa: E402
+from report_builder import build_report  # noqa: E402
+from generate_playbooks import generate_from_proposed  # noqa: E402
+from contract_tests import run_contract_suite  # noqa: E402
+from utils import load_route_usage  # noqa: E402
+from callgraph_builder import build_callgraph  # noqa: E402
+from generate_openapi import generate as generate_openapi  # noqa: E402
+
+
+def log_activity(root_path: Path, message: str):
+    """Logs an event to the agent_activity table for dashboard visibility."""
+    db_path = root_path / ".bgl_core" / "brain" / "knowledge.db"
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            conn.execute(
+                "INSERT INTO agent_activity (timestamp, activity, source, details) VALUES (?, ?, ?, ?)",
+                (time.time(), message, "master_verify", "{}"),
+            )
+    except Exception as e:
+        print(f"[WARN] Failed to log activity: {e}")
 
 
 async def master_assurance_diagnostic():
@@ -83,7 +98,9 @@ async def master_assurance_diagnostic():
     # Warn if pending playbooks await review
     pending = list((Path(__file__).parent / "playbooks_proposed").glob("*.md"))
     if pending:
-        print(f"[WARN] Pending playbooks awaiting approval: {[p.name for p in pending]}")
+        print(
+            f"[WARN] Pending playbooks awaiting approval: {[p.name for p in pending]}"
+        )
 
     # 1. Infrastructure Pass
     print(
@@ -137,7 +154,9 @@ async def master_assurance_diagnostic():
             "health_score": diagnostic.get("health_score", 0),
             "route_scan_limit": diagnostic.get("route_scan_limit", 0),
             "route_scan_mode": diagnostic.get("route_scan_mode", "auto"),
-            "execution_mode": diagnostic.get("execution_mode", cfg.get("execution_mode", "sandbox")),
+            "execution_mode": diagnostic.get(
+                "execution_mode", cfg.get("execution_mode", "sandbox")
+            ),
             "execution_stats": diagnostic.get("execution_stats", {}),
             "performance": diagnostic.get("performance", {}),
             "scan_duration_seconds": diagnostic.get("scan_duration_seconds", 0),
@@ -158,7 +177,9 @@ async def master_assurance_diagnostic():
         build_report(data, template, output)
         # Write JSON alongside HTML for dashboard consumption
         json_out = Path(".bgl_core/logs/latest_report.json")
-        json_out.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+        json_out.write_text(
+            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
         print(f"[+] HTML report written to {output}")
     except Exception as e:
         print(f"[!] Failed to write HTML report: {e}")
@@ -167,16 +188,32 @@ async def master_assurance_diagnostic():
     print("💎 ASSURANCE COMPLETE: SYSTEM IS IN GOLDEN STATE")
     print("=" * 70 + "\n")
 
+    # Log completion for dashboard
+    log_activity(ROOT, "master_verify_complete")
+
 
 if __name__ == "__main__":
     try:
         # Allow overriding headless and scenario run via env for visibility/CI
         ROOT = Path(__file__).parent.parent.parent
         cfg = load_config(ROOT)
-        os.environ.setdefault("BGL_HEADLESS", os.environ.get("BGL_HEADLESS", str(cfg.get("headless", 1))))
-        os.environ.setdefault("BGL_RUN_SCENARIOS", os.environ.get("BGL_RUN_SCENARIOS", str(cfg.get("run_scenarios", 1))))
-        os.environ.setdefault("BGL_BASE_URL", os.environ.get("BGL_BASE_URL", cfg.get("base_url", "http://localhost:8000")))
-        os.environ.setdefault("BGL_KEEP_BROWSER", os.environ.get("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0))))
+        os.environ.setdefault(
+            "BGL_HEADLESS", os.environ.get("BGL_HEADLESS", str(cfg.get("headless", 1)))
+        )
+        os.environ.setdefault(
+            "BGL_RUN_SCENARIOS",
+            os.environ.get("BGL_RUN_SCENARIOS", str(cfg.get("run_scenarios", 1))),
+        )
+        os.environ.setdefault(
+            "BGL_BASE_URL",
+            os.environ.get(
+                "BGL_BASE_URL", cfg.get("base_url", "http://localhost:8000")
+            ),
+        )
+        os.environ.setdefault(
+            "BGL_KEEP_BROWSER",
+            os.environ.get("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0))),
+        )
         asyncio.run(master_assurance_diagnostic())
     except Exception as e:
         print(f"\n[CRITICAL FAILURE] Master Diagnostic Crashed: {e}")

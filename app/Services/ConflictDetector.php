@@ -102,7 +102,9 @@ class ConflictDetector
             $stmt = $db->prepare("
                 SELECT COUNT(*) FROM guarantee_decisions d
                 JOIN guarantees g ON d.guarantee_id = g.id
-                WHERE g.raw_supplier = ? AND d.supplier_id != ? AND d.status = 'released'
+                WHERE COALESCE(g.raw_supplier_name, json_extract(g.raw_data, '$.supplier')) = ? 
+                  AND d.supplier_id != ? 
+                  AND d.status = 'released'
             ");
             $stmt->execute([$record['raw_supplier_name'], $topCandidateId]);
             if ($stmt->fetchColumn() > 0) {

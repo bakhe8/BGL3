@@ -8,10 +8,10 @@ from typing import Dict, Any, Optional
 
 
 class BrowserSensor:
-    _playwright = None
-    _browser = None
-    _context = None
-    _page = None
+    _playwright: Any = None
+    _browser: Any = None
+    _context: Any = None
+    _page: Any = None
     _lock = asyncio.Lock()
 
     def __init__(
@@ -35,22 +35,34 @@ class BrowserSensor:
         if not BrowserSensor._playwright:
             BrowserSensor._playwright = await async_playwright().start()
         if not BrowserSensor._browser:
-            BrowserSensor._browser = await BrowserSensor._playwright.chromium.launch(headless=self.headless)
+            BrowserSensor._browser = await BrowserSensor._playwright.chromium.launch(
+                headless=self.headless
+            )
         if not BrowserSensor._context:
-            BrowserSensor._context = await BrowserSensor._browser.new_context(base_url=self.base_url)
+            BrowserSensor._context = await BrowserSensor._browser.new_context(
+                base_url=self.base_url
+            )
         if not BrowserSensor._page or BrowserSensor._page.is_closed():
             BrowserSensor._page = await BrowserSensor._context.new_page()
 
-    async def scan_url(self, path: str = "/") -> Dict[str, Any]:
+    async def scan_url(
+        self, path: str = "/", measure_perf: bool = False
+    ) -> Dict[str, Any]:
         """
         Scans a specific URL for frontend errors (Console and Network).
+        If measure_perf is True, captures timing data and identifies JS hotspots.
         """
         target_url = f"{self.base_url}{path}"
+        if measure_perf:
+            separator = "&" if "?" in target_url else "?"
+            target_url += f"{separator}measure_perf=1"
+
         report: Dict[str, Any] = {
             "url": target_url,
             "status": "SUCCESS",
             "console_errors": [],
             "network_failures": [],
+            "performance": None,
             "screenshot_path": None,
         }
 
@@ -61,46 +73,50 @@ class BrowserSensor:
             self._write_status(busy=True, url=target_url, started=start_ts)
 
             # Reuse singleton page for all scans (avoid multiple tabs/windows)
-        context_kwargs: Dict[str, Any] = {}
-        har_path = None
-        if self.capture_har:
-            har_path = self.reports_dir / f"har_{int(time.time())}.har"
-            context_kwargs = {
-                "record_har_path": str(har_path),
-                "record_har_mode": "minimal",
-            }
-        # If HAR requested, open a temporary context; otherwise reuse shared page
-        if context_kwargs:
-            context = await BrowserSensor._browser.new_context(**context_kwargs)
-            page = await context.new_page()
-        else:
-            context = BrowserSensor._context
-            page = BrowserSensor._page
+            context_kwargs: Dict[str, Any] = {}
+            har_path = None
+            if self.capture_har:
+                har_path = self.reports_dir / f"har_{int(time.time())}.har"
+                context_kwargs = {
+                    "record_har_path": str(har_path),
+                    "record_har_mode": "minimal",
+                }
 
-            # Ensure handlers registered only once
-            if not getattr(page, "_bgl_console_hook", False):
-                page.on(
-                    "console",
-                    lambda msg: report["console_errors"].append(msg.text)  # type: ignore
-                    if msg.type == "error"
-                    else None,
-                )
-                page._bgl_console_hook = True  # type: ignore
+            # If HAR requested, open a temporary context; otherwise reuse shared page
+            if context_kwargs:
+                assert BrowserSensor._browser is not None
+                context = await BrowserSensor._browser.new_context(**context_kwargs)
+                page = await context.new_page()
+            else:
+                context = BrowserSensor._context
+                page = BrowserSensor._page
 
-            if not getattr(page, "_bgl_requestfailed_hook", False):
-                async def handle_request_failed(request):
-                    fail = request.failure
-                    if isinstance(fail, str):
-                        error_msg = fail
-                    elif hasattr(fail, "error"):
-                        error_msg = fail.error
-                    else:
-                        error_msg = "Unknown Error"
-                    report["network_failures"].append(
-                        {"url": request.url, "error": error_msg}
-                    )  # type: ignore
-                page.on("requestfailed", handle_request_failed)
-                page._bgl_requestfailed_hook = True  # type: ignore
+                # Ensure handlers registered only once
+                if not getattr(page, "_bgl_console_hook", False):
+                    page.on(
+                        "console",
+                        lambda msg: report["console_errors"].append(msg.text)  # type: ignore
+                        if msg.type == "error"
+                        else None,
+                    )
+                    page._bgl_console_hook = True  # type: ignore
+
+                if not getattr(page, "_bgl_requestfailed_hook", False):
+
+                    async def handle_request_failed(request):
+                        fail = request.failure
+                        if isinstance(fail, str):
+                            error_msg = fail
+                        elif hasattr(fail, "error"):
+                            error_msg = fail.error
+                        else:
+                            error_msg = "Unknown Error"
+                        report["network_failures"].append(
+                            {"url": request.url, "error": error_msg}
+                        )  # type: ignore
+
+                    page.on("requestfailed", handle_request_failed)
+                    page._bgl_requestfailed_hook = True  # type: ignore
 
             try:
                 # Reset page to a neutral state before navigation
@@ -117,10 +133,39 @@ class BrowserSensor:
                         response.status if response else "NO_RESPONSE"
                     )
 
+                # Capture Performance Data
+                if measure_perf:
+                    perf_data = await page.evaluate("""() => {
+                        const timing = window.performance.timing;
+                        const nav = window.performance.getEntriesByType('navigation')[0];
+                        const resources = window.performance.getEntriesByType('resource');
+                        
+                        // Identify JS hotspots (scripts taking > 50ms to load or having many entries)
+                        const js_hotspots = resources
+                            .filter(r => r.initiatorType === 'script')
+                            .map(r => ({ name: r.name.split('/').pop(), duration: r.duration }))
+                            .filter(r => r.duration > 50)
+                            .sort((a, b) => b.duration - a.duration);
+
+                        return {
+                            dom_load: timing.domContentLoadedEventEnd - timing.navigationStart,
+                            full_load: timing.loadEventEnd - timing.navigationStart,
+                            js_hotspots: js_hotspots,
+                            total_resources: resources.length
+                        };
+                    }""")
+                    report["performance"] = perf_data
+
                 # Take screenshot for evidence only on failure if configured
-                failed = report["status"] != "SUCCESS" or report["console_errors"] or report["network_failures"]
+                failed = (
+                    report["status"] != "SUCCESS"
+                    or report["console_errors"]
+                    or report["network_failures"]
+                )
                 if failed and self.capture_failures:
-                    screenshot_filename = f"scan_{path.replace('/', '_')}_{int(time.time())}.png"
+                    screenshot_filename = (
+                        f"scan_{path.replace('/', '_')}_{int(time.time())}.png"
+                    )
                     screenshot_path = self.reports_dir / screenshot_filename
                     await page.screenshot(path=str(screenshot_path))
                     report["screenshot_path"] = str(screenshot_path)
@@ -133,7 +178,9 @@ class BrowserSensor:
 
             finally:
                 try:
-                    await page.goto("about:blank", wait_until="domcontentloaded", timeout=15000)
+                    await page.goto(
+                        "about:blank", wait_until="domcontentloaded", timeout=15000
+                    )
                 except Exception:
                     pass
                 try:
@@ -146,11 +193,15 @@ class BrowserSensor:
                         await context.close()
                     except Exception:
                         pass
-                self._write_status(busy=False, url=target_url, started=start_ts, ended=time.time())
+                self._write_status(
+                    busy=False, url=target_url, started=start_ts, ended=time.time()
+                )
 
         return report
 
-    def _write_status(self, busy: bool, url: str, started: float, ended: Optional[float] = None):
+    def _write_status(
+        self, busy: bool, url: str, started: float, ended: Optional[float] = None
+    ):
         data = {
             "busy": busy,
             "url": url,

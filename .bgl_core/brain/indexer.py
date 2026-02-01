@@ -2,7 +2,6 @@ import os
 import json
 import subprocess
 from pathlib import Path
-from datetime import datetime
 from memory import StructureMemory
 
 
@@ -11,7 +10,14 @@ class EntityIndexer:
         self.root_dir = root_dir
         self.memory = StructureMemory(db_path)
         self.sensor_path = self.root_dir / ".bgl_core" / "sensors" / "ast_bridge.php"
-        self.skip_dirs = {"vendor", "node_modules", ".git", ".bgl_core", ".mypy_cache", ".vscode"}
+        self.skip_dirs = {
+            "vendor",
+            "node_modules",
+            ".git",
+            ".bgl_core",
+            ".mypy_cache",
+            ".vscode",
+        }
         self.skip_suffixes = {".bak", ".tmp"}
         self._closed = False
 
@@ -54,9 +60,15 @@ class EntityIndexer:
             self._closed = True
 
     def _should_index(self, abs_path: Path, rel_path: str) -> bool:
-        # Simple for now: index everything.
-        # Future: compare mtime with DB.
-        return True
+        """Only index if mtime differs from memory."""
+        try:
+            current_mtime = os.path.getmtime(abs_path)
+            stored = self.memory.get_file_info(rel_path)
+            if not stored:
+                return True
+            return current_mtime > stored.get("last_modified", 0)
+        except Exception:
+            return True
 
     def _index_file(self, abs_path: Path, rel_path: str):
         try:

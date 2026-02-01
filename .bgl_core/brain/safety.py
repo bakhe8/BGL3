@@ -17,7 +17,12 @@ except ImportError:
 
 
 class SafetyNet:
-    def __init__(self, root_dir: Path, base_url: str = "http://localhost:8000", enable_browser: bool | None = None):
+    def __init__(
+        self,
+        root_dir: Path,
+        base_url: str = "http://localhost:8000",
+        enable_browser: bool | None = None,
+    ):
         self.root_dir = root_dir
         self.backups: Dict[str, Path] = {}  # Map file_path to backup_path
         cfg = load_config(root_dir)
@@ -25,10 +30,12 @@ class SafetyNet:
         env_skip = os.environ.get("BGL_SKIP_BROWSER") == "1"
         env_enable = os.environ.get("BGL_ENABLE_BROWSER") == "1"
         cfg_enable = bool(int(str(cfg.get("browser_enabled", 0)))) if cfg else False
-        self.enable_browser = enable_browser if enable_browser is not None else (False if env_skip else (env_enable or cfg_enable))
+        self.enable_browser = (
+            enable_browser
+            if enable_browser is not None
+            else (False if env_skip else (env_enable or cfg_enable))
+        )
         # Keep reports/logs co-located with the agent instead of cwd
-        capture_har = os.environ.get("BGL_CAPTURE_HAR", "0") == "1"
-        capture_failures = os.environ.get("BGL_CAPTURE_FAILURES", "1") != "0"
         self.browser = None
         if self.enable_browser:
             self.browser = BrowserCore(
@@ -36,12 +43,20 @@ class SafetyNet:
                 headless=True,
                 keep_page=True,
                 max_idle_seconds=120,
-                cpu_max_percent=self._safe_float(cfg.get("browser_cpu_max", os.getenv("BGL_BROWSER_CPU_MAX", None))),
-                ram_min_gb=self._safe_float(cfg.get("browser_ram_min_gb", os.getenv("BGL_BROWSER_RAM_MIN_GB", None))),
+                cpu_max_percent=self._safe_float(
+                    cfg.get("browser_cpu_max", os.getenv("BGL_BROWSER_CPU_MAX", None))
+                ),
+                ram_min_gb=self._safe_float(
+                    cfg.get(
+                        "browser_ram_min_gb", os.getenv("BGL_BROWSER_RAM_MIN_GB", None)
+                    )
+                ),
             )
         db_path = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
         self.locator = FaultLocator(db_path, root_dir)
-        self.runtime_rules_path = self.root_dir / ".bgl_core" / "brain" / "runtime_safety.yml"
+        self.runtime_rules_path = (
+            self.root_dir / ".bgl_core" / "brain" / "runtime_safety.yml"
+        )
 
     @staticmethod
     def _safe_float(val):
@@ -53,11 +68,16 @@ class SafetyNet:
         except Exception:
             return None
 
-    def create_backup(self, file_path: Path):
-        """Creates a temporary backup of a file before patching."""
-        backup_path = file_path.with_suffix(file_path.suffix + ".bak")
+    def create_backup(self, file_path: Path) -> Path:
+        """Creates a protected backup of a file before patching."""
+        backup_dir = self.root_dir / ".bgl_core" / "backups"
+        backup_dir.mkdir(parents=True, exist_ok=True)
+        # Use filename + timestamp to prevent collisions
+        ts = int(time.time())
+        backup_path = backup_dir / f"{file_path.name}.{ts}.bak"
         shutil.copy2(file_path, backup_path)
         self.backups[str(file_path)] = backup_path
+        return backup_path
 
     def preflight(self, file_path: Path) -> Dict[str, Any]:
         """Pre-checks runtime safety rules (e.g., writability) before patching."""
@@ -71,7 +91,9 @@ class SafetyNet:
             if file_path.exists() and not os.access(file_path, os.W_OK):
                 try:
                     os.chmod(file_path, 0o666)
-                    subprocess.run(["attrib", "-R", str(file_path)], capture_output=True)
+                    subprocess.run(
+                        ["attrib", "-R", str(file_path)], capture_output=True
+                    )
                 except Exception:
                     pass
             if not os.access(file_path, os.W_OK):
@@ -93,7 +115,9 @@ class SafetyNet:
             return {"valid": True, "warning": "; ".join(issues)}
         return {"valid": True}
 
-    def validate(self, file_path: Path, impacted_tests: List[str] | None = None) -> Dict[str, Any]:
+    def validate(
+        self, file_path: Path, impacted_tests: List[str] | None = None
+    ) -> Dict[str, Any]:
         """Runs the validation chain: php -l -> PHPUnit -> Architectural Audit."""
         import time
 
@@ -289,7 +313,9 @@ class SafetyNet:
         except Exception as e:
             return {"valid": False, "output": str(e)}
 
-    def _check_phpunit(self, file_path: Path, impacted_tests: List[str] | None = None) -> Dict[str, Any]:
+    def _check_phpunit(
+        self, file_path: Path, impacted_tests: List[str] | None = None
+    ) -> Dict[str, Any]:
         """Runs PHPUnit on targeted tests if available; otherwise, falls back to fast suite if configured.
         If impacted_tests provided, run those first (selective re-verify)."""
         tests_dir = self.root_dir / "tests"

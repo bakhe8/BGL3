@@ -20,7 +20,7 @@
     "LEVEL_B_THRESHOLD": 85,
     "LEVEL_C_THRESHOLD": 65,
     "TIMEZONE": "Asia\/Riyadh",
-    "PRODUCTION_MODE": 1,
+    "PRODUCTION_MODE": 0,
     "CANDIDATES_LIMIT": 20,
     "debug": 1,
     "auto_save_probe": "autosave_697e0e34859e00.68035536"

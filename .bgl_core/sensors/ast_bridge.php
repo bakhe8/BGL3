@@ -43,8 +43,14 @@ class SensorVisitor extends NodeVisitorAbstract
 
     public function beforeTraverse(array $nodes)
     {
+        $this->findings[] = [
+            'type' => 'root',
+            'name' => 'global',
+            'calls' => [],
+            'line' => 1
+        ];
         $this->stack = [
-            ['type' => 'root', 'children' => &$this->findings]
+            ['type' => 'root', 'children' => &$this->findings[0]['calls']]
         ];
     }
 
@@ -101,8 +107,8 @@ class SensorVisitor extends NodeVisitorAbstract
             return;
         }
 
-        // Behavior: Calls (Only if inside method)
-        if ($currentContext['type'] === 'method') {
+        // Behavior: Calls (Only if inside method or root script)
+        if ($currentContext['type'] === 'method' || $currentContext['type'] === 'root') {
             if ($node instanceof Node\Expr\MethodCall) {
                 $caller = 'unknown';
                 if ($node->var instanceof Node\Expr\Variable && is_string($node->var->name)) {
@@ -125,6 +131,15 @@ class SensorVisitor extends NodeVisitorAbstract
                     'type' => 'static_call',
                     'class' => $class,
                     'method' => $method,
+                    'line' => $node->getStartLine()
+                ];
+            }
+
+            // Detect Instantiations (e.g., new GuaranteeRepository())
+            if ($node instanceof Node\Expr\New_ && $node->class instanceof Node\Name) {
+                $currentContext['children'][] = [
+                    'type' => 'instantiation',
+                    'class' => $node->class->toString(),
                     'line' => $node->getStartLine()
                 ];
             }

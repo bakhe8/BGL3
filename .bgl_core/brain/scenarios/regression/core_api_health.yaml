@@ -1,0 +1,17 @@
+name: "core_api_health"
+steps:
+  - action: goto
+    url: "/api/get-current-state.php"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 500
+  - action: goto
+    url: "/api/get-record.php?id=1"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 500
+  - action: goto
+    url: "/api/get-timeline.php?guarantee_id=1"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 500

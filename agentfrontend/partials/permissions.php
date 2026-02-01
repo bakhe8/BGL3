@@ -8,5 +8,9 @@
                 <li><?= htmlspecialchars($perm) ?></li>
             <?php endforeach; ?>
         </ul>
+        <form method="POST" style="margin-top: 15px;">
+            <input type="hidden" name="action" value="fix_permissions">
+            <button type="submit" class="btn-intervention" style="width: 100%;">🛠️ إصلاح تلقائي للصلاحيات</button>
+        </form>
     <?php endif; ?>
 </div>

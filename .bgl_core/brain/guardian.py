@@ -3,7 +3,7 @@ import os
 import json
 import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, cast
 
 try:
     from .safety import SafetyNet  # type: ignore
@@ -17,6 +17,7 @@ except ImportError:
     from config_loader import load_config
     from decision_engine import decide
     from decision_db import insert_intent, insert_decision, insert_outcome, init_db
+    from indexer import EntityIndexer
 
 
 class BGLGuardian:
@@ -24,7 +25,9 @@ class BGLGuardian:
         self.root_dir = root_dir
         cfg = load_config(root_dir)
         self.base_url = cfg.get("base_url", base_url)
-        browser_enabled = bool(int(os.getenv("BGL_ENABLE_BROWSER", str(cfg.get("browser_enabled", 0)))))
+        browser_enabled = bool(
+            int(os.getenv("BGL_ENABLE_BROWSER", str(cfg.get("browser_enabled", 0))))
+        )
         self.safety = SafetyNet(root_dir, base_url, enable_browser=browser_enabled)
         self.db_path = root_dir / ".bgl_core" / "brain" / "knowledge.db"
         self.locator = FaultLocator(self.db_path, root_dir)
@@ -32,7 +35,11 @@ class BGLGuardian:
         self.agent_mode = str(cfg.get("agent_mode", "assisted")).lower()
         # decision db
         env_decision_db = os.environ.get("BGL_SANDBOX_DECISION_DB")
-        self.decision_db_path = Path(env_decision_db) if env_decision_db else root_dir / ".bgl_core" / "brain" / "decision.db"
+        self.decision_db_path = (
+            Path(env_decision_db)
+            if env_decision_db
+            else root_dir / ".bgl_core" / "brain" / "decision.db"
+        )
         self.decision_schema = root_dir / ".bgl_core" / "brain" / "decision_schema.sql"
         if self.decision_schema.exists():
             init_db(self.decision_db_path, self.decision_schema)
@@ -44,16 +51,32 @@ class BGLGuardian:
         """
         print("[*] Guardian: Starting Full System Health Audit...")
 
+        # Autonomous re-indexing (closing the gap)
+        indexer = EntityIndexer(self.root_dir, self.db_path)
+        indexer.index_project()
+
         # Optional: run predefined Playwright scenarios to populate runtime events
-        run_scenarios = os.getenv("BGL_RUN_SCENARIOS", str(self.config.get("run_scenarios", 1)))
+        run_scenarios = os.getenv(
+            "BGL_RUN_SCENARIOS", str(self.config.get("run_scenarios", 1))
+        )
         if run_scenarios == "1":
             try:
-                from .scenario_runner import main as run_scenarios  # type: ignore
+                from .scenario_runner import main as scenario_runner_main  # type: ignore
             except ImportError:
-                from scenario_runner import main as run_scenarios
-            base_url = os.getenv("BGL_BASE_URL", self.config.get("base_url", "http://localhost:8000"))
-            headless = bool(int(os.getenv("BGL_HEADLESS", str(self.config.get("headless", 0)))))  # default visible
-            keep_open = bool(int(os.getenv("BGL_KEEP_BROWSER", str(self.config.get("keep_browser", 0)))))
+                from scenario_runner import main as scenario_runner_main
+            base_url = os.getenv(
+                "BGL_BASE_URL", self.config.get("base_url", "http://localhost:8000")
+            )
+            headless = bool(
+                int(os.getenv("BGL_HEADLESS", str(self.config.get("headless", 0))))
+            )  # default visible
+            keep_open = bool(
+                int(
+                    os.getenv(
+                        "BGL_KEEP_BROWSER", str(self.config.get("keep_browser", 0))
+                    )
+                )
+            )
             # Decision/gate for scenario batch
             intent_payload = {
                 "intent": "scenario_batch",
@@ -94,27 +117,58 @@ class BGLGuardian:
 
             if decision_payload.get("decision") == "block":
                 print("    [!] Guardian: scenario batch blocked by decision gate.")
-                insert_outcome(self.decision_db_path, decision_id, "blocked", "scenario_batch blocked by gate")
+                insert_outcome(
+                    self.decision_db_path,
+                    decision_id,
+                    "blocked",
+                    "scenario_batch blocked by gate",
+                )
             elif self.agent_mode == "safe":
-                print("    [!] Guardian: agent_mode=safe => skipping scenarios/browser run.")
-                insert_outcome(self.decision_db_path, decision_id, "skipped", "agent_mode safe")
+                print(
+                    "    [!] Guardian: agent_mode=safe => skipping scenarios/browser run."
+                )
+                insert_outcome(
+                    self.decision_db_path, decision_id, "skipped", "agent_mode safe"
+                )
             elif self.agent_mode == "assisted":
                 if self._has_permission("run_scenarios"):
                     print("    [+] Permission granted for scenarios; running.")
                     try:
-                        await run_scenarios(base_url, headless, keep_open)
-                        insert_outcome(self.decision_db_path, decision_id, "success", f"scenario batch executed (mode={effective_mode})")
+                        await scenario_runner_main(base_url, headless, keep_open)
+                        insert_outcome(
+                            self.decision_db_path,
+                            decision_id,
+                            "success",
+                            f"scenario batch executed (mode={effective_mode})",
+                        )
                     except Exception as e:
                         print(f"    [!] Guardian: scenario run failed: {e}")
-                        insert_outcome(self.decision_db_path, decision_id, "fail", str(e))
+                        insert_outcome(
+                            self.decision_db_path, decision_id, "fail", str(e)
+                        )
                 else:
-                    self._request_permission("run_scenarios", f"python scenario_runner.py --base-url {base_url} --headless {int(headless)}")
-                    print("    [!] Guardian: scenarios pending human approval (agent_mode=assisted).")
-                    insert_outcome(self.decision_db_path, decision_id, "blocked", "awaiting human permission")
+                    self._request_permission(
+                        "run_scenarios",
+                        f"python scenario_runner.py --base-url {base_url} --headless {int(headless)}",
+                    )
+                    print(
+                        "    [!] Guardian: scenarios pending human approval (agent_mode=assisted)."
+                    )
+                    insert_outcome(
+                        self.decision_db_path,
+                        decision_id,
+                        "blocked",
+                        "awaiting human permission",
+                    )
             else:  # auto
                 try:
-                    await run_scenarios(base_url, headless, keep_open)
-                    insert_outcome(self.decision_db_path, decision_id, "success", f"scenario batch executed (mode={effective_mode})")
+                    await scenario_runner_main(base_url, headless, keep_open)
+                    insert_outcome(
+                        self.decision_db_path,
+                        decision_id,
+                        "success",
+                        f"scenario batch executed (mode={effective_mode})",
+                    )
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
                     insert_outcome(self.decision_db_path, decision_id, "fail", str(e))
@@ -133,7 +187,8 @@ class BGLGuardian:
             print("    [!] Guardian: full reindex blocked by decision gate.")
         else:
             try:
-                indexer.run()
+                # indexer.run()
+                getattr(indexer, "run", indexer.index_project)()
                 # record outcome success for reindex
                 intent_payload = {
                     "intent": "reindex_full",
@@ -161,7 +216,12 @@ class BGLGuardian:
                     bool(decision_payload.get("requires_human", False)),
                     "; ".join(decision_payload.get("justification", [])),
                 )
-                insert_outcome(self.decision_db_path, decision_id, "success", "reindex_full completed")
+                insert_outcome(
+                    self.decision_db_path,
+                    decision_id,
+                    "success",
+                    "reindex_full completed",
+                )
             except Exception as e:
                 print(f"[!] Guardian: reindex failed: {e}")
 
@@ -192,7 +252,9 @@ class BGLGuardian:
 
         # Prioritize routes that recently appeared in experiential memory
         recent_exp = self._load_recent_experiences(hours=48, limit=50)
-        hot_routes = {exp["scenario"] for exp in recent_exp if exp.get("confidence", 0) >= 0.6}
+        hot_routes = {
+            exp["scenario"] for exp in recent_exp if exp.get("confidence", 0) >= 0.6
+        }
         routes = sorted(
             routes,
             key=lambda r: (
@@ -229,7 +291,10 @@ class BGLGuardian:
             ):
                 scan_res = {"valid": True, "report": {}}
             else:
-                scan_res = await self.safety.browser.scan_url(uri)
+                measure_perf = bool(int(self.config.get("measure_perf", 0)))
+                scan_res = await self.safety.browser.scan_url(
+                    uri, measure_perf=measure_perf
+                )
 
             status_score = 100
             status_val = scan_res.get("status", "SUCCESS")
@@ -239,10 +304,15 @@ class BGLGuardian:
                 or scan_res.get("network_failures")
             ):
                 status_score = 0
+                res: Dict[str, Any] = cast(Dict[str, Any], scan_res)
+                c_errs: List[Any] = res.get("console_errors", [])  # type: ignore
+                n_errs: List[Any] = [
+                    f.get("error", "Unknown network failure")
+                    for f in res.get("network_failures", [])  # type: ignore
+                ]
                 failure_info = {
                     "uri": uri,
-                    "errors": scan_res.get("console_errors", [])
-                    + [f["error"] for f in scan_res.get("network_failures", [])],
+                    "errors": c_errs + n_errs,
                     "suspect_code": self.locator.locate_url(uri),
                 }
                 report["failing_routes"].append(failure_info)
@@ -257,9 +327,16 @@ class BGLGuardian:
 
         # 4. Check Business Logic Conflicts (Collaborative Integration)
         # Simulation: In a real run, this would pull sampled data from DB
-        sample_candidates = {"supplier": {"candidates": [{"score": 190}, {"score": 185}], "normalized": "Ex"}}
+        sample_candidates = {
+            "supplier": {
+                "candidates": [{"score": 190}, {"score": 185}],
+                "normalized": "Ex",
+            }
+        }
         sample_record = {"raw_supplier_name": "Example"}
-        report["business_conflicts"] = self._check_business_conflicts(sample_candidates, sample_record)
+        report["business_conflicts"] = self._check_business_conflicts(
+            sample_candidates, sample_record
+        )
 
         # 4b. Permission watchdog (write access to critical files)
         report["permission_issues"] = self._check_permissions()
@@ -271,7 +348,11 @@ class BGLGuardian:
 
         # 6. Timing safety check
         scan_duration = time.time() - scan_start
-        max_seconds = float(self.config.get("route_scan_max_seconds", os.getenv("BGL_ROUTE_SCAN_MAX_SECONDS", 60)))
+        max_seconds = float(
+            self.config.get(
+                "route_scan_max_seconds", os.getenv("BGL_ROUTE_SCAN_MAX_SECONDS", 60)
+            )
+        )
         if scan_duration > max_seconds:
             report.setdefault("warnings", []).append(
                 f"Route scan exceeded safe time ({scan_duration:.1f}s > {max_seconds}s). Consider lowering limit or resources."
@@ -341,20 +422,22 @@ class BGLGuardian:
         # Simulation of pruning logic
         print(f"    - Pruning logs older than {days} days... OK")
 
-    def _check_business_conflicts(self, candidates: Dict[str, Any], record: Dict[str, Any]) -> List[str]:
+    def _check_business_conflicts(
+        self, candidates: Dict[str, Any], record: Dict[str, Any]
+    ) -> List[str]:
         """Calls the PHP logic bridge to detect business-level conflicts."""
         import subprocess
-        
+
         bridge_path = self.root_dir / ".bgl_core" / "brain" / "logic_bridge.php"
         payload = json.dumps({"candidates": candidates, "record": record})
-        
+
         try:
             result = subprocess.run(
                 ["php", str(bridge_path)],
                 input=payload,
                 text=True,
                 capture_output=True,
-                check=True
+                check=True,
             )
             report = json.loads(result.stdout)
             if report.get("status") == "SUCCESS":
@@ -380,7 +463,10 @@ class BGLGuardian:
             return False
         conn = sqlite3.connect(str(self.db_path))
         cur = conn.cursor()
-        row = cur.execute("SELECT status FROM agent_permissions WHERE operation=? ORDER BY id DESC LIMIT 1", (operation,)).fetchone()
+        row = cur.execute(
+            "SELECT status FROM agent_permissions WHERE operation=? ORDER BY id DESC LIMIT 1",
+            (operation,),
+        ).fetchone()
         conn.close()
         return row and row[0] == "GRANTED"
 
@@ -428,8 +514,16 @@ class BGLGuardian:
             bool(decision_payload.get("requires_human", False)),
             "; ".join(decision_payload.get("justification", [])),
         )
-        if decision_payload.get("decision") in ["block", "defer"] or decision_payload.get("requires_human"):
-            insert_outcome(self.decision_db_path, decision_id, "blocked", "reindex blocked by gate/human requirement")
+        if decision_payload.get("decision") in [
+            "block",
+            "defer",
+        ] or decision_payload.get("requires_human"):
+            insert_outcome(
+                self.decision_db_path,
+                decision_id,
+                "blocked",
+                "reindex blocked by gate/human requirement",
+            )
             return False
         return True
 
@@ -452,6 +546,7 @@ class BGLGuardian:
             return all(r == "success" for r in rows)
         except Exception:
             return False
+
     def _detect_log_anomalies(self) -> List[Dict[str, Any]]:
         """Identifies recurring patterns in the Laravel log."""
         log_entries = self.safety._read_backend_logs(time.time() - 3600)  # Last hour
@@ -500,19 +595,27 @@ class BGLGuardian:
         # Rule 4: Recent experiential errors
         for exp in report.get("recent_experiences", []):
             if exp.get("confidence", 0) >= 0.7:
-                suggestions.append(f"Prioritized route {exp['scenario']} shows issues: {exp['summary']}")
+                suggestions.append(
+                    f"Prioritized route {exp['scenario']} shows issues: {exp['summary']}"
+                )
             elif exp.get("confidence", 0) >= 0.5:
-                suggestions.append(f"Monitor route {exp['scenario']} (recent activity): {exp['summary']}")
+                suggestions.append(
+                    f"Monitor route {exp['scenario']} (recent activity): {exp['summary']}"
+                )
 
         # Rule 5: Worst routes
         for wr in report.get("worst_routes", [])[:3]:
-            suggestions.append(f"Hot route {wr.get('uri')} needs attention (score {wr.get('score')})")
+            suggestions.append(
+                f"Hot route {wr.get('uri')} needs attention (score {wr.get('score')})"
+            )
 
         return suggestions
 
-    def _worst_routes(self, report: Dict[str, Any], top_n: int = 5) -> List[Dict[str, Any]]:
+    def _worst_routes(
+        self, report: Dict[str, Any], top_n: int = 5
+    ) -> List[Dict[str, Any]]:
         """Infer worst routes from experiences + failing routes + http errors count."""
-        scored = {}
+        scored: Dict[str, int] = {}
         # Failing routes first
         for fr in report.get("failing_routes", []):
             uri = fr.get("uri")
@@ -564,7 +667,9 @@ class BGLGuardian:
                 issues.append(f"{rel} write check failed: {e}")
         return issues
 
-    def _load_recent_experiences(self, hours: int = 24, limit: int = 10) -> List[Dict[str, Any]]:
+    def _load_recent_experiences(
+        self, hours: int = 24, limit: int = 10
+    ) -> List[Dict[str, Any]]:
         """Fetch recent experiential summaries to inform audit suggestions."""
         cutoff = time.time() - hours * 3600
         try:
@@ -587,7 +692,6 @@ class BGLGuardian:
             print(f"    [!] Guardian: unable to load experiences: {e}")
             return []
 
-
     # === Adaptive route scan helpers ===
     def _load_route_stats(self, stats_path: Path) -> List[Dict[str, Any]]:
         try:
@@ -597,7 +701,9 @@ class BGLGuardian:
             pass
         return []
 
-    def _persist_route_stats(self, stats_path: Path, routes_scanned: int, duration: float):
+    def _persist_route_stats(
+        self, stats_path: Path, routes_scanned: int, duration: float
+    ):
         stats = self._load_route_stats(stats_path)
         stats.append(
             {
@@ -623,7 +729,14 @@ class BGLGuardian:
         p80_idx = int(0.8 * (len(durations) - 1))
         return max(15.0, durations[p80_idx])
 
-    def _compute_adaptive_limit(self, total_routes: int, mode: str, limit_env: str | None, limit_cfg: Any, past_stats: List[Dict[str, Any]]) -> int:
+    def _compute_adaptive_limit(
+        self,
+        total_routes: int,
+        mode: str,
+        limit_env: str | None,
+        limit_cfg: Any,
+        past_stats: List[Dict[str, Any]],
+    ) -> int:
         # explicit overrides
         if limit_env is not None:
             try:
@@ -640,9 +753,13 @@ class BGLGuardian:
             return -1
 
         # compute throughput from history
-        durations = [s["duration"] for s in past_stats if s.get("duration") and s.get("routes")]
+        durations = [
+            s["duration"] for s in past_stats if s.get("duration") and s.get("routes")
+        ]
         if durations:
-            med_routes = sorted(past_stats, key=lambda s: s["duration"]/max(0.1,s["routes"]))[len(past_stats)//2]
+            med_routes = sorted(
+                past_stats, key=lambda s: s["duration"] / max(0.1, s["routes"])
+            )[len(past_stats) // 2]
             routes_per_sec = med_routes["routes"] / max(0.1, med_routes["duration"])
         else:
             routes_per_sec = 2.0  # heuristic default
@@ -650,13 +767,14 @@ class BGLGuardian:
         target_duration = self._target_duration(past_stats)
 
         # system load
-        cpu_idle = 50
-        avail_gb = 1
+        cpu_idle: float = 50.0
+        avail_gb: float = 1.0
         try:
             import psutil  # type: ignore
+
             cpu_idle = max(0, 100 - psutil.cpu_percent(interval=0.2))
             mem = psutil.virtual_memory()
-            avail_gb = mem.available / (1024 ** 3)
+            avail_gb = mem.available / (1024**3)
         except Exception:
             pass
 
@@ -667,14 +785,43 @@ class BGLGuardian:
         desired = min(total_routes, max(10, desired))
         return desired
 
+    async def run_daemon(self, interval: int = 300):
+        print(f"[*] Guardian: Entering Daemon Mode (interval={interval}s)")
+        while True:
+            try:
+                await self.perform_full_audit()
+                print(
+                    f"[*] Guardian: Audit cycle complete. Sleeping for {interval}s..."
+                )
+            except Exception as e:
+                print(f"[!] Guardian: Error in daemon loop: {e}")
+            await asyncio.sleep(interval)
+
 
 if __name__ == "__main__":
     import asyncio
+    import argparse
 
-    async def test():
+    def main():
+        parser = argparse.ArgumentParser()
+        parser.add_argument(
+            "--daemon", action="store_true", help="Run in background daemon mode"
+        )
+        parser.add_argument(
+            "--interval",
+            type=int,
+            default=300,
+            help="Wait time in seconds between audits",
+        )
+        args = parser.parse_args()
+
         ROOT = Path(__file__).parent.parent.parent
         guardian = BGLGuardian(ROOT)
-        report = await guardian.perform_full_audit()
-        print(json.dumps(report, indent=2))
 
-    asyncio.run(test())
+        if args.daemon:
+            asyncio.run(guardian.run_daemon(args.interval))
+        else:
+            report = asyncio.run(guardian.perform_full_audit())
+            print(json.dumps(report, indent=2))
+
+    main()

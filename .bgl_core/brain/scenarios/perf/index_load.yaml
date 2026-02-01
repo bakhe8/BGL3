@@ -1,0 +1,8 @@
+name: "perf_index_load"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+    post_wait_ms: 1500
+  - action: wait
+    ms: 2000

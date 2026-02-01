@@ -1,0 +1,17 @@
+<?php
+/**
+ * Patch Template: Validation Rules (Laravel-style Request)
+ */
+
+namespace BGL\Templates;
+
+class ValidationTemplate {
+    public function rules(): array
+    {
+        return [
+            'iban' => ['required', 'string'],
+            // {FIELDS}
+        ];
+    }
+}
+?>

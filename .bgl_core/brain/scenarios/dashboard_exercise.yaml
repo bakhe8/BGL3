@@ -4,14 +4,4 @@ steps:
     url: "/agent-dashboard.php"
     wait_until: "networkidle"
   - action: wait
-    ms: 800
-  - action: click
-    selector: "button:has-text('تحديث ذاكرة الخبرة')"
-    timeout: 5000
-  - action: wait
-    ms: 800
-  - action: click
-    selector: "button:has-text('تشغيل Master Verify')"
-    timeout: 5000
-  - action: wait
-    ms: 1500
+    ms: 2000

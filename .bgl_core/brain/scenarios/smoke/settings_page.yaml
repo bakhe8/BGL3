@@ -1,0 +1,12 @@
+name: "settings_page"
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+  - action: wait
+    ms: 1200
+  - action: click
+    selector: "a[href*='settings.php']"
+    timeout: 8000
+  - action: wait
+    ms: 1200

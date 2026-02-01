@@ -36,6 +36,7 @@ CREATE TABLE IF NOT EXISTS outcomes (
   decision_id INTEGER NOT NULL REFERENCES decisions(id),
   result TEXT,          -- e.g., success | partial | fail | skipped | prevented_regression | false_positive | confirmed_issue
   notes TEXT,
+  backup_path TEXT,     -- Path to .bak file for rollback
   timestamp TEXT NOT NULL
 );
 

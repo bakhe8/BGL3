@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -13,7 +14,9 @@ class StructureMemory:
         conn.row_factory = sqlite3.Row
         # If running in sandbox (temp DB), use WAL for better concurrency
         try:
-            if "AppData\\Local\\Temp" in str(self.db_path) or os.environ.get("BGL_SANDBOX_DB"):
+            if "AppData\\Local\\Temp" in str(self.db_path) or os.environ.get(
+                "BGL_SANDBOX_DB"
+            ):
                 conn.execute("PRAGMA journal_mode=WAL;")
                 conn.execute("PRAGMA synchronous=OFF;")
         except Exception:
@@ -139,6 +142,14 @@ class StructureMemory:
         conn.close()
         return row["id"]
 
+    def get_file_info(self, path: str) -> Dict[str, Any]:
+        conn = self._connect()
+        row = conn.execute(
+            "SELECT id, path, last_modified FROM files WHERE path = ?", (path,)
+        ).fetchone()
+        conn.close()
+        return dict(row) if row else {}
+
     def clear_file_data(self, file_id: int):
         conn = self._connect()
         cursor = conn.cursor()
@@ -152,90 +163,97 @@ class StructureMemory:
         cursor = conn.cursor()
 
         for item in symbols:
-            if item["type"] == "class":
+            if item["type"] in ["class", "root"]:
+                entity_name = item.get("name", "global")
                 cursor.execute(
                     """
                     INSERT INTO entities (file_id, name, type, extends, line)
-                    VALUES (?, ?, 'class', ?, ?)
+                    VALUES (?, ?, ?, ?, ?)
                 """,
-                    (file_id, item["name"], item["extends"], item["line"]),
+                    (
+                        file_id,
+                        entity_name,
+                        item["type"],
+                        item.get("extends"),
+                        item["line"],
+                    ),
                 )
 
                 entity_id = cursor.lastrowid
 
-                # Store methods
-                for method in item.get("methods", []):
-                    cursor.execute(
-                        """
-                        INSERT INTO methods (entity_id, name, visibility, line)
-                        VALUES (?, ?, ?, ?)
-                    """,
-                        (
-                            entity_id,
-                            method["name"],
-                            method["visibility"],
-                            method["line"],
-                        ),
-                    )
-
-                    method_id = cursor.lastrowid
-
-                    # 1. Store Constructor Params as HIGH confidence dependencies
-                    if method["name"] == "__construct":
-                        for param in method.get("params", []):
-                            cursor.execute(
-                                """
-                                INSERT INTO calls (source_method_id, target_entity, type, confidence, evidence, line)
-                                VALUES (?, ?, 'dependency_injection', 'HIGH', ?, ?)
-                            """,
-                                (
-                                    method_id,
-                                    param["type"],
-                                    param["evidence"],
-                                    method["line"],
-                                ),
-                            )
-
-                    # 2. Store calls inside methods
-                    for call in method.get("calls", []):
-                        # Calculate confidence based on evidence
-                        confidence = "MED"
-                        evidence = call.get("evidence", "inferred")
-
-                        if evidence == "app_helper_call":
-                            confidence = "MED"
-                        elif call.get("caller") == "$this":
-                            confidence = "HIGH"
-                            evidence = "internal_reference"
-
-                        target_entity = (
-                            call.get("class")
-                            if call["type"] == "static_call"
-                            else (
-                                call.get("target")
-                                if call["type"] == "app_helper"
-                                else None
-                            )
-                        )
-
+                # Store methods and calls
+                if item["type"] == "class":
+                    for method in item.get("methods", []):
                         cursor.execute(
                             """
-                            INSERT INTO calls (source_method_id, target_entity, target_method, type, confidence, evidence, line)
-                            VALUES (?, ?, ?, ?, ?, ?, ?)
+                            INSERT INTO methods (entity_id, name, visibility, line)
+                            VALUES (?, ?, ?, ?)
                         """,
                             (
-                                method_id,
-                                target_entity,
-                                call.get("method"),
-                                call["type"],
-                                confidence,
-                                evidence,
-                                call["line"],
+                                entity_id,
+                                method["name"],
+                                method["visibility"],
+                                method["line"],
                             ),
                         )
 
+                        if cursor.lastrowid is not None:
+                            method_id = int(cursor.lastrowid)
+                            self._store_calls(
+                                cursor, method_id, method.get("calls", [])
+                            )
+
+                elif item["type"] == "root":
+                    # For root level scripts, we create a pseudo method "main"
+                    cursor.execute(
+                        """
+                        INSERT INTO methods (entity_id, name, visibility, line)
+                        VALUES (?, 'main', 'public', 1)
+                    """,
+                        (entity_id,),
+                    )
+                    if cursor.lastrowid is not None:
+                        method_id = int(cursor.lastrowid)
+                        self._store_calls(cursor, method_id, item.get("calls", []))
+
         conn.commit()
         conn.close()
+
+    def _store_calls(
+        self, cursor: sqlite3.Cursor, method_id: int, calls: List[Dict[str, Any]]
+    ):
+        for call in calls:
+            # Calculate confidence based on evidence
+            confidence = "MED"
+            evidence = call.get("evidence", "inferred")
+
+            if evidence == "app_helper_call":
+                confidence = "MED"
+            elif call.get("caller") == "$this":
+                confidence = "HIGH"
+                evidence = "internal_reference"
+
+            target_entity = (
+                call.get("class")
+                if call["type"] in ["static_call", "instantiation"]
+                else (call.get("target") if call["type"] == "app_helper" else None)
+            )
+
+            cursor.execute(
+                """
+                INSERT INTO calls (source_method_id, target_entity, target_method, type, confidence, evidence, line)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+                (
+                    method_id,
+                    target_entity,
+                    call.get("method"),
+                    call["type"],
+                    confidence,
+                    evidence,
+                    call["line"],
+                ),
+            )
 
     def close(self):
         # Kept for compatibility; connections are short-lived now
