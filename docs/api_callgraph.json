@@ -90,7 +90,7 @@
         "method": "normalize"
       },
       {
-        "name": "App\\Support\\Settings",
+        "name": "Settings",
         "layer": "other",
         "type": "static_call",
         "method": "getInstance"
@@ -263,6 +263,12 @@
     "action": "handle",
     "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-bank.php",
     "dependencies": [
+      {
+        "name": "CreateBankRequest",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
       {
         "name": "Validation",
         "layer": "other",
@@ -470,6 +476,12 @@
         "layer": "other",
         "type": "static_call",
         "method": "connect"
+      },
+      {
+        "name": "CreateSupplierRequest",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
       },
       {
         "name": "Validation",
@@ -1854,6 +1866,2262 @@
         "layer": "other",
         "type": "instantiation",
         "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/agent-event.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\agent-event.php",
+    "dependencies": [
+      {
+        "name": "SQLite3",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/batches.php",
+    "controller": "BatchService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\batches.php",
+    "dependencies": [
+      {
+        "name": "BatchService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/convert-to-real.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php",
+    "dependencies": [
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/create-bank.php",
+    "controller": "BankManagementService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-bank.php",
+    "dependencies": [
+      {
+        "name": "CreateBankRequest",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Validation",
+        "layer": "other",
+        "type": "static_call",
+        "method": "validateBank"
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "BankManagementService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      },
+      {
+        "name": "AuditLog",
+        "layer": "other",
+        "type": "static_call",
+        "method": "record"
+      }
+    ]
+  },
+  {
+    "uri": "/api/create-guarantee.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-guarantee.php",
+    "dependencies": [
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Guarantee",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BatchMetadataRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordImportEvent"
+      },
+      {
+        "name": "App\\Services\\SmartProcessingService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/create-supplier.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-supplier.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "CreateSupplierRequest",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Validation",
+        "layer": "other",
+        "type": "static_call",
+        "method": "validateBank"
+      },
+      {
+        "name": "App\\Services\\SupplierManagementService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      },
+      {
+        "name": "AuditLog",
+        "layer": "other",
+        "type": "static_call",
+        "method": "record"
+      }
+    ]
+  },
+  {
+    "uri": "/api/delete_bank.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_bank.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/delete_supplier.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_supplier.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/export_banks.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_banks.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/export_suppliers.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_suppliers.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/extend.php",
+    "controller": "GuaranteeDecisionRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\extend.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordExtensionEvent"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-current-state.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierLearningRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\Learning\\AuthorityFactory",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-history-snapshot.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-history-snapshot.php",
+    "dependencies": [
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "stdClass",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-letter-preview.php",
+    "controller": "LetterBuilder",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-letter-preview.php",
+    "dependencies": [
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-record.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-record.php",
+    "dependencies": [
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\StatusEvaluator",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getReasons"
+      },
+      {
+        "name": "App\\Services\\Learning\\AuthorityFactory",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "detectChanges"
+      },
+      {
+        "name": "Logger",
+        "layer": "other",
+        "type": "static_call",
+        "method": "info"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordDecisionEvent"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordStatusTransitionEvent"
+      },
+      {
+        "name": "App\\Support\\BankNormalizer",
+        "layer": "other",
+        "type": "static_call",
+        "method": "normalize"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "detectChanges"
+      },
+      {
+        "name": "Logger",
+        "layer": "other",
+        "type": "static_call",
+        "method": "info"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordStatusTransitionEvent"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-timeline.php",
+    "controller": "TimelineRecorder",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-timeline.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "TimelineRecorder",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getTimeline"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get_banks.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_banks.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get_suppliers.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_suppliers.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/history.php",
+    "controller": "GuaranteeHistoryRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\history.php",
+    "dependencies": [
+      {
+        "name": "GuaranteeHistoryRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/import.php",
+    "controller": "ImportService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import.php",
+    "dependencies": [
+      {
+        "name": "Alert",
+        "layer": "other",
+        "type": "static_call",
+        "method": "logFailure"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "ImportService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Support\\Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "App\\Repositories\\GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordImportEvent"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordImportEvent"
+      },
+      {
+        "name": "App\\Services\\SmartProcessingService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Alert",
+        "layer": "other",
+        "type": "static_call",
+        "method": "logFailure"
+      }
+    ]
+  },
+  {
+    "uri": "/api/import_banks.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_banks.php",
+    "dependencies": [
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "BankNormalizer",
+        "layer": "other",
+        "type": "static_call",
+        "method": "normalize"
+      }
+    ]
+  },
+  {
+    "uri": "/api/import_suppliers.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_suppliers.php",
+    "dependencies": [
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Normalizer",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-action.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/learning-data.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-data.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "controller": "ImportService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\manual-entry.php",
+    "dependencies": [
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "ImportService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\SmartProcessingService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "controller": "ParseCoordinatorService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste-v2.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "ParseCoordinatorService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "parseText"
+      },
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Repositories\\GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\SmartPaste\\ConfidenceCalculator",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getConfidenceLevel"
+      }
+    ]
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "controller": "ParseCoordinatorService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "ParseCoordinatorService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "parseText"
+      }
+    ]
+  },
+  {
+    "uri": "/api/reduce.php",
+    "controller": "GuaranteeDecisionRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\reduce.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordReductionEvent"
+      }
+    ]
+  },
+  {
+    "uri": "/api/release.php",
+    "controller": "LetterBuilder",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\release.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordReleaseEvent"
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "LetterBuilder",
+        "layer": "other",
+        "type": "static_call",
+        "method": "prepare"
+      },
+      {
+        "name": "LetterBuilder",
+        "layer": "other",
+        "type": "static_call",
+        "method": "render"
+      }
+    ]
+  },
+  {
+    "uri": "/api/save-and-next.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-and-next.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "App\\Services\\SupplierManagementService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "createSnapshot"
+      },
+      {
+        "name": "App\\Services\\StatusEvaluator",
+        "layer": "service",
+        "type": "static_call",
+        "method": "evaluate"
+      },
+      {
+        "name": "Logger",
+        "layer": "other",
+        "type": "static_call",
+        "method": "info"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordDecisionEvent"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "recordStatusTransitionEvent"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Repositories\\LearningRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\Learning\\AuthorityFactory",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "App\\Services\\NavigationService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getNavigationInfo"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\NavigationService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getNavigationInfo"
+      }
+    ]
+  },
+  {
+    "uri": "/api/save-note.php",
+    "controller": "NoteRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-note.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "NoteRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/settings.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\settings.php",
+    "dependencies": [
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/smart-paste-confidence.php",
+    "controller": "SmartPaste\\ConfidenceCalculator",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\smart-paste-confidence.php",
+    "dependencies": [
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getConfidenceLevel"
+      }
+    ]
+  },
+  {
+    "uri": "/api/suggestions-learning.php",
+    "controller": "Learning\\AuthorityFactory",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\suggestions-learning.php",
+    "dependencies": [
+      {
+        "name": "AuthorityFactory",
+        "layer": "other",
+        "type": "static_call",
+        "method": "create"
+      }
+    ]
+  },
+  {
+    "uri": "/api/update_bank.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_bank.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/update_supplier.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_supplier.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Normalizer",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "bool"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/upload-attachment.php",
+    "controller": "AttachmentRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\upload-attachment.php",
+    "dependencies": [
+      {
+        "name": "AttachmentRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/agent-event.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\agent-event.php",
+    "dependencies": [
+      {
+        "name": "SQLite3",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/batches.php",
+    "controller": "BatchService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\batches.php",
+    "dependencies": [
+      {
+        "name": "BatchService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "array"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/convert-to-real.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php",
+    "dependencies": [
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/export_banks.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_banks.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/export_suppliers.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_suppliers.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-current-state.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierLearningRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\Learning\\AuthorityFactory",
+        "layer": "service",
+        "type": "static_call",
+        "method": "create"
+      }
+    ]
+  },
+  {
+    "uri": "/api/history.php",
+    "controller": "GuaranteeHistoryRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\history.php",
+    "dependencies": [
+      {
+        "name": "GuaranteeHistoryRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-action.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "int"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Exception",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/learning-data.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-data.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      }
+    ]
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "controller": "ImportService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\manual-entry.php",
+    "dependencies": [
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "ImportService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\SmartProcessingService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "controller": "ParseCoordinatorService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste-v2.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "ParseCoordinatorService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "parseText"
+      },
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Repositories\\GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Services\\SmartPaste\\ConfidenceCalculator",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getConfidenceLevel"
+      }
+    ]
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "controller": "ParseCoordinatorService",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste.php",
+    "dependencies": [
+      {
+        "name": "Input",
+        "layer": "other",
+        "type": "static_call",
+        "method": "string"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "RuntimeException",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "ParseCoordinatorService",
+        "layer": "service",
+        "type": "static_call",
+        "method": "parseText"
+      }
+    ]
+  },
+  {
+    "uri": "/api/settings.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\settings.php",
+    "dependencies": [
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/api/smart-paste-confidence.php",
+    "controller": "SmartPaste\\ConfidenceCalculator",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\smart-paste-confidence.php",
+    "dependencies": [
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "ConfidenceCalculator",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getConfidenceLevel"
       }
     ]
   }

@@ -52,8 +52,8 @@ class AgencyCore:
         self.root_dir = root_dir
         self.base_url = base_url
         self.db_path = root_dir / ".bgl_core" / "brain" / "knowledge.db"
-        env_decision_db = os.environ.get("BGL_SANDBOX_DECISION_DB")
-        self.decision_db_path = Path(env_decision_db) if env_decision_db else root_dir / ".bgl_core" / "brain" / "decision.db"
+        # توحيد التخزين: القرارات داخل knowledge.db مباشرة
+        self.decision_db_path = root_dir / ".bgl_core" / "brain" / "knowledge.db"
         self.decision_schema = root_dir / ".bgl_core" / "brain" / "decision_schema.sql"
         self.config = load_config(root_dir)
 
@@ -163,6 +163,7 @@ class AgencyCore:
             "findings": findings,
             "execution_mode": self.execution_mode,
             "execution_stats": self._execution_stats(),
+            "tool_evidence": health_report.get("tool_evidence", {}),
         }
 
         # Decision layer (observe-only pipeline)

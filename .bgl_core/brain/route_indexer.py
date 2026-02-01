@@ -13,7 +13,7 @@ class LaravelRouteIndexer:
         # Ensure schema is initialized
         self.memory = StructureMemory(db_path)
 
-    def run(self):
+    def run(self, return_routes: bool = False):
         print(f"[*] Indexing routes for {self.root_dir}")
         import sqlite3
         conn = sqlite3.connect(str(self.db_path))
@@ -41,10 +41,15 @@ class LaravelRouteIndexer:
                 uri = f"/api/{php_file.name}"
 
                 # Basic assumption: API files handle POST/GET
+                try:
+                    content = php_file.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    content = ""
+                http_method = self._infer_method(php_file.name, content)
                 routes.append(
                     {
                         "uri": uri,
-                        "http_method": "ANY",
+                        "http_method": http_method,
                         "action": str(rel_path.as_posix()),
                         "file_path": str(php_file),
                     }
@@ -79,6 +84,12 @@ class LaravelRouteIndexer:
         conn.commit()
         conn.close()
         print(f"[+] Indexed {len(routes)} routes.")
+        if return_routes:
+            return routes
+
+    # Alias for callers expecting index_project
+    def index_project(self, return_routes: bool = False):
+        return self.run(return_routes=return_routes)
 
     def _analyze_file(self, file_path: Path) -> tuple[Optional[str], Optional[str]]:
         """Attempts to find the primary Service/Controller used in a PHP file."""
@@ -99,6 +110,19 @@ class LaravelRouteIndexer:
             return repo_match.group(1), "query"
 
         return "GenericHandler", "main"
+
+    def _infer_method(self, filename: str, content: str = "") -> str:
+        name = filename.lower()
+        lowered = content.lower()
+        if "$_post" in lowered or "application/json" in lowered:
+            return "POST"
+        if "$_get" in lowered and "header('content-type: application/json" not in lowered:
+            return "GET"
+        if "file_upload" in lowered or "multipart/form-data" in lowered:
+            return "POST"
+        if any(name.startswith(prefix) for prefix in ["create", "update", "delete", "import", "save", "upload", "extend", "release", "reduce", "save-"]):
+            return "POST"
+        return "GET"
 
 
 if __name__ == "__main__":

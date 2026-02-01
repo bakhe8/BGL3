@@ -34,12 +34,7 @@ class BGLGuardian:
         self.config = cfg
         self.agent_mode = str(cfg.get("agent_mode", "assisted")).lower()
         # decision db
-        env_decision_db = os.environ.get("BGL_SANDBOX_DECISION_DB")
-        self.decision_db_path = (
-            Path(env_decision_db)
-            if env_decision_db
-            else root_dir / ".bgl_core" / "brain" / "decision.db"
-        )
+        self.decision_db_path = self.db_path  # موحد مع knowledge.db
         self.decision_schema = root_dir / ".bgl_core" / "brain" / "decision_schema.sql"
         if self.decision_schema.exists():
             init_db(self.decision_db_path, self.decision_schema)
@@ -50,6 +45,25 @@ class BGLGuardian:
         Scans all indexed routes and provides a proactive health report.
         """
         print("[*] Guardian: Starting Full System Health Audit...")
+        tool_evidence = {}
+        try:
+            from .llm_tools import tool_route_index, tool_run_checks  # type: ignore
+        except Exception:
+            try:
+                from llm_tools import tool_route_index, tool_run_checks  # type: ignore
+            except Exception:
+                tool_route_index = tool_run_checks = None
+
+        if tool_route_index:
+            try:
+                tool_evidence["route_index"] = tool_route_index()
+            except Exception as e:
+                tool_evidence["route_index"] = {"status": "ERROR", "message": str(e)}
+        if tool_run_checks:
+            try:
+                tool_evidence["run_checks"] = tool_run_checks()
+            except Exception as e:
+                tool_evidence["run_checks"] = {"status": "ERROR", "message": str(e)}
 
         # Autonomous re-indexing (closing the gap)
         indexer = EntityIndexer(self.root_dir, self.db_path)
@@ -61,9 +75,13 @@ class BGLGuardian:
         )
         if run_scenarios == "1":
             try:
-                from .scenario_runner import main as scenario_runner_main  # type: ignore
-            except ImportError:
-                from scenario_runner import main as scenario_runner_main
+                try:
+                    from .scenario_runner import main as scenario_runner_main  # type: ignore
+                except ImportError:
+                    from scenario_runner import main as scenario_runner_main
+            except Exception as e:
+                print(f"    [!] Guardian: scenario runner unavailable ({e}); skipping scenario batch.")
+                scenario_runner_main = None
             base_url = os.getenv(
                 "BGL_BASE_URL", self.config.get("base_url", "http://localhost:8000")
             )
@@ -131,7 +149,14 @@ class BGLGuardian:
                     self.decision_db_path, decision_id, "skipped", "agent_mode safe"
                 )
             elif self.agent_mode == "assisted":
-                if self._has_permission("run_scenarios"):
+                if scenario_runner_main is None:
+                    insert_outcome(
+                        self.decision_db_path,
+                        decision_id,
+                        "skipped",
+                        "scenario runner missing dependency",
+                    )
+                elif self._has_permission("run_scenarios"):
                     print("    [+] Permission granted for scenarios; running.")
                     try:
                         await scenario_runner_main(base_url, headless, keep_open)
@@ -187,8 +212,13 @@ class BGLGuardian:
             print("    [!] Guardian: full reindex blocked by decision gate.")
         else:
             try:
-                # indexer.run()
-                getattr(indexer, "run", indexer.index_project)()
+                # Prefer run(); fallback to index_project if available
+                method = getattr(indexer, "run", None)
+                if method is None:
+                    method = getattr(indexer, "index_project", None)
+                if method is None:
+                    raise AttributeError("LaravelRouteIndexer has no run/index_project")
+                method()
                 # record outcome success for reindex
                 intent_payload = {
                     "intent": "reindex_full",
@@ -276,6 +306,7 @@ class BGLGuardian:
             "route_scan_mode": mode_cfg,
             "permission_issues": [],
             "agent_mode": self.agent_mode,
+            "tool_evidence": tool_evidence,
         }
 
         # 2. Sequential Scan

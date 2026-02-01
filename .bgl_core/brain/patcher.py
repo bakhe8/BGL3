@@ -21,12 +21,8 @@ class BGLPatcher:
         self.safety = SafetyNet(project_root)
         self.composer_path = self._discover_composer(project_root)
         self.config = load_config(project_root)
-        env_decision_db = os.environ.get("BGL_SANDBOX_DECISION_DB")
-        self.decision_db_path = (
-            Path(env_decision_db)
-            if env_decision_db
-            else project_root / ".bgl_core" / "brain" / "decision.db"
-        )
+        # القرارات مخزنة موحداً في knowledge.db
+        self.decision_db_path = project_root / ".bgl_core" / "brain" / "knowledge.db"
         self.decision_schema = (
             project_root / ".bgl_core" / "brain" / "decision_schema.sql"
         )
@@ -445,7 +441,7 @@ class BGLPatcher:
     def _eligible_for_direct(self, required_successes: int = 5) -> bool:
         """Direct mode trial: allow only if آخر N نتائج نجاح بلا فشل/بلوك."""
         try:
-            conn = sqlite3.connect(str(self.decision_db_path))
+        conn = sqlite3.connect(str(self.decision_db_path))
             cur = conn.cursor()
             cur.execute(
                 """

@@ -1,4 +1,4 @@
--- decision.db schema (مرحلة 0)
+-- unified decision schema (embedded in knowledge.db)
 -- بسيط وقابل للتوسع، مع لقطة سياق ثابتة لكل intent.
 
 CREATE TABLE IF NOT EXISTS intents (

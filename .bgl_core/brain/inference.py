@@ -175,50 +175,17 @@ class InferenceEngine:
         """
         Load patterns from inference_patterns.json and run plugin checks in checks/.
         """
-        patterns_file = project_root / ".bgl_core" / "brain" / "inference_patterns.json"
-        results: List[Dict[str, Any]] = []
-        if not patterns_file.exists():
-            return results
         try:
-            patterns = json.loads(patterns_file.read_text(encoding="utf-8"))
-        except Exception as e:
-            print(f"[!] Inference: cannot load patterns file: {e}")
-            return results
-
-        for pat in patterns:
-            check_name = pat.get("check")
-            if not check_name:
-                continue
+            from .agent_verify import run_all_checks  # type: ignore
+        except Exception:
             try:
-                module = importlib.import_module(
-                    f".checks.{check_name}", package="brain"
-                )
-            except Exception:
-                try:
-                    module = importlib.import_module(f"checks.{check_name}")
-                except Exception as e:
-                    print(f"[!] Inference: cannot import check {check_name}: {e}")
-                    continue
-            if not hasattr(module, "run"):
-                continue
-            try:
-                res = module.run(project_root)
+                from agent_verify import run_all_checks
             except Exception as e:
-                print(f"[!] Inference: check {check_name} failed: {e}")
-                continue
-            passed = bool(res.get("passed", False))
-            evidence = res.get("evidence", [])
-            scope = res.get("scope", [])
-            results.append(
-                {
-                    "id": pat.get("id"),
-                    "check": check_name,
-                    "passed": passed,
-                    "evidence": evidence,
-                    "scope": scope,
-                    "recommendation": pat.get("recommendation", ""),
-                }
-            )
+                print(f"[!] Inference: agent_verify unavailable: {e}")
+                return []
+
+        results_payload = run_all_checks(project_root)
+        results: List[Dict[str, Any]] = results_payload.get("results", [])
 
         # Auto-generate proposed_patterns.json for failed checks (discovery only)
         failed = [r for r in results if not r.get("passed")]

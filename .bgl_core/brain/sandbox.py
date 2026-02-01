@@ -188,14 +188,15 @@ class BGLSandbox:
         os.environ["BGL_SANDBOX_DB"] = str(sandbox_db)
 
     def _prepare_decision_db(self):
-        """Copy decision.db to sandbox to avoid locks on the main file."""
-        main_db = self.root_dir / ".bgl_core" / "brain" / "decision.db"
+        """Legacy hook: now uses knowledge.db; keeps env var for backward compatibility."""
+        main_db = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
         sandbox_db_dir = self.sandbox_path / ".bgl_core" / "brain"
         sandbox_db_dir.mkdir(parents=True, exist_ok=True)
-        self.sandbox_decision_db = sandbox_db_dir / "decision.db"
+        self.sandbox_decision_db = sandbox_db_dir / "knowledge.db"
         if main_db.exists():
             try:
                 shutil.copy2(main_db, self.sandbox_decision_db)
             except Exception as e:
-                print(f"[!] Unable to copy decision.db to sandbox: {e}")
+                print(f"[!] Unable to copy knowledge.db to sandbox (decision alias): {e}")
+        # keep env var name for legacy code paths
         os.environ["BGL_SANDBOX_DECISION_DB"] = str(self.sandbox_decision_db)

@@ -25,7 +25,7 @@ conflicts_with:
    - إزالة توابع غير مستخدمة أو نقل المنطق إلى API إذا كان حسابيًا.
 3) طبّق قالب التصحيح المناسب (مثال: `patch_templates/js_split_placeholder.md`) أو أضف حزمة فرعية جديدة.
 4) شغّل `master_verify.py` مع `run_gap_tests=1` للتأكد من عدم تدهور الواجهات.
-5) سجّل outcome في decision.db مع scope = الملف المتأثر وحجمه الجديد.
+5) سجّل outcome في knowledge.db مع scope = الملف المتأثر وحجمه الجديد.
 
 ## معايير القبول
 - لا توجد ملفات JS في حالة FAIL (≥50KB أو ≥1500 سطر) ويفضل أن تبقى تحت WARN.

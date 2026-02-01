@@ -40,6 +40,27 @@ if (file_exists($composerAutoload)) {
     require_once $composerAutoload;
 }
 
+// Lightweight RateLimit guard for all API endpoints (heuristic on script path)
+try {
+    if (isset($_SERVER['SCRIPT_NAME']) && str_contains($_SERVER['SCRIPT_NAME'], '/api/')) {
+        require_once __DIR__ . '/RateLimiter.php';
+        $perMinute = (int)($_ENV['RATE_LIMIT_PER_MIN'] ?? getenv('RATE_LIMIT_PER_MIN') ?: 120);
+        $key = 'api:' . ($_SERVER['REMOTE_ADDR'] ?? 'cli');
+        if (!\App\Support\RateLimiter::allow($key, max(20, $perMinute), 60)) {
+            http_response_code(429);
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode([
+                'success' => false,
+                'error' => 'Rate limit exceeded',
+                'retry_after_sec' => 60,
+            ]);
+            exit;
+        }
+    }
+} catch (\Throwable $e) {
+    // Fail-open: do not break app if rate limiter storage is unavailable
+}
+
 function base_path(string $path = ''): string
 {
     $base = dirname(__DIR__, 1);

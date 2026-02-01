@@ -2,7 +2,7 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 
-async def capture_local_context(page, selector: Optional[str] = None, screenshot_dir: Optional[Path] = None, tag: str = "") -> Dict[str, Any]:
+async def capture_local_context(page, selector: Optional[str] = None, screenshot_dir: Optional[Path] = None, tag: str = "", include_layout: bool = False) -> Dict[str, Any]:
     """
     يجمع ما نراه موضعياً: الهدف، جار قريب، عنوان قريب، وسبب الاختيار (selector/hint).
     لا يلتقط الصفحة كاملة.
@@ -65,4 +65,26 @@ async def capture_local_context(page, selector: Optional[str] = None, screenshot
                         pass
         except Exception:
             data["target"] = {"selector": selector, "error": "capture_failed"}
+    if include_layout:
+        try:
+            layout = await page.evaluate(
+                """
+                () => {
+                  const elements = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role], [onclick]'));
+                  return elements.slice(0, 50).map(el => {
+                    const rect = el.getBoundingClientRect();
+                    return {
+                      tag: el.tagName,
+                      role: el.getAttribute('role') || '',
+                      text: (el.innerText || '').trim().slice(0,120),
+                      x: rect.x, y: rect.y, w: rect.width, h: rect.height,
+                      z: getComputedStyle(el).zIndex || 'auto'
+                    };
+                  });
+                }
+                """
+            )
+            data["layout_map"] = layout
+        except Exception:
+            data["layout_map"] = {"error": "layout_capture_failed"}
     return data

@@ -17,7 +17,7 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     if intent == "stabilize":
         risk_level = "medium"
     if intent == "investigate":
-        risk_level = "low"
+        risk_level = "medium"
 
     mode = str(policy.get("mode", "assisted")).lower()
     auto_cfg = policy.get("auto_fix", {})
@@ -53,6 +53,11 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
         if requires_human:
             decision = "block" if mode == "safe" else "propose_fix"
             justification.append("Refactor requires human approval.")
+
+    # Fast-path: hot intents with sufficient confidence should auto-fix when not suppressed
+    if not suppressed and intent in ("stabilize", "investigate") and confidence >= min_conf and mode != "safe":
+        decision = "auto_fix"
+        justification.append("Hot intent meets confidence; bypassing risk cap for auto_fix.")
 
     # maturity influence: enforced + high confidence & low risk => auto_fix
     if maturity == "enforced" and decision == "propose_fix" and risk_rank(risk_level) <= risk_rank(max_risk) and confidence >= min_conf:

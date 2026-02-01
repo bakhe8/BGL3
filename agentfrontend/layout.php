@@ -42,6 +42,10 @@
                 <?php include __DIR__ . '/partials/summary.php'; ?>
             </div>
 
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/simple_mode.php'; ?>
+            </div>
+
             <!-- SECTION 2: ATTENTION REQUIRED -->
             <!-- Blockers are critical, show full width if they exist -->
             <div class="section-full">
@@ -72,6 +76,15 @@
             <div class="section-third">
                 <?php include __DIR__ . '/partials/kpis.php'; ?>
             </div>
+
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/tool_evidence.php'; ?>
+            </div>
+
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/copilot_chat.php'; ?>
+            </div>
+
             
             <!-- SECTION 4: ACTIVITY LOG -->
             <div class="section-full">

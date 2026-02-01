@@ -35,6 +35,22 @@
   </div>
 
   <div class="section">
+    <h2>Tool Evidence</h2>
+    {% if tool_evidence %}
+      {% if tool_evidence.route_index %}
+      <h3>Route Index</h3>
+      <pre>{{ tool_evidence.route_index | tojson(indent=2) }}</pre>
+      {% endif %}
+      {% if tool_evidence.run_checks %}
+      <h3>Run Checks</h3>
+      <pre>{{ tool_evidence.run_checks | tojson(indent=2) }}</pre>
+      {% endif %}
+    {% else %}
+      <p>No tool evidence captured.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Vitals</h2>
     <ul>
       <li>Infrastructure: <span class="{{ 'ok' if vitals.infrastructure else 'fail' }}">{{ vitals.infrastructure }}</span></li>
@@ -119,6 +135,22 @@
       <ul>{% for g in gap_tests %}<li>{{ g.id if g.id else 'gap' }} — {{ 'PASS' if g.passed else 'FAIL' }} {% if g.evidence %}(evidence: {{ g.evidence }}){% endif %}</li>{% endfor %}</ul>
     {% else %}
       <p>No gap tests recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Tool Evidence</h2>
+    {% if tool_evidence %}
+      {% if tool_evidence.route_index %}
+      <h3>Route Index</h3>
+      <pre>{{ tool_evidence.route_index | tojson(indent=2) }}</pre>
+      {% endif %}
+      {% if tool_evidence.run_checks %}
+      <h3>Run Checks</h3>
+      <pre>{{ tool_evidence.run_checks | tojson(indent=2) }}</pre>
+      {% endif %}
+    {% else %}
+      <p>No tool evidence captured.</p>
     {% endif %}
   </div>
 

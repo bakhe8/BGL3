@@ -10,6 +10,7 @@ use App\Support\Database;
 use App\Support\Input;
 use App\Support\Validation;
 use App\Models\AuditLog;
+use App\Http\Requests\CreateSupplierRequest;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -43,8 +44,12 @@ try {
         $englishName = $hasArabic ? null : $officialName;
     }
 
-    // Basic validation (reuse bank validation for email/phone/iban if present)
-    $errors = Validation::validateBank($input);
+    // Structured validation via FormRequest-equivalent
+    $validator = new CreateSupplierRequest();
+    $errors = array_merge(
+        $validator->validate($input),
+        Validation::validateBank($input) // reuse email/phone rules if present
+    );
     if (!empty($errors)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'errors' => $errors]);

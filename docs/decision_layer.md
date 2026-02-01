@@ -28,7 +28,7 @@
    - تبسيط: لا دفق بيانات جديد؛ نضيف الحقول إلى diagnostic نفسه ويُستهلك في التقرير والـDashboard كما هو.
 
 ## 3) خطة التنفيذ المرحلية (زمن تقديري)
-- المرحلة 0 (يوم واحد): إنشاء decision.db + schema، وضع observe-only، عرض القرارات في التقرير فقط.
+- المرحلة 0 (يوم واحد): إنشاء schema للقرارات داخل knowledge.db، وضع observe-only، عرض القرارات في التقرير فقط.
 - المرحلة 1: Intent Resolver من البيانات الحالية (experiences + runtime_events + worst_routes). تسجيل intents.
 - المرحلة 2: Decision Engine بسياسات YAML بسيطة؛ Execution Gate على auto-fix (مفعّل) والسيناريوهات (مفعّل).
 - المرحلة 3: توسيع gate ليشمل reindex الكبيرة؛ إضافة human override في Dashboard.
@@ -46,7 +46,7 @@
     - reindex_full:
         - requires_human: true
 - refactor/rename ممنوع في safe؛ في auto مسموح إذا intent عالي الثقة ولا تحذيرات موارد.
-- sandbox لا يلمس decision.db الرئيسي؛ يعمل على نسخة محلية transient.
+- sandbox لا يلمس knowledge.db الرئيسي؛ يعمل على نسخة محلية transient.
 - كل إدخال decision يُسجَّل مع context_snapshot للحالة الزمنية لتسهيل التحقيقات لاحقاً.
 - حالة **defer** اختيارية الآن، لكنها مفيدة لاحقاً لتمييز “مهم لكن ليس الآن” عن observe (لا شيء مهم).
 
@@ -62,7 +62,7 @@
 - ملفات جديدة خفيفة: `.bgl_core/brain/decision_db.py` (اتصال قصير ودوال init/insert)، `.bgl_core/brain/intent_resolver.py` (دالة واحدة resolve)، `.bgl_core/brain/decision_engine.py` (decide)، `.bgl_core/brain/execution_gate.py` (check).  
 - تعديل: ربط gate بنقاط التنفيذ (patcher auto-fix، scenario runner، reindex الكبيرة) مع **إعادة استخدام** نفس أنماط الاتصال/التهيئة الموجودة (كما في knowledge.db) وعدم فتح مسارات موازية جديدة.  
 - واجهة Dashboard/HTML report تعيد استعمال قنوات البيانات الحالية: إضافة أقسام Intents/Decisions فوق نفس تدفق التقرير دون إنشاء دفق جديد.  
-- ضمان نسخ decision.db إلى sandbox كوحدة مستقلة (لا أقفال مشتركة).
+- ضمان نسخ knowledge.db إلى sandbox كوحدة مستقلة (لا أقفال مشتركة).
 - ملف مخطط قاعدة البيانات: `.bgl_core/brain/decision_schema.sql` (مقترح مرفق) مع جداول intents/decisions/overrides/outcomes وحقل context_snapshot لكل intent.
 
 ## 7) المبدأ الحاكم

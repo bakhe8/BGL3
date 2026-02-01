@@ -1,6 +1,9 @@
 # Dependencies
 /vendor/
-/node_modules/
+node_modules/
+.venv*/
+venv/
+__pycache__/
 
 # PHP Portable (اختياري للمستخدمين)
 /php/

@@ -45,15 +45,19 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         "browser_state": diagnostic.get("browser_state", "unknown"),
     }
 
-    # suppression rules: low-usage or deprecated routes shouldn't trigger aggressive actions
+    # suppression rules: keep them conservative but never suppress failing/hot routes
     primary_route = context_snapshot.get("active_route")
-    if primary_route:
-        usage = float(route_usage.get(primary_route, 0))
-        if usage < 0.01:
-            suppressed = True
-        deprecated = feature_flags.get("deprecated_routes", [])
-        if primary_route in deprecated:
-            suppressed = True
+    if intent == "observe":
+        # only apply suppression heuristics when we're already in observe mode
+        if primary_route:
+            usage = float(route_usage.get(primary_route, 0))
+            if usage < 0.01:
+                suppressed = True
+            deprecated = feature_flags.get("deprecated_routes", [])
+            if primary_route in deprecated:
+                suppressed = True
+    else:
+        suppressed = False
 
     return {
         "intent": intent,

@@ -60,3 +60,15 @@ Unlike generic AI, this agent's logic is **Deterministic**, not heuristic.
 ## 🏆 Final Assurance Verdict
 
 The BGL3 Agent is a **High-Trust Technical System**. Its architecture is designed to fail loudly and safely rather than proceed with ambiguity. The successful execution of the *Intelligence Benchmark* and the *Failure Modes Suite* confirms its maturity as a professional-grade autonomous programmer.
+
+---
+
+## 🧘 6. اختزال الحوكمة المؤقت (Light / Bypass Mode)
+
+- **الغرض**: تقليل الاختناق التشغيلي أثناء التشخيص أو عند نقص التبعيات مع الحفاظ على سلامة البيانات.
+- **المفاتيح البيئية**:  
+  - `BGL_LIGHT_MODE=1`: يحوّل `agent_mode` وقرار التنفيذ إلى وضع تلقائي مؤقت.  
+  - `BGL_GOVERNOR_BYPASS=1`: يتجاوز تدقيق `governor.py` دون حذف القواعد.  
+  - `BGL_METRICS_GUARD_BYPASS=1`: يتخطى حارس الأداء المرحلي.  
+  - `BGL_RUN_SCENARIOS=0`: يعطل تشغيل السيناريوهات عند غياب مكون `python_ghost_cursor` أو لأسباب أداء.  
+- **الضوابط**: مفاتيح تشغيل/إيقاف فقط؛ يجب إزالتها بعد انتهاء الاختبار لإعادة الحوكمة الكاملة.

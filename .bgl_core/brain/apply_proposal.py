@@ -5,7 +5,7 @@ import sqlite3
 import time
 
 ROOT = Path(__file__).resolve().parent.parent.parent
-DECISION_DB = ROOT / ".bgl_core" / "brain" / "decision.db"
+DECISION_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOG_FILE = ROOT / ".bgl_core" / "logs" / "proposal_actions.log"
 

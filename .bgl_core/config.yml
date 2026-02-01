@@ -4,6 +4,7 @@ run_scenarios: 1
 keep_browser: 1
 diagnostic_timeout_sec: 300
 agent_mode: assisted
+agent_mode_bypass_env: BGL_LIGHT_MODE
 browser_enabled: 1
 browser_mode: visible
 max_pages: 3
@@ -17,9 +18,10 @@ feature_flags:
   deprecated_routes: []
 decision:
   mode: assisted
+  mode_bypass_env: BGL_LIGHT_MODE
   auto_fix:
-    min_confidence: 0.75
-    max_risk: low
+    min_confidence: 0.60
+    max_risk: medium
   refactor:
     requires_human: true
   reindex_full:

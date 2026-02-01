@@ -33,7 +33,8 @@ def insert_intent(
             """,
             (intent, confidence, reason, scope, context_snapshot, source),
         )
-        return cur.lastrowid
+        intent_id = cur.lastrowid
+    return intent_id
 
 
 def insert_decision(
@@ -53,7 +54,8 @@ def insert_decision(
             """,
             (intent_id, decision, risk_level, int(requires_human), justification),
         )
-        return cur.lastrowid
+        decision_id = cur.lastrowid
+    return decision_id
 
 
 def insert_outcome(

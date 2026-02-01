@@ -25,8 +25,7 @@ use App\Support\Database;
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'resolve') {
     $id = (int)$_POST['blocker_id'];
-$dbPath = __DIR__ . '/.bgl_core/brain/knowledge.db';
-$decisionDbPath = __DIR__ . '/.bgl_core/brain/decision.db';
+    $dbPath = dirname(__DIR__) . '/.bgl_core/brain/knowledge.db';
     if (file_exists($dbPath)) {
         $lite = new PDO("sqlite:" . $dbPath);
         $stmt = $lite->prepare("UPDATE agent_blockers SET status = 'RESOLVED' WHERE id = ?");
@@ -58,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     $perm_id = (int)$_POST['perm_id'];
     $status = $_POST['status']; // GRANTED or DENIED
     
-    $agentDbPath = __DIR__ . '/.bgl_core/brain/knowledge.db';
+    $agentDbPath = dirname(__DIR__) . '/.bgl_core/brain/knowledge.db';
     try {
         $lite = new PDO("sqlite:" . $agentDbPath);
         $stmt = $lite->prepare("UPDATE agent_permissions SET status = ? WHERE id = ?");

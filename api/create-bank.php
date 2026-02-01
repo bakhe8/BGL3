@@ -15,6 +15,7 @@ use App\Support\Database;
 use App\Services\BankManagementService;
 use App\Support\Validation;
 use App\Models\AuditLog;
+use App\Http\Requests\CreateBankRequest;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -58,8 +59,12 @@ try {
         file_put_contents($rlFile, json_encode($bucket));
     }
 
-    // Basic validation
-    $errors = Validation::validateBank($data);
+    // Basic validation (FormRequest + shared bank rules)
+    $validator = new CreateBankRequest();
+    $errors = array_merge(
+        $validator->validate($data),
+        Validation::validateBank($data)
+    );
     if (!empty($errors)) {
         http_response_code(422);
         echo json_encode(['success' => false, 'errors' => $errors]);

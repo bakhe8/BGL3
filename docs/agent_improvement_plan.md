@@ -81,7 +81,7 @@
   2) في `agent-dashboard.php` أضف بطاقتين مشابهتين مع أزرار “Apply in sandbox” تستدعي مهمة patcher عبر أمر shell مخزن في agent_permissions للتصديق.
 
 ## 5) Gate/Decision Integration
-- عند فشل Gap Test → يولّد intent “stabilize_<المحور>” + قرار propose_fix، ويسجّل في decision.db.
+- عند فشل Gap Test → يولّد intent “stabilize_<المحور>” + قرار propose_fix، ويسجّل في knowledge.db.
 - في `execution_mode=auto_trial` و `agent_mode=assisted`: يطبق الإصلاح في الساندبوكس ويعرض diff للموافقة قبل التطبيق على الشجرة الحية.
 - **كيفية التنفيذ**:
   1) بعد تشغيل Gap Tests، اجمع الفاشلة وأرسلها لـ `intent_resolver` كـ intentات مستقلة.
