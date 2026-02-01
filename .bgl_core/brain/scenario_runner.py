@@ -38,6 +38,7 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 DEFAULT_POST_WAIT_MS = int(os.getenv("BGL_POST_WAIT_MS", "400"))
 DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
 
+
 async def ensure_cursor(page):
     """Inject ghost-cursor overlay once per page."""
     if getattr(page, "_bgl_cursor_ready", False):
@@ -68,21 +69,32 @@ def ensure_dev_mode():
 
         data = json.loads(settings_path.read_text(encoding="utf-8"))
         if data.get("PRODUCTION_MODE") is True:
-            print("[!] PRODUCTION_MODE=true في storage/settings.json — أوقف التشغيل أو عطّل الوضع من settings.php ثم أعد المحاولة.")
+            print(
+                "[!] PRODUCTION_MODE=true في storage/settings.json — أوقف التشغيل أو عطّل الوضع من settings.php ثم أعد المحاولة."
+            )
             raise SystemExit(1)
     except Exception as exc:  # pragma: no cover - حماية من أي parsing خطأ
         print(f"[!] تعذر قراءة settings.json للتحقق من وضع التشغيل: {exc}")
         # لا نوقف التشغيل في حالة الفشل بالقراءة لتجنب حظر خاطئ
 
 
-async def exploratory_action(page, motor: Motor, seen: set, session: str, learn_log: Path):
+async def exploratory_action(
+    page, motor: Motor, seen: set, session: str, learn_log: Path
+):
     """
     تنفيذ تفاعل آمن واحد غير مذكور (hover/scroll) لا يغيّر البيانات.
     """
     try:
-        candidates = await page.query_selector_all("button, a, [role='button'], [data-action]")
+        candidates = await page.query_selector_all(
+            "button, a, [role='button'], [data-action]"
+        )
         for el in candidates:
-            desc = await el.get_attribute("title") or await el.text_content() or await el.get_attribute("href") or ""
+            desc = (
+                await el.get_attribute("title")
+                or await el.text_content()
+                or await el.get_attribute("href")
+                or ""
+            )
             h = hash(desc)
             if h in seen:
                 continue
@@ -93,7 +105,12 @@ async def exploratory_action(page, motor: Motor, seen: set, session: str, learn_
                 await motor.move_to(page, x, y, danger=False)
                 await page.wait_for_timeout(80)
                 seen.add(h)
-                learn_log.write_text(learn_log.read_text() + f"{time.time()}\t{session}\texplore\t{desc.strip()}\n" if learn_log.exists() else f"{time.time()}\t{session}\texplore\t{desc.strip()}\n")
+                learn_log.write_text(
+                    learn_log.read_text()
+                    + f"{time.time()}\t{session}\texplore\t{desc.strip()}\n"
+                    if learn_log.exists()
+                    else f"{time.time()}\t{session}\texplore\t{desc.strip()}\n"
+                )
                 return
         # fallback scroll
         await page.mouse.wheel(0, 300)
@@ -101,6 +118,7 @@ async def exploratory_action(page, motor: Motor, seen: set, session: str, learn_
             f.write(f"{time.time()}\t{session}\texplore\tscroll\n")
     except Exception:
         pass
+
 
 async def run_step(page, step: Dict[str, Any], policy: Policy, db_path: Path):
     action = step.get("action")
@@ -113,7 +131,12 @@ async def run_step(page, step: Dict[str, Any], policy: Policy, db_path: Path):
         except Exception:
             current = ""
         if current != target_url or step.get("force", 0):
-            await policy.perform_goto(page, target_url, wait_until=step.get("wait_until", "load"), post_wait_ms=int(step.get("post_wait_ms", DEFAULT_POST_WAIT_MS)))
+            await policy.perform_goto(
+                page,
+                target_url,
+                wait_until=step.get("wait_until", "load"),
+                post_wait_ms=int(step.get("post_wait_ms", DEFAULT_POST_WAIT_MS)),
+            )
     elif action == "wait":
         await page.wait_for_timeout(int(step.get("ms", 500)))
     elif action == "click":
@@ -133,10 +156,16 @@ async def run_step(page, step: Dict[str, Any], policy: Policy, db_path: Path):
         )
     elif action == "type":
         await ensure_cursor(page)
-        await page.fill(step["selector"], step.get("text", ""), timeout=step.get("timeout", 5000))
+        await page.fill(
+            step["selector"], step.get("text", ""), timeout=step.get("timeout", 5000)
+        )
     elif action == "press":
         await ensure_cursor(page)
-        await page.press(step["selector"], step.get("key", "Enter"), timeout=step.get("timeout", 5000))
+        await page.press(
+            step["selector"],
+            step.get("key", "Enter"),
+            timeout=step.get("timeout", 5000),
+        )
     elif action == "scroll":
         await ensure_cursor(page)
         dx = int(step.get("dx", 0))
@@ -188,7 +217,15 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     db.close()
 
 
-async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_path: Path, keep_open: bool, db_path: Path, is_last: bool = False):
+async def run_scenario(
+    manager: BrowserManager,
+    page,
+    base_url: str,
+    scenario_path: Path,
+    keep_open: bool,
+    db_path: Path,
+    is_last: bool = False,
+):
     with open(scenario_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     steps: List[Dict[str, Any]] = data.get("steps", [])
@@ -231,6 +268,7 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
         page._bgl_console_hook = True  # type: ignore
 
     if not getattr(page, "_bgl_requestfailed_hook", False):
+
         async def handle_request_failed(request):
             fail = request.failure
             if isinstance(fail, str):
@@ -255,6 +293,7 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
         page._bgl_requestfailed_hook = True  # type: ignore
 
     if not getattr(page, "_bgl_response_hook", False):
+
         async def handle_response(response):
             if response.status >= 400:
                 log_event(
@@ -265,7 +304,9 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
                         "route": response.url,
                         "method": response.request.method,
                         "status": response.status,
-                        "latency_ms": response.timing.get("responseStart", 0) if response.timing else None,
+                        "latency_ms": response.timing.get("responseStart", 0)
+                        if response.timing
+                        else None,
                     },
                 )
 
@@ -285,7 +326,11 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
                     motor = Motor(hand_profile)
                     policy = Policy(motor)
                 # إذا مرّ خطوتان دون استكشاف، نفّذ استكشاف إجباري (يمكن تعطيله بـ BGL_EXPLORATION=0)
-                if exploratory_enabled and steps_since_explore >= 2 and step.get("action") != "wait":
+                if (
+                    exploratory_enabled
+                    and steps_since_explore >= 2
+                    and step.get("action") != "wait"
+                ):
                     await exploratory_action(page, motor, explored, name, learn_log)
                     steps_since_explore = 0
                 await run_step(page, step, policy, db_path)
@@ -307,7 +352,10 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
                     policy = Policy(motor)
                     continue
                 # تعافٍ اختياري بالرجوع للخلف عند اعتراض المودال للنقر (سلوك بشري محدود)
-                if "intercepts pointer events" in str(e) and os.getenv("BGL_ALLOW_BACK", "0") == "1":
+                if (
+                    "intercepts pointer events" in str(e)
+                    and os.getenv("BGL_ALLOW_BACK", "0") == "1"
+                ):
                     if not getattr(page, "_bgl_back_used", False):
                         try:
                             current_url = page.url
@@ -330,13 +378,23 @@ async def run_scenario(manager: BrowserManager, page, base_url: str, scenario_pa
                 raise
 
     if keep_open and is_last:
-        print(f"[!] Scenario '{name}' finished. Browser left open for manual review. Close it to continue.")
+        print(
+            f"[!] Scenario '{name}' finished. Browser left open for manual review. Close it to continue."
+        )
         await page.wait_for_timeout(24 * 60 * 60 * 1000)  # 24h max or until user closes
     else:
         print(f"[+] Scenario '{name}' done")
 
 
-async def main(base_url: str, headless: bool, keep_open: bool, max_pages: int = 3, idle_timeout: int = 120, include: str | None = None):
+async def main(
+    base_url: str,
+    headless: bool,
+    keep_open: bool,
+    max_pages: int = 3,
+    idle_timeout: int = 120,
+    include: str | None = None,
+    shadow_mode: bool = False,
+):
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
 
@@ -346,7 +404,9 @@ async def main(base_url: str, headless: bool, keep_open: bool, max_pages: int = 
 
     scenario_files = sorted(SCENARIOS_DIR.rglob("*.yaml"))
     if include:
-        scenario_files = [p for p in scenario_files if include.lower() in p.stem.lower()]
+        scenario_files = [
+            p for p in scenario_files if include.lower() in p.stem.lower()
+        ]
     # Skip API-only scenarios by default unless explicitly included
     include_api = os.getenv("BGL_INCLUDE_API", "0") == "1"
     if not include_api:
@@ -372,7 +432,18 @@ async def main(base_url: str, headless: bool, keep_open: bool, max_pages: int = 
         return
 
     slow_mo = int(os.getenv("BGL_SLOW_MO_MS", str(cfg.get("slow_mo_ms", 0))))
-    manager = BrowserManager(base_url=base_url, headless=headless, max_pages=max_pages, idle_timeout=idle_timeout, persist=True, slow_mo_ms=slow_mo)
+
+    extra_headers = {"X-Shadow-Mode": "true"} if shadow_mode else None
+
+    manager = BrowserManager(
+        base_url=base_url,
+        headless=headless,
+        max_pages=max_pages,
+        idle_timeout=idle_timeout,
+        persist=True,
+        slow_mo_ms=slow_mo,
+        extra_http_headers=extra_headers,
+    )
     # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
     shared_page = await manager.new_page()
     await ensure_cursor(shared_page)
@@ -380,7 +451,15 @@ async def main(base_url: str, headless: bool, keep_open: bool, max_pages: int = 
     db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
     try:
         for idx, path in enumerate(scenario_files):
-            await run_scenario(manager, shared_page, base_url, path, keep_open if idx == len(scenario_files)-1 else False, db_path, is_last=(idx == len(scenario_files)-1))
+            await run_scenario(
+                manager,
+                shared_page,
+                base_url,
+                path,
+                keep_open if idx == len(scenario_files) - 1 else False,
+                db_path,
+                is_last=(idx == len(scenario_files) - 1),
+            )
     finally:
         if not keep_open:
             await manager.close()
@@ -394,13 +473,51 @@ async def main(base_url: str, headless: bool, keep_open: bool, max_pages: int = 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     cfg = load_config(Path(".").resolve())
-    parser.add_argument("--base-url", default=os.getenv("BGL_BASE_URL", cfg.get("base_url", "http://localhost:8000")))
+    parser.add_argument(
+        "--base-url",
+        default=os.getenv("BGL_BASE_URL", cfg.get("base_url", "http://localhost:8000")),
+    )
     # Default headless = 0 to make the browser visible unless explicitly overridden
-    parser.add_argument("--headless", type=int, default=int(os.getenv("BGL_HEADLESS", str(cfg.get("headless", 0)))))
-    parser.add_argument("--keep-open", type=int, default=int(os.getenv("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0)))), help="Leave browser open after scenarios")
-    parser.add_argument("--max-pages", type=int, default=int(os.getenv("BGL_MAX_PAGES", "3")))
-    parser.add_argument("--idle-timeout", type=int, default=int(os.getenv("BGL_PAGE_IDLE_TIMEOUT", "120")))
-    parser.add_argument("--include", default=None, help="Substring filter to run specific scenario files")
+    parser.add_argument(
+        "--headless",
+        type=int,
+        default=int(os.getenv("BGL_HEADLESS", str(cfg.get("headless", 0)))),
+    )
+    parser.add_argument(
+        "--keep-open",
+        type=int,
+        default=int(os.getenv("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0)))),
+        help="Leave browser open after scenarios",
+    )
+    parser.add_argument(
+        "--max-pages", type=int, default=int(os.getenv("BGL_MAX_PAGES", "3"))
+    )
+    parser.add_argument(
+        "--idle-timeout",
+        type=int,
+        default=int(os.getenv("BGL_PAGE_IDLE_TIMEOUT", "120")),
+    )
+    parser.add_argument(
+        "--include",
+        default=None,
+        help="Substring filter to run specific scenario files",
+    )
+    parser.add_argument(
+        "--shadow-mode",
+        type=int,
+        default=0,
+        help="Run in Shadow Mode (X-Shadow-Mode header)",
+    )
     args = parser.parse_args()
 
-    asyncio.run(main(args.base_url, bool(args.headless), bool(args.keep_open), args.max_pages, args.idle_timeout, args.include))
+    asyncio.run(
+        main(
+            args.base_url,
+            bool(args.headless),
+            bool(args.keep_open),
+            args.max_pages,
+            args.idle_timeout,
+            args.include,
+            bool(args.shadow_mode),
+        )
+    )

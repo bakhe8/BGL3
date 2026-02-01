@@ -25,9 +25,54 @@ class InferenceEngine:
             "SSL",
         ]
         self.openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
+        self.local_llm_url = os.getenv("LLM_BASE_URL", "http://localhost:11434")
+        self.has_ai = bool(self.openai_key or self.local_llm_url)
 
     def _query_llm(self, prompt: str) -> Dict[str, Any]:
-        """Queries OpenAI API with zero external dependencies."""
+        """Queries LLM (Local Ollama or OpenAI) with zero external dependencies."""
+
+        # 1. Try Local LLM (Ollama) first - Preferred
+        ollama_url = os.getenv(
+            "LLM_BASE_URL", "http://localhost:11434/v1/chat/completions"
+        )
+        ollama_model = os.getenv("LLM_MODEL", "llama3.1")
+
+        try:
+            # Check if we can connect to Ollama (fast check)
+            # This allows failover to OpenAI if local is down
+            req = urllib.request.Request(
+                ollama_url.replace("/chat/completions", "/models")
+            )
+            with urllib.request.urlopen(req, timeout=1):
+                pass
+
+            # If reachable, use Local LLM
+            headers = {"Content-Type": "application/json"}
+            payload = {
+                "model": ollama_model,
+                "messages": [
+                    {
+                        "role": "system",
+                        "content": "You are an expert software architect analyzing error logs. Output valid JSON only.",
+                    },
+                    {"role": "user", "content": prompt},
+                ],
+                "temperature": 0.2,
+                "stream": False,
+            }
+
+            req = urllib.request.Request(
+                ollama_url, json.dumps(payload).encode(), headers
+            )
+            # 30s timeout for local inference
+            with urllib.request.urlopen(req, timeout=30) as response:
+                return json.loads(response.read().decode())
+
+        except Exception:
+            # Local failed/not present, fall back to OpenAI
+            pass
+
+        # 2. Fallback to OpenAI
         if not self.openai_key:
             return {}
 
@@ -103,14 +148,14 @@ class InferenceEngine:
         # Synthesis Logic: Create proposals for clusters with >= 2 items
         for theme, items in clusters.items():
             # Skip "General" here if we have LLM capability (handled below)
-            if theme == "General" and self.openai_key:
+            if theme == "General" and self.has_ai:
                 continue
 
             if len(items) >= 2:
                 self._synthesize_rule(theme, len(items), items)
 
-        # Hybrid Intelligence: Ask GPT-4 about confusing "General" items
-        if self.openai_key and len(clusters["General"]) >= 2:
+        # Hybrid Intelligence: Ask AI about confusing "General" items
+        if self.has_ai and len(clusters["General"]) >= 2:
             self._analyze_complex_cluster(clusters["General"])
 
         # Return ACTUAL persisted proposals from the database
@@ -287,12 +332,19 @@ class InferenceEngine:
 
     def _analyze_complex_cluster(self, items: List[Dict[str, Any]]):
         """Offloads complex pattern recognition to LLM."""
-        print(f"[*] Inference: Offloading {len(items)} complex items to GPT-4...")
+        print(
+            f"[*] Inference: Offloading {len(items)} complex items to LLM (Local/Cloud)..."
+        )
         prompt = "Analyze these software errors and propose a single architectural mitigation rule (JSON format with name, description, action=WARN/BLOCK, impact, solution, expectation):\n"
         for item in items[:5]:  # Limit to 5
             prompt += f"- {item['reason']} (Task: {item['task_name']})\n"
 
         resp = self._query_llm(prompt)
+        # Handle Local LLM response format (usually matches OpenAI, but being safe)
+        if not resp:
+            print("[!] Inference: No response from LLM")
+            return
+
         content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
 
         try:
@@ -327,6 +379,9 @@ class InferenceEngine:
                         ),
                     )
                     conn.commit()
+                    print(
+                        f"[*] Hybrid Inference: Persisted new rule '{rule.get('name')}'"
+                    )
                 conn.close()
         except Exception as e:
             print(f"[!] Inference: LLM extraction failed: {e}")

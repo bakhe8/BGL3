@@ -701,7 +701,7 @@ $formattedSuppliers = array_map(function($s) {
                 
                 <!-- ✅ NEW: Test Data Filter Toggle (Phase 1) -->
                 <?php 
-                $settings = \App\Support\Settings::getInstance();
+                $settings = Settings::getInstance();
                 if (!$settings->isProductionMode()): 
                 ?>
                 <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid #e5e7eb;">

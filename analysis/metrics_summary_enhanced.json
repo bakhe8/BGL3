@@ -1,0 +1,9 @@
+[
+  {
+    "target": "DIV.info-grid",
+    "count": 24,
+    "move_p50": 4118.0,
+    "dom_p50": 146.0,
+    "dom_p90": 162
+  }
+]

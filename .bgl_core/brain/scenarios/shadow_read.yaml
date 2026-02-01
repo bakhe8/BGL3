@@ -1,0 +1,15 @@
+name: shadow_read
+description: Read-only operations on Shadow DB to verify performance without side effects.
+steps:
+  - action: goto
+    url: "/index.php"
+  - action: wait
+    duration_ms: 1000
+  - action: click
+    selector: "#filter-toggle-btn"
+    required: false
+  - action: wait
+    duration_ms: 500
+  - action: click
+    selector: "input[name='search']"
+    required: false

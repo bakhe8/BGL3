@@ -4,6 +4,12 @@ declare(strict_types=1);
 // Set timezone from Settings (dynamic)
 date_default_timezone_set('Asia/Riyadh'); // Will be overridden below after Settings loads
 
+// ✅ PHASE 3: Shadow Run Support (Global)
+// Detect header and set env var so Database.php sees it in ALL endpoints (UI + API)
+if (isset($_SERVER['HTTP_X_SHADOW_MODE']) && $_SERVER['HTTP_X_SHADOW_MODE'] === 'true') {
+    putenv('SHADOW_MODE=true');
+}
+
 spl_autoload_register(function ($class) {
     $prefix = 'App\\';
     $baseDir = __DIR__ . '/../';
@@ -47,8 +53,3 @@ function storage_path(string $path = ''): string
     $base = base_path('storage');
     return $path ? $base . '/' . ltrim($path, '/') : $base;
 }
-
-/**
- * Simple logger helper
- * Usage: \App\Support\Logger::error('message', ['context' => 'data']);
- */

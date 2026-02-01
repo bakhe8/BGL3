@@ -15,8 +15,11 @@ class Database
         // Set timezone to match Saudi Arabia (GMT+3)
         date_default_timezone_set('Asia/Riyadh');
         
-        if (self::$instance === null) {
-            $dbPath = __DIR__ . '/../../storage/database/app.sqlite';
+            if (self::$instance === null) {
+            $isShadow = getenv('SHADOW_MODE') === 'true';
+            $dbName = $isShadow ? 'shadow.sqlite' : 'app.sqlite';
+            
+            $dbPath = __DIR__ . '/../../storage/database/' . $dbName;
             if (!file_exists($dbPath)) {
                 // Try create directory if not exists
                 $dir = dirname($dbPath);
@@ -24,11 +27,11 @@ class Database
                     mkdir($dir, 0777, true);
                 }
                 // Determine absolute path resolving differences
-                $dbPath = realpath(__DIR__ . '/../../') . '/storage/database/app.sqlite';
+                $dbPath = realpath(__DIR__ . '/../../') . '/storage/database/' . $dbName;
             }
 
             try {
-                self::$instance = new PDO('sqlite:' . $dbPath);
+                self::$instance = new TracedPDO('sqlite:' . $dbPath);
                 self::$instance->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
                 self::$instance->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
                 self::$instance->exec('PRAGMA foreign_keys = ON;');

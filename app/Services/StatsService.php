@@ -63,7 +63,7 @@ class StatsService {
                 FROM guarantees g
                 LEFT JOIN guarantee_decisions d ON g.id = d.guarantee_id
                 WHERE d.id IS NULL " . ($excludeTestData ? " AND (g.is_test_data = 0 OR g.is_test_data IS NULL)" : "")
-            ");
+            );
             $noDecisions = (int)$stmt->fetchColumn();
 
             $stats['pending'] = $pendingDecisions + $noDecisions;
