@@ -1,80 +1,249 @@
-import sqlite3
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
 import json
-import importlib
 import os
 import urllib.request
 import urllib.error
 
 
-class InferenceEngine:
+class ReasoningEngine:
     """
-    Pattern Recognition & Knowledge Synthesis Engine.
-    Analyzes 'agent_blockers' to propose new architectural rules.
+    LLM-First Reasoning Engine.
+    Implements a Plan-Act-Reflect loop for autonomous intelligence.
     """
 
-    def __init__(self, db_path: Path):
+    def __init__(self, db_path: Path, browser_sensor=None):
         self.db_path = db_path
-        self.common_keywords = [
-            "Permission",
-            "Composer",
-            "Database",
-            "Dependency",
-            "Timeout",
-            "SSL",
-        ]
         self.openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
         self.local_llm_url = os.getenv("LLM_BASE_URL", "http://localhost:11434")
-        self.has_ai = bool(self.openai_key or self.local_llm_url)
+        self.browser = browser_sensor
 
-    def _query_llm(self, prompt: str) -> Dict[str, Any]:
+    def _get_project_structure(self) -> str:
+        """Discovers real files to prevent hallucination."""
+        core_paths = ["api/", "app/Services/", "app/Repositories/", "app/Support/"]
+        found_files = []
+        for path in core_paths:
+            full_path = Path(path)
+            if full_path.exists():
+                files = [str(f) for f in full_path.glob("**/*.php")]
+                found_files.extend(files)
+        return "\n".join(found_files[:500])  # Increased for full project coverage
+
+    async def reason(self, context: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Main reasoning loop: Plan -> Act -> Reflect.
+        """
+        print("[*] ReasoningEngine: Initiating cognitive cycle...")
+
+        # 1. (Optional) UI Context Augmentation
+        ui_insight = ""
+        if self.browser and context.get("target_url"):
+            print(
+                f"[*] ReasoningEngine: Performing visual grounding on {context['target_url']}..."
+            )
+            try:
+                scan = await self.browser.scan_url(context["target_url"])
+                ui_insight = (
+                    f"\nVISUAL UI STATE FOR {context['target_url']}:\n"
+                    + json.dumps(scan, indent=2)
+                )
+
+                # [NEW] Autonomous Backend Analysis
+                # The agent proactively reads the code behind the URL
+                backend_insight = self._analyze_backend_logic(context["target_url"])
+                ui_insight += f"\n\n[BACKEND CODE INSIGHT]\n{backend_insight}"
+
+            except Exception as e:
+                print(f"[!] ReasoningEngine: Visual grounding failed: {e}")
+
+        # 2. State Analysis (Deep Code Inspection for targeted actions)
+        # If the user query contains keywords for core actions, pre-load those files
+        targeted_code = ""
+        keywords = [
+            "reduce",
+            "extend",
+            "release",
+            "batch",
+            "تمديد",
+            "تخفيض",
+            "إفراج",
+            "دفعة",
+        ]
+        query_text = context.get("query_text", "").lower()
+
+        if any(kw in query_text for kw in keywords):
+            print(
+                "[*] ReasoningEngine: Detected targeted action query. Pre-loading relevant logic..."
+            )
+            for kw in ["reduce", "extend", "release", "batches"]:
+                if (
+                    kw in query_text
+                    or (kw == "reduce" and "تخفيض" in query_text)
+                    or (kw == "extend" and "تمديد" in query_text)
+                    or (kw == "release" and "إفراج" in query_text)
+                    or (kw == "batches" and "دفعة" in query_text)
+                ):
+                    filename = f"api/{kw}.php"
+                    file_path = Path(os.getcwd()) / filename
+                    if file_path.exists():
+                        content = file_path.read_text(encoding="utf-8")
+                        targeted_code += f"\nFILE CONTENT FOR {filename}:\n{content}\n"
+
+        prompt = self._build_reasoning_prompt(context, ui_insight, targeted_code)
+
+        # 3. LLM Inference
+        response = self._query_llm(prompt)
+
+        # 3. Structured Decision Extraction
+        try:
+            plan = self._parse_structured_plan(response)
+            print(f"[*] ReasoningEngine: Plan formulated - {plan.get('objective')}")
+            return plan
+        except Exception as e:
+            print(f"[!] ReasoningEngine: Critical reasoning failure: {e}")
+            return {
+                "action": "wait",
+                "reason": "Reasoning failed, falling back to safe mode.",
+            }
+
+    def _analyze_backend_logic(self, url: str) -> str:
+        """
+        Maps a URL to a local file and reads its key logic to understand 'False Positives' etc.
+        """
+        try:
+            # 1. Parse URL to find potential file
+            parsed = url.split("/")[-1].split("?")[0]  # e.g. statistics.php
+            if not parsed:
+                return ""
+
+            # 2. Heuristic File Search
+            root = Path(r"c:\Users\Bakheet\Documents\Projects\BGL3")
+            candidates = [
+                root / "views" / parsed,
+                root / "agentfrontend" / parsed,
+                root / parsed,
+            ]
+
+            target_file = None
+            for cand in candidates:
+                if cand.exists():
+                    target_file = cand
+                    break
+
+            if not target_file:
+                return f"No source file found for {parsed}"
+
+            # 3. Smart Read (Extract SQL & Logic)
+            content = target_file.read_text(encoding="utf-8", errors="ignore")
+            lines = content.splitlines()
+            extracted = []
+
+            for i, line in enumerate(lines[:800]):
+                txt = line.strip().upper()
+                # Capture SQL, Comments, assignments
+                if any(
+                    x in txt
+                    for x in [
+                        "SELECT",
+                        "FROM",
+                        "JOIN",
+                        "WHERE",
+                        "$DB->QUERY",
+                        "CALCULATION",
+                        "NOTE:",
+                        "TODO:",
+                        "SECTION",
+                    ]
+                ):
+                    extracted.append(f"{i + 1}: {line.strip()}")
+
+            return f"Source File: {target_file.name}\n" + "\n".join(extracted[:60])
+
+        except Exception as e:
+            return f"Backend analysis error: {e}"
+
+    def _build_reasoning_prompt(
+        self, context: Dict[str, Any], ui_insight: str = "", code_insight: str = ""
+    ) -> str:
+        structure = self._get_project_structure()
+
+        # [NEW] Load Domain Map for Grounding
+        domain_map_path = Path("docs/domain_map.yml")
+        domain_context = ""
+        if domain_map_path.exists():
+            domain_context = f"\nDOMAIN RULES (FROM domain_map.yml):\n{domain_map_path.read_text(encoding='utf-8')}\n"
+
+        return f"""
+        You are the **Senior BGL3 Specialist & Lead Developer**. 
+        
+        BGL3 DOMAIN (STRICT):
+        - It is a **Document Issuance System** for Bank Guarantees.
+        {domain_context}
+        - **الدفعات (Batches)**: In this system, "الدفعات" refers to **Document Batches** (logical groups of guarantees imported/processed together). It does NOT mean financial payments.
+        - **ABSOLUTELY NO MONEY**: The system handles documentation and letters ONLY. There are no fees, no financial payments, and no banking account logic. Any mention of "fees" is a domain hallucination.
+        
+        Current System State: {json.dumps(context, indent=2)}
+        
+        {ui_insight}
+        
+        {code_insight}
+        
+        VERIFIED PROJECT FILES:
+        {structure}
+        
+        EXPERT REASONING PROTOCOL:
+        1. **DEEP CODE INSPECTION**: Must search for backend files (api/reduce.php) for actions.
+        2. **STRICT SCOPE**: Every analysis must be based on Document Issuance workflows (UE-01 Issue, UE-02 Extend, etc.).
+        3. **REJECTION POLICY**: If a user asks about fees, prices, or money, you MUST correct them: "BGL3 is strictly a document issuance and lifecycle management system; it does not handle fees or financial transactions."
+        4. **LOGICAL SYNTHESIS**: Don't just list lines of code. Explain the **'WHY'** behind the logic (e.g., 'Locked to prevent human error', 'Ready status for data integrity'). Link technical gates to their real-world impact on the Bank Guarantee lifecycle.
+        5. **GROUNDED GAP ANALYSIS**: Identify gaps in document states, letter templates, or history recording based on ACTUAL code logic.
+        6. **PROACTIVE SPECIALIZATION**: Suggest improvements to document workflow, validation of dates (is the new expiry +1yr?), or supplier verification.
+        
+        Output a JSON object with:
+        - "objective": high-level goal.
+        - "expert_synthesis": A deep, architectural explanation of the business logic and the "WHY" behind it (Connect code to real-world domain rules).
+        - "reasoning": your step-by-step thinking process.
+        - "files_analyzed": list of files you actually checked.
+        - "action": next technical step.
+        - "params": tool parameters.
+        - "hallucination_check": confirmed domain fit.
+        """
+
+    def _query_llm(self, prompt: str) -> str:
         """Queries LLM (Local Ollama or OpenAI) with zero external dependencies."""
 
-        # 1. Try Local LLM (Ollama) first - Preferred
         ollama_url = os.getenv(
             "LLM_BASE_URL", "http://localhost:11434/v1/chat/completions"
         )
         ollama_model = os.getenv("LLM_MODEL", "llama3.1")
 
         try:
-            # Check if we can connect to Ollama (fast check)
-            # This allows failover to OpenAI if local is down
-            req = urllib.request.Request(
-                ollama_url.replace("/chat/completions", "/models")
-            )
-            with urllib.request.urlopen(req, timeout=1):
-                pass
-
-            # If reachable, use Local LLM
             headers = {"Content-Type": "application/json"}
             payload = {
                 "model": ollama_model,
                 "messages": [
                     {
                         "role": "system",
-                        "content": "You are an expert software architect analyzing error logs. Output valid JSON only.",
+                        "content": "You are the BGL3 Smart Agent Brain. Output valid JSON only.",
                     },
                     {"role": "user", "content": prompt},
                 ],
-                "temperature": 0.2,
+                "response_format": {"type": "json_object"},
+                "temperature": 0.1,
                 "stream": False,
             }
 
             req = urllib.request.Request(
                 ollama_url, json.dumps(payload).encode(), headers
             )
-            # 30s timeout for local inference
             with urllib.request.urlopen(req, timeout=30) as response:
-                return json.loads(response.read().decode())
-
+                res = json.loads(response.read().decode())
+                return res["choices"][0]["message"]["content"]
         except Exception:
-            # Local failed/not present, fall back to OpenAI
             pass
 
-        # 2. Fallback to OpenAI
         if not self.openai_key:
-            return {}
+            return "{}"
 
         url = "https://api.openai.com/v1/chat/completions"
         headers = {
@@ -82,281 +251,75 @@ class InferenceEngine:
             "Authorization": f"Bearer {self.openai_key}",
         }
         payload = {
-            "model": "gpt-4",
+            "model": "gpt-4o",
             "messages": [
                 {
                     "role": "system",
-                    "content": "You are an expert software architect analyzing error logs.",
+                    "content": "You are the BGL3 Smart Agent Brain. Output valid JSON only.",
                 },
                 {"role": "user", "content": prompt},
             ],
-            "temperature": 0.2,
+            "response_format": {"type": "json_object"},
+            "temperature": 0.1,
         }
 
         try:
             req = urllib.request.Request(url, json.dumps(payload).encode(), headers)
-            # 10s timeout to avoid hanging the agent
             with urllib.request.urlopen(req, timeout=10) as response:
-                return json.loads(response.read().decode())
+                res = json.loads(response.read().decode())
+                return res["choices"][0]["message"]["content"]
         except Exception as e:
-            print(f"[!] Inference: LLM call failed: {e}")
-            return {}
+            print(f"[!] ReasoningEngine: LLM call failed: {e}")
+            return "{}"
 
-    def analyze_patterns(self) -> List[Dict[str, Any]]:
+    async def chat(
+        self, messages: List[Dict[str, Any]], target_url: Optional[str] = None
+    ) -> str:
         """
-        Scans resolved and pending blockers to find recurring issues.
+        Conversational entry point with grounding.
         """
-        if not self.db_path.exists():
-            return []
+        user_msg = messages[-1]["content"] if messages else ""
 
-        try:
-            conn = sqlite3.connect(str(self.db_path))
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-
-            # Fetch all blockers (we learn from history too)
-            cursor.execute("SELECT * FROM agent_blockers")
-            blockers = [dict(r) for r in cursor.fetchall()]
-            conn.close()
-        except Exception as e:
-            print(f"[!] Inference: Database error: {e}")
-            return []
-
-        if len(blockers) < 2:
-            return []
-
-        proposals = []
-
-        # Detection Logic: Simple Keyword Clustering
-        clusters: Dict[str, List[Dict[str, Any]]] = {
-            kw: [] for kw in self.common_keywords
+        # We reuse the heavy 'reason' logic for deep grounding even in chat
+        context = {
+            "query_text": user_msg,
+            "target_url": target_url,
+            "messages": messages,
         }
-        clusters["General"] = []
 
-        for b in blockers:
-            matched = False
-            for kw in self.common_keywords:
-                if (
-                    kw.lower() in b["reason"].lower()
-                    or kw.lower() in b["task_name"].lower()
-                ):
-                    clusters[kw].append(b)
-                    matched = True
-            if not matched:
-                clusters["General"].append(b)
+        plan = await self.reason(context)
 
-        # Synthesis Logic: Create proposals for clusters with >= 2 items
-        for theme, items in clusters.items():
-            # Skip "General" here if we have LLM capability (handled below)
-            if theme == "General" and self.has_ai:
-                continue
+        # Return the architectural analysis or the final response if available
+        if "response" in plan:
+            return plan["response"]
 
-            if len(items) >= 2:
-                self._synthesize_rule(theme, len(items), items)
-
-        # Hybrid Intelligence: Ask AI about confusing "General" items
-        if self.has_ai and len(clusters["General"]) >= 2:
-            self._analyze_complex_cluster(clusters["General"])
-
-        # Return ACTUAL persisted proposals from the database
-        try:
-            conn = sqlite3.connect(str(self.db_path))
-            conn.row_factory = sqlite3.Row
-            cursor = conn.cursor()
-            cursor.execute("SELECT * FROM agent_proposals")
-            proposals = [dict(r) for r in cursor.fetchall()]
-            conn.close()
-        except sqlite3.Error as e:
-            print(f"[!] Inference: Analysis fetching error: {e}")
-
-        return proposals
-
-    def analyze_external_patterns(self, project_root: Path) -> List[Dict[str, Any]]:
-        """
-        Load patterns from inference_patterns.json and run plugin checks in checks/.
-        """
-        try:
-            from .agent_verify import run_all_checks  # type: ignore
-        except Exception:
-            try:
-                from agent_verify import run_all_checks
-            except Exception as e:
-                print(f"[!] Inference: agent_verify unavailable: {e}")
-                return []
-
-        results_payload = run_all_checks(project_root)
-        results: List[Dict[str, Any]] = results_payload.get("results", [])
-
-        # Auto-generate proposed_patterns.json for failed checks (discovery only)
-        failed = [r for r in results if not r.get("passed")]
-        if failed:
-            out_path = project_root / ".bgl_core" / "brain" / "proposed_patterns.json"
-            try:
-                out_path.parent.mkdir(parents=True, exist_ok=True)
-                existing: List[Dict[str, Any]] = []
-                if out_path.exists():
-                    existing = json.loads(out_path.read_text(encoding="utf-8")) or []
-                existing_ids = {p.get("id") for p in existing}
-                for r in failed:
-                    if r.get("id") in existing_ids:
-                        continue
-                    existing.append(
-                        {
-                            "id": r.get("id"),
-                            "check": r.get("check"),
-                            "evidence": r.get("evidence", []),
-                            "scope": r.get("scope", []),
-                            "recommendation": r.get("recommendation"),
-                            "confidence": r.get("confidence", 0.65),
-                        }
-                    )
-                out_path.write_text(json.dumps(existing, indent=2, ensure_ascii=False))
-            except Exception as e:
-                print(f"[!] Inference: failed to write proposed_patterns.json: {e}")
-        return results
-
-    def _synthesize_rule(
-        self, pattern: str, count: int, stressors: List[Dict[str, Any]]
-    ):
-        """Creates a professional rule proposal with detailed reasoning and persists it."""
-
-        # Determine rule details based on pattern (Arabic Localization)
-        if "Permission" in pattern:
-            name = "فحص تلقائي لصلاحية الكتابة"
-            action = "WARN"
-            description = (
-                "التحقق من صلاحيات الملفات والمجلدات قبل إجراء عمليات الكتابة."
-            )
-            impact = "مرتفع: يمنع فشل المهام المفاجئ وفقدان البيانات الناتج عن قيود نظام التشغيل."
-            solution = (
-                "تفعيل مستشعر استباقي يتحقق من 'os.access' لجميع المسارات المستهدفة."
-            )
-            expectation = (
-                "تقليل بنسبة 100% في استثناءات 'Permission Denied' أثناء التشغيل."
-            )
-        elif "Composer" in pattern:
-            name = "منطق التراجع التلقائي للتبعيات"
-            action = "WARN"
-            description = (
-                "يرصد إخفاقات Composer المتكررة ويقترح حلولاً بديلة أو تدخلاً يدوياً."
-            )
-            impact = "متوسط: يقلل من فشل المهام الناتج عن التبعيات المفقودة أو غير المتوافقة."
-            solution = "دمج فحص صحة Composer وآلية تراجع في خط الإنتاج البرمجي."
-            expectation = "انخفاض ملحوظ في حالات فشل المهام المتعلقة بـ 'Composer'."
-        elif "Database" in pattern:
-            name = "درع سلامة الاستعلامات"
-            action = "WARN"
-            description = (
-                "يضمن اتصال قاعدة البيانات والتحقق من صحة الاستعلامات المتكررة."
-            )
-            impact = (
-                "عالي: يمنع تلف البيانات وتوقف الخدمة الناتج عن مشاكل قاعدة البيانات."
-            )
-            solution = "تنفيذ التحقق المسبق من الاستعلامات وإدارة تجمعات الاتصال مع منطق إعادة المحاولة."
-            expectation = (
-                "تلاشي أخطاء اتصال قاعدة البيانات أو تنفيذ الاستعلامات تقريباً."
-            )
-        else:
-            name = f"تخفيف نمط {pattern} العام"
-            action = "WARN"
-            description = f"مراقبة استباقية لأنماط {pattern} عبر جميع المهام."
-            impact = "متوسط: يحسن استقرار الوكيل العام وتحديد مكان الأخطاء."
-            solution = f"إضافة مدقق متخصص إلى شبكة الأمان (SafetyNet) لرصد {pattern}."
-            expectation = f"انخفاض ملحوظ في ضغوط {pattern} المتكررة."
-
-        evidence = ", ".join([s["task_name"] for s in stressors])
-
-        try:
-            conn = sqlite3.connect(str(self.db_path))
-            cursor = conn.cursor()
-
-            # Check if this rule name already exists to prevent duplication
-            cursor.execute("SELECT id FROM agent_proposals WHERE name = ?", (name,))
-            if cursor.fetchone():
-                conn.close()
-                return
-
-            cursor.execute(
-                """
-                INSERT INTO agent_proposals (name, description, action, count, evidence, impact, solution, expectation)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-            """,
-                (
-                    name,
-                    description,
-                    action,
-                    count,
-                    evidence,
-                    impact,
-                    solution,
-                    expectation,
-                ),
-            )
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"[!] Inference: Persist error: {e}")
-
-    def _analyze_complex_cluster(self, items: List[Dict[str, Any]]):
-        """Offloads complex pattern recognition to LLM."""
-        print(
-            f"[*] Inference: Offloading {len(items)} complex items to LLM (Local/Cloud)..."
+        return plan.get(
+            "expert_synthesis",
+            plan.get(
+                "reasoning", "Analysis complete but no specific response generated."
+            ),
         )
-        prompt = "Analyze these software errors and propose a single architectural mitigation rule (JSON format with name, description, action=WARN/BLOCK, impact, solution, expectation):\n"
-        for item in items[:5]:  # Limit to 5
-            prompt += f"- {item['reason']} (Task: {item['task_name']})\n"
 
-        resp = self._query_llm(prompt)
-        # Handle Local LLM response format (usually matches OpenAI, but being safe)
-        if not resp:
-            print("[!] Inference: No response from LLM")
-            return
+    def _parse_structured_plan(self, response_text: str) -> Dict[str, Any]:
+        """Robustly parses JSON even if wrapped in markdown or containing garbage."""
+        clean_text = response_text.strip()
+        if "```json" in clean_text:
+            clean_text = clean_text.split("```json")[1].split("```")[0].strip()
+        elif "```" in clean_text:
+            clean_text = clean_text.split("```")[1].split("```")[0].strip()
 
-        content = resp.get("choices", [{}])[0].get("message", {}).get("content", "")
+        # Remove any leading/trailing non-JSON characters
+        start = clean_text.find("{")
+        end = clean_text.rfind("}")
+        if start != -1 and end != -1:
+            clean_text = clean_text[start : end + 1]
 
-        try:
-            # Basic parsing attempt (LLM can return markdown)
-            json_str = content.replace("```json", "").replace("```", "").strip()
-            rule = json.loads(json_str)
-
-            if "name" in rule:
-                # Direct persistence of the high-quality rule from LLM
-                conn = sqlite3.connect(str(self.db_path))
-                cursor = conn.cursor()
-
-                # Check for duplicates
-                cursor.execute(
-                    "SELECT id FROM agent_proposals WHERE name = ?", (rule["name"],)
-                )
-                if not cursor.fetchone():
-                    cursor.execute(
-                        """
-                        INSERT INTO agent_proposals (name, description, action, count, evidence, impact, solution, expectation)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-                        """,
-                        (
-                            rule.get("name", "LLM Insight"),
-                            rule.get("description", "AI-Generated advice"),
-                            rule.get("action", "WARN"),
-                            len(items),
-                            "Hybrid Intelligence Analysis",
-                            rule.get("impact", "Unknown"),
-                            rule.get("solution", "Review logs"),
-                            rule.get("expectation", "Improvement"),
-                        ),
-                    )
-                    conn.commit()
-                    print(
-                        f"[*] Hybrid Inference: Persisted new rule '{rule.get('name')}'"
-                    )
-                conn.close()
-        except Exception as e:
-            print(f"[!] Inference: LLM extraction failed: {e}")
+        return json.loads(clean_text)
 
 
 if __name__ == "__main__":
     # Test
-    engine = InferenceEngine(Path(".bgl_core/brain/knowledge.db"))
-    findings = engine.analyze_patterns()
-    for f in findings:
-        print(f"Proposed Rule: {f['name']} (Count: {f['count']})")
+    os.environ["LLM_MODEL"] = "llama3.1:latest"
+    engine = ReasoningEngine(Path(".bgl_core/brain/knowledge.db"))
+    plan = engine.reason({"test_mode": True, "status": "Ready"})
+    print(json.dumps(plan, indent=2))

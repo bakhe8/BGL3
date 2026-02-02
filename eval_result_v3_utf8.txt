@@ -1,0 +1,23 @@
+﻿In BGL3, extending an expired bank guarantee without paying additional fees is not a straightforward process due to its architectural and logical constraints. Here's a step-by-step explanation of how this request would be handled:
+
+1. **Request Reception**: The client sends a request to extend the guaranteed through a POST request using the `/api/extend-guarantee.php` endpoint. This file includes the `Controller_ExtendGuarantee` class, which takes care of processing the incoming data.
+2. **Validation and Logic Bridge**: In BGL3, there is a pattern called the "Logic Bridge" (defined in the `logic_bridge` class). This class is responsible for routing user requests between controllers, ensuring coherence across different application layers and enforcing business logic consistency throughout the system. Before invoking any controller methods related to extending guarantees, this bridge performs checks using a set of predefined conditions:
+   - **Check if the guarantee exists**: If there's no guarantee corresponding to the given `guarantee_number`, it returns an error message.
+   - **Verify that the client has permission**: BGL3 introduces role-based access control (RBAC), where users can be assigned roles based on their privileges. This ensures only authorized personnel can extend guarantees.
+
+Upon passing these preliminary checks, the request is routed to the correct controller method for handling.
+
+3. **Business Logic Checks and Service Resolution**:
+   - In `Controller_ExtendGuarantee`, BGL3 will look up and invoke relevant logic residing in its core logic bridge (`logic_bridge`). This may resolve a service (`SmartProcessingService` possibly) and execute its extend action method. This business logic is expected to enforce all rules and constraints relevant for extending a bank guarantee (like those related to date fields, contract types, guarantee limits, etc.). 
+   - As part of executing this extendable logic in the `logic_bridge`, there might be some checks on timing, like comparing `issuedate` and an associated extension period. Note that these rules are expectedly encapsulated inside a business object (BO), which will also encapsulate all other constraints/validations including those related to charges.
+
+4. **Guarantee Repository Check**:
+   - Upon execution of the extendable procedure, BGL3’s core repository (`guarantee_repository` likely) may be invoked to get information about the guarantee, as well as its `Bank`, `Status`, and associated `History`.
+   - This will validate that the bank has not blocked new guarantees from proceeding; it will confirm if any extensions have taken place since the original guarantee date was set; etc.
+
+5. **Constraints for Extending Expired Guarantees without Additional Fees**: If we closely examine these interactions in BGL3’s core:
+    - We notice that before allowing an extension, the current state of a bank guarantee would necessitate it to be active status (i.e., not expired).
+    - Moreover, during validation as the request crosses through controllers and service class methods (like described earlier), specific guard clause conditions are defined by business rules in their respective areas. For instance these involve constraints enforced on expiration date fields (`expired_date` and `end_date`) which inherently limit an attempt to set a future end time when extending expired items.
+    Furthermore, any extension request is subject to additional charges that should be accounted for within the scope of logic bridge services, according to the rules governing a specific contract type.
+
+Taking all this into consideration would tell us that while it’s not possible for BGL3 directly block an existing extension attempt because a guarantee has expired (based only on these detailed interactions/ steps outlined above), logically some constraints remain which would typically prevent clients from extending bank guarantees without adding extra charges to the original agreement.

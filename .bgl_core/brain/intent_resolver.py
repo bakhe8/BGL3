@@ -1,69 +1,68 @@
 from typing import Dict, Any
+import json
+import os
+import urllib.request
 
 
 def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     """
-    Observe-only resolver.
-    Produces a single intent snapshot without influencing execution.
+    Smart Intent Resolver.
+    Uses LLM to interpret diagnostic data and determine true intent.
     """
-    findings = diagnostic.get("findings", {})
-    failing = findings.get("failing_routes", []) or []
-    permission = findings.get("permission_issues", []) or []
-    worst_routes = findings.get("worst_routes", []) or []
-    experiences = findings.get("experiences", []) or []
+    print("[*] SmartIntentResolver: Interpreting system diagnostics...")
 
-    route_usage = diagnostic.get("route_usage", {}) or {}
-    feature_flags = diagnostic.get("feature_flags", {}) or {}
-    suppressed = False
+    openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
+    ollama_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1/chat/completions")
 
-    if failing:
-        intent = "stabilize"
-        reason = f"{len(failing)} failing routes detected"
-        confidence = 0.85
-        scope = [f.get("uri") if isinstance(f, dict) else str(f) for f in failing][:3]
-    elif worst_routes:
-        intent = "investigate"
-        reason = "Hot routes with recent issues"
-        confidence = 0.6
-        scope = [w.get("uri") for w in worst_routes[:3]]
-    elif permission:
-        intent = "unblock"
-        reason = "Permission issues detected"
-        confidence = 0.65
-        scope = permission[:3]
-    else:
-        intent = "observe"
-        reason = "System nominal"
-        confidence = 0.4
-        scope = []
+    prompt = f"""
+    Analyze this system diagnostic and determine the single most critical intent.
+    Diagnostic: {json.dumps(diagnostic, indent=2)}
+    
+    Possible Intents:
+    - "stabilize": Fix critical errors/failures.
+    - "evolve": Improve architecture or add rules.
+    - "unblock": Resolve permissions or environment issues.
+    - "observe": System is healthy, monitor only.
+    
+    Output JSON:
+    {{
+        "intent": "string",
+        "confidence": float (0.0-1.0),
+        "reason": "string justification",
+        "scope": ["uris or files impacted"]
+    }}
+    """
 
-    context_snapshot = {
-        "health": diagnostic.get("vitals", {}),
-        "active_route": scope[0] if scope else None,
-        "recent_changes": [],
-        "guardian_top": scope[:3],
-        "browser_state": diagnostic.get("browser_state", "unknown"),
-    }
+    # Simple fallback if no AI is configured
+    if not (openai_key or "localhost" in ollama_url):
+        return {
+            "intent": "observe",
+            "confidence": 0.5,
+            "reason": "No AI configured for smart resolution.",
+        }
 
-    # suppression rules: keep them conservative but never suppress failing/hot routes
-    primary_route = context_snapshot.get("active_route")
-    if intent == "observe":
-        # only apply suppression heuristics when we're already in observe mode
-        if primary_route:
-            usage = float(route_usage.get(primary_route, 0))
-            if usage < 0.01:
-                suppressed = True
-            deprecated = feature_flags.get("deprecated_routes", [])
-            if primary_route in deprecated:
-                suppressed = True
-    else:
-        suppressed = False
-
-    return {
-        "intent": intent,
-        "confidence": confidence,
-        "reason": reason,
-        "scope": scope,
-        "context_snapshot": context_snapshot,
-        "suppressed": suppressed,
-    }
+    try:
+        # Heuristic for rapid local testing
+        payload = {
+            "model": os.getenv("LLM_MODEL", "llama3.1"),
+            "messages": [{"role": "user", "content": prompt}],
+            "response_format": {"type": "json_object"},
+            "temperature": 0.0,
+        }
+        req = urllib.request.Request(
+            ollama_url,
+            json.dumps(payload).encode(),
+            {"Content-Type": "application/json"},
+        )
+        with urllib.request.urlopen(req, timeout=10) as response:
+            res = json.loads(response.read().decode())
+            return json.loads(res["choices"][0]["message"]["content"])
+    except Exception:
+        # Fallback to hardcoded logic if LLM fails
+        return {
+            "intent": "stabilize"
+            if diagnostic["findings"].get("failing_routes")
+            else "observe",
+            "confidence": 0.7,
+            "reason": "LLM resolution failed; using heuristic fallback.",
+        }

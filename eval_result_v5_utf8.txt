@@ -1,0 +1,43 @@
+﻿To determine how a bank guarantee can be extended without additional fees while it's expired, let's examine the involved components within `BGL3` by following the actual control flows through `Controllers`, `Services`, and `Models`.
+
+### 1. Condition for Expired Guarantee
+
+The expiration of a guarantee is likely tracked in the database using its status (`status`) field within the `guarantees` table.
+
+**`Models/Guarantee.php`** contains methods to manage the guarantee's life cycle, including setting the expired status. However, extending an expired guarantee is not inherently blocked by this status alone since it can be part of the business logic applied in services and controllers.
+
+### 2. Extension Logic
+
+The extension process involves modifying the expiry date (`end_date`) of a guarantee without changing its `start_date`, according to the domain mapping defined in `domain_map.yml`.
+
+**`Controllers/GuaranteeController.php`** contains methods for creating new guarantees, extending existing ones, and other related functionalities.
+
+Specifically:
+- The `extend.php` file within `api/` handles POST requests for extending guarantees. It expects data including a guarantee number, new expiry date, among other parameters.
+```php
+// api/guarantee/extend.php (simplified)
+require_once 'app/Support/autoload.php';
+
+// Extend existing guarantee logic
+$guarantee = GuaranteeRepository::getGuarantee($guaranteeNumber);
+$validator = new GuaranteeValidator();
+if ($validator->validateExtendRequest($guarantee, $requestData)) {
+    // Update end_date without changing start_date.
+    $updatedGuarantee = GuaranteeRepository::extendGuarantee($guarantee, $requestData['end_date']);
+} else {
+    // Handle validation errors
+}
+```
+In the context of the logic bridge (`logic_bridge`), the `SmartProcessingService` handles post-processing steps after creating or extending guarantees.
+
+### 3. Potential Business Rule Constrained
+
+While the above code allows for extending expired guarantees, there could be a business rule that prevents this action from being accepted for free, especially considering potential data quality issues or contractual obligations.
+
+The critical flows (`create_guarantee` and `extend_guarantee`) in `domain_map.yml`, however, do not explicitly state penalties or restrictions on extending expired guarantees without additional fees. 
+
+Yet, the `operational_kpis` section hints at monitoring metrics related to payment and data quality that might indirectly relate to such extensions potentially being reviewed for validity (considering `review_notes`: "`(validation_failure_rate)`").
+
+Given this overview of logic flow but recognizing potential omissions in directly stated rules or constraints in `domain_map.yml`, extend an expired guarantee without additional fees directly from the system’s current configuration and coding seems plausible on a technical level. However, operational and business constraints not represented here might limit or modify such behavior based on the specific application scenario.
+
+Please note that actual implementation details can vary widely depending on specific system requirements and configurations beyond the information provided in `domain_map.yml` and project code structure. The explanation focuses solely on following logical paths from the available documentation and source files.

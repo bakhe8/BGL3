@@ -169,6 +169,43 @@ System Effects (UI / Files / DB / Logs)
 
 ---
 
+# التشغيل الموحد (بدون Docker)
+
+هذا هو المسار الوحيد الموصى به لتشغيل الشات داخل لوحة التحكم بعد إزالة الشات القديم:
+
+1. **تجهيز الواجهة (مرة واحدة أو عند التعديل)**  
+   ```bash
+   cd agentfrontend
+   npm install
+   npm run build   # ينتج agentfrontend/app/copilot/dist/copilot-widget.js
+   ```
+
+2. **تشغيل مزوّد النموذج**  
+   تأكد أن Ollama يعمل على `http://localhost:11434` (OpenAI-compatible).
+
+3. **تشغيل جسر الأدوات والمحادثة**  
+   ```bash
+   python scripts/tool_server.py --port 8891
+   ```
+   يخدّم مسارين:
+   - `/tool` لأدوات الوكيل الحالية (run_checks, route_index, logic_bridge...)
+   - `/chat` لتمرير المحادثة إلى Ollama مع دعم functions.
+
+4. **تشغيل لوحة التحكم (PHP)**  
+   من جذر المشروع:
+   ```bash
+   php -S localhost:8000 server.php
+   ```
+
+5. **الدخول للوحة**  
+   افتح: `http://localhost:8000/agent-dashboard.php`  
+   ستجد قسم **محادثة CopilotKit (تجريبي)** يعمل محلياً ويستدعي الأدوات عبر `tool_server.py`.
+
+ملاحظات:
+- لا يوجد اعتماد على CDN أو Docker.
+- عند تعديل React/JS، أعد `npm run build` ليتم تحميل الحزمة الجديدة.
+- إذا أردت وضع تطوير حي، شغّل `npm run dev -- --host --port 4173`، ثم حدّث مسار السكربت في `agentfrontend/partials/copilot_chat.php` مؤقتاً إلى خادم Vite.
+
 # حالات الوكيل الرسمية في BGL3
 
 > الشات واجهة زمنية تعكس حالة الوكيل لحظة بلحظة. الوكيل يكون دائماً في **حالة واحدة فقط**.

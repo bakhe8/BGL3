@@ -11,7 +11,7 @@ try:
     from .guardian import BGLGuardian  # type: ignore
     from .browser_sensor import BrowserSensor  # type: ignore
     from .fault_locator import FaultLocator  # type: ignore
-    from .inference import InferenceEngine  # type: ignore
+    from .inference import ReasoningEngine  # type: ignore
     from .interpretation import interpret  # type: ignore
     from .decision_db import init_db, insert_intent, insert_decision, insert_outcome  # type: ignore
     from .intent_resolver import resolve_intent  # type: ignore
@@ -23,7 +23,7 @@ except (ImportError, ValueError):
     from guardian import BGLGuardian
     from browser_sensor import BrowserSensor
     from fault_locator import FaultLocator
-    from inference import InferenceEngine
+    from inference import ReasoningEngine
     from interpretation import interpret
     from decision_db import init_db, insert_intent, insert_decision, insert_outcome
     from intent_resolver import resolve_intent
@@ -58,11 +58,15 @@ class AgencyCore:
         self.config = load_config(root_dir)
 
         # Initialize Core Components
-        self.sensor_browser = BrowserSensor(base_url=base_url, headless=True, project_root=root_dir)
+        self.sensor_browser = BrowserSensor(
+            base_url=base_url, headless=True, project_root=root_dir
+        )
         self.locator = FaultLocator(self.db_path, self.root_dir)
         self.safety = SafetyNet(root_dir, base_url)
         self.guardian = BGLGuardian(root_dir, base_url)
-        self.inference = InferenceEngine(self.db_path)
+        self.inference = ReasoningEngine(
+            self.db_path, browser_sensor=self.sensor_browser
+        )
         self.playbook_meta = load_playbooks_meta(root_dir)
         # Init decision db (idempotent)
         if self.decision_schema.exists():
@@ -92,7 +96,7 @@ class AgencyCore:
             if sample_file.exists()
             else {"valid": True}
         )
-        
+
         # 3. Augment failing routes with diagnostic data
         failing_routes_details = []
         for route_item in health_report.get("failing_routes", []):
@@ -116,13 +120,13 @@ class AgencyCore:
         findings = {
             "failing_routes": failing_routes_details,
             "blockers": self.get_active_blockers(),
-            "proposals": self.inference.analyze_patterns(),
+            "proposals": [],  # Legacy, replaced by dynamic reasoning
             "permission_issues": health_report.get("permission_issues", []),
             "worst_routes": health_report.get("worst_routes", []),
             "experiences": health_report.get("recent_experiences", []),
             "gap_tests": [],
         }
-        findings["external_checks"] = self.inference.analyze_external_patterns(self.root_dir)
+        findings["external_checks"] = []  # Legacy
         # Convert failing external checks into actionable proposals so they share one channel
         for check in findings["external_checks"]:
             if check.get("passed"):
@@ -233,7 +237,11 @@ class AgencyCore:
             total = sum(r[1] for r in rows)
             stats["total_outcomes"] = total
             if total > 0:
-                successes = sum(count for res, count in rows if res in ("success", "success_with_override"))
+                successes = sum(
+                    count
+                    for res, count in rows
+                    if res in ("success", "success_with_override")
+                )
                 stats["success_rate"] = round(successes / total, 3)
             conn.close()
         except Exception:

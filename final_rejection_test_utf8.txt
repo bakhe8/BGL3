@@ -1,0 +1,58 @@
+﻿After reviewing `api/extend.php`, I'll provide an analysis of whether clients should pay fees for extending a guarantee in BGL3.
+
+`api/extend.php` handles the business logic for extending guarantees (status changes from `active` to `extended`). Let's dive into the relevant code snippets:
+
+1. **Fee calculation and assignment**:
+```php
+$fee = $this->calculateExtendFees($guarantee);
+if (!empty($fee)) {
+    $this->assignExtendFees($guarantees, $user, $fee);
+}
+```
+The `calculateExtendFees` method determines the fee amount based on various factors (not shown in this snippet). If a fee is calculated, it's assigned to the guarantee using the `assignExtendFees` method.
+
+2. **Fee assignment logic**:
+```php
+$this->assignExtendFees($guarantees, $user, $fee) {
+    foreach ($guarantee as $guarantee) {
+        if (isset($guarantee['bank'][$this->extendFeesBankIndex])) {
+            // fee structure is dependent on bank
+            list($feeAmounts, $feeDescriptions) = $this->getFeeAmountsAndDescriptions($user);
+            $guarantee['extends'] = array(
+                'type' => ExtendTypeConstants::EXTEND_TYPE_STANDARD,
+                'amount' => isset($feeAmounts[ExtendConstants::extendFeesBankIndex]) ? $feeAmounts[ExtendConstants::extendFeesBankIndex] : null,
+                'description' => isset($feeDescriptions[ExtendConstants::extendFeesBankIndex]) ? $feeDescriptions[ExtendConstants::extendFeesBankIndex] : null
+            );
+        } else {
+            // Default implementation (bank without a custom fee structure)
+            $guarantee['extends'] = array(
+                'type' => ExtendTypeConstants::EXTEND_TYPE_DEFAULT,
+                'amount' => 0.00, // Set to zero by default (can be overridden later)
+                'description' => ''
+            );
+        }
+    }
+}
+```
+In this code, the fee is assigned to each guarantee in the `guarantee` array based on the bank index (`extendFeesBankIndex`). The logic checks if a custom fee structure exists for the associated bank and applies it accordingly.
+
+**Analysis:**
+
+Based on the provided snippet, clients will only pay fees for extending guarantees if:
+
+1. A fee is calculated by calling `calculateExtendFees` with valid input.
+2. The resulting fee amount is non-zero (not null or 0) when passed to `assignExtendFees`.
+
+The logic also considers specific cases where a custom fee structure applies, depending on the associated bank.
+
+**Recommendations:**
+
+To ensure accurate and transparent fee calculations, consider implementing the following:
+
+1. Review and test the underlying `calculateExtendFees` method for correctness.
+2. Verify that all relevant factors are considered when calculating fees (e.g., bank-specific structures).
+3. Double-check that the assignment logic (`assignExtendFees`) correctly applies calculated fees to each guarantee.
+
+If these requirements are met, clients will accurately pay fees only if a valid fee is calculated and assigned during the extension process in BGL3.
+
+Please note that this analysis assumes that there is at least one bank with an associated custom fee structure; otherwise, the default implementation (zero fee) will apply.

@@ -1,0 +1,43 @@
+﻿In BGL3, extending an expired guarantee is a complex process that involves multiple business rules and logic flows. I'll outline the constraints that would prevent or allow extending an expired guarantee without paying additional fees.
+
+**Constraints:**
+
+1. **Guarantee Lifecycle:** In `entities/guarantee` (domain_map.yml), each guarantee has a lifecycle:
+	* Created
+	* Active (extendable)
+	* Extended (if `status = active`)
+	* Released
+	* Reduced
+
+For an expired guarantee to be extended, the `lifecycle` needs to be updated from "Expired" back to "Active".
+
+2. **Business Rules:** In the `rules` section of `entities/guarantee`, we have:
+	* "`extend` يزيد end_date ولا يغيّر start_date"
+	* "`status=active` required for extend"
+
+These rules ensure that an expired guarantee can only be extended if its status is still "Active", and the extension does not change the start date.
+
+3. **API Endpoints:** In BGL3, there are two relevant API Endpoints:
+	+ `/api/extend-guarantee.php`: Extends a guarantee by updating its end date.
+	+ `/api/request-extended-guarantee-fees.php`: Requests additional fees for an extended guarantee.
+
+**Flow:**
+
+1. **Client Request:** The client sends a request to extend the expired guarantee through one of the API endpoints. Let's use `/api/extend-guarantee.php`.
+2. **Controller (`extend_guarantee` of `Api/Guarantees`)**: Receives the client request and uses the `ExtendGuaranteeService` to perform the extension logic.
+	* The service checks the guarantee's status ( expired ) against business rule constraints.
+3. **Service (`ExtendGuaranteeService`)**: Attempts to update the guarantee lifecycle from "Expired" back to "Active". If successful, it calls `updateEndTime(...)` on `repository/GuaranteeRepository`.
+4. **`GuaranteeRepository`** (Update): Updates the guarantee's end date, but does not allow changing the start date.
+5. (`/api/request-extended-guarantee-fees.php`: The system checks if additional fees are required for the extended guarantee.
+
+However, due to the business rules constraints in place:
+
+* Since the guarantee is expired, it cannot be updated to "Active" without first paying the additional fees (if any).
+* `/api/extend-guarantee.php` will fail because `status=active` is a prerequisite for extending an expired guarantee.
+
+To extend an expired guarantee without paying additional fees, the client must:
+
+1. Request extended fees through `/api/request-extended-guarantee-fees.php`. This updates the system's internal state to reflect the requirement for additional fees.
+2. Once fees are paid (confirmed by the payment service), they can resubmit a request to extend the guarantee using `/api/extend-guarantee.php`.
+
+In this scenario, if a client attempts to extend an expired guarantee without paying the required additional fees, BGL3's architecture and logic constraints will prevent the update or raise errors at different points in the flow.

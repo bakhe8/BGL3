@@ -4,6 +4,18 @@
 $ErrorActionPreference = "SilentlyContinue"
 $projectPath = Split-Path -Parent $MyInvocation.MyCommand.Path
 $pidFile = Join-Path $projectPath "server.pid"
+$toolServerPort = 8891
+$copilotBundle = Join-Path $projectPath "agentfrontend\app\copilot\dist\copilot-widget.js"
+
+function Kill-Port {
+    param([int]$Port)
+    $conns = Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue
+    foreach ($c in $conns) {
+        try {
+            Stop-Process -Id $c.OwningProcess -Force -ErrorAction SilentlyContinue
+        } catch {}
+    }
+}
 
 # التحقق من حالة السيرفر
 if (Test-Path $pidFile) {
@@ -32,6 +44,32 @@ Write-Host "━━━━━━━━━━━━━━━━━━━━━━�
 Write-Host "   تشغيل السيرفر" -ForegroundColor Green
 Write-Host "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━" -ForegroundColor Cyan
 Write-Host ""
+
+# تنظيف المنافذ قبل التشغيل (8000 للسيرفر، 8891 للجسر)
+Kill-Port 8000
+Kill-Port $toolServerPort
+
+# ضمان وجود حزمة الواجهة (تبقى نفس الطريقة والملفات)
+function Ensure-CopilotBuild {
+    Push-Location (Join-Path $projectPath "agentfrontend")
+    if (-not (Test-Path "node_modules")) {
+        Start-Process -FilePath "npm" -ArgumentList "install" -WindowStyle Hidden -PassThru -Wait | Out-Null
+    }
+    Start-Process -FilePath "npm" -ArgumentList "run build" -WindowStyle Hidden -PassThru -Wait | Out-Null
+    Pop-Location
+}
+
+# تشغيل جسر الأدوات/الشات إذا لم يكن مستمعاً على 8891
+function Ensure-ToolServer {
+    $listening = Get-NetTCPConnection -LocalPort $toolServerPort -State Listen -ErrorAction SilentlyContinue
+    if (-not $listening) {
+        Write-Host "↻ تشغيل tool_server.py على المنفذ $toolServerPort" -ForegroundColor Cyan
+        Start-Process -FilePath "python" -ArgumentList "`"$projectPath\scripts\tool_server.py`" --port $toolServerPort" -WindowStyle Hidden
+    }
+}
+
+Ensure-CopilotBuild
+Ensure-ToolServer
 
 # [Gatekeeper] التحقق من وجود دستور المشروع (Architectural Constitution)
 $rulesFile = Join-Path $projectPath ".bgl_core\brain\domain_rules.yml"

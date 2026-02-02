@@ -1,0 +1,14 @@
+﻿[*] Testing Grounding logic...
+[*] Sending grounded chat request with UI context...
+[*] ReasoningEngine: Checking UI context for chat: http://localhost:8000/index.php
+
+--- AGENT RESPONSE ---
+
+
+{
+  "response": "بناءً على السياق المقدم، لا توجد معلومات محددة في الملفات أو واجهة المستخدم حول الشروط المطلوبة لإتمام عملية تخفيض قيمة الضمان البنكي. يظهر زر 'تخفيض' في واجهة المستخدم، لكن التفاصيل غير متوفرة.",
+  "status": "no_data"
+}
+
+--- END RESPONSE ---
+

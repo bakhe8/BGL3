@@ -25,7 +25,7 @@ entities:
     rules:
       - "لا يمكن release أو reduce إلا إذا status=active"
       - "extend يزيد end_date ولا يغيّر start_date"
-      - "type يحدد سياسات الرسوم/الفترات"
+      - "type يحدد الفترات الزمنية المتاحة"
 
   attachment:
     description: ملفات داعمة للطلبات/الضمانات.

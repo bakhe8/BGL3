@@ -1,42 +1,106 @@
 """
-Minimal HTTP bridge to expose llm_tools via a simple POST API for Open WebUI or any client.
+Minimal HTTP bridge for BGL3 tools + chat (CORS enabled).
+
 Usage:
     python scripts/tool_server.py --port 8891
-Request:
-    POST /tool  with JSON {"tool": "run_checks", "payload": {...}}
-Response:
-    JSON result from llm_tools.dispatch
+
+Endpoints:
+    POST /tool   {"tool": "run_checks", "payload": {...}}
+    POST /chat   {"messages": [...], "functions": [...]}
 """
+
 import json
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from argparse import ArgumentParser
 from pathlib import Path
 import sys
+import subprocess
+import shlex
+import requests
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / ".bgl_core" / "brain"))
 
 from llm_tools import dispatch  # type: ignore
+from intent_resolver import resolve_intent  # type: ignore
+from agency_core import AgencyCore
+import asyncio
+
+agency = AgencyCore(ROOT)
 
 
 class Handler(BaseHTTPRequestHandler):
-    def _set_headers(self, code=200):
+    def _set_headers(self, code=200, extra_headers=None):
         self.send_response(code)
         self.send_header("Content-Type", "application/json; charset=utf-8")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Max-Age", "86400")
+        if extra_headers:
+            for k, v in extra_headers.items():
+                self.send_header(k, v)
         self.end_headers()
 
+    def do_OPTIONS(self):
+        self._set_headers(200)
+
     def do_POST(self):
-        if self.path != "/tool":
-            self._set_headers(404)
-            self.wfile.write(b'{"error":"not found"}')
-            return
         length = int(self.headers.get("Content-Length", 0))
         body = self.rfile.read(length) if length > 0 else b"{}"
         try:
             req = json.loads(body.decode("utf-8"))
         except Exception as e:
             self._set_headers(400)
-            self.wfile.write(json.dumps({"status": "ERROR", "message": f"bad json: {e}"}).encode("utf-8"))
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": f"bad json: {e}"}).encode(
+                    "utf-8"
+                )
+            )
+            return
+
+        if self.path == "/tool":
+            self._handle_tool(req)
+        elif self.path == "/chat":
+            self._handle_chat(req)
+        else:
+            self._set_headers(404)
+            self.wfile.write(b'{"error":"not found"}')
+
+    def _handle_tool(self, req):
+        tool = req.get("tool")
+        if tool == "context_snapshot":
+            self._context_snapshot()
+            return
+        if tool == "log_tail":
+            self._log_tail(req)
+            return
+        if tool == "phpunit_run":
+            self._phpunit_run(req)
+            return
+        if tool == "master_verify":
+            self._master_verify(req)
+            return
+        if tool == "scenario_run":
+            self._scenario_run(req)
+            return
+        if tool == "route_show":
+            self._route_show(req)
+            return
+        if tool == "list_files":
+            self._list_files(req)
+            return
+        if tool == "describe_runtime":
+            self._describe_runtime()
+            return
+        if tool == "resolve_intent":
+            self._resolve_intent(req)
+            return
+        if tool == "read_file":
+            self._read_file(req)
+            return
+        if tool == "search_code":
+            self._search_code(req)
             return
         try:
             resp = dispatch(req)
@@ -44,7 +108,424 @@ class Handler(BaseHTTPRequestHandler):
             self.wfile.write(json.dumps(resp, ensure_ascii=False).encode("utf-8"))
         except Exception as e:
             self._set_headers(500)
-            self.wfile.write(json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8"))
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _context_snapshot(self):
+        """Return a short, dynamic context about BGL3 domain (bank guarantees)."""
+        try:
+            root = ROOT
+            summary_parts = []
+            logic_ref = root / "docs" / "logic_reference.md"
+            flows = [
+                "create_guarantee.md",
+                "extend_guarantee.md",
+                "release_guarantee.md",
+            ]
+            if logic_ref.exists():
+                with logic_ref.open("r", encoding="utf-8", errors="ignore") as f:
+                    text = f.read(4000)
+                    summary_parts.append(text)
+            for flow in flows:
+                fp = root / "docs" / "flows" / flow
+                if fp.exists():
+                    with fp.open("r", encoding="utf-8", errors="ignore") as f:
+                        summary_parts.append(f.read(1500))
+            domain_map = root / "docs" / "domain_map.yml"
+            if domain_map.exists():
+                with domain_map.open("r", encoding="utf-8", errors="ignore") as f:
+                    summary_parts.append(f.read(2000))
+            text = "\n\n".join(summary_parts)
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "context": text}, ensure_ascii=False
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _log_tail(self, req):
+        lines = int(req.get("lines", 120))
+        logfile = ROOT / "storage" / "logs" / "laravel.log"
+        if not logfile.exists():
+            self._set_headers(404)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": "log file not found"}).encode(
+                    "utf-8"
+                )
+            )
+            return
+        try:
+            content = logfile.read_text(encoding="utf-8", errors="ignore").splitlines()
+            tail = "\n".join(content[-lines:])
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps({"status": "OK", "log_tail": tail}).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _phpunit_run(self, req):
+        filter_arg = req.get("filter")
+        cmd = ["php", "vendor/bin/phpunit"]
+        if filter_arg:
+            cmd += ["--filter", str(filter_arg)]
+        try:
+            res = subprocess.run(
+                cmd, cwd=ROOT, capture_output=True, text=True, timeout=180
+            )
+            output = (res.stdout or "") + "\n" + (res.stderr or "")
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "status": "OK",
+                        "exit_code": res.returncode,
+                        "output": output[-4000:],
+                    }
+                ).encode("utf-8")
+            )
+        except subprocess.TimeoutExpired:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": "phpunit timeout"}).encode(
+                    "utf-8"
+                )
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _master_verify(self, req):
+        try:
+            res = subprocess.run(
+                ["python", ".bgl_core/brain/master_verify.py"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            output = (res.stdout or "") + "\n" + (res.stderr or "")
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "status": "OK",
+                        "exit_code": res.returncode,
+                        "output": output[-4000:],
+                    }
+                ).encode("utf-8")
+            )
+        except subprocess.TimeoutExpired:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "ERROR", "message": "master_verify timeout"}
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _scenario_run(self, req):
+        try:
+            res = subprocess.run(
+                ["python", ".bgl_core/brain/run_scenarios.py"],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                timeout=300,
+            )
+            output = (res.stdout or "") + "\n" + (res.stderr or "")
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "status": "OK",
+                        "exit_code": res.returncode,
+                        "output": output[-4000:],
+                    }
+                ).encode("utf-8")
+            )
+        except subprocess.TimeoutExpired:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "ERROR", "message": "scenario_run timeout"}
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _route_show(self, req):
+        uri = req.get("uri")
+        if not uri:
+            self._set_headers(400)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": "uri required"}).encode(
+                    "utf-8"
+                )
+            )
+            return
+        cmd = ["php", "artisan", "route:list", "--path", str(uri), "--json"]
+        try:
+            res = subprocess.run(
+                cmd, cwd=ROOT, capture_output=True, text=True, timeout=120
+            )
+            output = res.stdout or res.stderr
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "exit_code": res.returncode, "output": output}
+                ).encode("utf-8")
+            )
+        except subprocess.TimeoutExpired:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": "route:list timeout"}).encode(
+                    "utf-8"
+                )
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _list_files(self, req):
+        try:
+            limit = int(req.get("limit", 20))
+            if limit > 200:
+                limit = 200
+            pattern = req.get("pattern")
+            base = ROOT
+            files = []
+            count = 0
+            for path in base.rglob("*"):
+                if path.is_file():
+                    rel = str(path.relative_to(base))
+                    if pattern and pattern not in rel:
+                        continue
+                    files.append(rel)
+                    count += 1
+                    if count >= limit:
+                        break
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "files": files, "count": len(files)}
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _describe_runtime(self):
+        try:
+            tools = [
+                "run_checks",
+                "route_index",
+                "logic_bridge",
+                "context_snapshot",
+                "log_tail",
+                "phpunit_run",
+                "master_verify",
+                "scenario_run",
+                "route_show",
+                "list_files",
+                "describe_runtime",
+                "read_file",
+                "search_code",
+                "resolve_intent",
+            ]
+            info = {
+                "python": sys.version.split()[0],
+                "root": str(ROOT),
+                "tools": tools,
+                "policies": {
+                    "must_use_tool_for_execution": True,
+                    "no_fake_execution": True,
+                },
+            }
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "runtime": info}, ensure_ascii=False
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _resolve_intent(self, req):
+        diagnostic = req.get("diagnostic", {"vitals": {}, "findings": {}})
+        try:
+            result = resolve_intent(diagnostic) or {}
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "intent": result}, ensure_ascii=False
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _read_file(self, req):
+        try:
+            rel = req.get("path")
+            if not rel:
+                self._set_headers(400)
+                self.wfile.write(
+                    json.dumps({"status": "ERROR", "message": "path required"}).encode(
+                        "utf-8"
+                    )
+                )
+                return
+            full = ROOT / rel
+            if not full.exists() or not full.is_file():
+                self._set_headers(404)
+                self.wfile.write(
+                    json.dumps({"status": "ERROR", "message": "file not found"}).encode(
+                        "utf-8"
+                    )
+                )
+                return
+            max_bytes = int(req.get("max_bytes", 12000))
+            data = full.read_bytes()[:max_bytes]
+            try:
+                text = data.decode("utf-8", errors="ignore")
+            except Exception:
+                text = data.decode("latin-1", errors="ignore")
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps({"status": "OK", "path": rel, "content": text}).encode(
+                    "utf-8"
+                )
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _search_code(self, req):
+        pattern = req.get("pattern")
+        if not pattern:
+            self._set_headers(400)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": "pattern required"}).encode(
+                    "utf-8"
+                )
+            )
+            return
+        limit = int(req.get("limit", 40))
+        if limit > 200:
+            limit = 200
+        matches = []
+        try:
+            for path in ROOT.rglob("*"):
+                if not path.is_file():
+                    continue
+                try:
+                    text = path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    continue
+                if pattern in text:
+                    matches.append(str(path.relative_to(ROOT)))
+                    if len(matches) >= limit:
+                        break
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "OK", "pattern": pattern, "matches": matches}
+                ).encode("utf-8")
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
+            )
+
+    def _handle_chat(self, req):
+        messages = req.get("messages", [])
+        target_url = req.get("target_url")
+
+        try:
+            # use the new grounded chat method
+            response_content = asyncio.run(agency.inference.chat(messages, target_url))
+
+            self._set_headers(200)
+            self.wfile.write(
+                json.dumps({"content": response_content}, ensure_ascii=False).encode(
+                    "utf-8"
+                )
+            )
+        except Exception as e:
+            self._set_headers(500)
+            self.wfile.write(
+                json.dumps(
+                    {"status": "ERROR", "message": f"Reasoning error: {str(e)}"}
+                ).encode("utf-8")
+            )
+
+    def _compose_context_summary(self):
+        parts = []
+        parts.append(
+            "BGL3 هو نظام لإدارة الضمانات البنكية (Bank Guarantees): إنشاء ضمان، تمديده، الإفراج عنه، وربطه بين بنك ومورد مع تدقيق القرارات والسجلات. لا علاقة له بالإنزيمات أو الأحياء. إذا سُئلت عن BGL3 فجوابك يتعلق بالضمانات البنكية فقط."
+        )
+        parts.append(
+            "In this chat, BGL3 always means a bank guarantees management web system (create/extend/release guarantees between bank and supplier). It is NOT a gene or enzyme. If asked 'What is BGL3?' answer with the banking system meaning."
+        )
+        tools = [
+            "run_checks",
+            "route_index",
+            "logic_bridge",
+            "phpunit_run",
+            "master_verify",
+            "scenario_run",
+            "log_tail",
+            "route_show",
+            "list_files",
+            "read_file",
+            "search_code",
+            "context_snapshot",
+            "describe_runtime",
+            "resolve_intent",
+        ]
+        parts.append("الأدوات المتاحة: " + ", ".join(tools))
+        for path, limit in [
+            (ROOT / "docs" / "logic_reference.md", 4000),
+            (ROOT / "docs" / "domain_map.yml", 3000),
+        ]:
+            if path.exists():
+                try:
+                    txt = path.read_text(encoding="utf-8", errors="ignore")[:limit]
+                except Exception:
+                    txt = path.read_text(errors="ignore")[:limit]
+                parts.append(f"[{path.name}]\n{txt}")
+        return "\n\n".join(parts)
 
     def log_message(self, format, *args):
         return  # silence
@@ -55,7 +536,7 @@ def main():
     ap.add_argument("--port", type=int, default=8891)
     args = ap.parse_args()
     server = HTTPServer(("0.0.0.0", args.port), Handler)
-    print(f"tool_server listening on http://0.0.0.0:{args.port}/tool")
+    print(f"tool_server listening on http://0.0.0.0:{args.port}/tool and /chat")
     try:
         server.serve_forever()
     except KeyboardInterrupt:

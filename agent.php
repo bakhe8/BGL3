@@ -42,6 +42,12 @@ class AgentConsole
             case 'rules':
                 $this->showRules();
                 break;
+            case 'chat':
+                $this->handleChat($argv);
+                break;
+            case 'explain':
+                $this->showReasoning();
+                break;
             case 'help':
             default:
                 $this->showHelp();
@@ -53,7 +59,7 @@ class AgentConsole
     private function showStatus()
     {
         echo "Checking system vitals...\n\n";
-        
+
         // 1. Check Rules
         $rulesPath = $this->projectPath . '/.bgl_core/brain/domain_rules.yml';
         if (file_exists($rulesPath)) {
@@ -91,7 +97,7 @@ class AgentConsole
         try {
             $stmt = $this->db->query("SELECT status, COUNT(*) as count FROM guarantee_decisions GROUP BY status");
             $stats = $stmt->fetchAll(\PDO::FETCH_KEY_PAIR);
-            
+
             echo "📊 \033[1;33mDecision Statistics:\033[0m\n";
             echo "   • Released: " . ($stats['released'] ?? 0) . "\n";
             echo "   • Blocked:  " . ($stats['blocked'] ?? 0) . "\n";
@@ -102,7 +108,7 @@ class AgentConsole
             $overrides = $stmt->fetchColumn();
             echo "\n🧠 \033[1;33mLearning Metrics:\033[0m\n";
             echo "   • Human Corrections: $overrides\n";
-            
+
         } catch (\Exception $e) {
             echo "⚠️ Error querying stats: " . $e->getMessage() . "\n";
         }
@@ -118,7 +124,7 @@ class AgentConsole
 
         $yaml = Yaml::parseFile($rulesPath);
         echo "📜 \033[1;33mActive Architectural Laws:\033[0m\n";
-        
+
         foreach ($yaml['rules'] as $rule) {
             $color = $rule['action'] === 'BLOCK' ? "\033[31m" : "\033[33m";
             echo "   {$color}[{$rule['id']}] {$rule['name']}\033[0m\n";
@@ -132,6 +138,37 @@ class AgentConsole
         echo "  \033[32mphp agent.php status\033[0m   Check agent health and connections.\n";
         echo "  \033[32mphp agent.php stats\033[0m    Show performance statistics from DB.\n";
         echo "  \033[32mphp agent.php rules\033[0m    List active architectural rules.\n";
+        echo "  \033[32mphp agent.php chat \"...\"\033[0m Direct conversation with the Smart Brain.\n";
+        echo "  \033[32mphp agent.php explain\033[0m    Explain the logic behind recent decisions.\n";
+    }
+
+    private function handleChat(array $argv)
+    {
+        $query = $argv[2] ?? null;
+        if (!$query) {
+            echo "❌ Please provide a query: php agent.php chat \"Your message\"\n";
+            return;
+        }
+
+        echo "🧠 Consulting Brain...\n";
+        $payload = json_encode(['messages' => [['role' => 'user', 'content' => $query]]]);
+        
+        $ch = curl_init('http://127.0.0.1:8891/chat');
+        curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
+        curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type:application/json']);
+        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+        $result = curl_exec($ch);
+        curl_close($ch);
+
+        $data = json_decode($result, true);
+        echo "\n" . ($data['content'] ?? "⚠️ No response from brain core.") . "\n";
+    }
+
+    private function showReasoning()
+    {
+        echo "🧐 Analyzing recent Chain of Thought...\n\n";
+        // Logic to pull from knowledge.db via python or direct sqlite
+        system("python .bgl_core/brain/inference.py");
     }
 }
 

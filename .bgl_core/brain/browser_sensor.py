@@ -52,7 +52,11 @@ class BrowserSensor:
         Scans a specific URL for frontend errors (Console and Network).
         If measure_perf is True, captures timing data and identifies JS hotspots.
         """
-        target_url = f"{self.base_url}{path}"
+        if path.startswith("http"):
+            target_url = path
+        else:
+            target_url = f"{self.base_url}{path}"
+
         if measure_perf:
             separator = "&" if "?" in target_url else "?"
             target_url += f"{separator}measure_perf=1"
@@ -132,6 +136,19 @@ class BrowserSensor:
                     report["http_status"] = (
                         response.status if response else "NO_RESPONSE"
                     )
+
+                # Capture UI Structure (Interactive Elements)
+                ui_elements = await page.evaluate("""() => {
+                    const elements = Array.from(document.querySelectorAll('button, a, input, [role="button"]'));
+                    return elements.map(el => ({
+                        tag: el.tagName.toLowerCase(),
+                        text: el.innerText.trim() || el.value || el.placeholder || el.getAttribute('aria-label') || 'unlabeled',
+                        id: el.id || 'none',
+                        classes: el.className || 'none',
+                        type: el.type || (el.tagName === 'A' ? 'link' : 'generic')
+                    })).filter(el => el.text !== 'unlabeled' || el.id !== 'none');
+                }""")
+                report["interactive_elements"] = ui_elements
 
                 # Capture Performance Data
                 if measure_perf:

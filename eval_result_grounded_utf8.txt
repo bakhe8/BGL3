@@ -1,0 +1,14 @@
+﻿To determine if you need to pay extra fees to extend your expired bank guarantee, we would need to go through several steps according to the system's functionality, but unfortunately, I can only find information related to BGL3 (a bank guarantees management web system). Based on what is available in the UI and code snippets provided:
+
+* There isn't a direct snippet showing how fees are calculated or updated for extending expired guarantees.
+* We don’t see any specific details about fee structures or calculations within the given UI and code.
+
+However, based on the system’s design and given some of its functions (importing new information, handling statuses, managing supplier data) we can still try to infer:
+
+1. You can find the current status of your guarantee in the GUI under “status”.
+2. The system likely checks for expirations and renewal capabilities internally.
+
+Given this limited context and without directly seeing any relevant calculation logic on extending a bank guarantee, I would suggest several potential steps:
+
+- **Check your contract terms**: If there are fees associated with extending an expired bank guarantee, you might first find out by reviewing the initial agreement or contacting whoever provided the original contract.
+- **Verify internal settings:** Given we have access to some of the system’s back-end code, it might be feasible that any fee structures or updates would have been encoded in settings configuration files. Yet that’s beyond the immediate analysis here.
