@@ -1,9 +1,0 @@
-﻿Based on the provided documentation, it appears that there are no explicit fees mentioned for bank guarantee extension in BGL3.
-
-However, I do not see any mention of fees or charges in the provided **domain_map.yml** file or the **logic_reference.md** document that describe the flow and rules of extending a bank guarantee.
-
-But I can tell you to check the code specifically under `/api/extend.php` API endpoint where it's likely handled.
-
-If there is no information about fees within the BGL3 documentation, it might be assumed that fee calculation would depend on other external systems and integrations with banks or suppliers. 
-
-To get a more accurate answer, reviewing the actual implementation in PHP code of **extend.php** script from `/api/` directory will be helpful.

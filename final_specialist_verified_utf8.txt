@@ -1,9 +1,0 @@
-﻿Yes, there is a mention of "رسوم" (fees) in the domain map, specifically in the rules for the `guarantee` entity. However, it's a high-level specification and doesn't delve into detailed fee logic.
-
-As for the purpose of BGL3:
-
-BGL3 هي نظام لإدارة الضمانات البنكية (Bank Guarantees Management System). Its primary purpose is to manage bank guarantees between banks and suppliers, ensuring accurate data management, processing, and compliance with related rules.
-
-The system appears to cover various aspects of bank guarantee life cycle, including creation, extension, release, and reduction. It also involves AI-driven matching for automatic confirmation, AuthorityFactory, and UnifiedLearningAuthority for generating recommendations.
-
-In summary, BGL3 is designed to facilitate the efficient management of bank guarantees, ensuring timely and accurate processing while maintaining compliance with relevant rules and regulations.
