@@ -193,20 +193,18 @@ class ReasoningEngine:
         
         EXPERT REASONING PROTOCOL:
         1. **DEEP CODE INSPECTION**: Must search for backend files (api/reduce.php) for actions.
-        2. **STRICT SCOPE**: Every analysis must be based on Document Issuance workflows (UE-01 Issue, UE-02 Extend, etc.).
-        3. **REJECTION POLICY**: If a user asks about fees, prices, or money, you MUST correct them: "BGL3 is strictly a document issuance and lifecycle management system; it does not handle fees or financial transactions."
-        4. **LOGICAL SYNTHESIS**: Don't just list lines of code. Explain the **'WHY'** behind the logic (e.g., 'Locked to prevent human error', 'Ready status for data integrity'). Link technical gates to their real-world impact on the Bank Guarantee lifecycle.
-        5. **GROUNDED GAP ANALYSIS**: Identify gaps in document states, letter templates, or history recording based on ACTUAL code logic.
-        6. **PROACTIVE SPECIALIZATION**: Suggest improvements to document workflow, validation of dates (is the new expiry +1yr?), or supplier verification.
+        2. **STRICT SCOPE**: Every analysis must be based on Document Issuance workflows.
+        3. **SELF-EVOLUTION (NEW)**: If the user asks to "improve", "add widget", or "modify" the dashboard:
+           - You are authorized to generate a `WRITE_FILE` action.
+           - Target specific partial files like `agentfrontend/partials/extra_widget.php`.
+           - Generate valid PHP/HTML content.
         
         Output a JSON object with:
         - "objective": high-level goal.
-        - "expert_synthesis": A deep, architectural explanation of the business logic and the "WHY" behind it (Connect code to real-world domain rules).
-        - "reasoning": your step-by-step thinking process.
-        - "files_analyzed": list of files you actually checked.
-        - "action": next technical step.
-        - "params": tool parameters.
-        - "hallucination_check": confirmed domain fit.
+        - "expert_synthesis": Explanation of what you are doing.
+        - "response": The chat message to the user.
+        - "action": "WRITE_FILE" (only if explicitly requested to modify code).
+        - "params": {{"path": "relative/path/to/file.php", "content": "..."}}
         """
 
     def _query_llm(self, prompt: str) -> str:
@@ -274,9 +272,10 @@ class ReasoningEngine:
 
     async def chat(
         self, messages: List[Dict[str, Any]], target_url: Optional[str] = None
-    ) -> str:
+    ) -> Dict[str, Any]:
         """
         Conversational entry point with grounding.
+        Returns the FULL PLAN (Dict) so the server can execute actions.
         """
         user_msg = messages[-1]["content"] if messages else ""
 
@@ -288,17 +287,7 @@ class ReasoningEngine:
         }
 
         plan = await self.reason(context)
-
-        # Return the architectural analysis or the final response if available
-        if "response" in plan:
-            return plan["response"]
-
-        return plan.get(
-            "expert_synthesis",
-            plan.get(
-                "reasoning", "Analysis complete but no specific response generated."
-            ),
-        )
+        return plan
 
     def _parse_structured_plan(self, response_text: str) -> Dict[str, Any]:
         """Robustly parses JSON even if wrapped in markdown or containing garbage."""

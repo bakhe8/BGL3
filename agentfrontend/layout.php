@@ -34,6 +34,12 @@
                 </div>
             </div>
         <?php endif; ?>
+        <!-- NEW WIDGET AREA (Self-Evolution) -->
+        <?php if (file_exists(__DIR__ . '/partials/extra_widget.php')): ?>
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/extra_widget.php'; ?>
+            </div>
+        <?php endif; ?>
 
         <div class="dashboard-grid">
             

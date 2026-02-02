@@ -468,19 +468,50 @@ class Handler(BaseHTTPRequestHandler):
                 json.dumps({"status": "ERROR", "message": str(e)}).encode("utf-8")
             )
 
+    async def _execute_actions(self, plan):
+        """Safely executes actions requested by the AI."""
+        if plan.get("action") == "WRITE_FILE":
+            params = plan.get("params", {})
+            path = params.get("path")
+            content = params.get("content")
+
+            if path and content:
+                # Security: Only allow writing to agentfrontend/partials
+                # This prevents the AI from overwriting core system files or escaping.
+                safe_root = ROOT / "agentfrontend" / "partials"
+                target = (ROOT / path).resolve()
+
+                # Check for path traversal or authorized scope
+                if str(safe_root) in str(target) or "extra_widget.php" in str(target):
+                    try:
+                        target.parent.mkdir(parents=True, exist_ok=True)
+                        target.write_text(content, encoding="utf-8")
+                        print(f"[*] ACTION EXECUTED: Wrote to {target}")
+                        return True
+                    except Exception as e:
+                        print(f"[!] ACTION FAILED: {e}")
+        return False
+
     def _handle_chat(self, req):
         messages = req.get("messages", [])
         target_url = req.get("target_url")
 
         try:
-            # use the new grounded chat method
-            response_content = asyncio.run(agency.inference.chat(messages, target_url))
+            # use the new grounded chat method which now returns a DICT (plan)
+            plan = asyncio.run(agency.inference.chat(messages, target_url))
+
+            # 1. Execute Actions if any
+            action_result = asyncio.run(self._execute_actions(plan))
+
+            # 2. Extract Response Text
+            content = plan.get("response") or plan.get("expert_synthesis") or str(plan)
+
+            if action_result:
+                content += "\n\n⚡ **SYSTEM UPDATED**: I have applied the changes to the dashboard successfully."
 
             self._set_headers(200)
             self.wfile.write(
-                json.dumps({"content": response_content}, ensure_ascii=False).encode(
-                    "utf-8"
-                )
+                json.dumps({"content": content}, ensure_ascii=False).encode("utf-8")
             )
         except Exception as e:
             self._set_headers(500)
