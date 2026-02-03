@@ -16,6 +16,9 @@ import asyncio
 import os
 import time
 import sqlite3
+import urllib.request
+import urllib.error
+import json
 from pathlib import Path
 import sys
 from typing import Any, Dict, List
@@ -23,7 +26,11 @@ from typing import Any, Dict, List
 import yaml  # type: ignore
 from config_loader import load_config
 from browser_manager import BrowserManager
-from python_ghost_cursor.playwright_async import install_mouse_helper
+try:
+    # Optional dependency: scenarios should still run without the visible cursor overlay.
+    from python_ghost_cursor.playwright_async import install_mouse_helper  # type: ignore
+except Exception:  # pragma: no cover
+    install_mouse_helper = None  # type: ignore
 
 # تأكد من إمكانية استيراد الطبقات الداخلية عند التشغيل كسكربت
 sys.path.append(str(Path(__file__).parent))
@@ -42,6 +49,10 @@ DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
 async def ensure_cursor(page):
     """Inject ghost-cursor overlay once per page."""
     if getattr(page, "_bgl_cursor_ready", False):
+        return
+    if install_mouse_helper is None:
+        # Degrade gracefully when optional dependency isn't installed.
+        page._bgl_cursor_ready = True  # type: ignore
         return
     try:
         # compat: بعض توابع ghost_cursor تتوقع page.browser؛ نضيف اختصاراً
@@ -386,6 +397,138 @@ async def run_scenario(
         print(f"[+] Scenario '{name}' done")
 
 
+def _is_api_url(url: str) -> bool:
+    if url.startswith("/api/"):
+        return True
+    if "/api/" in url:
+        return True
+    return False
+
+
+def _is_api_scenario(data: Dict[str, Any], scenario_path: Path) -> bool:
+    kind = str(data.get("kind", "")).lower()
+    if kind == "api":
+        return True
+    if kind == "ui":
+        return False
+    # Heuristic: all urls in steps are API
+    steps = data.get("steps", [])
+    urls = [
+        str(s.get("url", ""))
+        for s in steps
+        if s.get("action") in ("goto", "request")
+    ]
+    if not urls:
+        return False
+    return all(_is_api_url(u) for u in urls)
+
+
+async def run_api_scenario(
+    base_url: str,
+    scenario_path: Path,
+    db_path: Path,
+):
+    data = yaml.safe_load(scenario_path.read_text(encoding="utf-8")) or {}
+    steps: List[Dict[str, Any]] = data.get("steps", [])
+    name = data.get("name", scenario_path.stem)
+    print(f"[*] API Scenario '{name}' start")
+    allow_write = os.getenv("BGL_API_WRITE", "0") == "1"
+
+    for step in steps:
+        action = step.get("action")
+        if action == "wait":
+            await asyncio.sleep(int(step.get("ms", 300)) / 1000)
+            continue
+
+        if action not in ("goto", "request"):
+            continue
+
+        url = str(step.get("url", ""))
+        if url.startswith("/"):
+            url = base_url.rstrip("/") + url
+        method = str(step.get("method", "GET")).upper()
+        danger = bool(step.get("danger", False))
+        if method in ("POST", "PUT", "PATCH", "DELETE") and not (danger or allow_write):
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "api_skipped",
+                    "route": url,
+                    "method": method,
+                    "status": None,
+                    "payload": "write blocked (set danger:true or BGL_API_WRITE=1)",
+                },
+            )
+            continue
+
+        payload = step.get("payload")
+        headers = step.get("headers", {})
+        data_bytes = None
+        if payload is not None:
+            if isinstance(payload, (dict, list)):
+                data_bytes = json.dumps(payload).encode("utf-8")
+                headers.setdefault("Content-Type", "application/json")
+            else:
+                data_bytes = str(payload).encode("utf-8")
+
+        start = time.perf_counter()
+        status = None
+        err = None
+        try:
+            req = urllib.request.Request(url, data=data_bytes, method=method, headers=headers)
+            with urllib.request.urlopen(req, timeout=int(step.get("timeout", 8))) as resp:
+                status = resp.getcode()
+                resp.read()
+        except urllib.error.HTTPError as e:
+            status = e.code
+            err = str(e)
+        except Exception as e:
+            err = str(e)
+
+        latency_ms = round((time.perf_counter() - start) * 1000, 1)
+        if status is not None and status >= 400:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "http_error",
+                    "route": url,
+                    "method": method,
+                    "status": status,
+                    "latency_ms": latency_ms,
+                    "error": err,
+                },
+            )
+        elif err:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "network_fail",
+                    "route": url,
+                    "method": method,
+                    "status": status,
+                    "latency_ms": latency_ms,
+                    "error": err,
+                },
+            )
+        else:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "api_call",
+                    "route": url,
+                    "method": method,
+                    "status": status or 200,
+                    "latency_ms": latency_ms,
+                },
+            )
+
+    print(f"[+] API Scenario '{name}' done")
+
+
 async def main(
     base_url: str,
     headless: bool,
@@ -397,6 +540,7 @@ async def main(
 ):
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
+    cfg = load_config(ROOT_DIR)
 
     if not SCENARIOS_DIR.exists():
         print("[!] Scenarios directory missing; nothing to run.")
@@ -435,37 +579,59 @@ async def main(
 
     extra_headers = {"X-Shadow-Mode": "true"} if shadow_mode else None
 
-    manager = BrowserManager(
-        base_url=base_url,
-        headless=headless,
-        max_pages=max_pages,
-        idle_timeout=idle_timeout,
-        persist=True,
-        slow_mo_ms=slow_mo,
-        extra_http_headers=extra_headers,
-    )
-    # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
-    shared_page = await manager.new_page()
-    await ensure_cursor(shared_page)
-
     db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
     try:
-        for idx, path in enumerate(scenario_files):
-            await run_scenario(
-                manager,
-                shared_page,
-                base_url,
-                path,
-                keep_open if idx == len(scenario_files) - 1 else False,
-                db_path,
-                is_last=(idx == len(scenario_files) - 1),
+        # Split scenarios into API vs UI
+        api_scenarios = []
+        ui_scenarios = []
+        for path in scenario_files:
+            try:
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                if _is_api_scenario(data, path):
+                    api_scenarios.append(path)
+                else:
+                    ui_scenarios.append(path)
+            except Exception:
+                ui_scenarios.append(path)
+
+        # Run API scenarios (no browser)
+        for path in api_scenarios:
+            await run_api_scenario(base_url, path, db_path)
+
+        # Run UI scenarios (browser)
+        if ui_scenarios:
+            manager = BrowserManager(
+                base_url=base_url,
+                headless=headless,
+                max_pages=max_pages,
+                idle_timeout=idle_timeout,
+                persist=True,
+                slow_mo_ms=slow_mo,
+                extra_http_headers=extra_headers,
             )
+            # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
+            shared_page = await manager.new_page()
+            await ensure_cursor(shared_page)
+            for idx, path in enumerate(ui_scenarios):
+                await run_scenario(
+                    manager,
+                    shared_page,
+                    base_url,
+                    path,
+                    keep_open if idx == len(ui_scenarios) - 1 else False,
+                    db_path,
+                    is_last=(idx == len(ui_scenarios) - 1),
+                )
+            if not keep_open:
+                await manager.close()
     finally:
-        if not keep_open:
-            await manager.close()
+        pass
     # After scenarios, summarize runtime events into experiences
     try:
-        os.system(f"python .bgl_core/brain/context_digest.py")
+        import sys
+
+        digest_path = ROOT_DIR / ".bgl_core" / "brain" / "context_digest.py"
+        os.system(f"\"{sys.executable}\" \"{digest_path}\"")
     except Exception:
         pass
 

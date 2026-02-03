@@ -2,6 +2,76 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 
 
+UI_MAP_JS = r"""
+(limit) => {
+  const elements = Array.from(
+    document.querySelectorAll('button, a, input, select, textarea, [role], [onclick]')
+  );
+
+  function pickText(el) {
+    const t = (el.innerText || '').trim();
+    const v = (el.value || '').toString().trim();
+    const p = (el.placeholder || '').toString().trim();
+    const a = (el.getAttribute('aria-label') || '').trim();
+    return (t || v || p || a || '').trim();
+  }
+
+  return elements.slice(0, limit).map(el => {
+    const rect = el.getBoundingClientRect();
+    const tag = (el.tagName || '').toLowerCase();
+    const text = pickText(el).slice(0, 120);
+    const href = (tag === 'a') ? (el.getAttribute('href') || '') : '';
+
+    return {
+      tag,
+      role: el.getAttribute('role') || '',
+      text,
+      id: el.id || '',
+      classes: el.className || '',
+      type: el.type || (tag === 'a' ? 'link' : ''),
+      href,
+      name: el.getAttribute('name') || '',
+      x: rect.x, y: rect.y, w: rect.width, h: rect.height,
+      z: getComputedStyle(el).zIndex || 'auto'
+    };
+  });
+}
+"""
+
+
+async def capture_ui_map(page, limit: int = 50):
+    """
+    Return a compact UI map for interactive elements:
+    - tag/role/text/id/classes/type (+ x/y/w/h).
+    Shared implementation used by tools/sensors to avoid drift.
+    """
+    try:
+        return await page.evaluate(UI_MAP_JS, limit)
+    except Exception:
+        return []
+
+
+def project_interactive_elements(ui_map):
+    """Backwards-compatible projection for older consumers (no coordinates)."""
+    out = []
+    for el in ui_map or []:
+        out.append(
+            {
+                "tag": el.get("tag"),
+                "text": el.get("text"),
+                "id": el.get("id") or "none",
+                "classes": el.get("classes") or "none",
+                "type": el.get("type") or "generic",
+            }
+        )
+    # Drop unlabeled elements unless they have an id (keep behavior similar to previous sensor)
+    return [
+        e
+        for e in out
+        if (e.get("text") and e["text"] != "unlabeled") or (e.get("id") and e["id"] != "none")
+    ]
+
+
 async def capture_local_context(page, selector: Optional[str] = None, screenshot_dir: Optional[Path] = None, tag: str = "", include_layout: bool = False) -> Dict[str, Any]:
     """
     يجمع ما نراه موضعياً: الهدف، جار قريب، عنوان قريب، وسبب الاختيار (selector/hint).
@@ -67,24 +137,7 @@ async def capture_local_context(page, selector: Optional[str] = None, screenshot
             data["target"] = {"selector": selector, "error": "capture_failed"}
     if include_layout:
         try:
-            layout = await page.evaluate(
-                """
-                () => {
-                  const elements = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role], [onclick]'));
-                  return elements.slice(0, 50).map(el => {
-                    const rect = el.getBoundingClientRect();
-                    return {
-                      tag: el.tagName,
-                      role: el.getAttribute('role') || '',
-                      text: (el.innerText || '').trim().slice(0,120),
-                      x: rect.x, y: rect.y, w: rect.width, h: rect.height,
-                      z: getComputedStyle(el).zIndex || 'auto'
-                    };
-                  });
-                }
-                """
-            )
-            data["layout_map"] = layout
+            data["layout_map"] = await capture_ui_map(page, limit=50)
         except Exception:
             data["layout_map"] = {"error": "layout_capture_failed"}
     return data

@@ -37,8 +37,13 @@ def interpret(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     if perms:
         suggestions.append(f"صلاحيات حرجة: {', '.join(perms[:3])}")
     if failing:
-        uris = [f.get("uri") for f in failing[:3] if isinstance(f, dict)]
-        suggestions.append(f"مسارات تفشل حالياً: {', '.join(uris)}")
+        uris = [
+            str(f.get("uri")).strip()
+            for f in failing[:3]
+            if isinstance(f, dict) and f.get("uri")
+        ]
+        if uris:
+            suggestions.append(f"مسارات تفشل حالياً: {', '.join(uris)}")
     if worst:
         wr = ", ".join([f"{w.get('uri')} (score {w.get('score')})" for w in worst[:3]])
         suggestions.append(f"مسارات ساخنة بحاجة فحص عميق: {wr}")

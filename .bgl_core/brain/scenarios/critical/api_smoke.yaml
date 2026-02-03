@@ -1,4 +1,5 @@
 name: critical-api-smoke
+kind: api
 description: Hit a key API endpoint to ensure runtime signals are captured
 steps:
   - action: goto

@@ -58,6 +58,10 @@
                 <?php include __DIR__ . '/partials/blockers.php'; ?>
             </div>
 
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/permission_queue.php'; ?>
+            </div>
+
             <div class="section-half">
                 <?php include __DIR__ . '/partials/proposed_playbooks_simple.php'; ?>
             </div>

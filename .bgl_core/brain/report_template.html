@@ -32,6 +32,103 @@
     {% if performance %}
     <p>Perf (home): {% if performance.home_error %}<span class="warn">{{ performance.home_error }}</span>{% else %}{{ performance.home_status|default('n/a') }} in {{ performance.home_load_ms|round(1) }} ms ({{ performance.home_bytes|default(0) }} bytes){% endif %}</p>
     {% endif %}
+    {% if api_scan %}
+    <p>API scan: mode {{ api_scan.mode }} | checked {{ api_scan.checked }} | skipped {{ api_scan.skipped }} | errors {{ api_scan.errors }}</p>
+    {% endif %}
+    {% if api_contract %}
+    <p>API contract: {{ api_contract.paths|default(0) }} paths ({{ api_contract.source|default('n/a') }})</p>
+    {% endif %}
+    {% if readiness %}
+    <p>Readiness: {{ 'OK' if readiness.ok else 'WARN' }} ({{ readiness.duration_ms }} ms)</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Pending Approvals</h2>
+    {% if pending_approvals %}
+      <table>
+        <tr><th>ID</th><th>Operation</th><th>Command</th><th>Timestamp</th></tr>
+        {% for p in pending_approvals %}
+          <tr>
+            <td>{{ p.id }}</td>
+            <td><code>{{ p.operation }}</code></td>
+            <td>{{ p.command }}</td>
+            <td>{{ p.timestamp }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="ok">None</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Recent Outcomes</h2>
+    {% if recent_outcomes %}
+      <table>
+        <tr><th>Outcome</th><th>Result</th><th>Intent</th><th>Decision</th><th>Notes</th></tr>
+        {% for o in recent_outcomes %}
+          <tr>
+            <td>{{ o.outcome_id }}</td>
+            <td class="{{ 'ok' if o.outcome_result in ['success','success_with_override','success_direct'] else ('warn' if o.outcome_result in ['blocked','skipped'] else 'fail') }}">{{ o.outcome_result }}</td>
+            <td><code>{{ o.intent_value }}</code></td>
+            <td>{{ o.decision_value }}{% if o.risk_level %} ({{ o.risk_level }}){% endif %}</td>
+            <td>{{ o.outcome_notes }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="ok">No outcomes recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Readiness Gate</h2>
+    {% if readiness %}
+      <p class="{{ 'ok' if readiness.ok else 'warn' }}">Overall: {{ readiness.ok }}</p>
+      <table>
+        <tr><th>Service</th><th>Status</th><th>Detail</th></tr>
+        <tr>
+          <td>base_http</td>
+          <td class="{{ 'ok' if readiness.services.base_http.ok else 'fail' }}">{{ readiness.services.base_http.ok }}</td>
+          <td>{{ readiness.services.base_http.url }}{% if readiness.services.base_http.error %} — {{ readiness.services.base_http.error }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>tool_server</td>
+          <td class="{{ 'ok' if readiness.services.tool_server.ok else 'fail' }}">{{ readiness.services.tool_server.ok }}</td>
+          <td>port {{ readiness.services.tool_server.port }}{% if readiness.services.tool_server.detail %} — {{ readiness.services.tool_server.detail }}{% endif %}</td>
+        </tr>
+        <tr>
+          <td>local_llm</td>
+          <td class="{{ 'ok' if readiness.services.local_llm.ok else 'warn' }}">{{ readiness.services.local_llm.ok }}</td>
+          <td>{{ readiness.services.local_llm.base_url }} | model {{ readiness.services.local_llm.model }} | warmed {{ readiness.services.local_llm.warmed }}{% if readiness.services.local_llm.error %} — {{ readiness.services.local_llm.error }}{% endif %}</td>
+        </tr>
+      </table>
+    {% else %}
+      <p class="warn">Readiness gate not executed.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Scenario Readiness</h2>
+    {% if scenario_deps %}
+      {% if scenario_deps.ok %}
+        <p class="ok">Dependencies OK</p>
+      {% else %}
+        <p class="warn">Missing: {{ scenario_deps.missing|join(', ') }}</p>
+      {% endif %}
+      {% if scenario_deps.playwright_version %}<p>Playwright: {{ scenario_deps.playwright_version }}</p>{% endif %}
+      {% if scenario_deps.chromium_path %}<p>Chromium: {{ scenario_deps.chromium_path }}</p>{% endif %}
+      {% if scenario_deps.notes %}
+        <ul>{% for n in scenario_deps.notes %}<li class="warn">{{ n }}</li>{% endfor %}</ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Scenario deps not checked.</p>
+    {% endif %}
+    {% if runtime_events_meta %}
+      <p>Runtime events: {{ runtime_events_meta.count|default(0) }}</p>
+      <p>Last event timestamp: {{ runtime_events_meta.last_timestamp|default('n/a') }}</p>
+    {% endif %}
   </div>
 
   <div class="section">
@@ -76,6 +173,72 @@
         {% endfor %}
       </table>
     {% else %}<p class="ok">All healthy</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Expected Failures (Policy)</h2>
+    {% if expected_failures %}
+      <table>
+        <tr><th>URI</th><th>Method</th><th>Status</th><th>Reason</th></tr>
+        {% for e in expected_failures %}
+          <tr><td>{{ e.uri }}</td><td>{{ e.method }}</td><td>{{ e.status }}</td><td>{{ e.reason }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">None</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Policy Candidates (Evidence)</h2>
+    {% if policy_candidates %}
+      <table>
+        <tr><th>URI</th><th>Method</th><th>Status</th><th>Confidence</th><th>Evidence</th></tr>
+        {% for c in policy_candidates %}
+          <tr>
+            <td>{{ c.uri }}</td>
+            <td>{{ c.method }}</td>
+            <td>{{ c.status }}</td>
+            <td>{{ c.confidence }}</td>
+            <td>{{ c.evidence|join('; ') }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">None</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Policy Auto-Promoted</h2>
+    {% if policy_auto_promoted %}
+      <table>
+        <tr><th>URI</th><th>Method</th><th>Status</th><th>Reason</th></tr>
+        {% for p in policy_auto_promoted %}
+          <tr><td>{{ p.uri }}</td><td>{{ p.method }}</td><td>{{ p.expected_statuses|join(',') }}</td><td>{{ p.reason }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">None</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>API Contract Missing</h2>
+    {% if api_contract_missing %}
+      <table>
+        <tr><th>URI</th><th>Method</th><th>File</th></tr>
+        {% for m in api_contract_missing %}
+          <tr><td>{{ m.uri }}</td><td>{{ m.http_method }}</td><td>{{ m.file_path }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">None</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>API Contract Gaps</h2>
+    {% if api_contract_gaps %}
+      <table>
+        <tr><th>URI</th><th>Method</th><th>Reason</th></tr>
+        {% for g in api_contract_gaps %}
+          <tr><td>{{ g.uri }}</td><td>{{ g.http_method }}</td><td>{{ g.reason }}</td></tr>
+        {% endfor %}
+      </table>
+    {% else %}<p class="ok">None</p>{% endif %}
   </div>
 
   <div class="section">

@@ -4,6 +4,13 @@ from pathlib import Path
 import yaml
 from datetime import date
 
+try:
+    from .authority import Authority  # type: ignore
+    from .brain_types import ActionRequest, ActionKind  # type: ignore
+except Exception:
+    from authority import Authority
+    from brain_types import ActionRequest, ActionKind
+
 
 def append_rule(runtime_file: Path, playbook_id: str, description: str):
     if not runtime_file.exists():
@@ -36,10 +43,28 @@ def approve(playbook_id: str, project_root: Path):
     if not src.exists():
         print(f"[!] proposed playbook not found: {src}")
         return False
+
+    auth = Authority(project_root)
+    req = ActionRequest(
+        kind=ActionKind.PROPOSE,
+        operation=f"playbook.approve|{playbook_id}",
+        command=f"approve_playbook {playbook_id}",
+        scope=[str(src), str(dst)],
+        reason="Approve a proposed playbook and append a runtime safety rule.",
+        confidence=0.9,
+        metadata={"src": str(src), "dst": str(dst)},
+    )
+    gate = auth.gate(req, source="approve_playbook")
+    decision_id = int(gate.decision_id or 0)
+    if not gate.allowed:
+        print(f"[!] BLOCKED: {gate.message}")
+        return False
+
     shutil.move(src, dst)
     # append rule
     runtime_file = brain / "runtime_safety.yml"
     append_rule(runtime_file, playbook_id, f"Ensure playbook {playbook_id} is applied")
+    auth.record_outcome(decision_id, "success", f"Playbook {playbook_id} approved")
     return True
 
 

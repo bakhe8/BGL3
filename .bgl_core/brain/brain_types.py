@@ -58,3 +58,54 @@ class Rule:
     action_type: str  # 'enforce_language', 'set_mode', 'inject_context'
     params: Dict[str, Any]
     priority: int = 10
+
+
+class ActionKind(str, Enum):
+    """
+    Unified action taxonomy for authority/gating.
+
+    NOTE: This is about *side effects* (what can mutate state), not about "intent".
+    """
+
+    OBSERVE = "observe"  # read-only inspection (internal logs/reports allowed)
+    PROBE = "probe"  # safe runtime probing with no mutation (GET/browser scan)
+    PROPOSE = "propose"  # write proposals/policies (no product mutation)
+    WRITE_SANDBOX = "write_sandbox"  # mutate sandbox-only artifacts (e.g. sandbox DB)
+    WRITE_PROD = "write_prod"  # mutate real product surface (code/prod DB/API writes)
+
+
+@dataclass
+class ActionRequest:
+    """
+    Request to perform an action that may have side effects.
+    All write-capable modules should describe their operations through this schema.
+    """
+
+    kind: ActionKind
+    operation: str  # stable key (e.g., "patch.rename_class", "db.apply_fixes")
+    command: str = ""  # human-readable (and logged) description/command
+    scope: List[str] = field(default_factory=list)  # files/uris/targets
+    reason: str = ""  # why this action is needed
+    confidence: float = 0.5
+    metadata: Dict[str, Any] = field(default_factory=dict)
+
+
+@dataclass
+class GateResult:
+    """
+    Output of the Authority gate.
+    - allowed: whether execution may proceed now
+    - requires_human: whether the action is pending explicit approval
+    """
+
+    allowed: bool
+    requires_human: bool = False
+    message: str = ""
+    # Linkage for auditability (best-effort; not always present)
+    permission_id: Optional[int] = None
+    intent_id: Optional[int] = None
+    decision_id: Optional[int] = None
+    # Decision metadata (optional)
+    decision: str = ""
+    risk_level: str = "low"
+    justification: List[str] = field(default_factory=list)

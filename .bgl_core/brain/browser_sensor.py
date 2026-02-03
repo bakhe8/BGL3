@@ -6,6 +6,8 @@ from playwright.async_api import async_playwright
 from pathlib import Path
 from typing import Dict, Any, Optional
 
+from perception import capture_ui_map, project_interactive_elements
+
 
 class BrowserSensor:
     _playwright: Any = None
@@ -137,18 +139,10 @@ class BrowserSensor:
                         response.status if response else "NO_RESPONSE"
                     )
 
-                # Capture UI Structure (Interactive Elements)
-                ui_elements = await page.evaluate("""() => {
-                    const elements = Array.from(document.querySelectorAll('button, a, input, [role="button"]'));
-                    return elements.map(el => ({
-                        tag: el.tagName.toLowerCase(),
-                        text: el.innerText.trim() || el.value || el.placeholder || el.getAttribute('aria-label') || 'unlabeled',
-                        id: el.id || 'none',
-                        classes: el.className || 'none',
-                        type: el.type || (el.tagName === 'A' ? 'link' : 'generic')
-                    })).filter(el => el.text !== 'unlabeled' || el.id !== 'none');
-                }""")
-                report["interactive_elements"] = ui_elements
+                # Capture UI Structure (Interactive Elements) via shared perception layer
+                ui_map = await capture_ui_map(page, limit=80)
+                report["layout_map"] = ui_map
+                report["interactive_elements"] = project_interactive_elements(ui_map)
 
                 # Capture Performance Data
                 if measure_perf:

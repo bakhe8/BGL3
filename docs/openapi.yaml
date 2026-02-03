@@ -4,380 +4,506 @@ info:
   version: '0.1'
 paths:
   /:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
   /api/agent-event.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/batches.php:
     get:
+      summary: Get batch summary
+      parameters:
+      - in: query
+        name: import_source
+        required: true
+        schema:
+          type: string
+        example: excel_20240201_test
       responses:
         '200':
           description: OK
+        '404':
+          description: Not found
     post:
+      summary: Batch operations (extend/release/reduce/close/update_metadata/reopen/summary)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - action
+              - import_source
+              properties:
+                action:
+                  type: string
+                  enum:
+                  - extend
+                  - release
+                  - reduce
+                  - close
+                  - update_metadata
+                  - reopen
+                  - summary
+                  - list
+                import_source:
+                  type: string
+                new_expiry:
+                  type: string
+                  description: YYYY-MM-DD
+                reason:
+                  type: string
+                user_id:
+                  type: string
+                  default: web_user
+                guarantee_ids:
+                  type: array
+                  items:
+                    type: integer
+                reductions:
+                  type: object
+                  additionalProperties:
+                    type: number
+                new_amount:
+                  type: number
+                batch_name:
+                  type: string
+                batch_notes:
+                  type: string
+                reopened_by:
+                  type: string
+            example:
+              action: summary
+              import_source: excel_20240201_test
       responses:
         '200':
           description: OK
+        '500':
+          description: Server error
   /api/convert-to-real.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/create-bank.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/create-guarantee.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              amount: 1000
+              bank: probe
+              comment: probe
+              contract_number: PROBE-{{ts}}
+              expiry_date: '2026-02-03'
+              guarantee_number: PROBE-{{ts}}
+              is_test_data: false
+              issue_date: '2026-02-03'
+              related_to: contract
+              supplier: probe
+              test_batch_id: 1
+              test_note: probe
+              type: Initial
   /api/create-supplier.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              english_name: Probe {{ts}}
+              is_confirmed: false
+              name: Probe {{ts}}
+              official_name: Probe {{ts}}
   /api/delete_bank.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/delete_supplier.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/export_banks.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/export_suppliers.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/extend.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              decided_by: 1
+              guarantee_id: 1
   /api/get-current-state.php:
     get:
+      summary: Get current state snapshot
+      parameters:
+      - in: query
+        name: id
+        required: true
+        schema:
+          type: integer
+          example: 1
       responses:
         '200':
           description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+        '400':
+          description: Missing/invalid id
+        '404':
+          description: Not found
   /api/get-history-snapshot.php:
     get:
+      summary: Get historical snapshot (HTML)
+      parameters:
+      - in: query
+        name: history_id
+        required: true
+        schema:
+          type: string
+        example: '123'
+      - in: query
+        name: index
+        required: false
+        schema:
+          type: integer
       responses:
         '200':
           description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+        '500':
+          description: Server error
   /api/get-letter-preview.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: id
+        required: true
+        schema:
+          type: string
+        example: 1
+    post: {}
   /api/get-record.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: index
+        required: false
+        schema:
+          type: string
+        example: probe
+    post: {}
   /api/get-timeline.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: index
+        required: false
+        schema:
+          type: string
+        example: probe
+    post: {}
   /api/get_banks.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: string
+        example: probe
+    post: {}
   /api/get_suppliers.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: page
+        required: false
+        schema:
+          type: string
+        example: probe
+    post: {}
   /api/history.php:
     get:
+      summary: Get guarantee history
+      parameters:
+      - in: query
+        name: guarantee_id
+        required: true
+        schema:
+          type: integer
+          example: 1
       responses:
         '200':
           description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+        '400':
+          description: Missing guarantee_id
+        '500':
+          description: Server error
   /api/import.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/import_banks.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/import_suppliers.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/learning-action.php:
-    get:
-      responses:
-        '200':
-          description: OK
     post:
+      summary: Learning action (delete)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - id
+              - action
+              properties:
+                id:
+                  type: integer
+                action:
+                  type: string
+                  enum:
+                  - delete
+            example:
+              id: 1
+              action: delete
       responses:
         '200':
           description: OK
+        '405':
+          description: Method not allowed
+        '500':
+          description: Server error
   /api/learning-data.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/manual-entry.php:
-    get:
-      responses:
-        '200':
-          description: OK
     post:
+      summary: Manual guarantee entry
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - guarantee_number
+              - supplier
+              - bank
+              - amount
+              - expiry_date
+              - contract_number
+              properties:
+                guarantee_number:
+                  type: string
+                supplier:
+                  type: string
+                bank:
+                  type: string
+                amount:
+                  type: number
+                issue_date:
+                  type: string
+                expiry_date:
+                  type: string
+                type:
+                  type: string
+                contract_number:
+                  type: string
+                related_to:
+                  type: string
+                  enum:
+                  - contract
+                  - purchase_order
+                is_test_data:
+                  type: boolean
+                test_batch_id:
+                  type: string
+                test_note:
+                  type: string
+            example:
+              guarantee_number: BG-1001
+              supplier: شركة الاختبار
+              bank: بنك الاختبار
+              amount: 100000
+              issue_date: '2026-02-03'
+              expiry_date: '2027-02-03'
+              contract_number: CNT-2026-001
+              related_to: contract
       responses:
         '200':
           description: OK
+        '500':
+          description: Server error
   /api/parse-paste-v2.php:
-    get:
-      responses:
-        '200':
-          description: OK
     post:
+      summary: Parse pasted text (v2 with confidence)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - text
+              properties:
+                text:
+                  type: string
+                is_test_data:
+                  type: boolean
+                test_batch_id:
+                  type: string
+                test_note:
+                  type: string
+            example:
+              text: 'Guarantee No: BG-1001 Supplier: ACME Bank: ABC Amount: 100000
+                Expiry: 2027-02-03'
+              is_test_data: true
+              test_batch_id: test_batch_1
+              test_note: smoke
       responses:
         '200':
           description: OK
+        '400':
+          description: Bad request
   /api/parse-paste.php:
-    get:
-      responses:
-        '200':
-          description: OK
     post:
+      summary: Parse pasted text (v1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+              - text
+              properties:
+                text:
+                  type: string
+                is_test_data:
+                  type: boolean
+                test_batch_id:
+                  type: string
+                test_note:
+                  type: string
+            example:
+              text: 'Guarantee No: BG-1001 Supplier: ACME Bank: ABC Amount: 100000
+                Expiry: 2027-02-03'
       responses:
         '200':
           description: OK
+        '400':
+          description: Bad request
   /api/reduce.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              decided_by: 1
+              guarantee_id: 1
+              new_amount: 1000
   /api/release.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              decided_by: 1
+              guarantee_id: 1
+              reason: probe
   /api/save-and-next.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              guarantee_id: 1
+              status_filter: probe
   /api/save-note.php:
-    get:
-      responses:
-        '200':
-          description: OK
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              content: probe
+              guarantee_id: 1
+    get: {}
   /api/settings.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
     post:
-      responses:
-        '200':
-          description: OK
+      requestBody:
+        content:
+          application/json:
+            example:
+              CANDIDATES_LIMIT: 1
+              MATCH_AUTO_THRESHOLD: probe
+              MATCH_REVIEW_THRESHOLD: probe
   /api/smart-paste-confidence.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /api/suggestions-learning.php:
     get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: raw
+        required: false
+        schema:
+          type: string
+        example: probe
+    post: {}
   /api/update_bank.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/update_supplier.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    get: {}
+    post: {}
   /api/upload-attachment.php:
-    get:
-      responses:
-        '200':
-          description: OK
-    post:
-      responses:
-        '200':
-          description: OK
+    post: {}
+    get: {}
   /views/batch-detail.php:
     get:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: import_source
+        required: true
+        schema:
+          type: string
+        example: probe_source
   /views/batch-print.php:
     get:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: ids
+        required: true
+        schema:
+          type: string
+        example: 1
   /views/batches.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
   /views/confidence-demo.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
   /views/index.php:
     get:
-      responses:
-        '200':
-          description: OK
+      parameters:
+      - in: query
+        name: id
+        required: false
+        schema:
+          type: string
+        example: 1
   /views/maintenance.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
   /views/settings.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}
   /views/statistics.php:
-    get:
-      responses:
-        '200':
-          description: OK
+    get: {}

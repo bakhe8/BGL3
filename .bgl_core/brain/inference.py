@@ -40,7 +40,8 @@ class ReasoningEngine:
     def __init__(self, db_path: Path, browser_sensor=None):
         self.db_path = db_path
         self.openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
-        self.local_llm_url = os.getenv("LLM_BASE_URL", "http://localhost:11434")
+        # Use 127.0.0.1 to avoid Windows IPv6/localhost resolution issues
+        self.local_llm_url = os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434")
         self.browser = browser_sensor
         try:
             self.orchestrator = BGLOrchestrator(

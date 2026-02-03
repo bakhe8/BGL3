@@ -18,6 +18,13 @@ if (file_exists($localVendor)) {
     // (bootstrap continues; sections that need Composer may be degraded)
 }
 
+$projectRoot = dirname(__DIR__);
+$pythonBin = $projectRoot . '/.bgl_core/.venv312/Scripts/python.exe';
+if (!file_exists($pythonBin)) {
+    $pythonBin = 'python';
+}
+$pythonEsc = escapeshellarg($pythonBin);
+
 use App\Support\Database;
 // use Symfony\Component\Yaml\Yaml; // Removed due to dependency issues in current environment
 /**
@@ -40,7 +47,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'commit_rule') {
     $rule_id = $_POST['rule_id'];
-    $cmd = "python .bgl_core/brain/commit_rule.py " . escapeshellarg($rule_id);
+    $cmd = "{$pythonEsc} .bgl_core/brain/commit_rule.py " . escapeshellarg($rule_id);
     exec($cmd, $output, $return_var);
     if ($return_var === 0) {
         header("Location: agent-dashboard.php?committed=" . $rule_id);
@@ -73,7 +80,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  * Handle Context Digest (runtime_events -> experiences)
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'digest') {
-    $cmd = "python .bgl_core/brain/context_digest.py";
+    $cmd = "{$pythonEsc} .bgl_core/brain/context_digest.py";
     exec($cmd, $output, $return_var);
     header("Location: agent-dashboard.php?" . ($return_var === 0 ? "digested=1" : "error=digest"));
     exit;
@@ -83,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  * Handle Master Verify trigger (fire-and-forget)
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'assure') {
-    pclose(popen("start /B python .bgl_core/brain/master_verify.py", "r"));
+    pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
     header("Location: agent-dashboard.php?assure_started=1");
     exit;
 }
@@ -92,9 +99,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_scenarios') {
     $runner = '.bgl_core/brain/run_scenarios.py';
     if (file_exists(__DIR__ . '/' . $runner)) {
-        pclose(popen("start /B python {$runner}", "r"));
+        pclose(popen("start /B {$pythonEsc} {$runner}", "r"));
     } else {
-        pclose(popen("start /B cmd /c \"set BGL_RUN_SCENARIOS=1&&python .bgl_core/brain/master_verify.py\"", "r"));
+        putenv("BGL_RUN_SCENARIOS=1");
+        pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
     }
     header("Location: agent-dashboard.php?scenarios_started=1");
     exit;
@@ -127,7 +135,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Run API contract/property tests (Schemathesis/Dredd) via master_verify toggle
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_api_contract') {
-    pclose(popen("start /B cmd /c \"set BGL_RUN_SCENARIOS=0&&set BGL_RUN_API_CONTRACT=1&&python .bgl_core/brain/master_verify.py\"", "r"));
+    putenv("BGL_RUN_SCENARIOS=0");
+    putenv("BGL_RUN_API_CONTRACT=1");
+    pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
     header("Location: agent-dashboard.php?api_contract_started=1");
     exit;
 }
@@ -174,7 +184,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     $flag = $isForce ? '--force' : '';
     
     if ($pid) {
-        pclose(popen("start /B python .bgl_core/brain/apply_proposal.py --proposal {$pid} {$flag}", "r"));
+        pclose(popen("start /B {$pythonEsc} .bgl_core/brain/apply_proposal.py --proposal {$pid} {$flag}", "r"));
         $msg = $isForce ? "proposal_forced=" . urlencode($pid) : "proposal_started=" . urlencode($pid);
         header("Location: agent-dashboard.php?" . $msg);
         exit;
@@ -184,7 +194,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 // Approve auto-generated playbook (GET for simplicity)
 if (isset($_GET['action']) && $_GET['action'] === 'approve_playbook' && !empty($_GET['id'])) {
     $pid = preg_replace('/[^A-Za-z0-9_\\-]/', '', $_GET['id']);
-    $cmd = "python .bgl_core/brain/approve_playbook.py " . escapeshellarg($pid);
+    $cmd = "{$pythonEsc} .bgl_core/brain/approve_playbook.py " . escapeshellarg($pid);
     exec($cmd, $output, $return_var);
     header("Location: agent-dashboard.php?" . ($return_var === 0 ? "playbook_approved={$pid}" : "error=playbook"));
     exit;
@@ -521,7 +531,17 @@ class PremiumDashboard
         if (!file_exists($this->agentDbPath)) return [];
         try {
             $lite = new PDO("sqlite:" . $this->agentDbPath);
-            $stmt = $lite->query("SELECT * FROM agent_permissions WHERE status = 'PENDING' ORDER BY timestamp DESC");
+            $stmt = $lite->query("
+                SELECT p.*
+                FROM agent_permissions p
+                JOIN (
+                    SELECT operation, MAX(id) AS max_id
+                    FROM agent_permissions
+                    WHERE status = 'PENDING'
+                    GROUP BY operation
+                ) latest ON latest.max_id = p.id
+                ORDER BY p.timestamp DESC
+            ");
             return $stmt->fetchAll(PDO::FETCH_ASSOC);
         } catch (\Exception $e) {
             return [];

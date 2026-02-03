@@ -1,0 +1,96 @@
+[
+  {
+    "uri": "/api/create-guarantee.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "match_body_regex": "foreign key mismatch.*banks|مطلوب",
+    "reason": "Bank must exist before creating guarantee; creation blocked when no valid bank mapping.",
+    "category": "policy_expected"
+  },
+  {
+    "uri": "/api/update_bank.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/delete_bank.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/delete_supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/extend.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "Missing\\ guarantee_id|لا\\ يوجد\\ قرار|لا\\ يمكن\\ تمديد"
+  },
+  {
+    "uri": "/api/get-record.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "Invalid\\ index|Index\\ out\\ of\\ range|Record\\ not\\ found"
+  },
+  {
+    "uri": "/api/reduce.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "Missing\\ guarantee_id|لا\\ يمكن\\ تقليص|غير\\ صحيح"
+  },
+  {
+    "uri": "/api/release.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "Missing\\ guarantee_id|لا\\ يمكن\\ إفراج|غير\\ مكتمل"
+  },
+  {
+    "uri": "/api/update_supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  }
+]

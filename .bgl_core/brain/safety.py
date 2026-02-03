@@ -7,11 +7,11 @@ from pathlib import Path
 from typing import Dict, Any, List
 
 try:
-    from .browser_core import BrowserCore  # type: ignore
+    from .browser_sensor import BrowserSensor  # type: ignore
     from .fault_locator import FaultLocator  # type: ignore
     from .config_loader import load_config  # type: ignore
 except ImportError:
-    from browser_core import BrowserCore
+    from browser_sensor import BrowserSensor
     from fault_locator import FaultLocator
     from config_loader import load_config
 
@@ -38,19 +38,22 @@ class SafetyNet:
         # Keep reports/logs co-located with the agent instead of cwd
         self.browser = None
         if self.enable_browser:
-            self.browser = BrowserCore(
+            # Use the same browser scanning engine used by Guardian/Inference to avoid drift.
+            self.browser = BrowserSensor(
                 base_url=base_url,
                 headless=True,
-                keep_page=True,
-                max_idle_seconds=120,
-                cpu_max_percent=self._safe_float(
-                    cfg.get("browser_cpu_max", os.getenv("BGL_BROWSER_CPU_MAX", None))
-                ),
-                ram_min_gb=self._safe_float(
-                    cfg.get(
-                        "browser_ram_min_gb", os.getenv("BGL_BROWSER_RAM_MIN_GB", None)
+                project_root=root_dir,
+                capture_har=bool(
+                    int(
+                        str(
+                            cfg.get(
+                                "browser_capture_har",
+                                os.getenv("BGL_CAPTURE_HAR", "0"),
+                            )
+                        )
                     )
                 ),
+                capture_failures=True,
             )
         db_path = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
         self.locator = FaultLocator(db_path, root_dir)
@@ -149,6 +152,47 @@ class SafetyNet:
             }
 
         # 4. Architectural Audit
+        audit_res = self._check_architectural_rules(file_path)
+        if not audit_res["valid"]:
+            return {
+                "valid": False,
+                "reason": "Architectural Violation: " + audit_res["output"],
+                "logs": unified_logs,
+            }
+
+        return {"valid": True, "logs": unified_logs}
+
+    async def validate_async(
+        self, file_path: Path, impacted_tests: List[str] | None = None
+    ) -> Dict[str, Any]:
+        """
+        Async-safe variant of validate().
+        Use this when validate() would be called from within an active event loop.
+        """
+        import time
+
+        start_time = time.time()
+
+        lint_res = self._check_lint(file_path)
+        if not lint_res["valid"]:
+            return {"valid": False, "reason": "Lint Error: " + lint_res["output"]}
+
+        test_res = self._check_phpunit(file_path, impacted_tests)
+        if not test_res["valid"]:
+            return {"valid": False, "reason": "Test Failure: " + test_res["output"]}
+
+        browser_res = await self._browser_audit_async()
+        unified_logs = self._gather_unified_logs(
+            start_time, browser_res.get("report", {})
+        )
+
+        if not browser_res.get("valid", True):
+            return {
+                "valid": False,
+                "reason": "Frontend Error detected",
+                "logs": unified_logs,
+            }
+
         audit_res = self._check_architectural_rules(file_path)
         if not audit_res["valid"]:
             return {
@@ -395,6 +439,12 @@ class SafetyNet:
         except Exception as e:
             return {"valid": False, "errors": str(e), "report": {}}
 
+    async def _browser_audit_async(self) -> Dict[str, Any]:
+        """Async browser audit safe to call from within an event loop."""
+        if not self.enable_browser or not self.browser:
+            return {"valid": True, "report": {}}
+        return await self._async_browser_check()
+
     def _check_browser_audit(self) -> Dict[str, Any]:
         """Synchronous wrapper for the async browser scan."""
         import asyncio
@@ -402,15 +452,20 @@ class SafetyNet:
         if not self.enable_browser or not self.browser:
             return {"valid": True, "report": {}}
 
-        # If a loop is already running, we might need to handle it differently,
-        # but for scripts this is standard.
+        # If a loop is already running in this thread, we can't block here safely.
+        # Use validate_async() / _browser_audit_async() in async flows.
+        try:
+            asyncio.get_running_loop()
+            return {
+                "valid": True,
+                "report": {},
+                "skipped": "running_event_loop; use validate_async()",
+            }
+        except RuntimeError:
+            pass
+
         try:
             return asyncio.run(self._async_browser_check())
-        except RuntimeError:
-            # Fallback when already in event loop (e.g., within Guardian async flow)
-            loop = asyncio.get_event_loop()
-            task = loop.create_task(self._async_browser_check())
-            return loop.run_until_complete(task)
         except Exception as e:
             return {"valid": False, "errors": f"Sensor Execution Error: {e}"}
 

@@ -18,6 +18,8 @@ try:
     from .decision_engine import decide  # type: ignore
     from .config_loader import load_config  # type: ignore
     from .playbook_loader import load_playbooks_meta  # type: ignore
+    from .authority import Authority  # type: ignore
+    from .outcome_signals import compute_outcome_signals  # type: ignore
 except (ImportError, ValueError):
     from safety import SafetyNet
     from guardian import BGLGuardian
@@ -30,6 +32,8 @@ except (ImportError, ValueError):
     from decision_engine import decide
     from config_loader import load_config
     from playbook_loader import load_playbooks_meta
+    from authority import Authority
+    from outcome_signals import compute_outcome_signals
 
 
 class AgencyCore:
@@ -56,6 +60,7 @@ class AgencyCore:
         self.decision_db_path = root_dir / ".bgl_core" / "brain" / "knowledge.db"
         self.decision_schema = root_dir / ".bgl_core" / "brain" / "decision_schema.sql"
         self.config = load_config(root_dir)
+        self.authority = Authority(root_dir)
 
         # Initialize Core Components
         self.sensor_browser = BrowserSensor(
@@ -92,7 +97,7 @@ class AgencyCore:
             self.root_dir / "app" / "Http" / "Controllers" / "GuaranteesController.php"
         )
         integrity_check = (
-            self.safety.validate(sample_file)
+            await self.safety.validate_async(sample_file)
             if sample_file.exists()
             else {"valid": True}
         )
@@ -102,9 +107,18 @@ class AgencyCore:
         for route_item in health_report.get("failing_routes", []):
             if isinstance(route_item, dict):
                 route_url = route_item.get("uri") or route_item.get("url") or route_item
+                detail = self.locator.diagnose_fault(route_url)
+                detail["uri"] = route_url
+                if route_item.get("errors") is not None:
+                    detail["errors"] = route_item.get("errors")
+                if route_item.get("status") is not None:
+                    detail["status"] = route_item.get("status")
+                if route_item.get("latency_ms") is not None:
+                    detail["latency_ms"] = route_item.get("latency_ms")
+                failing_routes_details.append(detail)
             else:
                 route_url = route_item
-            failing_routes_details.append(self.locator.diagnose_fault(route_url))
+                failing_routes_details.append(self.locator.diagnose_fault(route_url))
 
         # 4. Unify into DiagnosticMap
         vitals = {
@@ -122,8 +136,17 @@ class AgencyCore:
             "blockers": self.get_active_blockers(),
             "proposals": [],  # Legacy, replaced by dynamic reasoning
             "permission_issues": health_report.get("permission_issues", []),
+            "pending_approvals": health_report.get("pending_approvals", []),
+            "recent_outcomes": health_report.get("recent_outcomes", []),
             "worst_routes": health_report.get("worst_routes", []),
             "experiences": health_report.get("recent_experiences", []),
+            "scenario_deps": health_report.get("scenario_deps", {}),
+            "api_scan": health_report.get("api_scan", {}),
+            "api_contract_missing": health_report.get("api_contract_missing", []),
+            "api_contract_gaps": health_report.get("api_contract_gaps", []),
+            "expected_failures": health_report.get("expected_failures", []),
+            "policy_candidates": health_report.get("policy_candidates", []),
+            "policy_auto_promoted": health_report.get("policy_auto_promoted", []),
             "gap_tests": [],
         }
         findings["external_checks"] = []  # Legacy
@@ -163,15 +186,38 @@ class AgencyCore:
             "health_score": health_report.get("healthy_routes", 0)
             / max(1, health_report.get("total_routes", 1))
             * 100,
+            "route_scan_limit": health_report.get("route_scan_limit", 0),
+            "route_scan_mode": health_report.get("route_scan_mode", "auto"),
+            "scan_duration_seconds": health_report.get("scan_duration_seconds", 0),
+            "target_duration_seconds": health_report.get("target_duration_seconds", 0),
             "vitals": vitals,
             "findings": findings,
+            "readiness": health_report.get("readiness", {}),
+            "api_contract": health_report.get("api_contract", {}),
             "execution_mode": self.execution_mode,
             "execution_stats": self._execution_stats(),
             "tool_evidence": health_report.get("tool_evidence", {}),
         }
 
+        # Deterministic signals layer (Outcome -> Signals + intent hint for robust fallback)
+        try:
+            signals_pack = compute_outcome_signals(
+                {
+                    "vitals": vitals,
+                    "findings": findings,
+                    "readiness": diagnostic_map.get("readiness", {}),
+                }
+            )
+            findings["signals"] = signals_pack.get("signals", {})
+            findings["signals_intent_hint"] = signals_pack.get("intent_hint", {})
+        except Exception:
+            findings.setdefault("signals", {})
+            findings.setdefault("signals_intent_hint", {})
+
         # Decision layer (observe-only pipeline)
-        intent_payload = resolve_intent({"vitals": vitals, "findings": findings})
+        intent_payload = resolve_intent(
+            {"vitals": vitals, "findings": findings, "readiness": diagnostic_map.get("readiness", {})}
+        )
         diagnostic_map["findings"]["intent"] = intent_payload
 
         policy = self.config.get("decision", {})
@@ -311,27 +357,14 @@ class AgencyCore:
         return False
 
     def request_permission(self, operation: str, command: str) -> int:
-        """Logs a risky operation for human approval."""
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-        cursor.execute(
-            "INSERT INTO agent_permissions (operation, command, timestamp) VALUES (?, ?, ?)",
-            (operation, command, time.time()),
-        )
-        perm_id = int(cursor.lastrowid or 0)
-        conn.commit()
-        conn.close()
+        """Logs a risky operation for human approval (delegates to Authority)."""
+        perm_id = self.authority.request_permission(operation, command)
         print(f"[!] AgencyCore: Permission requested for {operation} (ID: {perm_id})")
-        return perm_id
+        return int(perm_id or 0)
 
     def is_permission_granted(self, perm_id: int) -> bool:
-        """Checks if the user has approved a specific operation."""
-        conn = sqlite3.connect(str(self.db_path))
-        cursor = conn.cursor()
-        cursor.execute("SELECT status FROM agent_permissions WHERE id = ?", (perm_id,))
-        row = cursor.fetchone()
-        conn.close()
-        return row and row[0] == "GRANTED"
+        """Checks if the user has approved a specific operation (delegates to Authority)."""
+        return bool(self.authority.is_permission_granted(perm_id))
 
     def log_activity(self, activity_type: str, message: str, status: str = "INFO"):
         """Persistent activity logging for dashboard visibility."""

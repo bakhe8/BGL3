@@ -4,34 +4,16 @@ from pathlib import Path
 import sqlite3
 import time
 
+try:
+    from .authority import Authority  # type: ignore
+    from .brain_types import ActionRequest, ActionKind  # type: ignore
+except Exception:
+    from authority import Authority
+    from brain_types import ActionRequest, ActionKind
+
 ROOT = Path(__file__).resolve().parent.parent.parent
-DECISION_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOG_FILE = ROOT / ".bgl_core" / "logs" / "proposal_actions.log"
-
-
-def insert_outcome(decision_id: int, result: str, notes: str):
-    conn = sqlite3.connect(str(DECISION_DB))
-    with conn:
-        conn.execute(
-            "INSERT INTO outcomes (decision_id, result, notes, timestamp) VALUES (?, ?, ?, datetime('now'))",
-            (decision_id, result, notes),
-        )
-
-
-def insert_decision(intent: str, reason: str) -> int:
-    conn = sqlite3.connect(str(DECISION_DB))
-    with conn:
-        cur = conn.execute(
-            "INSERT INTO intents (timestamp,intent,confidence,reason,scope,context_snapshot,source) VALUES (datetime('now'),?,?,?,?,?,?)",
-            (intent, 0.9, reason, json.dumps([]), json.dumps({}), "apply_proposal"),
-        )
-        intent_id = cur.lastrowid
-        cur2 = conn.execute(
-            "INSERT INTO decisions (intent_id, decision, risk_level, requires_human, justification, created_at) VALUES (?,?,?,?,?, datetime('now'))",
-            (intent_id, "auto_fix", "low", 0, reason),
-        )
-        return cur2.lastrowid or 0
 
 
 def main():
@@ -69,6 +51,8 @@ def main():
         print(f"Proposal {args.proposal} not found in DB.")
         return
 
+    auth = Authority(ROOT)
+
     # Log action
     LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
     with LOG_FILE.open("a", encoding="utf-8") as f:
@@ -85,23 +69,32 @@ def main():
             + "\n"
         )
 
-    # Record decision/outcome
-    decision_id = insert_decision(
-        intent=f"apply_{target.get('id')}",
-        reason=target.get("recommendation", "apply proposal"),
+    # Gate + record decision/outcome
+    kind = ActionKind.WRITE_PROD if args.force else ActionKind.PROPOSE
+    req = ActionRequest(
+        kind=kind,
+        operation=f"proposal.apply|{args.proposal}" + ("|force" if args.force else ""),
+        command=f"apply_proposal --proposal {args.proposal}" + (" --force" if args.force else ""),
+        scope=[str(target.get("scope") or "")],
+        reason=str(target.get("recommendation", "apply proposal")),
+        confidence=0.9,
+        metadata={"proposal": target},
     )
+    gate = auth.gate(req, source="apply_proposal")
+    decision_id = int(gate.decision_id or 0)
+    if not gate.allowed:
+        print(f"[!] BLOCKED: {gate.message}")
+        return
 
     if args.force:
         # REAL APPLICATION LOGIC WOULD GO HERE (e.g. patching files)
         # For now, we mark it as a definitive direct action.
-        insert_outcome(
-            decision_id,
-            "success_direct",
-            "Proposal APPLIED DIRECTLY to production (simulated)",
+        auth.record_outcome(
+            decision_id, "success_direct", "Proposal APPLIED DIRECTLY to production (simulated)"
         )
         print(f"⚠️ FORCE APPLIED proposal {target.get('id')} to PRODUCTION.")
     else:
-        insert_outcome(decision_id, "success", "Proposal applied in sandbox (logged)")
+        auth.record_outcome(decision_id, "success", "Proposal applied in sandbox (logged)")
         print(f"Applied proposal {target.get('id')} in SANDBOX.")
 
 

@@ -20,6 +20,7 @@ from contract_tests import run_contract_suite  # noqa: E402
 from utils import load_route_usage  # noqa: E402
 from callgraph_builder import build_callgraph  # noqa: E402
 from generate_openapi import generate as generate_openapi  # noqa: E402
+from scenario_deps import check_scenario_deps_async  # noqa: E402
 
 
 def log_activity(root_path: Path, message: str):
@@ -91,6 +92,24 @@ async def master_assurance_diagnostic():
         perf["home_load_ms"] = round((time.perf_counter() - start) * 1000, 1)
         diagnostic["performance"] = perf
 
+    # Scenario dependency health + runtime events meta
+    scenario_deps = (await check_scenario_deps_async()).to_dict()
+    diagnostic.setdefault("findings", {})["scenario_deps"] = scenario_deps
+    runtime_meta = {"count": 0, "last_timestamp": None}
+    try:
+        db_path = ROOT / ".bgl_core" / "brain" / "knowledge.db"
+        if db_path.exists():
+            conn = sqlite3.connect(str(db_path))
+            cur = conn.cursor()
+            cur.execute("SELECT COUNT(*) FROM runtime_events")
+            runtime_meta["count"] = int(cur.fetchone()[0] or 0)
+            cur.execute("SELECT MAX(timestamp) FROM runtime_events")
+            runtime_meta["last_timestamp"] = cur.fetchone()[0]
+            conn.close()
+    except Exception:
+        pass
+    diagnostic["findings"]["runtime_events_meta"] = runtime_meta
+
     # Auto-generate playbook skeletons from proposed patterns (discovery-only)
     generated = generate_from_proposed(Path(__file__).parent.parent.parent)
     if generated:
@@ -132,7 +151,10 @@ async def master_assurance_diagnostic():
     print(f"\n[5] Real-time Route Health:  {100 - len(failing)}% Optimal")
     if failing:
         for f in failing[:3]:  # Show top 3
-            uri = f.get("uri") if isinstance(f, dict) else str(f)
+            if isinstance(f, dict):
+                uri = f.get("uri") or f.get("url") or str(f)
+            else:
+                uri = str(f)
             print(f"        - ERROR on {uri}")
 
     # 6. Browser Driver Check
@@ -163,6 +185,8 @@ async def master_assurance_diagnostic():
             "target_duration_seconds": diagnostic.get("target_duration_seconds", 0),
             "vitals": diagnostic.get("vitals", {}),
             "permission_issues": diagnostic["findings"].get("permission_issues", []),
+            "pending_approvals": diagnostic["findings"].get("pending_approvals", []),
+            "recent_outcomes": diagnostic["findings"].get("recent_outcomes", []),
             "failing_routes": diagnostic["findings"].get("failing_routes", []),
             "experiences": diagnostic["findings"].get("experiences", []),
             "suggestions": diagnostic["findings"].get("proposals", []),
@@ -170,9 +194,23 @@ async def master_assurance_diagnostic():
             "interpretation": diagnostic["findings"].get("interpretation", {}),
             "intent": diagnostic["findings"].get("intent", {}),
             "decision": diagnostic["findings"].get("decision", {}),
+            "signals": diagnostic["findings"].get("signals", {}),
+            "signals_intent_hint": diagnostic["findings"].get("signals_intent_hint", {}),
             "gap_tests": diagnostic["findings"].get("gap_tests", []),
             "proposals": diagnostic["findings"].get("proposals", []),
             "external_checks": diagnostic["findings"].get("external_checks", []),
+            "scenario_deps": diagnostic["findings"].get("scenario_deps", {}),
+            "runtime_events_meta": diagnostic["findings"].get("runtime_events_meta", {}),
+            "api_scan": diagnostic["findings"].get("api_scan", {}),
+            "readiness": diagnostic.get("readiness", {}),
+            "api_contract": diagnostic.get("api_contract", {}),
+            "api_contract_missing": diagnostic["findings"].get(
+                "api_contract_missing", []
+            ),
+            "api_contract_gaps": diagnostic["findings"].get("api_contract_gaps", []),
+            "expected_failures": diagnostic["findings"].get("expected_failures", []),
+            "policy_candidates": diagnostic["findings"].get("policy_candidates", []),
+            "policy_auto_promoted": diagnostic["findings"].get("policy_auto_promoted", []),
         }
         build_report(data, template, output)
         # Write JSON alongside HTML for dashboard consumption

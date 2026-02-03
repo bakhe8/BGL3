@@ -1,5 +1,6 @@
 import json
 import os
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TypedDict
 from patcher import BGLPatcher
@@ -11,6 +12,12 @@ try:
 except ImportError:
     from guardian import BGLGuardian
 from sandbox import BGLSandbox
+try:
+    from .authority import Authority  # type: ignore
+    from .brain_types import ActionRequest, ActionKind  # type: ignore
+except Exception:
+    from authority import Authority
+    from brain_types import ActionRequest, ActionKind
 
 
 class ExecutionReport(TypedDict):
@@ -30,6 +37,7 @@ class BGLOrchestrator:
         self.guardrails = BGLGuardrails(root_dir)
         self.safety = SafetyNet(root_dir)
         self.guardian = BGLGuardian(root_dir)
+        self.authority = Authority(root_dir)
 
     def execute_task(self, task_spec: Dict[str, Any]) -> ExecutionReport:
         """
@@ -108,11 +116,54 @@ class BGLOrchestrator:
                 content = params.get("content", "")
                 mode = params.get("mode", "w")  # w=write, a=append
                 try:
-                    sandbox_target_path.parent.mkdir(parents=True, exist_ok=True)
-                    with open(sandbox_target_path, mode, encoding="utf-8") as f:
-                        f.write(content)
-                    res = {"status": "success", "message": f"File written: {rel_path}"}
+                    if dry_run:
+                        res = {
+                            "status": "success",
+                            "message": f"dry_run: would write file: {rel_path}",
+                        }
+                    else:
+                        # Gate sandbox write (single source of truth)
+                        req = ActionRequest(
+                            kind=ActionKind.WRITE_SANDBOX,
+                            operation=f"orchestrator.write_file|{rel_path}",
+                            command=f"write_file {rel_path}",
+                            scope=[rel_path],
+                            reason="orchestrator write_file requested",
+                            confidence=0.8,
+                            metadata={"mode": mode, "bytes": len(str(content))},
+                        )
+                        gate = self.authority.gate(req, source="orchestrator")
+                        if not gate.allowed:
+                            report["status"] = "BLOCKED"
+                            report["message"] = gate.message or "Blocked by authority gate."
+                            report["guardian_insights"] = {
+                                "permission_id": gate.permission_id,
+                                "intent_id": gate.intent_id,
+                                "decision_id": gate.decision_id,
+                            }
+                            return report
+
+                        sandbox_target_path.parent.mkdir(parents=True, exist_ok=True)
+                        with open(sandbox_target_path, mode, encoding="utf-8") as f:
+                            f.write(content)
+                        # best-effort audit
+                        try:
+                            if gate.decision_id:
+                                self.authority.record_outcome(
+                                    int(gate.decision_id), "success", "sandbox write completed"
+                                )
+                        except Exception:
+                            pass
+                        res = {"status": "success", "message": f"File written: {rel_path}"}
                 except Exception as e:
+                    try:
+                        # If we created a gate decision id above, record a fail outcome
+                        if "gate" in locals() and getattr(gate, "decision_id", None):
+                            self.authority.record_outcome(
+                                int(gate.decision_id), "fail", f"write_file failed: {e}"
+                            )
+                    except Exception:
+                        pass
                     res = {"status": "error", "message": f"Write failed: {e}"}
             else:
                 res = {"status": "error", "message": f"Unknown task: {task_name}"}
@@ -150,7 +201,55 @@ class BGLOrchestrator:
 
             # 4. If success and not dry run, apply to main
             if report["status"] == "SUCCESS" and not dry_run:
+                # Gate the prod write: applying sandbox diff back to the main project
+                changed_files: List[str] = []
+                try:
+                    proc = subprocess.run(
+                        ["git", "-C", str(sandbox_root), "diff", "--name-only"],
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                    changed_files = [ln.strip() for ln in proc.stdout.splitlines() if ln.strip()]
+                except Exception:
+                    changed_files = []
+                scope = changed_files[:50] or [rel_path]
+
+                req = ActionRequest(
+                    kind=ActionKind.WRITE_PROD,
+                    operation=f"orchestrator.apply_to_main|{task_name}|{rel_path}",
+                    command=f"apply sandbox diff -> main ({len(scope)} file(s))",
+                    scope=scope,
+                    reason="apply sandbox changes to main working tree",
+                    confidence=0.85,
+                    metadata={"task": task_name, "changed_files_count": len(changed_files)},
+                )
+                gate = self.authority.gate(req, source="orchestrator")
+                if not gate.allowed:
+                    report["status"] = "BLOCKED"
+                    report["message"] = gate.message or "Awaiting human approval to apply changes to main."
+                    report["guardian_insights"] = {
+                        "permission_id": gate.permission_id,
+                        "intent_id": gate.intent_id,
+                        "decision_id": gate.decision_id,
+                    }
+                    try:
+                        if gate.decision_id:
+                            self.authority.record_outcome(
+                                int(gate.decision_id), "blocked", "awaiting approval/apply_to_main"
+                            )
+                    except Exception:
+                        pass
+                    return report
+
                 sandbox.apply_to_main(rel_path)
+                try:
+                    if gate.decision_id:
+                        self.authority.record_outcome(
+                            int(gate.decision_id), "success", "applied sandbox diff to main"
+                        )
+                except Exception:
+                    pass
 
             return report
 

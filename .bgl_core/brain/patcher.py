@@ -4,12 +4,16 @@ import os
 import shutil
 import sqlite3
 from pathlib import Path
-from typing import Dict, Any, List, cast
+from typing import Dict, Any, List
 from safety import SafetyNet
-from execution_gate import check
-from decision_engine import decide
 from config_loader import load_config
-from decision_db import init_db, insert_intent, insert_decision, insert_outcome
+
+try:
+    from .authority import Authority  # type: ignore
+    from .brain_types import ActionRequest, ActionKind  # type: ignore
+except Exception:
+    from authority import Authority
+    from brain_types import ActionRequest, ActionKind
 
 
 class BGLPatcher:
@@ -21,13 +25,9 @@ class BGLPatcher:
         self.safety = SafetyNet(project_root)
         self.composer_path = self._discover_composer(project_root)
         self.config = load_config(project_root)
-        # القرارات مخزنة موحداً في knowledge.db
-        self.decision_db_path = project_root / ".bgl_core" / "brain" / "knowledge.db"
-        self.decision_schema = (
-            project_root / ".bgl_core" / "brain" / "decision_schema.sql"
-        )
-        if self.decision_schema.exists():
-            init_db(self.decision_db_path, self.decision_schema)
+        self.authority = Authority(project_root)
+        # Legacy compat: many helpers still refer to this path name
+        self.decision_db_path = self.authority.db_path
         self.execution_mode = str(self.config.get("execution_mode", "sandbox")).lower()
 
     def rename_class(
@@ -59,58 +59,77 @@ class BGLPatcher:
     ) -> Dict[str, Any]:
         dry_run = params.get("dry_run", False)
 
-        # determine effective execution mode (auto_trial may flip to direct when eligible)
-        effective_mode = self.execution_mode
-        if effective_mode == "auto_trial" and self._eligible_for_direct():
-            effective_mode = "direct"
+        effective_mode = self.authority.effective_execution_mode()
 
-        # Decision layer: resolve intent and gate execution (observe-first)
-        intent_payload: Dict[str, Any] = {
-            "intent": "refactor" if action == "rename_class" else "auto_fix",
-            "confidence": 0.8,
-            "reason": f"{action} requested on {file_path.name}",
-            "scope": [str(file_path)],
-            "context_snapshot": {
-                "health": {},
-                "active_route": None,
-                "recent_changes": [],
-                "guardian_top": [],
-                "browser_state": "unknown",
-            },
+        # ---- Authority Gate (single source of truth) ----
+        try:
+            rel = str(file_path.relative_to(self.project_root)).replace("\\", "/")
+        except Exception:
+            rel = str(file_path)
+
+        # Decide whether this write targets a sandbox tree (vs prod tree).
+        # Heuristic: if BGL_MAIN_ROOT is set and differs from this project_root, we're in a sandbox copy.
+        sandbox_tree = False
+        main_root = os.environ.get("BGL_MAIN_ROOT")
+        if main_root:
+            try:
+                sandbox_tree = Path(main_root).resolve() != self.project_root.resolve()
+            except Exception:
+                sandbox_tree = True
+
+        if dry_run:
+            kind = ActionKind.PROBE
+        else:
+            kind = ActionKind.WRITE_SANDBOX if sandbox_tree else ActionKind.WRITE_PROD
+
+        op_parts: List[str] = [f"patch.{action}", rel]
+        cmd = f"{action} {rel}"
+        if action == "rename_class":
+            old = str(params.get("old_name", ""))
+            new = str(params.get("new_name", ""))
+            op_parts.extend([old, "->", new])
+            cmd = f"rename_class {rel} {old} -> {new}"
+        elif action == "add_method":
+            tgt = str(params.get("target_class", ""))
+            m = str(params.get("method_name", ""))
+            op_parts.extend([tgt, m])
+            cmd = f"add_method {rel} {tgt}::{m}"
+
+        operation = "|".join([p for p in op_parts if p])
+        meta = {
+            "action": action,
+            "dry_run": bool(dry_run),
+            "effective_mode": effective_mode,
+            "sandbox_tree": sandbox_tree,
+            # Avoid dumping very large content bodies in the DB snapshot
+            "params": {k: v for k, v in params.items() if k != "content"},
         }
-        policy = self.config.get("decision", {})
-        decision_payload = decide(intent_payload, policy)
-        intent_id = insert_intent(
-            self.decision_db_path,
-            cast(str, intent_payload["intent"]),
-            cast(float, intent_payload["confidence"]),
-            cast(str, intent_payload["reason"]),
-            json.dumps(intent_payload["scope"]),
-            json.dumps(intent_payload["context_snapshot"]),
-            source="patcher",
+        req = ActionRequest(
+            kind=kind,
+            operation=operation,
+            command=cmd,
+            scope=[rel],
+            reason=f"{action} requested on {file_path.name}",
+            confidence=0.8,
+            metadata=meta,
         )
-        decision_id = insert_decision(
-            self.decision_db_path,
-            intent_id,
-            cast(str, decision_payload.get("decision", "observe")),
-            cast(str, decision_payload.get("risk_level", "low")),
-            bool(decision_payload.get("requires_human", False)),
-            "; ".join(cast(List[str], decision_payload.get("justification", []))),
-        )
-        # Allow only if gate passes
-        if not check(decision_payload, action):
-            insert_outcome(
-                self.decision_db_path, decision_id, "blocked", "Gate blocked action"
-            )
+        gate_res = self.authority.gate(req, source="patcher")
+        decision_id = int(gate_res.decision_id or 0)
+        if not gate_res.allowed:
             return {
                 "status": "blocked",
-                "message": "Execution blocked by decision gate (needs approval).",
+                "message": gate_res.message or "Blocked by authority gate.",
+                "permission_id": gate_res.permission_id,
+                "gate": {
+                    "decision_id": gate_res.decision_id,
+                    "intent_id": gate_res.intent_id,
+                    "requires_human": gate_res.requires_human,
+                },
             }
 
         # Execution mode enforcement / telemetry
         if effective_mode == "direct":
-            insert_outcome(
-                self.decision_db_path,
+            self.authority.record_outcome(
                 decision_id,
                 "mode_direct",
                 "Executed in direct mode (live tree)",
@@ -212,14 +231,9 @@ class BGLPatcher:
                 if not validation["valid"]:
                     self.safety.rollback(file_path)
                     msg = validation.get("reason", "Validation failed")
-                    if "decision_id" in locals():
-                        insert_outcome(
-                            self.decision_db_path,
-                            decision_id,
-                            "fail",
-                            msg,
-                            backup_path=backup_path,
-                        )
+                    self.authority.record_outcome(
+                        decision_id, "fail", msg, backup_path=backup_path
+                    )
                     return {
                         "status": "error",
                         "message": msg,
@@ -227,14 +241,12 @@ class BGLPatcher:
                     }
                 self.safety.clear_backup(file_path)
 
-            if "decision_id" in locals():
-                insert_outcome(
-                    self.decision_db_path,
-                    decision_id,
-                    "success",
-                    "Action completed",
-                    backup_path=backup_path,
-                )
+            self.authority.record_outcome(
+                decision_id,
+                "success",
+                "Action completed",
+                backup_path=backup_path,
+            )
             return output
 
         except subprocess.CalledProcessError as e:
@@ -253,8 +265,7 @@ class BGLPatcher:
                 pass
 
             error_msg = (e.stdout + "\n" + e.stderr).strip()
-            if "decision_id" in locals():
-                insert_outcome(self.decision_db_path, decision_id, "fail", error_msg)
+            self.authority.record_outcome(decision_id, "fail", error_msg)
             return {
                 "status": "error",
                 "message": f"PHP Error: {error_msg}. See sandbox PHP_DEBUG_LOG.txt",
@@ -262,8 +273,7 @@ class BGLPatcher:
         except Exception as e:
             if not dry_run:
                 self.safety.rollback(file_path)
-            if "decision_id" in locals():
-                insert_outcome(self.decision_db_path, decision_id, "fail", str(e))
+            self.authority.record_outcome(decision_id, "fail", str(e))
             return {"status": "error", "message": str(e)}
 
     def _update_references(self, old_name: str, new_name: str):
@@ -437,27 +447,6 @@ class BGLPatcher:
                     return ["php", str(c)]
                 return [str(c)]
         return None
-
-    def _eligible_for_direct(self, required_successes: int = 5) -> bool:
-        """Direct mode trial: allow only if آخر N نتائج نجاح بلا فشل/بلوك."""
-        try:
-            conn = sqlite3.connect(str(self.decision_db_path))
-            cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT result FROM outcomes
-                WHERE result IN ('success','fail','blocked','mode_direct')
-                ORDER BY id DESC LIMIT ?
-                """,
-                (required_successes,),
-            )
-            rows = [r[0] for r in cur.fetchall()]
-            conn.close()
-            if len(rows) < required_successes:
-                return False
-            return all(r == "success" for r in rows)
-        except Exception:
-            return False
 
     def _refresh_autoload(self) -> bool:
         """Run composer dump-autoload in sandbox. Policy: hard requirement."""

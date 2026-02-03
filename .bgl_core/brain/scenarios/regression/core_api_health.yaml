@@ -1,4 +1,5 @@
 name: "core_api_health"
+kind: api
 steps:
   - action: goto
     url: "/api/get-current-state.php"

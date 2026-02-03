@@ -1,6 +1,10 @@
 base_url: http://localhost:8000
 headless: 0
 run_scenarios: 1
+scenario_include_api: 1
+scenario_exploration: 1
+api_scan_mode: safe
+policy_strict: 0
 keep_browser: 1
 diagnostic_timeout_sec: 300
 agent_mode: assisted

@@ -16,6 +16,7 @@ from embeddings import search as embed_search
 ROOT = Path(__file__).resolve().parents[2]
 DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 
+from perception import UI_MAP_JS  # Shared DOM extraction script
 
 # ---------- Tool implementations ----------
 
@@ -63,27 +64,16 @@ def tool_layout_map(url: str, limit: int = 50) -> Dict[str, Any]:
             browser = p.chromium.launch(headless=True)
             page = browser.new_page()
             page.goto(url, wait_until="networkidle", timeout=15000)
-            layout = page.evaluate(
-                f"""
-                (limit) => {{
-                  const els = Array.from(document.querySelectorAll('button, a, input, select, textarea, [role], [onclick]'));
-                  return els.slice(0, limit).map(el => {{
-                    const r = el.getBoundingClientRect();
-                    return {{
-                      tag: el.tagName,
-                      role: el.getAttribute('role') || '',
-                      text: (el.innerText || '').trim().slice(0,120),
-                      x: r.x, y: r.y, w: r.width, h: r.height,
-                      z: getComputedStyle(el).zIndex || 'auto'
-                    }};
-                  }});
-                }}
-                """,
-                limit,
-            )
+            layout = page.evaluate(UI_MAP_JS, limit)
             viewport = page.viewport_size
             browser.close()
-            return {"status": "SUCCESS", "layout": layout, "viewport": viewport}
+            # Keep both keys for backwards compatibility across older prompts/tools.
+            return {
+                "status": "SUCCESS",
+                "layout": layout,
+                "layout_map": layout,
+                "viewport": viewport,
+            }
     except Exception as e:
         return {"status": "ERROR", "message": str(e)}
 

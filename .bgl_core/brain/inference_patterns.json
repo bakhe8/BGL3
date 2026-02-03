@@ -58,5 +58,23 @@
     "check": "js_bloat",
     "recommendation": "refactor/minify large JS files; split controllers by feature",
     "scope": "ui"
+  },
+  {
+    "id": "PAT_SELF_REG_RUNTIME",
+    "check": "self_regulation_runtime_link",
+    "recommendation": "link self-regulation gates to runtime sensing/metrics (advisory unless policy_strict=1)",
+    "scope": "policy"
+  },
+  {
+    "id": "PAT_HYP_META_SEP",
+    "check": "hypothesis_meta_separation",
+    "recommendation": "keep hypothesis handling isolated from meta-reasoning modules (advisory unless policy_strict=1)",
+    "scope": "policy"
+  },
+  {
+    "id": "PAT_AUTHORITY_DRIFT",
+    "check": "authority_drift",
+    "recommendation": "keep approvals/patching routed through authority.py + patcher.py only",
+    "scope": "policy"
   }
 ]

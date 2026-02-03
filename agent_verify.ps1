@@ -10,6 +10,11 @@ $env:BGL_HEADLESS = "$Headless"
 $env:BGL_RUN_SCENARIOS = "1"
 $env:BGL_FORCE_RATE_LIMIT = "1"
 
+$pythonExe = Join-Path $PSScriptRoot ".bgl_core\\.venv312\\Scripts\\python.exe"
+if (-not (Test-Path $pythonExe)) {
+    $pythonExe = "python"
+}
+
 # Start local PHP server (fire-and-forget) if not already running
 $phpServer = Get-Process php -ErrorAction SilentlyContinue | Where-Object { $_.Path -match "php.exe" }
 if (-not $phpServer) {
@@ -19,15 +24,15 @@ if (-not $phpServer) {
 }
 
 Write-Host "[1/4] Indexing project..."
-python .bgl_core/brain/indexer.py
+& $pythonExe .bgl_core/brain/indexer.py
 
 Write-Host "[2/4] Running Playwright scenarios..."
-python .bgl_core/brain/scenario_runner.py --base-url $BaseUrl --headless $Headless
+& $pythonExe .bgl_core/brain/scenario_runner.py --base-url $BaseUrl --headless $Headless
 
 Write-Host "[3/4] Digesting runtime events..."
-python .bgl_core/brain/context_digest.py --hours 24 --limit 500
+& $pythonExe .bgl_core/brain/context_digest.py --hours 24 --limit 500
 
 Write-Host "[4/4] Master technical assurance..."
-python .bgl_core/brain/master_verify.py
+& $pythonExe .bgl_core/brain/master_verify.py
 
 Write-Host "[+] Agent verification complete."

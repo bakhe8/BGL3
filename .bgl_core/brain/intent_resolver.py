@@ -12,12 +12,22 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     print("[*] SmartIntentResolver: Interpreting system diagnostics...")
 
     openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
-    ollama_url = os.getenv("LLM_BASE_URL", "http://localhost:11434/v1/chat/completions")
+    # Use 127.0.0.1 to avoid Windows IPv6/localhost resolution issues
+    ollama_url = os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1/chat/completions")
 
     try:
         from .brain_types import Intent  # type: ignore
     except ImportError:
         from brain_types import Intent
+
+    # Deterministic hint from Outcome->Signals layer (used for fallback).
+    hint = None
+    try:
+        hint = (diagnostic.get("findings") or {}).get("signals_intent_hint")
+        if not isinstance(hint, dict) or not hint.get("intent"):
+            hint = None
+    except Exception:
+        hint = None
 
     prompt = f"""
     Analyze this system diagnostic and determine the single most critical intent.
@@ -39,7 +49,16 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     """
 
     # Simple fallback if no AI is configured
-    if not (openai_key or "localhost" in ollama_url):
+    if not (openai_key or "localhost" in ollama_url or "127.0.0.1" in ollama_url):
+        if hint:
+            try:
+                hint["intent"] = Intent(hint["intent"]).value
+            except Exception:
+                hint["intent"] = Intent.OBSERVE.value
+            hint.setdefault("confidence", 0.7)
+            hint.setdefault("reason", "signals fallback (no AI configured)")
+            hint.setdefault("scope", [])
+            return hint
         return {
             "intent": Intent.OBSERVE.value,
             "confidence": 0.5,
@@ -49,7 +68,7 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     try:
         # Heuristic for rapid local testing
         payload = {
-            "model": os.getenv("LLM_MODEL", "llama3.1"),
+            "model": os.getenv("LLM_MODEL", "llama3.1:latest"),
             "messages": [{"role": "user", "content": prompt}],
             "response_format": {"type": "json_object"},
             "temperature": 0.0,
@@ -59,7 +78,8 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             json.dumps(payload).encode(),
             {"Content-Type": "application/json"},
         )
-        with urllib.request.urlopen(req, timeout=10) as response:
+        # Allow cold-start load time for local models
+        with urllib.request.urlopen(req, timeout=30) as response:
             res = json.loads(response.read().decode())
             data = json.loads(res["choices"][0]["message"]["content"])
 
@@ -71,7 +91,18 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
 
             return data
 
-    except Exception:
+    except Exception as e:
+        print(f"[*] SmartIntentResolver: Local AI failed ({e}). Using fallback.")
+        # Prefer deterministic hint if present (Outcome->Signals layer).
+        if hint:
+            try:
+                hint["intent"] = Intent(hint["intent"]).value
+            except Exception:
+                hint["intent"] = Intent.OBSERVE.value
+            hint.setdefault("confidence", 0.75)
+            hint.setdefault("reason", "signals fallback (LLM failed)")
+            hint.setdefault("scope", [])
+            return hint
         # Fallback to hardcoded logic if LLM fails
         return {
             "intent": Intent.STABILIZE.value
