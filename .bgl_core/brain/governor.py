@@ -5,10 +5,13 @@ from typing import List, Dict, Any
 
 
 class BGLGovernor:
-    def __init__(self, db_path: Path, rules_path: Path, style_rules_path: Path | None = None):
+    def __init__(
+        self, db_path: Path, rules_path: Path, style_rules_path: Path | None = None
+    ):
         # Fast bypass switch to avoid choking the pipeline during tuning/troubleshooting.
         if str(Path().absolute()):  # keep constructor signature untouched
             import os
+
             if os.getenv("BGL_GOVERNOR_BYPASS", "0") == "1":
                 self._bypassed = True
                 self.rules = {}
@@ -54,10 +57,59 @@ class BGLGovernor:
             if "must_have_suffix" in rule:
                 violations.extend(self._check_naming_rule(rule))
 
-        # 3. Style naming (non-blocking by design)
+        # 3. Content Rules (Prohibited Concepts)
+        content_rules = self.rules.get("content_rules", [])
+        for rule in content_rules:
+            violations.extend(self._check_content_rule(rule))
+
+        # 4. Style naming (non-blocking by design)
         for rule in style_rules:
             if "must_have_suffix" in rule:
                 violations.extend(self._check_naming_rule(rule))
+
+        return violations
+
+    def _check_content_rule(self, rule: Dict[str, Any]) -> List[Dict[str, Any]]:
+        violations = []
+        pattern = rule.get("pattern", "")
+        if not pattern:
+            return []
+
+        # Scan all files indexed in the database
+        cursor = self.conn.cursor()
+        query = "SELECT path FROM files"
+        files = cursor.execute(query).fetchall()
+
+        for f in files:
+            path_str = f["path"]
+            # Skip binary or vendor files if needed, but for now we scan project code
+            full_path = self.db_path.parent.parent.parent / path_str
+            if not full_path.exists():
+                continue
+
+            try:
+                # Basic text scan - expensive but necessary for "Concepts"
+                if full_path.suffix not in [".php", ".md", ".txt", ".py", ".json"]:
+                    continue
+
+                content = full_path.read_text(encoding="utf-8", errors="ignore")
+                if pattern in content:
+                    # Find line number (approximate)
+                    lines = content.splitlines()
+                    for idx, line in enumerate(lines):
+                        if pattern in line:
+                            violations.append(
+                                {
+                                    "rule_id": rule["id"],
+                                    "severity": rule.get("severity", "critical"),
+                                    "message": f"Prohibited Concept Found: '{pattern}'. {rule.get('description')}",
+                                    "file": path_str,
+                                    "line": idx + 1,
+                                    "rationale": "Business Rule Violation",
+                                }
+                            )
+            except Exception:
+                pass  # Fail safe on read errors
 
         return violations
 
@@ -130,7 +182,7 @@ class BGLGovernor:
                     {
                         "rule_id": rule["id"],
                         "severity": rule.get("severity", rule.get("action", "WARN")),
-                        "message": f"Violation {rule['id']}: {call['source_name']} calls {call['target_entity']} directly. {rule.get('description','')}",
+                        "message": f"Violation {rule['id']}: {call['source_name']} calls {call['target_entity']} directly. {rule.get('description', '')}",
                         "file": call["path"],
                         "line": call["line"],
                         "rationale": rule.get("rationale", ""),

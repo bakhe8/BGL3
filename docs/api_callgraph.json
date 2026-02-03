@@ -1492,22 +1492,10 @@
         "method": "int"
       },
       {
-        "name": "Input",
+        "name": "InvalidArgumentException",
         "layer": "other",
-        "type": "static_call",
-        "method": "int"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "string"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "int"
+        "type": "instantiation",
+        "method": null
       },
       {
         "name": "Database",
@@ -1516,8 +1504,44 @@
         "method": "connect"
       },
       {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
         "name": "GuaranteeRepository",
         "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "LearningRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeHistoryRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "DecisionService",
+        "layer": "service",
         "type": "instantiation",
         "method": null
       },
@@ -1528,76 +1552,10 @@
         "method": "string"
       },
       {
-        "name": "App\\Services\\SupplierManagementService",
-        "layer": "service",
-        "type": "static_call",
-        "method": "create"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "createSnapshot"
-      },
-      {
-        "name": "App\\Services\\StatusEvaluator",
-        "layer": "service",
-        "type": "static_call",
-        "method": "evaluate"
-      },
-      {
-        "name": "Logger",
-        "layer": "other",
-        "type": "static_call",
-        "method": "info"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "recordDecisionEvent"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "recordStatusTransitionEvent"
-      },
-      {
-        "name": "GuaranteeRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
-      },
-      {
-        "name": "App\\Repositories\\LearningRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
-      },
-      {
-        "name": "App\\Services\\Learning\\AuthorityFactory",
-        "layer": "service",
-        "type": "static_call",
-        "method": "create"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "string"
-      },
-      {
-        "name": "App\\Services\\NavigationService",
+        "name": "NavigationService",
         "layer": "service",
         "type": "static_call",
         "method": "getNavigationInfo"
-      },
-      {
-        "name": "GuaranteeRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
       },
       {
         "name": "RuntimeException",
@@ -1606,7 +1564,7 @@
         "method": null
       },
       {
-        "name": "App\\Services\\NavigationService",
+        "name": "NavigationService",
         "layer": "service",
         "type": "static_call",
         "method": "getNavigationInfo"
@@ -3267,8 +3225,8 @@
   },
   {
     "uri": "/api/save-and-next.php",
-    "controller": "GuaranteeRepository",
-    "action": "query",
+    "controller": "DecisionService",
+    "action": "handle",
     "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-and-next.php",
     "dependencies": [
       {
@@ -3278,22 +3236,10 @@
         "method": "int"
       },
       {
-        "name": "Input",
+        "name": "InvalidArgumentException",
         "layer": "other",
-        "type": "static_call",
-        "method": "int"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "string"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "int"
+        "type": "instantiation",
+        "method": null
       },
       {
         "name": "Database",
@@ -3302,8 +3248,44 @@
         "method": "connect"
       },
       {
+        "name": "GuaranteeDecisionRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
         "name": "GuaranteeRepository",
         "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "LearningRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "GuaranteeHistoryRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "DecisionService",
+        "layer": "service",
         "type": "instantiation",
         "method": null
       },
@@ -3314,76 +3296,10 @@
         "method": "string"
       },
       {
-        "name": "App\\Services\\SupplierManagementService",
-        "layer": "service",
-        "type": "static_call",
-        "method": "create"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "createSnapshot"
-      },
-      {
-        "name": "App\\Services\\StatusEvaluator",
-        "layer": "service",
-        "type": "static_call",
-        "method": "evaluate"
-      },
-      {
-        "name": "Logger",
-        "layer": "other",
-        "type": "static_call",
-        "method": "info"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "recordDecisionEvent"
-      },
-      {
-        "name": "App\\Services\\TimelineRecorder",
-        "layer": "service",
-        "type": "static_call",
-        "method": "recordStatusTransitionEvent"
-      },
-      {
-        "name": "GuaranteeRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
-      },
-      {
-        "name": "App\\Repositories\\LearningRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
-      },
-      {
-        "name": "App\\Services\\Learning\\AuthorityFactory",
-        "layer": "service",
-        "type": "static_call",
-        "method": "create"
-      },
-      {
-        "name": "Input",
-        "layer": "other",
-        "type": "static_call",
-        "method": "string"
-      },
-      {
-        "name": "App\\Services\\NavigationService",
+        "name": "NavigationService",
         "layer": "service",
         "type": "static_call",
         "method": "getNavigationInfo"
-      },
-      {
-        "name": "GuaranteeRepository",
-        "layer": "repo",
-        "type": "instantiation",
-        "method": null
       },
       {
         "name": "RuntimeException",
@@ -3392,7 +3308,7 @@
         "method": null
       },
       {
-        "name": "App\\Services\\NavigationService",
+        "name": "NavigationService",
         "layer": "service",
         "type": "static_call",
         "method": "getNavigationInfo"
@@ -4122,6 +4038,170 @@
         "layer": "other",
         "type": "static_call",
         "method": "getConfidenceLevel"
+      }
+    ]
+  },
+  {
+    "uri": "/views/batch-detail.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batch-detail.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/views/batch-print.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batch-print.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "BankRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "SupplierRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Support\\BankNormalizer",
+        "layer": "other",
+        "type": "static_call",
+        "method": "normalize"
+      }
+    ]
+  },
+  {
+    "uri": "/views/batches.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batches.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/views/confidence-demo.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\confidence-demo.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/views/index.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\index.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/views/maintenance.php",
+    "controller": "GuaranteeRepository",
+    "action": "query",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\maintenance.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "GuaranteeRepository",
+        "layer": "repo",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      },
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/views/settings.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\settings.php",
+    "dependencies": [
+      {
+        "name": "Settings",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/views/statistics.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\statistics.php",
+    "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
+        "name": "App\\Support\\Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
       }
     ]
   }

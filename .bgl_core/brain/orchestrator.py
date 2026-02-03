@@ -103,13 +103,28 @@ class BGLOrchestrator:
                     params.get("method_name"),
                     dry_run=dry_run,
                 )
+            elif task_name == "write_file":
+                # Generic write handler (create/update)
+                content = params.get("content", "")
+                mode = params.get("mode", "w")  # w=write, a=append
+                try:
+                    sandbox_target_path.parent.mkdir(parents=True, exist_ok=True)
+                    with open(sandbox_target_path, mode, encoding="utf-8") as f:
+                        f.write(content)
+                    res = {"status": "success", "message": f"File written: {rel_path}"}
+                except Exception as e:
+                    res = {"status": "error", "message": f"Write failed: {e}"}
             else:
                 res = {"status": "error", "message": f"Unknown task: {task_name}"}
 
             # Map patcher results to the unified report
             if res.get("status") == "success":
                 # 3. Safety Check (Unified Perception)
-                val_res = self.safety.validate(sandbox_target_path)
+
+                # [FIX] For write_file, we validate the PARENT of the file or the file itself if it exists
+                target_to_validate = sandbox_target_path
+
+                val_res = self.safety.validate(target_to_validate)
                 report["unified_logs"] = val_res.get("logs", [])
 
                 if val_res["valid"]:

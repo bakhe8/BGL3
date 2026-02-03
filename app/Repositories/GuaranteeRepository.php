@@ -266,7 +266,7 @@ class GuaranteeRepository
      * @param string|null $olderThan Delete only test data older than this date (Y-m-d format)
      * @return int Number of deleted records
      */
-    public function deleteTestData(?string $batchId = null, ?string $olderThan = null): int
+    public function deleteTestData(?string $batchId = null, ?string $olderThan = null, ?string $requestingUser = null): int
     {
         $where = ['is_test_data = 1'];
         $params = [];
@@ -279,6 +279,13 @@ class GuaranteeRepository
         if ($olderThan !== null) {
             $where[] = 'DATE(imported_at) < ?';
             $params[] = $olderThan;
+        }
+
+        // ✅ SECURITY HARDENING (Phase 11): IDOR Protection
+        // If a user is specified, ONLY delete test data imported by them.
+        if ($requestingUser !== null) {
+            $where[] = 'imported_by = ?';
+            $params[] = $requestingUser;
         }
         
         $whereClause = implode(' AND ', $where);

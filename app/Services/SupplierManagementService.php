@@ -49,6 +49,23 @@ class SupplierManagementService
         // Normalize name using Normalizer class
         $normalizer = new Normalizer();
         $normalizedName = $normalizer->normalizeSupplierName($officialName);
+
+        // ✅ SECURITY HARDENING (Phase 11): Check for alias conflict (Trust Poisoning Prevention)
+        // If this name is already a known alias for ANOTHER supplier, block creation.
+        // This prevents users from "stealing" an alias and poisoning the AI's trust.
+        $stmtAlias = $db->prepare('
+            SELECT s.official_name 
+            FROM supplier_alternative_names a
+            JOIN suppliers s ON a.supplier_id = s.id
+            WHERE a.normalized_name = ?
+            LIMIT 1
+        ');
+        $stmtAlias->execute([$normalizedName]);
+        $existingParent = $stmtAlias->fetchColumn();
+
+        if ($existingParent) {
+            throw new Exception("لا يمكن إنشاء المورد: الاسم '{$officialName}' مسجل بالفعل كاسم بديل للمورد '{$existingParent}'. يرجى استخدام المورد الأصلي.");
+        }
         
         // Insert supplier with all fields
         $stmt = $db->prepare("

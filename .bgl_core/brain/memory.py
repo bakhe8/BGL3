@@ -122,6 +122,19 @@ class StructureMemory:
             )
         """)
 
+        # Learning Confirmations (False Positives / Anomalies)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS learning_confirmations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                item_key TEXT NOT NULL,      -- Unique identifier for the anomaly
+                item_type TEXT NOT NULL,     -- 'route', 'log', 'conflict'
+                action TEXT NOT NULL,        -- 'confirm' (is anomaly), 'reject' (false positive)
+                notes TEXT,
+                timestamp REAL,
+                UNIQUE(item_key, item_type)
+            )
+        """)
+
         conn.commit()
         conn.close()
 

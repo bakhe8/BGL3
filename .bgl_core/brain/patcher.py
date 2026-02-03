@@ -249,7 +249,7 @@ class BGLPatcher:
                 debug_log = log_dir / "PHP_DEBUG_LOG.txt"
                 with open(debug_log, "w") as f:
                     f.write(f"STDOUT:\n{e.stdout}\n\nSTDERR:\n{e.stderr}")
-            except:
+            except Exception:
                 pass
 
             error_msg = (e.stdout + "\n" + e.stderr).strip()
@@ -441,7 +441,7 @@ class BGLPatcher:
     def _eligible_for_direct(self, required_successes: int = 5) -> bool:
         """Direct mode trial: allow only if آخر N نتائج نجاح بلا فشل/بلوك."""
         try:
-        conn = sqlite3.connect(str(self.decision_db_path))
+            conn = sqlite3.connect(str(self.decision_db_path))
             cur = conn.cursor()
             cur.execute(
                 """
@@ -472,7 +472,7 @@ class BGLPatcher:
                 ".bat"
             ):
                 shell = True
-                cmd = " ".join(cmd)
+                cmd = " ".join(cmd)  # type: ignore
             proc = subprocess.run(
                 cmd,
                 cwd=str(self.project_root),

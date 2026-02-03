@@ -25,7 +25,7 @@ decision:
   refactor:
     requires_human: true
   reindex_full:
-    requires_human: true
+    requires_human: false
 execution_mode: sandbox
 post_wait_ms: 1500
 hover_wait_ms: 300

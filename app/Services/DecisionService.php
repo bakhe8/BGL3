@@ -9,6 +9,7 @@ use App\Repositories\GuaranteeRepository;
 use App\Repositories\GuaranteeHistoryRepository;
 use App\Repositories\SupplierRepository;
 use App\Repositories\BankRepository;
+use PDO;
 
 /**
  * DecisionService (V3)
@@ -140,5 +141,73 @@ class DecisionService
         }
         
         return ['allowed' => true];
+    }
+    
+    /**
+     * Smart Save (Phase 11 Refactor)
+     * Encapsulates logic for auto-creating suppliers and resolving name mismatches
+     */
+    public function smartSave(int $guaranteeId, array $input, PDO $db): array
+    {
+        $supplierId = $input['supplier_id'] ?? null;
+        $supplierName = $input['supplier_name'] ?? '';
+        $decidedBy = $input['decided_by'] ?? 'web_user';
+        
+        $meta = [];
+        $supplierId = (int)$supplierId ?: null; // Ensure 0 becomes null
+        
+        // 1. Safeguard: Check for ID/Name Mismatch
+        if ($supplierId && $supplierName) {
+            $stmt = $db->prepare('SELECT official_name FROM suppliers WHERE id = ?');
+            $stmt->execute([$supplierId]);
+            $dbName = $stmt->fetchColumn();
+            
+            if ($dbName && mb_strtolower(trim($dbName)) !== mb_strtolower(trim($supplierName))) {
+                // Name changed: Reset ID to force re-lookup/creation
+                $supplierId = null;
+            }
+        }
+        
+        // 2. Auto-Create or Lookup
+        if (!$supplierId && $supplierName) {
+            // Check exact or normalized match
+            $stmt = $db->prepare('SELECT id FROM suppliers WHERE official_name = ? OR normalized_name = ?');
+            $stmt->execute([$supplierName, \App\Support\ArabicNormalizer::normalize($supplierName)]);
+            $supplierId = $stmt->fetchColumn();
+            
+            if (!$supplierId) {
+                // Use SupplierManagementService for secure creation (includes Phase 11 Alias Conflict Check)
+                // Note: We access the static method directly
+                try {
+                    $result = \App\Services\SupplierManagementService::create($db, [
+                        'official_name' => $supplierName,
+                        'is_confirmed' => 1 // Auto-created from decision
+                    ]);
+                    $supplierId = $result['supplier_id'];
+                    $input['decision_source'] = 'auto_create';
+                    $meta['created_supplier_name'] = $result['official_name'];
+                } catch (\Exception $e) {
+                    throw new \RuntimeException("Failed to auto-create supplier: " . $e->getMessage());
+                }
+            }
+        }
+        
+        // 3. Prepare Data for Save
+        $saveData = [
+            'supplier_id' => $supplierId,
+            'bank_id' => $input['bank_id'] ?? null,
+            'status' => ($supplierId && $input['bank_id']) ? 'ready' : 'pending',
+            'decision_source' => $input['decision_source'] ?? 'manual',
+            'decided_by' => $decidedBy,
+            'confidence_score' => $input['confidence_score'] ?? 100
+        ];
+        
+        // 4. Save
+        $decision = $this->save($guaranteeId, $saveData);
+        
+        return [
+            'decision' => $decision,
+            'meta' => $meta
+        ];
     }
 }

@@ -410,6 +410,31 @@ class PremiumDashboard
             'ok' => $this->db !== null
         ];
 
+        // Hardware Vitals (Real-Time)
+        $hwFile = $this->projectPath . '/.bgl_core/logs/hardware_vitals.json';
+        if (file_exists($hwFile)) {
+            $hw = json_decode(file_get_contents($hwFile), true);
+            if ($hw) {
+                $vitals['cpu'] = [
+                    'name' => 'CPU Usage',
+                    'status' => $hw['cpu']['usage_percent'] . '%',
+                    'ok' => $hw['cpu']['usage_percent'] < 85
+                ];
+                $vitals['ram'] = [
+                    'name' => 'RAM Usage',
+                    'status' => $hw['memory']['used_gb'] . ' / ' . $hw['memory']['total_gb'] . ' GB',
+                    'ok' => $hw['memory']['percent'] < 90
+                ];
+                if (isset($hw['gpu']) && $hw['gpu']) {
+                    $vitals['gpu'] = [
+                        'name' => 'GPU Load',
+                        'status' => $hw['gpu']['load'] . '%',
+                        'ok' => $hw['gpu']['load'] < 90
+                    ];
+                }
+            }
+        }
+
         return $vitals;
     }
 

@@ -375,6 +375,8 @@ class SafetyNet:
     async def _async_browser_check(self) -> Dict[str, Any]:
         """Internal async bridge for Playwright."""
         try:
+            if not self.browser:
+                return {"valid": False, "report": {"error": "Browser not initialized"}}
             report = await self.browser.scan_url("/")
             if (
                 report["status"] != "SUCCESS"

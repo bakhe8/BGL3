@@ -15,19 +15,50 @@ classifications:
     path_contains: app/Models
     confidence: high
 rules:
-- id: R001
-  name: Controller-to-Model Encapsulation
-  description: 'Forbidden: Controllers must not access Models directly. Use Services.'
-  from_type: controller
-  to_type: model
-  action: BLOCK
-  rationale: "Prevent fat controllers and enforce domain orchestration via services layer."
-  severity: critical
-- id: R002
-  name: Controller-to-Repository Separation
-  description: 'Forbidden: Controllers must not access Repositories directly. Use Services.'
-  from_type: controller
-  to_type: repository
-  action: BLOCK
-  rationale: "Keep controllers thin; repositories are orchestrated through services."
-  severity: critical
+  - id: R001
+    name: Controller-to-Model Encapsulation
+    description: "Forbidden: Controllers must not access Models directly. Use Services."
+    from_type: controller
+    to_type: model
+    action: BLOCK
+    rationale: "Prevent fat controllers and enforce domain orchestration via services layer."
+    severity: critical
+  - id: R002
+    name: Controller-to-Repository Separation
+    description: "Forbidden: Controllers must not access Repositories directly. Use Services."
+    from_type: controller
+    to_type: repository
+    action: BLOCK
+    rationale: "Keep controllers thin; repositories are orchestrated through services."
+    severity: critical
+content_rules:
+  - id: C001
+    name: "Prohibited Concept: Loan Applications"
+    pattern: "Loan Application"
+    description: "The system does NOT handle Loan Applications. This is a prohibited domain concept."
+    severity: critical
+  - id: C002
+    name: "Prohibited Concept: Credit Cards"
+    pattern: "Credit Card"
+    description: "The system does NOT handle Credit Cards. This is a prohibited domain concept."
+    severity: critical
+  - id: C003
+    name: "Prohibited Concept: Manual Entry"
+    pattern: "Manual Entry"
+    description: "Data must come from extraction. Manual Entry is prohibited."
+    severity: warning
+  - id: C004
+    name: "Prohibited Concept: Green Support"
+    pattern: "Green Support"
+    description: "Generic banking term not supported in this domain context."
+    severity: warning
+  - id: C005
+    name: "Prohibited Concept: IBAN/SWIFT"
+    pattern: "IBAN"
+    description: "The system does NOT handle IBANs. Do not implement IBAN logic."
+    severity: critical
+  - id: C006
+    name: "Prohibited Concept: SWIFT Code"
+    pattern: "SWIFT"
+    description: "The system does NOT handle SWIFT codes. Do not implement SWIFT logic."
+    severity: critical

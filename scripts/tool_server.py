@@ -490,6 +490,36 @@ class Handler(BaseHTTPRequestHandler):
                         return True
                     except Exception as e:
                         print(f"[!] ACTION FAILED: {e}")
+
+        elif plan.get("action") == "SEARCH_GITHUB":
+            query = plan.get("params", {}).get("query")
+            if query:
+                try:
+                    print(f"[*] Searching GitHub for: {query}")
+                    url = f"https://api.github.com/search/repositories?q={query}&sort=stars&order=desc"
+                    headers = {
+                        "Accept": "application/vnd.github.v3+json",
+                        "User-Agent": "BGL3-Agent",
+                    }
+                    resp = requests.get(url, headers=headers, timeout=10)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        top_repos = data.get("items", [])[:3]
+                        results = []
+                        for repo in top_repos:
+                            results.append(
+                                f"- [{repo['full_name']}]({repo['html_url']}): {repo['description']} (⭐ {repo['stargazers_count']})"
+                            )
+                        return (
+                            "\n".join(results) if results else "No repositories found."
+                        )
+                    else:
+                        print(f"[!] GitHub API Error: {resp.status_code}")
+                        return f"GitHub API unavailable (Status {resp.status_code})."
+                except Exception as e:
+                    print(f"[!] Search Failed: {e}")
+                    return f"Search failed: {e}"
+
         return False
 
     def _handle_chat(self, req):

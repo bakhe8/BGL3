@@ -16,6 +16,7 @@ class LaravelRouteIndexer:
     def run(self, return_routes: bool = False):
         print(f"[*] Indexing routes for {self.root_dir}")
         import sqlite3
+
         conn = sqlite3.connect(str(self.db_path))
         cursor = conn.cursor()
 
@@ -33,12 +34,12 @@ class LaravelRouteIndexer:
             }
         )
 
-        # 2. Scan api directory
+        # 2. Scan api directory (Recursive)
         api_dir = self.root_dir / "api"
         if api_dir.exists():
-            for php_file in api_dir.glob("*.php"):
+            for php_file in api_dir.rglob("*.php"):
                 rel_path = php_file.relative_to(self.root_dir)
-                uri = f"/api/{php_file.name}"
+                uri = f"/{rel_path.as_posix()}"
 
                 # Basic assumption: API files handle POST/GET
                 try:
@@ -55,13 +56,28 @@ class LaravelRouteIndexer:
                     }
                 )
 
-        # 3. Enhanced Analysis: Look for primary Controllers/Services
+        # 3. Scan views directory (Recursive)
+        views_dir = self.root_dir / "views"
+        if views_dir.exists():
+            for php_file in views_dir.rglob("*.php"):
+                rel_path = php_file.relative_to(self.root_dir)
+                uri = f"/{rel_path.as_posix()}"
+                routes.append(
+                    {
+                        "uri": uri,
+                        "http_method": "GET",
+                        "action": str(rel_path.as_posix()),
+                        "file_path": str(php_file),
+                    }
+                )
+
+        # 4. Enhanced Analysis: Look for primary Controllers/Services
         for route in routes:
             route["controller"], route["action_method"] = self._analyze_file(
                 Path(route["file_path"])
             )
 
-        # 4. Store in DB
+        # 5. Store in DB
         for route in routes:
             cursor.execute(
                 """
@@ -116,11 +132,28 @@ class LaravelRouteIndexer:
         lowered = content.lower()
         if "$_post" in lowered or "application/json" in lowered:
             return "POST"
-        if "$_get" in lowered and "header('content-type: application/json" not in lowered:
+        if (
+            "$_get" in lowered
+            and "header('content-type: application/json" not in lowered
+        ):
             return "GET"
         if "file_upload" in lowered or "multipart/form-data" in lowered:
             return "POST"
-        if any(name.startswith(prefix) for prefix in ["create", "update", "delete", "import", "save", "upload", "extend", "release", "reduce", "save-"]):
+        if any(
+            name.startswith(prefix)
+            for prefix in [
+                "create",
+                "update",
+                "delete",
+                "import",
+                "save",
+                "upload",
+                "extend",
+                "release",
+                "reduce",
+                "save-",
+            ]
+        ):
             return "POST"
         return "GET"
 

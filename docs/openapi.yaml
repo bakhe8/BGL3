@@ -341,3 +341,43 @@ paths:
       responses:
         '200':
           description: OK
+  /views/batch-detail.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/batch-print.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/batches.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/confidence-demo.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/index.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/maintenance.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/settings.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /views/statistics.php:
+    get:
+      responses:
+        '200':
+          description: OK
