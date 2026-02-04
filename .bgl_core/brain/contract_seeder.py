@@ -24,6 +24,13 @@ def _load_yaml(path: Path) -> Dict[str, Any]:
 
 def _guess_value(key: str) -> Any:
     k = key.lower()
+    if k == "index":
+        return 1
+    if k == "page":
+        return 1
+    if k == "history_id":
+        # Use a synthetic import ID which is supported by /api/get-history-snapshot.php
+        return "import_synthetic_1"
     if k == "is_test_data" or k.startswith("is_"):
         return False
     if k == "related_to":
@@ -74,6 +81,28 @@ def _extract_get_params(text: str) -> List[Tuple[str, bool]]:
         if re.search(rf"if\s*\(\s*!\s*\${vname}\b", text):
             params[key] = True
     return [(k, params[k]) for k in params]
+
+
+def _param_example_is_placeholder(name: str, example: Any) -> bool:
+    """
+    Decide whether an existing OpenAPI parameter example should be updated.
+    We keep this conservative to avoid rewriting curated specs.
+    """
+    n = (name or "").lower()
+    if example is None:
+        return True
+    # Common placeholder inserted by older seeders
+    if isinstance(example, str) and example.strip().lower() in {"probe"}:
+        return True
+    # index/page must be numeric in several endpoints; "probe" or other non-digits breaks PHP 8 (TypeError).
+    if n in {"index", "page"}:
+        if isinstance(example, str) and not example.strip().isdigit():
+            return True
+    # history_id example "123" is almost always invalid; prefer synthetic import id.
+    if n == "history_id":
+        if isinstance(example, str) and example.strip().isdigit():
+            return True
+    return False
 
 
 def _ensure_method(manual_paths: Dict[str, Any], uri: str, method: str) -> Dict[str, Any]:
@@ -129,24 +158,53 @@ def seed_contract() -> dict:
                 changes.append(f"{uri} {m}: requestBody example seeded ({len(fields)} fields)")
             elif m in ("get", "head"):
                 current = _ensure_method(manual_paths, uri, m)
-                if "parameters" in current and current.get("parameters"):
-                    continue
                 params = _extract_get_params(file_text) if file_text else []
                 if not params:
                     continue
-                out_params = []
+
+                existing_params = current.get("parameters") if isinstance(current.get("parameters"), list) else []
+                # Index existing params by name for updates
+                by_name: Dict[str, Dict[str, Any]] = {}
+                for p in existing_params:
+                    if isinstance(p, dict) and p.get("in") == "query" and p.get("name"):
+                        by_name[str(p["name"])] = p
+
+                out_params: List[Dict[str, Any]] = []
+                updated = 0
+                created = 0
                 for key, required in params:
-                    out_params.append(
-                        {
-                            "in": "query",
-                            "name": key,
-                            "required": bool(required),
-                            "schema": {"type": "string"},
-                            "example": _guess_value(key),
-                        }
-                    )
+                    existing = by_name.get(key)
+                    if existing:
+                        # Update required/example if placeholder
+                        existing["required"] = bool(required) or bool(existing.get("required"))
+                        if _param_example_is_placeholder(key, existing.get("example")):
+                            existing["example"] = _guess_value(key)
+                            updated += 1
+                        out_params.append(existing)
+                    else:
+                        out_params.append(
+                            {
+                                "in": "query",
+                                "name": key,
+                                "required": bool(required),
+                                "schema": {"type": "string"},
+                                "example": _guess_value(key),
+                            }
+                        )
+                        created += 1
+
+                # Preserve any extra parameters already present but not detected in file_text
+                for p in existing_params:
+                    if not isinstance(p, dict) or p.get("in") != "query" or not p.get("name"):
+                        continue
+                    if str(p.get("name")) not in {k for (k, _) in params}:
+                        out_params.append(p)
+
                 current["parameters"] = out_params
-                changes.append(f"{uri} {m}: query params seeded ({len(out_params)})")
+                if created or updated:
+                    changes.append(
+                        f"{uri} {m}: query params updated (created={created}, updated_examples={updated})"
+                    )
 
     # Backup before overwrite
     if MANUAL.exists():

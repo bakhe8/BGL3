@@ -47,6 +47,42 @@ class BrowserSensor:
         if not BrowserSensor._page or BrowserSensor._page.is_closed():
             BrowserSensor._page = await BrowserSensor._context.new_page()
 
+    async def close(self) -> None:
+        """
+        Close the singleton Playwright resources.
+
+        Important on Windows: leaving Playwright's driver subprocess attached to an
+        event loop that is about to close can emit noisy asyncio transport warnings.
+        """
+        async with BrowserSensor._lock:
+            try:
+                if BrowserSensor._page and not BrowserSensor._page.is_closed():
+                    await BrowserSensor._page.close()
+            except Exception:
+                pass
+            BrowserSensor._page = None
+
+            try:
+                if BrowserSensor._context:
+                    await BrowserSensor._context.close()
+            except Exception:
+                pass
+            BrowserSensor._context = None
+
+            try:
+                if BrowserSensor._browser:
+                    await BrowserSensor._browser.close()
+            except Exception:
+                pass
+            BrowserSensor._browser = None
+
+            try:
+                if BrowserSensor._playwright:
+                    await BrowserSensor._playwright.stop()
+            except Exception:
+                pass
+            BrowserSensor._playwright = None
+
     async def scan_url(
         self, path: str = "/", measure_perf: bool = False
     ) -> Dict[str, Any]:

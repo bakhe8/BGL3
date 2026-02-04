@@ -1,5 +1,5 @@
 <section class="glass-card" id="domain-map">
-    <div class="card-header">خريطة الدومين (Domain Map)</div>
+    <div class="card-header">خريطة المجال</div>
     <?php if ($domainMap): ?>
         <div class="card-row">
             <div>
@@ -12,10 +12,10 @@
                                 <div style="color: var(--text-secondary); font-size:0.9rem;"><?= htmlspecialchars($info['description']) ?></div>
                             <?php endif; ?>
                             <?php if(!empty($info['key_fields'])): ?>
-                                <div style="color: var(--text-secondary); font-size:0.85rem;">Fields: <?= htmlspecialchars(implode(', ', (array)$info['key_fields'])) ?></div>
+                                <div style="color: var(--text-secondary); font-size:0.85rem;">الحقول: <?= htmlspecialchars(implode(', ', (array)$info['key_fields'])) ?></div>
                             <?php endif; ?>
                             <?php if(!empty($info['lifecycle'])): ?>
-                                <div style="color: var(--text-secondary); font-size:0.85rem;">Lifecycle: <?= htmlspecialchars(implode(' → ', (array)$info['lifecycle'])) ?></div>
+                                <div style="color: var(--text-secondary); font-size:0.85rem;">دورة الحياة: <?= htmlspecialchars(implode(' → ', (array)$info['lifecycle'])) ?></div>
                             <?php endif; ?>
                         </li>
                     <?php endforeach; ?>
@@ -36,7 +36,7 @@
                 </ul>
             </div>
             <div>
-                <div class="stat-label" style="margin-bottom:6px;">KPIs</div>
+                <div class="stat-label" style="margin-bottom:6px;">مؤشرات الأداء</div>
                 <ul style="list-style:none; padding:0; margin:0;">
                     <?php foreach(($domainMap['operational_kpis'] ?? []) as $kpi): ?>
                         <li style="padding:6px 0; border-bottom:1px solid var(--glass-border);">

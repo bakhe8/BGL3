@@ -1,5 +1,5 @@
 <div class="glass-card">
-    <div class="card-header">آخر القرارات (Decisions)</div>
+    <div class="card-header">آخر القرارات</div>
     <?php if (empty($recentDecisions)): ?>
         <p style="color: var(--text-secondary); font-style: italic;">لا قرارات مسجلة بعد.</p>
     <?php else: ?>
@@ -11,7 +11,7 @@
                         <span style="color: var(--text-secondary); font-size: 0.8rem;"><?= htmlspecialchars($dec['created_at']) ?></span>
                     </div>
                     <div style="color: var(--text-primary); font-size: 0.9rem;">
-                        intent: <?= htmlspecialchars($dec['intent']) ?> (ثقة <?= round(((float)$dec['confidence']) * 100, 1) ?>%) — مخاطرة: <?= htmlspecialchars($dec['risk_level']) ?>
+                        النية: <?= htmlspecialchars($dec['intent']) ?> (ثقة <?= round(((float)$dec['confidence']) * 100, 1) ?>%) — مستوى المخاطرة: <?= htmlspecialchars($dec['risk_level']) ?>
                     </div>
                     <?php if(!empty($dec['justification'])): ?>
                         <div style="color: var(--text-secondary); font-size: 0.85rem;"><?= htmlspecialchars($dec['justification']) ?></div>

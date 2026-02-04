@@ -85,6 +85,7 @@ paths:
         schema:
           type: integer
           example: 1
+        example: 1
       responses:
         '200':
           description: OK
@@ -101,12 +102,13 @@ paths:
         required: true
         schema:
           type: string
-        example: '123'
+        example: import_synthetic_1
       - in: query
         name: index
         required: false
         schema:
           type: integer
+        example: 1
       responses:
         '200':
           description: OK
@@ -122,6 +124,7 @@ paths:
         schema:
           type: integer
           example: 1
+        example: 1
       responses:
         '200':
           description: OK
@@ -356,7 +359,7 @@ paths:
         required: false
         schema:
           type: string
-        example: probe
+        example: 1
     post: {}
   /api/get-timeline.php:
     get:
@@ -366,7 +369,7 @@ paths:
         required: false
         schema:
           type: string
-        example: probe
+        example: 1
     post: {}
   /api/get_banks.php:
     get:
@@ -376,7 +379,7 @@ paths:
         required: false
         schema:
           type: string
-        example: probe
+        example: 1
     post: {}
   /api/get_suppliers.php:
     get:
@@ -386,7 +389,7 @@ paths:
         required: false
         schema:
           type: string
-        example: probe
+        example: 1
     post: {}
   /api/import.php:
     get: {}

@@ -20,6 +20,14 @@ try:
     from .playbook_loader import load_playbooks_meta  # type: ignore
     from .authority import Authority  # type: ignore
     from .outcome_signals import compute_outcome_signals  # type: ignore
+    from .observations import (
+        store_env_snapshot,
+        diagnostic_to_snapshot,
+        store_latest_diagnostic_delta,
+    )  # type: ignore
+    from .fingerprint import compute_fingerprint, fingerprint_to_payload  # type: ignore
+    from .volition import derive_volition, store_volition  # type: ignore
+    from .autonomous_policy import apply_autonomous_policy_edit  # type: ignore
 except (ImportError, ValueError):
     from safety import SafetyNet
     from guardian import BGLGuardian
@@ -34,6 +42,10 @@ except (ImportError, ValueError):
     from playbook_loader import load_playbooks_meta
     from authority import Authority
     from outcome_signals import compute_outcome_signals
+    from observations import store_env_snapshot, diagnostic_to_snapshot, store_latest_diagnostic_delta
+    from fingerprint import compute_fingerprint, fingerprint_to_payload
+    from volition import derive_volition, store_volition
+    from autonomous_policy import apply_autonomous_policy_edit
 
 
 class AgencyCore:
@@ -268,6 +280,76 @@ class AgencyCore:
                 f"Detected {len(diagnostic_map['findings']['proposals'])} potential architectural improvements.",
                 "INFO",
             )
+
+        # Persist a compact environment snapshot in knowledge.db (unifies observations across subsystems).
+        try:
+            run_id = str(int(diagnostic_map.get("timestamp") or time.time()))
+            snapshot = diagnostic_to_snapshot(diagnostic_map)
+            store_env_snapshot(
+                self.db_path,
+                run_id=run_id,
+                kind="diagnostic",
+                payload=snapshot,
+                source="agency_core",
+                confidence=float(intent_payload.get("confidence", 0) or 0),
+                created_at=float(diagnostic_map.get("timestamp") or time.time()),
+            )
+            # Also store a delta snapshot vs the previous run (if any) to make change detection cheap.
+            store_latest_diagnostic_delta(self.db_path, run_id=run_id, curr_snapshot_payload=snapshot)
+        except Exception:
+            pass
+
+        # Persist a project fingerprint for change detection (fast, file-metadata based).
+        try:
+            fp = compute_fingerprint(self.root_dir)
+            store_env_snapshot(
+                self.db_path,
+                run_id=str(int(diagnostic_map.get("timestamp") or time.time())),
+                kind="project_fingerprint",
+                payload=fingerprint_to_payload(fp),
+                source="agency_core",
+                confidence=None,
+                created_at=float(diagnostic_map.get("timestamp") or time.time()),
+            )
+        except Exception:
+            pass
+
+        # Derive and store volition (agent "will" statement).
+        try:
+            vol = derive_volition(diagnostic_map)
+            store_volition(
+                self.db_path,
+                run_id=str(int(diagnostic_map.get("timestamp") or time.time())),
+                volition=str(vol.get("volition", "")),
+                confidence=float(vol.get("confidence", 0.5)),
+                source=str(vol.get("source", "llm")),
+                payload={"context": vol.get("context", {})},
+                created_at=float(diagnostic_map.get("timestamp") or time.time()),
+            )
+            diagnostic_map["findings"]["volition"] = vol
+        except Exception:
+            pass
+
+        # Autonomous policy self-amendment (direct write to policy_expectations.json)
+        try:
+            auto_enabled = (
+                os.getenv("BGL_AUTONOMOUS", "0") == "1"
+                or self.authority.effective_execution_mode() == "autonomous"
+            )
+        except Exception:
+            auto_enabled = os.getenv("BGL_AUTONOMOUS", "0") == "1"
+
+        if auto_enabled:
+            try:
+                auto_policy = apply_autonomous_policy_edit(self.root_dir, diagnostic_map)
+                diagnostic_map["findings"]["autonomous_policy"] = auto_policy
+                if isinstance(auto_policy, dict) and auto_policy.get("status") == "applied":
+                    self.log_activity(
+                        "AUTONOMOUS_POLICY",
+                        f"Applied policy patch: {auto_policy.get('action')}",
+                    )
+            except Exception:
+                pass
 
         return diagnostic_map
 

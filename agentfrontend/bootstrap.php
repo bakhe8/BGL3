@@ -27,6 +27,64 @@ $pythonEsc = escapeshellarg($pythonBin);
 
 use App\Support\Database;
 // use Symfony\Component\Yaml\Yaml; // Removed due to dependency issues in current environment
+
+function bgl_is_ajax(): bool {
+    $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+    if (stripos($accept, 'application/json') !== false) return true;
+    if (!empty($_SERVER['HTTP_X_REQUESTED_WITH'])) return true;
+    if (!empty($_POST['ajax']) && $_POST['ajax'] === '1') return true;
+    return false;
+}
+
+function bgl_respond(array $payload, ?string $redirect = null): void {
+    if (bgl_is_ajax()) {
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+    if ($redirect) {
+        header("Location: {$redirect}");
+        exit;
+    }
+    exit;
+}
+
+function bgl_experience_hash(string $scenario, string $summary): string {
+    return sha1(trim($scenario) . '|' . trim($summary));
+}
+
+function bgl_start_bg(string $cmd): void {
+    $cmd = trim($cmd);
+    if ($cmd === '') return;
+    // Windows: when using "start", the first quoted string is treated as the window title.
+    // Use an empty title "" to avoid swallowing the executable path.
+    // Escape embedded quotes for cmd.exe
+    $safeCmd = str_replace('"', '^"', $cmd);
+    $full = 'cmd /c "start \"\" /B ' . $safeCmd . '"';
+    pclose(popen($full, "r"));
+}
+
+function bgl_start_tool_server_bg(string $pythonBin, string $scriptPath, int $port): void {
+    $pythonBin = trim($pythonBin);
+    $scriptPath = trim($scriptPath);
+    if ($pythonBin === '' || $scriptPath === '' || $port <= 0) return;
+    $args = $scriptPath . ' --port ' . $port;
+    $ps = 'Start-Process -WindowStyle Hidden -FilePath ' . escapeshellarg($pythonBin) .
+        ' -ArgumentList ' . escapeshellarg($args);
+    $full = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
+    pclose(popen($full, "r"));
+}
+
+function bgl_start_tool_watchdog_bg(string $pythonBin, string $watchdogPath, int $port): void {
+    $pythonBin = trim($pythonBin);
+    $watchdogPath = trim($watchdogPath);
+    if ($pythonBin === '' || $watchdogPath === '' || $port <= 0) return;
+    $args = $watchdogPath . ' --port ' . $port;
+    $ps = 'Start-Process -WindowStyle Hidden -FilePath ' . escapeshellarg($pythonBin) .
+        ' -ArgumentList ' . escapeshellarg($args);
+    $full = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
+    pclose(popen($full, "r"));
+}
 /**
  * Handle Blocker Resolution via POST
  */
@@ -37,9 +95,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $lite = new PDO("sqlite:" . $dbPath);
         $stmt = $lite->prepare("UPDATE agent_blockers SET status = 'RESOLVED' WHERE id = ?");
         $stmt->execute([$id]);
-        header("Location: agent-dashboard.php?resolved=" . $id);
-        exit;
+        bgl_respond(
+            ['ok' => true, 'message' => 'تم حل المشكلة بنجاح.', 'remove' => 'blocker', 'id' => $id],
+            "agent-dashboard.php?resolved=" . $id
+        );
     }
+    bgl_respond(['ok' => false, 'message' => 'قاعدة المعرفة غير متوفرة.'], "agent-dashboard.php?error=db");
 }
 
 /**
@@ -47,14 +108,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'commit_rule') {
     $rule_id = $_POST['rule_id'];
-    $cmd = "{$pythonEsc} .bgl_core/brain/commit_rule.py " . escapeshellarg($rule_id);
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/commit_rule.py") . " " . escapeshellarg($rule_id);
     exec($cmd, $output, $return_var);
     if ($return_var === 0) {
-        header("Location: agent-dashboard.php?committed=" . $rule_id);
+        bgl_respond(['ok' => true, 'message' => 'تم دمج القاعدة بنجاح.'], "agent-dashboard.php?committed=" . $rule_id);
     } else {
-        header("Location: agent-dashboard.php?error=commit_failed");
+        bgl_respond(['ok' => false, 'message' => 'تعذر دمج القاعدة.'], "agent-dashboard.php?error=commit_failed");
     }
-    exit;
+}
+
+// Handle Experience actions (promote/ignore/accept/reject)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'experience_action') {
+    $expHash = trim((string)($_POST['exp_hash'] ?? ''));
+    $expAction = trim((string)($_POST['exp_action'] ?? ''));
+    $expScenario = trim((string)($_POST['exp_scenario'] ?? ''));
+    $expSummary = trim((string)($_POST['exp_summary'] ?? ''));
+    if ($expHash === '' && ($expScenario !== '' || $expSummary !== '')) {
+        $expHash = bgl_experience_hash($expScenario, $expSummary);
+    }
+    if ($expHash === '' || $expAction === '') {
+        bgl_respond(['ok' => false, 'message' => 'بيانات الخبرة غير مكتملة.']);
+    }
+    $agentDbPath = dirname(__DIR__) . '/.bgl_core/brain/knowledge.db';
+    try {
+        $lite = new PDO("sqlite:" . $agentDbPath);
+        $lite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $lite->exec("CREATE TABLE IF NOT EXISTS experience_actions (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            exp_hash TEXT UNIQUE,
+            action TEXT,
+            created_at REAL
+        )");
+        $stmt = $lite->prepare("INSERT OR REPLACE INTO experience_actions (exp_hash, action, created_at) VALUES (?, ?, ?)");
+        $stmt->execute([$expHash, $expAction, time()]);
+
+        if ($expAction === 'promote') {
+            $name = $expScenario !== '' ? "تحسين من خبرة: {$expScenario}" : "تحسين من خبرة";
+            $desc = $expSummary !== '' ? $expSummary : "تم تحويل خبرة إلى اقتراح للمراجعة.";
+            $action = "investigate";
+            $evidence = json_encode(['scenario' => $expScenario, 'summary' => $expSummary, 'hash' => $expHash], JSON_UNESCAPED_UNICODE);
+            $ins = $lite->prepare("INSERT INTO agent_proposals (name, description, action, count, evidence, impact, solution, expectation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $ins->execute([$name, $desc, $action, 1, $evidence, 'low', '', '']);
+            $stmt = $lite->prepare("INSERT OR REPLACE INTO experience_actions (exp_hash, action, created_at) VALUES (?, ?, ?)");
+            $stmt->execute([$expHash, 'promoted', time()]);
+        }
+        bgl_respond(['ok' => true, 'message' => 'تم تحديث الخبرة.']);
+    } catch (\Exception $e) {
+        bgl_respond(['ok' => false, 'message' => 'تعذر تحديث الخبرة.']);
+    }
 }
 
 /**
@@ -69,43 +170,116 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $lite = new PDO("sqlite:" . $agentDbPath);
         $stmt = $lite->prepare("UPDATE agent_permissions SET status = ? WHERE id = ?");
         $stmt->execute([$status, $perm_id]);
-        header("Location: agent-dashboard.php?perm_updated=" . $perm_id);
+        bgl_respond(
+            ['ok' => true, 'message' => 'تم تحديث قرار الصلاحية.', 'remove' => 'permission', 'id' => $perm_id],
+            "agent-dashboard.php?perm_updated=" . $perm_id
+        );
     } catch (\Exception $e) {
-        header("Location: agent-dashboard.php?error=db");
+        bgl_respond(['ok' => false, 'message' => 'فشل تحديث الصلاحية.'], "agent-dashboard.php?error=db");
     }
-    exit;
 }
 
 /**
  * Handle Context Digest (runtime_events -> experiences)
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'digest') {
-    $cmd = "{$pythonEsc} .bgl_core/brain/context_digest.py";
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/context_digest.py");
     exec($cmd, $output, $return_var);
-    header("Location: agent-dashboard.php?" . ($return_var === 0 ? "digested=1" : "error=digest"));
-    exit;
+    if ($return_var === 0) {
+        bgl_respond(['ok' => true, 'message' => 'تم تلخيص الأحداث إلى الخبرات.'], "agent-dashboard.php?digested=1");
+    } else {
+        bgl_respond(['ok' => false, 'message' => 'فشل تحديث الخبرة.'], "agent-dashboard.php?error=digest");
+    }
 }
 
 /**
  * Handle Master Verify trigger (fire-and-forget)
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'assure') {
-    pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
-    header("Location: agent-dashboard.php?assure_started=1");
-    exit;
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/master_verify.py");
+    bgl_start_bg($cmd);
+    bgl_respond(['ok' => true, 'message' => 'تم إطلاق الفحص الشامل في الخلفية.'], "agent-dashboard.php?assure_started=1");
 }
 
 // Run scenarios explicitly (fire-and-forget). Falls back to master_verify with env flag.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_scenarios') {
     $runner = '.bgl_core/brain/run_scenarios.py';
-    if (file_exists(__DIR__ . '/' . $runner)) {
-        pclose(popen("start /B {$pythonEsc} {$runner}", "r"));
+    if (file_exists($projectRoot . '/' . $runner)) {
+        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/" . $runner);
+        bgl_start_bg($cmd);
     } else {
         putenv("BGL_RUN_SCENARIOS=1");
-        pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
+        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/master_verify.py");
+        bgl_start_bg($cmd);
     }
-    header("Location: agent-dashboard.php?scenarios_started=1");
-    exit;
+    bgl_respond(['ok' => true, 'message' => 'تم تشغيل السيناريوهات في الخلفية.'], "agent-dashboard.php?scenarios_started=1");
+}
+
+// Update runtime flags (agent_flags.json) from dashboard controls
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_flags') {
+    $flagsPath = dirname(__DIR__) . '/storage/agent_flags.json';
+    $flags = [
+        'execution_mode' => $_POST['execution_mode'] ?? 'sandbox',
+        'agent_mode' => $_POST['agent_mode'] ?? 'assisted',
+        'decision' => ['mode' => $_POST['decision_mode'] ?? 'assisted'],
+        'scenario_exploration' => isset($_POST['scenario_exploration']) ? 1 : 0,
+        'novelty_auto' => isset($_POST['novelty_auto']) ? 1 : 0,
+        'autonomous_scenario' => isset($_POST['autonomous_scenario']) ? 1 : 0,
+        'autonomous_only' => isset($_POST['autonomous_only']) ? 1 : 0,
+        'autonomous_max_steps' => (int)($_POST['autonomous_max_steps'] ?? 8),
+        'autonomous_ui_limit' => (int)($_POST['autonomous_ui_limit'] ?? 120),
+        'autonomous_avoid_upload' => isset($_POST['autonomous_avoid_upload']) ? 1 : 0,
+        'upload_file' => trim((string)($_POST['upload_file'] ?? '')),
+        'scenario_include_api' => isset($_POST['scenario_include_api']) ? 1 : 0,
+        'run_scenarios' => isset($_POST['run_scenarios']) ? 1 : 0,
+        'keep_browser' => isset($_POST['keep_browser']) ? 1 : 0,
+        'headless' => isset($_POST['headless']) ? 1 : 0,
+        'base_url' => trim((string)($_POST['base_url'] ?? '')),
+        'tool_server_port' => (int)($_POST['tool_server_port'] ?? 8891),
+        'llm' => [
+            'base_url' => trim((string)($_POST['llm_base_url'] ?? '')),
+            'model' => trim((string)($_POST['llm_model'] ?? '')),
+            'chat_timeout' => (int)($_POST['llm_chat_timeout'] ?? 60),
+            'warmup_max_wait' => (int)($_POST['llm_warmup_max_wait'] ?? 45),
+            'warmup_poll_s' => (float)($_POST['llm_warmup_poll_s'] ?? 2),
+        ],
+    ];
+
+    // Clean empty overrides to avoid masking config.yml
+    if ($flags['upload_file'] === '') unset($flags['upload_file']);
+    if ($flags['base_url'] === '') unset($flags['base_url']);
+    if (empty($flags['llm']['base_url'])) unset($flags['llm']['base_url']);
+    if (empty($flags['llm']['model'])) unset($flags['llm']['model']);
+
+    bgl_write_json($flagsPath, $flags);
+    bgl_respond(['ok' => true, 'message' => 'تم حفظ الإعدادات.'], "agent-dashboard.php?flags_saved=1");
+}
+
+// Warm up local LLM and write status snapshot
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'warm_llm') {
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/llm_status.py") . " --warm";
+    bgl_start_bg($cmd);
+    bgl_respond(['ok' => true, 'message' => 'تم إرسال أمر تسخين الذكاء المحلي.'], "agent-dashboard.php?llm_warm_started=1");
+}
+
+// Run autonomous scenario only (no predefined scenarios)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_autonomous_now') {
+    $runner = escapeshellarg($projectRoot . "/.bgl_core/brain/scenario_runner.py");
+    $env = 'BGL_AUTONOMOUS_ONLY=1;BGL_AUTONOMOUS_SCENARIO=1';
+    $args = $projectRoot . "/.bgl_core/brain/scenario_runner.py";
+    $ps = '$env:' . $env . '; ' .
+        'Start-Process -WindowStyle Hidden -FilePath ' . escapeshellarg($pythonBin) .
+        ' -ArgumentList ' . escapeshellarg($args);
+    $full = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
+    pclose(popen($full, "r"));
+    bgl_respond(['ok' => true, 'message' => 'تم إطلاق سيناريو ذاتي واحد.'], "agent-dashboard.php?autonomous_started=1");
+}
+
+// Start tool_server (Copilot bridge)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'start_tool_server') {
+    $port = isset($_POST['tool_server_port']) ? (int)$_POST['tool_server_port'] : 8891;
+    bgl_start_tool_watchdog_bg($pythonBin, $projectRoot . "/scripts/tool_watchdog.py", $port);
+    bgl_respond(['ok' => true, 'message' => 'تم تشغيل مراقب الجسر (Watchdog).'], "agent-dashboard.php?tool_server_started=1");
 }
 
 /**
@@ -113,14 +287,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'fix_permissions') {
     // 1. Fix Logs
-    $logDir = __DIR__ . '/storage/logs';
+    $logDir = $projectRoot . '/storage/logs';
     if (!is_dir($logDir)) { mkdir($logDir, 0777, true); }
     $logFile = $logDir . '/test.log';
     if (!file_exists($logFile)) { touch($logFile); }
     chmod($logFile, 0666); // Ensure writable
 
     // 2. Fix Config
-    $configDir = __DIR__ . '/app/Config';
+    $configDir = $projectRoot . '/app/Config';
     if (!is_dir($configDir)) { mkdir($configDir, 0777, true); }
     $configFile = $configDir . '/agent.json';
     if (!file_exists($configFile)) { 
@@ -128,8 +302,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     }
     chmod($configFile, 0666); // Ensure writable
 
-    header("Location: agent-dashboard.php?fixed_permissions=1");
-    exit;
+    bgl_respond(['ok' => true, 'message' => 'تم إصلاح الصلاحيات الأساسية.'], "agent-dashboard.php?fixed_permissions=1");
 }
 
 
@@ -137,26 +310,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_api_contract') {
     putenv("BGL_RUN_SCENARIOS=0");
     putenv("BGL_RUN_API_CONTRACT=1");
-    pclose(popen("start /B {$pythonEsc} .bgl_core/brain/master_verify.py", "r"));
-    header("Location: agent-dashboard.php?api_contract_started=1");
-    exit;
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/master_verify.py");
+    bgl_start_bg($cmd);
+    bgl_respond(['ok' => true, 'message' => 'تم تشغيل فحص عقود الـ API.'], "agent-dashboard.php?api_contract_started=1");
 }
 
 // Restart browser: clear status file; a new launch will recreate it.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'restart_browser') {
-    $statusPath = __DIR__ . '/.bgl_core/logs/browser_reports/browser_status.json';
+    $statusPath = $projectRoot . '/.bgl_core/logs/browser_reports/browser_status.json';
     if (file_exists($statusPath)) {
         @unlink($statusPath);
     }
-    header("Location: agent-dashboard.php?browser_restarted=1");
-    exit;
+    bgl_respond(['ok' => true, 'message' => 'تمت إعادة ضبط حالة المتصفح.'], "agent-dashboard.php?browser_restarted=1");
 }
 
 /**
  * Toggle agent_mode (assisted <-> auto). If safe is ever set, next toggle goes to assisted.
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'toggle_mode') {
-    $cfgPath = __DIR__ . '/.bgl_core/config.yml';
+    $cfgPath = $projectRoot . '/.bgl_core/config.yml';
     if (file_exists($cfgPath)) {
         $text = file_get_contents($cfgPath);
         // Detect current mode (agent_mode or decision.mode)
@@ -172,8 +344,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
         $text = preg_replace('/(decision:\\s*\\n\\s*mode:)\\s*\"?[a-zA-Z]+\"?/', "$1 \"" . $next . '"', $text);
         file_put_contents($cfgPath, $text);
     }
-    header("Location: agent-dashboard.php?mode_toggled=1");
-    exit;
+    bgl_respond(['ok' => true, 'message' => 'تم تبديل وضع الوكيل.'], "agent-dashboard.php?mode_toggled=1");
 }
 
 // Apply proposal in sandbox (fire-and-forget orchestrator)
@@ -184,31 +355,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     $flag = $isForce ? '--force' : '';
     
     if ($pid) {
-        pclose(popen("start /B {$pythonEsc} .bgl_core/brain/apply_proposal.py --proposal {$pid} {$flag}", "r"));
+        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/apply_proposal.py") . " --proposal {$pid} {$flag}";
+        bgl_start_bg($cmd);
         $msg = $isForce ? "proposal_forced=" . urlencode($pid) : "proposal_started=" . urlencode($pid);
-        header("Location: agent-dashboard.php?" . $msg);
-        exit;
+        bgl_respond(
+            ['ok' => true, 'message' => $isForce ? 'تم التطبيق المباشر للاقتراح.' : 'تم تشغيل الاقتراح في الساندبوكس.', 'remove' => 'proposal', 'id' => $pid],
+            "agent-dashboard.php?" . $msg
+        );
     }
 }
 
 // Approve auto-generated playbook (GET for simplicity)
 if (isset($_GET['action']) && $_GET['action'] === 'approve_playbook' && !empty($_GET['id'])) {
     $pid = preg_replace('/[^A-Za-z0-9_\\-]/', '', $_GET['id']);
-    $cmd = "{$pythonEsc} .bgl_core/brain/approve_playbook.py " . escapeshellarg($pid);
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/approve_playbook.py") . " " . escapeshellarg($pid);
     exec($cmd, $output, $return_var);
-    header("Location: agent-dashboard.php?" . ($return_var === 0 ? "playbook_approved={$pid}" : "error=playbook"));
-    exit;
+    if ($return_var === 0) {
+        bgl_respond(['ok' => true, 'message' => 'تم اعتماد الـ Playbook.', 'remove' => 'playbook', 'id' => $pid], "agent-dashboard.php?playbook_approved={$pid}");
+    } else {
+        bgl_respond(['ok' => false, 'message' => 'فشل اعتماد الـ Playbook.'], "agent-dashboard.php?error=playbook");
+    }
 }
 
 // Reject auto-generated playbook (delete proposed file)
 if (isset($_GET['action']) && $_GET['action'] === 'reject_playbook' && !empty($_GET['id'])) {
     $pid = preg_replace('/[^A-Za-z0-9_\\-]/', '', $_GET['id']);
-    $file = __DIR__ . "/.bgl_core/brain/playbooks_proposed/{$pid}.md";
+    $file = $projectRoot . "/.bgl_core/brain/playbooks_proposed/{$pid}.md";
     if (file_exists($file)) {
         unlink($file);
     }
-    header("Location: agent-dashboard.php?playbook_rejected=" . urlencode($pid));
-    exit;
+    bgl_respond(['ok' => true, 'message' => 'تم رفض الـ Playbook.', 'remove' => 'playbook', 'id' => $pid], "agent-dashboard.php?playbook_rejected=" . urlencode($pid));
 }
 
 /**
@@ -254,6 +430,30 @@ if (isset($_GET['error'])) {
         'type' => 'info',
         'title' => 'تم إطلاق الفحص الشامل',
         'message' => 'Master Verify يعمل الآن في الخلفية.'
+    ];
+} elseif (isset($_GET['flags_saved'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم حفظ الإعدادات',
+        'message' => 'تم تحديث مفاتيح التحكم السلوكي للوكيل.'
+    ];
+} elseif (isset($_GET['llm_warm_started'])) {
+    $feedback = [
+        'type' => 'info',
+        'title' => 'تسخين الذكاء المحلي',
+        'message' => 'تم إرسال أمر التسخين. راقب حالة LLM في اللوحة.'
+    ];
+} elseif (isset($_GET['autonomous_started'])) {
+    $feedback = [
+        'type' => 'info',
+        'title' => 'تشغيل سيناريو ذاتي',
+        'message' => 'تم إطلاق سيناريو ذاتي واحد في الخلفية.'
+    ];
+} elseif (isset($_GET['tool_server_started'])) {
+    $feedback = [
+        'type' => 'info',
+        'title' => 'تشغيل جسر المحادثة',
+        'message' => 'تم إطلاق tool_server.py على المنفذ المحلي.'
     ];
 } elseif (isset($_GET['proposal_started'])) {
     $feedback = [
@@ -376,6 +576,276 @@ function bgl_yaml_parse(string $path): array|null {
     return $data;
 }
 
+function bgl_read_json(string $path): array {
+    if (!file_exists($path)) return [];
+    try {
+        $raw = file_get_contents($path);
+        $json = json_decode($raw, true);
+        return is_array($json) ? $json : [];
+    } catch (\Exception $e) {
+        return [];
+    }
+}
+
+function bgl_write_json(string $path, array $data): bool {
+    $dir = dirname($path);
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0777, true);
+    }
+    $payload = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    return file_put_contents($path, $payload) !== false;
+}
+
+function bgl_deep_merge(array $base, array $override): array {
+    $merged = $base;
+    foreach ($override as $k => $v) {
+        if (is_array($v) && isset($merged[$k]) && is_array($merged[$k])) {
+            $merged[$k] = bgl_deep_merge($merged[$k], $v);
+        } else {
+            $merged[$k] = $v;
+        }
+    }
+    return $merged;
+}
+
+function bgl_get_nested(array $data, string $path, $default = null) {
+    $cur = $data;
+    foreach (explode('.', $path) as $p) {
+        if (!is_array($cur) || !array_key_exists($p, $cur)) {
+            return $default;
+        }
+        $cur = $cur[$p];
+    }
+    return $cur;
+}
+
+function bgl_http_get_json(string $url, float $timeout = 0.3): ?array {
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'GET',
+            'timeout' => $timeout,
+            'ignore_errors' => true,
+            'header' => "Accept: application/json\r\n",
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false || $raw === null) return null;
+    $json = json_decode($raw, true);
+    return is_array($json) ? $json : null;
+}
+
+function bgl_http_post_json(string $url, array $payload, float $timeout = 0.6): ?array {
+    $ctx = stream_context_create([
+        'http' => [
+            'method' => 'POST',
+            'timeout' => $timeout,
+            'ignore_errors' => true,
+            'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
+            'content' => json_encode($payload, JSON_UNESCAPED_UNICODE),
+        ],
+    ]);
+    $raw = @file_get_contents($url, false, $ctx);
+    if ($raw === false || $raw === null) return null;
+    $json = json_decode($raw, true);
+    return is_array($json) ? $json : null;
+}
+
+function bgl_llm_base_api(string $url): string {
+    $u = trim($url);
+    if ($u === '') return $u;
+    // Normalize to base API (strip /v1/chat/completions if present)
+    $u = preg_replace('#/v1/chat/completions/?$#', '', $u);
+    return rtrim($u, '/');
+}
+
+function bgl_service_ping(string $url, float $timeout = 1.5): bool {
+    $resp = bgl_http_get_json($url, $timeout);
+    if (!is_array($resp)) return false;
+    $status = strtolower((string)($resp['status'] ?? ''));
+    return $status === 'ok';
+}
+
+function bgl_llm_warmup(string $baseUrl, string $model = ''): bool {
+    $base = bgl_llm_base_api($baseUrl);
+    if ($base === '') return false;
+    $tags = bgl_http_get_json($base . '/api/tags', 0.6);
+    if ($model === '' && is_array($tags) && isset($tags['models']) && is_array($tags['models'])) {
+        $names = array_map(fn($m) => (string)($m['name'] ?? ''), $tags['models']);
+        $names = array_values(array_filter($names, fn($n) => $n !== ''));
+        foreach ($names as $n) {
+            if (stripos($n, 'llama3.1') !== false) { $model = $n; break; }
+        }
+        if ($model === '' && !empty($names)) {
+            $model = $names[0];
+        }
+    }
+    if ($model === '') return false;
+    $payload = [
+        'model' => $model,
+        'prompt' => '',
+        'keep_alive' => '10m',
+    ];
+    // Loading a model can take a few seconds; allow a larger timeout.
+    $resp = bgl_http_post_json($base . '/api/generate', $payload, 10.0);
+    return is_array($resp);
+}
+
+function bgl_llm_keepalive(string $baseUrl, string $cooldownPath, int $minSeconds = 45, string $model = ''): bool {
+    if ($baseUrl === '') return false;
+    if (!bgl_should_attempt($cooldownPath, $minSeconds)) return false;
+    $base = bgl_llm_base_api($baseUrl);
+    if ($base === '') return false;
+    $tags = bgl_http_get_json($base . '/api/tags', 0.6);
+    if ($model === '' && is_array($tags) && isset($tags['models']) && is_array($tags['models'])) {
+        $names = array_map(fn($m) => (string)($m['name'] ?? ''), $tags['models']);
+        $names = array_values(array_filter($names, fn($n) => $n !== ''));
+        foreach ($names as $n) {
+            if (stripos($n, 'llama3.1') !== false) { $model = $n; break; }
+        }
+        if ($model === '' && !empty($names)) {
+            $model = $names[0];
+        }
+    }
+    if ($model === '') return false;
+    $payload = [
+        'model' => $model,
+        'prompt' => '',
+        'keep_alive' => '10m',
+    ];
+    $resp = bgl_http_post_json($base . '/api/generate', $payload, 3.0);
+    return is_array($resp);
+}
+
+function bgl_should_attempt(string $lockPath, int $minSeconds): bool {
+    if (file_exists($lockPath)) {
+        $age = time() - (int)@filemtime($lockPath);
+        if ($age >= 0 && $age < $minSeconds) return false;
+    }
+    @touch($lockPath);
+    return true;
+}
+
+function bgl_ensure_tool_server(
+    string $pythonBin,
+    string $scriptPath,
+    int $port,
+    string $cooldownPath,
+    int $minSeconds = 15
+): bool {
+    $url = "http://127.0.0.1:{$port}/health";
+    if (bgl_service_ping($url, 1.2)) return true;
+    if (!bgl_should_attempt($cooldownPath, $minSeconds)) return false;
+    bgl_start_tool_watchdog_bg($pythonBin, $scriptPath, $port);
+    usleep(350000);
+    return bgl_service_ping($url, 1.2);
+}
+
+function bgl_ensure_llm_hot(string $baseUrl, string $cooldownPath, int $minSeconds = 30, string $model = ''): bool {
+    if ($baseUrl === '') return false;
+    if (!bgl_should_attempt($cooldownPath, $minSeconds)) return false;
+    return bgl_llm_warmup($baseUrl, $model);
+}
+
+function bgl_calc_data_quality_score(string $sqlitePath): ?float {
+    if (!file_exists($sqlitePath)) return null;
+    try {
+        $db = new PDO("sqlite:" . $sqlitePath);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $banksTotal = (int)$db->query("SELECT COUNT(*) FROM banks")->fetchColumn();
+        $supTotal = (int)$db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
+
+        $banks = $db->query("SELECT arabic_name, english_name, short_name, normalized_name, contact_email FROM banks")->fetchAll(PDO::FETCH_ASSOC);
+        $suppliers = $db->query("SELECT official_name, normalized_name FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+
+        $validBanks = 0;
+        foreach ($banks as $b) {
+            $hasName = trim((string)($b['arabic_name'] ?? '')) !== ''
+                || trim((string)($b['english_name'] ?? '')) !== ''
+                || trim((string)($b['short_name'] ?? '')) !== '';
+            $hasNorm = trim((string)($b['normalized_name'] ?? '')) !== '';
+            if (!$hasName || !$hasNorm) continue;
+            $email = trim((string)($b['contact_email'] ?? ''));
+            if ($email !== '' && !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                continue;
+            }
+            $validBanks++;
+        }
+
+        $validSuppliers = 0;
+        foreach ($suppliers as $s) {
+            $hasName = trim((string)($s['official_name'] ?? '')) !== '';
+            $hasNorm = trim((string)($s['normalized_name'] ?? '')) !== '';
+            if ($hasName && $hasNorm) $validSuppliers++;
+        }
+
+        $total = $banksTotal + $supTotal;
+        if ($total === 0) return null;
+        return round((($validBanks + $validSuppliers) / $total) * 100, 2);
+    } catch (\Exception $e) {
+        return null;
+    }
+}
+
+function bgl_data_quality_details(string $sqlitePath, int $limit = 20): array {
+    $out = [
+        'banks_total' => 0,
+        'suppliers_total' => 0,
+        'banks_invalid' => [],
+        'suppliers_invalid' => [],
+    ];
+    if (!file_exists($sqlitePath)) return $out;
+    try {
+        $db = new PDO("sqlite:" . $sqlitePath);
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $out['banks_total'] = (int)$db->query("SELECT COUNT(*) FROM banks")->fetchColumn();
+        $out['suppliers_total'] = (int)$db->query("SELECT COUNT(*) FROM suppliers")->fetchColumn();
+
+        $banks = $db->query("SELECT id, arabic_name, english_name, short_name, normalized_name, contact_email FROM banks")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($banks as $b) {
+            $hasName = trim((string)($b['arabic_name'] ?? '')) !== ''
+                || trim((string)($b['english_name'] ?? '')) !== ''
+                || trim((string)($b['short_name'] ?? '')) !== '';
+            $hasNorm = trim((string)($b['normalized_name'] ?? '')) !== '';
+            $email = trim((string)($b['contact_email'] ?? ''));
+            $emailOk = ($email === '' || filter_var($email, FILTER_VALIDATE_EMAIL));
+            if ($hasName && $hasNorm && $emailOk) continue;
+            if (count($out['banks_invalid']) < $limit) {
+                $out['banks_invalid'][] = [
+                    'id' => $b['id'] ?? '',
+                    'name' => ($b['arabic_name'] ?: ($b['english_name'] ?: ($b['short_name'] ?: 'غير معروف'))),
+                    'issues' => [
+                        $hasName ? null : 'اسم مفقود',
+                        $hasNorm ? null : 'normalized_name مفقود',
+                        $emailOk ? null : 'contact_email غير صالح',
+                    ],
+                ];
+            }
+        }
+
+        $suppliers = $db->query("SELECT id, official_name, normalized_name FROM suppliers")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($suppliers as $s) {
+            $hasName = trim((string)($s['official_name'] ?? '')) !== '';
+            $hasNorm = trim((string)($s['normalized_name'] ?? '')) !== '';
+            if ($hasName && $hasNorm) continue;
+            if (count($out['suppliers_invalid']) < $limit) {
+                $out['suppliers_invalid'][] = [
+                    'id' => $s['id'] ?? '',
+                    'name' => ($s['official_name'] ?: 'غير معروف'),
+                    'issues' => [
+                        $hasName ? null : 'اسم رسمي مفقود',
+                        $hasNorm ? null : 'normalized_name مفقود',
+                    ],
+                ];
+            }
+        }
+    } catch (\Exception $e) {
+        return $out;
+    }
+    return $out;
+}
+
 class PremiumDashboard
 {
     private ?PDO $db;
@@ -401,22 +871,22 @@ class PremiumDashboard
         // Brain
         $rulesFile = $this->projectPath . '/.bgl_core/brain/domain_rules.yml';
         $vitals['brain'] = [
-            'name' => 'Neural Network (Rules)',
-            'status' => file_exists($rulesFile) ? 'ACTIVE' : 'OFFLINE',
+            'name' => 'قواعد الدماغ (Rules)',
+            'status' => file_exists($rulesFile) ? 'نشط' : 'غير متصل',
             'ok' => file_exists($rulesFile)
         ];
 
         // Memory
         $vitals['memory'] = [
-            'name' => 'Agentic Memory (SQLite)',
-            'status' => file_exists($this->agentDbPath) ? 'SYNCED' : 'INITIALIZING',
+            'name' => 'ذاكرة الوكيل (SQLite)',
+            'status' => file_exists($this->agentDbPath) ? 'متزامنة' : 'قيد التهيئة',
             'ok' => file_exists($this->agentDbPath)
         ];
 
         // DB
         $vitals['database'] = [
-            'name' => 'Core Database (MySQL)',
-            'status' => $this->db ? 'CONNECTED' : 'DISCONNECTED',
+            'name' => 'قاعدة البيانات الأساسية (MySQL)',
+            'status' => $this->db ? 'متصلة' : 'غير متصلة',
             'ok' => $this->db !== null
         ];
 
@@ -426,18 +896,18 @@ class PremiumDashboard
             $hw = json_decode(file_get_contents($hwFile), true);
             if ($hw) {
                 $vitals['cpu'] = [
-                    'name' => 'CPU Usage',
+                    'name' => 'استخدام المعالج',
                     'status' => $hw['cpu']['usage_percent'] . '%',
                     'ok' => $hw['cpu']['usage_percent'] < 85
                 ];
                 $vitals['ram'] = [
-                    'name' => 'RAM Usage',
+                    'name' => 'استخدام الذاكرة',
                     'status' => $hw['memory']['used_gb'] . ' / ' . $hw['memory']['total_gb'] . ' GB',
                     'ok' => $hw['memory']['percent'] < 90
                 ];
                 if (isset($hw['gpu']) && $hw['gpu']) {
                     $vitals['gpu'] = [
-                        'name' => 'GPU Load',
+                        'name' => 'ضغط المعالج الرسومي',
                         'status' => $hw['gpu']['load'] . '%',
                         'ok' => $hw['gpu']['load'] < 90
                     ];
@@ -450,16 +920,16 @@ class PremiumDashboard
 
     public function getAgentStats(): array
     {
-        $stats = ['decisions' => 0, 'corrections' => 0, 'health_score' => 95];
+        $stats = ['decisions' => null, 'corrections' => null, 'health_score' => null];
         if (!$this->db) return $stats;
 
         try {
             $stats['decisions'] = (int)$this->db->query("SELECT COUNT(*) FROM guarantee_decisions")->fetchColumn();
             $stats['corrections'] = (int)$this->db->query("SELECT COUNT(*) FROM guarantee_decisions WHERE override_reason IS NOT NULL")->fetchColumn();
             
-            // Artificial "Health Score" based on recent errors vs successes
-            $total = max(1, $stats['decisions']);
-            $stats['health_score'] = round(100 - (($stats['corrections'] / $total) * 100));
+            // Derived score (only when DB is reachable).
+            $total = max(1, (int)$stats['decisions']);
+            $stats['health_score'] = round(100 - (((int)$stats['corrections'] / $total) * 100));
         } catch (\Exception $e) {}
 
         return $stats;
@@ -633,14 +1103,65 @@ class PremiumDashboard
         return array_slice($activities, 0, 8);
     }
 
+    public function getExperienceStats(): array
+    {
+        if (!file_exists($this->agentDbPath)) {
+            return ['total' => 0, 'recent' => 0, 'last_ts' => null];
+        }
+        try {
+            $lite = new PDO("sqlite:" . $this->agentDbPath);
+            $total = (int)$lite->query("SELECT COUNT(*) FROM experiences")->fetchColumn();
+            $last = $lite->query("SELECT MAX(created_at) FROM experiences")->fetchColumn();
+            $lastTs = $last !== false ? (float)$last : null;
+            $since = time() - 3600;
+            $stmt = $lite->prepare("SELECT COUNT(*) FROM experiences WHERE created_at >= ?");
+            $stmt->execute([$since]);
+            $recent = (int)$stmt->fetchColumn();
+            return ['total' => $total, 'recent' => $recent, 'last_ts' => $lastTs];
+        } catch (\Exception $e) {
+            return ['total' => 0, 'recent' => 0, 'last_ts' => null];
+        }
+    }
+
     public function getExperiences(int $limit = 8): array
     {
         if (!file_exists($this->agentDbPath)) return [];
         try {
             $lite = new PDO("sqlite:" . $this->agentDbPath);
-            $stmt = $lite->prepare("SELECT scenario, summary, confidence, evidence_count, created_at FROM experiences ORDER BY created_at DESC LIMIT ?");
-            $stmt->execute([$limit]);
-            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $lite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $lite->exec("CREATE TABLE IF NOT EXISTS experience_actions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                exp_hash TEXT UNIQUE,
+                action TEXT,
+                created_at REAL
+            )");
+            $actions = [];
+            $actRows = $lite->query("SELECT exp_hash, action FROM experience_actions")->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($actRows as $r) {
+                $actions[$r['exp_hash']] = $r['action'];
+            }
+
+            $stmt = $lite->prepare("SELECT scenario, summary, confidence, evidence_count, created_at FROM experiences ORDER BY created_at DESC LIMIT 200");
+            $stmt->execute();
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $seen = [];
+            $out = [];
+            foreach ($rows as $r) {
+                $scenario = (string)($r['scenario'] ?? '');
+                $summary = (string)($r['summary'] ?? '');
+                $hash = bgl_experience_hash($scenario, $summary);
+                if (isset($seen[$hash])) continue;
+                $seen[$hash] = true;
+                $act = $actions[$hash] ?? null;
+                if (in_array($act, ['ignored', 'accepted', 'rejected', 'promoted'], true)) {
+                    continue;
+                }
+                $r['exp_hash'] = $hash;
+                $r['action'] = $act;
+                $out[] = $r;
+                if (count($out) >= $limit) break;
+            }
+            return $out;
         } catch (\Exception $e) {
             return [];
         }
@@ -657,6 +1178,96 @@ class PremiumDashboard
         } catch (\Exception $e) {
             return [];
         }
+    }
+
+    public function getAutonomyEvents(int $limit = 10): array
+    {
+        if (!file_exists($this->agentDbPath)) return [];
+        try {
+            $lite = new PDO("sqlite:" . $this->agentDbPath);
+            $sql = "SELECT event_type, route, method, status, latency_ms, error, timestamp
+                    FROM runtime_events
+                    WHERE event_type LIKE 'autonomous_%' OR event_type IN ('novel_probe','novel_probe_skipped')
+                    ORDER BY timestamp DESC LIMIT ?";
+            $stmt = $lite->prepare($sql);
+            $stmt->execute([$limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function getEnvSnapshot(string $kind): ?array
+    {
+        if (!file_exists($this->agentDbPath)) return null;
+        try {
+            $lite = new PDO("sqlite:" . $this->agentDbPath);
+            $stmt = $lite->prepare("SELECT payload_json, created_at, run_id FROM env_snapshots WHERE kind = ? ORDER BY created_at DESC LIMIT 1");
+            $stmt->execute([$kind]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$row) return null;
+            $payload = json_decode($row['payload_json'] ?? '{}', true);
+            return [
+                'created_at' => $row['created_at'] ?? null,
+                'run_id' => $row['run_id'] ?? null,
+                'payload' => is_array($payload) ? $payload : [],
+            ];
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    public function getLLMStatus(): array
+    {
+        // Prefer live status from Ollama /api/ps (fast, short timeout).
+        $candidates = [];
+        $envBase = getenv('LLM_BASE_URL');
+        if ($envBase) $candidates[] = $envBase;
+
+        // Read config + flags to discover configured base URL
+        $cfgPath = $this->projectPath . '/.bgl_core/config.yml';
+        $flagsPath = $this->projectPath . '/storage/agent_flags.json';
+        $cfg = bgl_yaml_parse($cfgPath);
+        $flags = bgl_read_json($flagsPath);
+        $effective = bgl_deep_merge(is_array($cfg) ? $cfg : [], is_array($flags) ? $flags : []);
+        $cfgBase = $effective['llm']['base_url'] ?? ($effective['llm_base_url'] ?? null);
+        if ($cfgBase) $candidates[] = $cfgBase;
+
+        // Common defaults
+        $candidates[] = 'http://127.0.0.1:11434';
+        $candidates[] = 'http://localhost:11434';
+
+        $seen = [];
+        foreach ($candidates as $c) {
+            $base = bgl_llm_base_api((string)$c);
+            if ($base === '' || isset($seen[$base])) continue;
+            $seen[$base] = true;
+            $ps = bgl_http_get_json($base . '/api/ps', 1.5);
+            if (is_array($ps) && array_key_exists('models', $ps)) {
+                $models = is_array($ps['models']) ? $ps['models'] : [];
+                $state = !empty($models) ? 'HOT' : 'COLD';
+                $modelName = '';
+                if (!empty($models) && is_array($models[0]) && isset($models[0]['name'])) {
+                    $modelName = (string)$models[0]['name'];
+                }
+                $displayBase = $base . '/v1/chat/completions';
+                return [
+                    'timestamp' => time(),
+                    'state' => $state,
+                    'base_url' => $displayBase,
+                    'model' => $modelName,
+                    'source' => 'live',
+                ];
+            }
+        }
+
+        // Fallback: read cached status file
+        $statusPath = $this->projectPath . '/.bgl_core/logs/llm_status.json';
+        if (!file_exists($statusPath)) {
+            return ['state' => 'UNKNOWN'];
+        }
+        $json = json_decode(file_get_contents($statusPath), true);
+        return is_array($json) ? $json : ['state' => 'UNKNOWN'];
     }
 
     public function getActiveLaws(): array
@@ -796,43 +1407,206 @@ $blockers = $dash->getBlockers();
 $proposals = $dash->getProposals();
 $permissions = $dash->getPermissions();
 $activities = $dash->getRecentActivity();
+$experienceStats = $dash->getExperienceStats();
 $experiences = $dash->getExperiences();
 $events = $dash->getRuntimeEvents();
+$autonomyEvents = $dash->getAutonomyEvents();
 $browserStatus = $dash->getBrowserStatus();
+$envSnapshot = $dash->getEnvSnapshot('diagnostic');
+$envDelta = $dash->getEnvSnapshot('diagnostic_delta');
+$llmStatus = $dash->getLLMStatus();
+$llmWarmAttempted = false;
 $permissionIssues = $dash->getPermissionIssues();
 $worstRoutes = $dash->getWorstRoutes();
 $recentIntents = $dash->getRecentIntents();
 $recentDecisions = $dash->getRecentDecisions();
-$pendingPlaybooks = glob(__DIR__ . '/.bgl_core/brain/playbooks_proposed/*.md');
+$pendingPlaybooks = glob($projectRoot . '/.bgl_core/brain/playbooks_proposed/*.md');
 $pendingPlaybooks = $pendingPlaybooks ? count($pendingPlaybooks) : 0;
 $externalChecks = [];
 $perfMetrics = [];
 $callgraphMeta = [];
-$configPath = __DIR__ . '/.bgl_core/config.yml';
+$configPath = $projectRoot . '/.bgl_core/config.yml';
+$flagsPath = dirname(__DIR__) . '/storage/agent_flags.json';
 $executionMode = 'sandbox';
 $agentMode = 'assisted';
+$decisionMode = 'assisted';
 $domainMap = null;
 $domainMapRaw = null;
 $flows = [];
 $kpiCurrent = [];
+$kpiScopes = [];
 $directAttempts = 0;
 $successRate = null;
 $proposedPatterns = [];
+$cfg = [];
 if (file_exists($configPath)) {
-    $cfg = bgl_yaml_parse($configPath);
-    if (is_array($cfg) && isset($cfg['execution_mode'])) {
-        $executionMode = strtolower((string)$cfg['execution_mode']);
-    }
-    if (is_array($cfg) && isset($cfg['agent_mode'])) {
-        $agentMode = strtolower((string)$cfg['agent_mode']);
-    } elseif (is_array($cfg) && isset($cfg['decision']['mode'])) {
-        $agentMode = strtolower((string)$cfg['decision']['mode']);
+    $parsed = bgl_yaml_parse($configPath);
+    $cfg = is_array($parsed) ? $parsed : [];
+}
+$agentFlags = bgl_read_json($flagsPath);
+$effectiveCfg = bgl_deep_merge($cfg, $agentFlags);
+$llmCfg = is_array($effectiveCfg['llm'] ?? null) ? $effectiveCfg['llm'] : [];
+$llmCfgModel = (string)($llmCfg['model'] ?? ($effectiveCfg['llm_model'] ?? 'llama3.1:latest'));
+$llmCfgBase = (string)($llmCfg['base_url'] ?? ($effectiveCfg['llm_base_url'] ?? ''));
+
+$toolServerPort = (int)($effectiveCfg['tool_server_port'] ?? 8891);
+$toolServerUrl = "http://127.0.0.1:{$toolServerPort}/tool";
+$toolServerOnline = bgl_service_ping($toolServerUrl, 0.5);
+$toolServerAutoStarted = false;
+// Avoid repeated auto-starts during live polling.
+$isLivePoll = (isset($_GET['live']) && $_GET['live'] === '1' && bgl_is_ajax());
+$cooldownPath = $projectRoot . "/storage/tool_server_autostart.lock";
+if (!$toolServerOnline && !$isLivePoll) {
+    $toolServerOnline = bgl_ensure_tool_server(
+        $pythonBin,
+        $projectRoot . "/scripts/tool_watchdog.py",
+        $toolServerPort,
+        $cooldownPath,
+        15
+    );
+    $toolServerAutoStarted = $toolServerOnline;
+}
+$copilotWidgetPath = __DIR__ . '/app/copilot/dist/copilot-widget.js';
+$copilotWidgetPresent = file_exists($copilotWidgetPath);
+
+if (($llmStatus['state'] ?? '') === 'COLD' && !empty($llmStatus['base_url'])) {
+    $modelHint = $llmCfgModel !== '' ? $llmCfgModel : (string)($llmStatus['model'] ?? '');
+    $llmWarmAttempted = bgl_ensure_llm_hot((string)$llmStatus['base_url'], $projectRoot . "/storage/llm_autowarm.lock", 20, $modelHint);
+    if ($llmWarmAttempted) {
+        usleep(350000);
+        $llmStatus = $dash->getLLMStatus();
     }
 }
-$reportJson = __DIR__ . '/.bgl_core/logs/latest_report.json';
+
+$dataQualityDetails = bgl_data_quality_details($projectRoot . '/storage/database/app.sqlite', 20);
+
+function bgl_build_live_payload(
+    array $latestReport,
+    array $stats,
+    array $vitals,
+    array $domainMap,
+    array $kpiCurrent,
+    int $pendingPlaybooks,
+    array $proposals,
+    array $permissionIssues,
+    array $experienceStats,
+    string $systemStatusText,
+    string $systemStatusTone,
+    int $toolServerPort,
+    string $toolServerUrl,
+    string $pythonBin,
+    string $projectRoot,
+    string $llmCfgModel
+): array {
+    $cooldownPath = $projectRoot . "/storage/tool_server_autostart.lock";
+    $liveToolServerOnline = bgl_ensure_tool_server(
+        $pythonBin,
+        $projectRoot . "/scripts/tool_watchdog.py",
+        $toolServerPort,
+        $cooldownPath,
+        15
+    );
+    $dash = new PremiumDashboard();
+    $liveLlmStatus = $dash->getLLMStatus();
+    if (!empty($liveLlmStatus['base_url'])) {
+        $modelHint = $llmCfgModel !== '' ? $llmCfgModel : (string)($liveLlmStatus['model'] ?? '');
+        if (($liveLlmStatus['state'] ?? '') === 'COLD') {
+            if (bgl_ensure_llm_hot((string)$liveLlmStatus['base_url'], $projectRoot . "/storage/llm_autowarm.lock", 20, $modelHint)) {
+                usleep(200000);
+                $liveLlmStatus = $dash->getLLMStatus();
+            }
+        } else {
+            // Keep model hot while dashboard is open.
+            bgl_llm_keepalive((string)$liveLlmStatus['base_url'], $projectRoot . "/storage/llm_keepalive.lock", 30, $modelHint);
+        }
+    }
+    $healthVal = null;
+    if (isset($latestReport['health_score'])) {
+        $healthVal = (float)$latestReport['health_score'];
+    } elseif (isset($stats['health_score']) && $stats['health_score'] !== null) {
+        $healthVal = (float)$stats['health_score'];
+    }
+    $healthDash = $healthVal === null ? 0 : max(0, min(100, (float)$healthVal));
+    $healthDisplay = $healthVal === null ? 'غير متوفر' : (round($healthVal, 1) . '%');
+
+    $ts = $latestReport['timestamp'] ?? null;
+    $snapshotTs = $ts ? date('Y-m-d H:i', (int)$ts) : 'غير متوفر';
+    $runtimeCount = $latestReport['runtime_events_meta']['count'] ?? null;
+    $routeScanLimit = $latestReport['route_scan_limit'] ?? null;
+    $readinessOk = $latestReport['readiness']['ok'] ?? null;
+    $readinessText = $readinessOk === null ? 'غير متوفر' : ($readinessOk ? 'OK' : 'WARN');
+    $expTotal = (int)($experienceStats['total'] ?? 0);
+    $expRecent = (int)($experienceStats['recent'] ?? 0);
+    $expLast = $experienceStats['last_ts'] ?? null;
+    $expLastText = $expLast ? date('H:i:s', (int)$expLast) : 'غير متوفر';
+
+    $vitalPayload = [];
+    foreach ($vitals as $key => $v) {
+        $vitalPayload[$key] = [
+            'status' => $v['status'] ?? '',
+            'ok' => (bool)($v['ok'] ?? false),
+        ];
+    }
+
+    $kpiDisplay = [];
+    if (!empty($domainMap['operational_kpis']) && is_array($domainMap['operational_kpis'])) {
+        foreach ($domainMap['operational_kpis'] as $kpi) {
+            $name = (string)($kpi['name'] ?? '');
+            if ($name === '') continue;
+            $slug = preg_replace('/[^a-zA-Z0-9_]+/', '_', $name);
+            $current = $kpiCurrent[$name] ?? null;
+            $unit = str_ends_with($name, '_rate') ? '%' : (str_ends_with($name, '_ms') ? ' ms' : '');
+            $kpiDisplay[$slug] = $current !== null ? ($current . $unit) : 'غير متوفر';
+        }
+    }
+
+    return [
+        'ok' => true,
+        'system_status_text' => $systemStatusText ?? 'غير متوفر',
+        'system_status_tone' => $systemStatusTone ?? 'unknown',
+        'system_state' => empty($latestReport['failing_routes']) ? 'PASS' : 'WARN',
+        'pending_playbooks' => (int)$pendingPlaybooks,
+        'proposal_count' => is_array($proposals) ? count($proposals) : 0,
+        'permission_issues_count' => empty($permissionIssues) ? 0 : count($permissionIssues),
+        'experience_total' => $expTotal,
+        'experience_recent' => $expRecent,
+        'experience_last' => $expLastText,
+        'tool_server_online' => (bool)$liveToolServerOnline,
+        'tool_server_port' => (int)$toolServerPort,
+        'llm_state' => strtoupper((string)($liveLlmStatus['state'] ?? 'UNKNOWN')),
+        'llm_model' => (string)($liveLlmStatus['model'] ?? ''),
+        'llm_base_url' => (string)($liveLlmStatus['base_url'] ?? ''),
+        'health_score_value' => $healthVal,
+        'health_score_display' => $healthDisplay,
+        'health_score_dash' => $healthDash,
+        'snapshot_timestamp' => $snapshotTs,
+        'snapshot_runtime_events' => $runtimeCount !== null ? (int)$runtimeCount : 'غير متوفر',
+        'snapshot_route_scan_limit' => $routeScanLimit !== null ? (int)$routeScanLimit : 'غير متوفر',
+        'snapshot_readiness' => $readinessText,
+        'vitals' => $vitalPayload,
+        'kpi_current' => $kpiDisplay,
+    ];
+}
+
+if (isset($effectiveCfg['execution_mode'])) {
+    $executionMode = strtolower((string)$effectiveCfg['execution_mode']);
+}
+if (isset($effectiveCfg['agent_mode'])) {
+    $agentMode = strtolower((string)$effectiveCfg['agent_mode']);
+} elseif (isset($effectiveCfg['decision']['mode'])) {
+    $agentMode = strtolower((string)$effectiveCfg['decision']['mode']);
+}
+if (isset($effectiveCfg['decision']['mode'])) {
+    $decisionMode = strtolower((string)$effectiveCfg['decision']['mode']);
+}
+$reportJson = $projectRoot . '/.bgl_core/logs/latest_report.json';
+$latestReport = [];
+$volition = [];
+$autonomousPolicy = [];
 if (file_exists($reportJson)) {
     $jr = json_decode(file_get_contents($reportJson), true);
     if (is_array($jr)) {
+        $latestReport = $jr;
         if (isset($jr['external_checks']) && is_array($jr['external_checks'])) {
             $externalChecks = $jr['external_checks'];
         } elseif (isset($jr['findings']['external_checks']) && is_array($jr['findings']['external_checks'])) {
@@ -844,10 +1618,46 @@ if (file_exists($reportJson)) {
         if (isset($jr['callgraph_meta']) && is_array($jr['callgraph_meta'])) {
             $callgraphMeta = $jr['callgraph_meta'];
         }
+        if (isset($jr['volition']) && is_array($jr['volition'])) {
+            $volition = $jr['volition'];
+        }
+        if (isset($jr['autonomous_policy']) && is_array($jr['autonomous_policy'])) {
+            $autonomousPolicy = $jr['autonomous_policy'];
+        }
+    }
+}
+
+// Prefer latest_report health_score over DB-derived heuristic.
+if (isset($latestReport['health_score'])) {
+    $stats['health_score'] = $latestReport['health_score'];
+}
+
+// Header status (avoid static "active" labels)
+$systemStatusText = 'غير متوفر';
+$systemStatusTone = 'unknown'; // ok | warn | unknown
+if (!empty($latestReport)) {
+    $failingRoutes = count($latestReport['failing_routes'] ?? []);
+    $healthScore = $latestReport['health_score'] ?? null;
+    if ($healthScore !== null) {
+        if ($healthScore >= 90 && $failingRoutes === 0) {
+            $systemStatusText = 'مستقر';
+            $systemStatusTone = 'ok';
+        } else {
+            $systemStatusText = 'يحتاج مراجعة';
+            $systemStatusTone = 'warn';
+        }
+    } else {
+        if ($failingRoutes > 0) {
+            $systemStatusText = 'يحتاج مراجعة';
+            $systemStatusTone = 'warn';
+        } else {
+            $systemStatusText = 'غير مؤكد';
+            $systemStatusTone = 'unknown';
+        }
     }
 }
 // count direct attempts from decision outcomes if available
-$decisionDbPath = __DIR__ . '/.bgl_core/brain/decision.db';
+$decisionDbPath = $projectRoot . '/.bgl_core/brain/decision.db';
 if (file_exists($decisionDbPath)) {
     try {
         $lite = new PDO("sqlite:" . $decisionDbPath);
@@ -868,7 +1678,7 @@ if (file_exists($decisionDbPath)) {
 $gapRateLimit = $dash->checkRateLimitGuard();
 
 // Proposed patterns (auto-generated discovery)
-$proposedPath = __DIR__ . '/.bgl_core/brain/proposed_patterns.json';
+$proposedPath = $projectRoot . '/.bgl_core/brain/proposed_patterns.json';
 if (file_exists($proposedPath)) {
     $json = json_decode(file_get_contents($proposedPath), true);
     if (is_array($json)) {
@@ -916,12 +1726,24 @@ try {
             $kpiCurrent['import_success_rate'] = round((1 - ($impFail / $impTotal)) * 100, 2);
         }
 
-        // Data Quality Score (heuristic: 100 - val_fail_rate on writes)
-        if (isset($kpiCurrent['validation_failure_rate'])) {
-            $kpiCurrent['data_quality_score'] = 100 - $kpiCurrent['validation_failure_rate'];
-        } else {
-             $kpiCurrent['data_quality_score'] = 100; // Default optimism
+        // Dynamic KPI scopes from runtime_events (fresh, not from domain_map.yml)
+        $kpiScopes['import_success_rate'] = $lite->query(
+            "SELECT DISTINCT event_type FROM runtime_events WHERE event_type IN ('import_suppliers','import_banks')"
+        )->fetchAll(PDO::FETCH_COLUMN);
+
+        $scopeRoutes = $lite->prepare("SELECT DISTINCT route FROM runtime_events WHERE route IN ($writePlaceholders) AND route IS NOT NULL");
+        $scopeRoutes->execute($writeRoutes);
+        $presentRoutes = $scopeRoutes->fetchAll(PDO::FETCH_COLUMN);
+        $kpiScopes['api_error_rate'] = $presentRoutes;
+        $kpiScopes['validation_failure_rate'] = $presentRoutes;
+        $kpiScopes['contract_latency_ms'] = $presentRoutes;
+
+        // Data Quality Score (derived from core tables: banks + suppliers)
+        $qualityScore = bgl_calc_data_quality_score($projectRoot . '/storage/database/app.sqlite');
+        if ($qualityScore !== null) {
+            $kpiCurrent['data_quality_score'] = $qualityScore;
         }
+        $kpiScopes['data_quality_score'] = ['banks', 'suppliers'];
     }
 } catch (\Exception $e) {
     // صمت: عرض n/a عند الفشل
@@ -950,5 +1772,71 @@ if (is_dir($flowsDir)) {
         }
         $flows[] = ['title' => $title, 'file' => basename($flowFile)];
     }
+}
+
+// Lightweight live snapshot for AJAX updates (no full page reload)
+if (isset($_GET['live']) && $_GET['live'] === '1' && bgl_is_ajax()) {
+    $payload = bgl_build_live_payload(
+        $latestReport,
+        $stats,
+        $vitals,
+        $domainMap ?? [],
+        $kpiCurrent,
+        (int)$pendingPlaybooks,
+        $proposals ?? [],
+        $permissionIssues ?? [],
+        $experienceStats ?? [],
+        $systemStatusText ?? 'غير متوفر',
+        $systemStatusTone ?? 'unknown',
+        (int)$toolServerPort,
+        $toolServerUrl,
+        $pythonBin,
+        $projectRoot,
+        (string)$llmCfgModel
+    );
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($payload, JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
+if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'text/event-stream') !== false) {
+    header('Content-Type: text/event-stream; charset=utf-8');
+    header('Cache-Control: no-cache');
+    header('Connection: keep-alive');
+    @ini_set('output_buffering', 'off');
+    @ini_set('zlib.output_compression', 0);
+    @ob_end_flush();
+    @ob_implicit_flush(true);
+
+    $start = time();
+    $maxSeconds = 90;
+    $interval = 2;
+    while (true) {
+        $payload = bgl_build_live_payload(
+            $latestReport,
+            $stats,
+            $vitals,
+            $domainMap ?? [],
+            $kpiCurrent,
+            (int)$pendingPlaybooks,
+            $proposals ?? [],
+            $permissionIssues ?? [],
+            $experienceStats ?? [],
+            $systemStatusText ?? 'غير متوفر',
+            $systemStatusTone ?? 'unknown',
+            (int)$toolServerPort,
+            $toolServerUrl,
+            $pythonBin,
+            $projectRoot,
+            (string)$llmCfgModel
+        );
+        echo "event: live\n";
+        echo "data: " . json_encode($payload, JSON_UNESCAPED_UNICODE) . "\n\n";
+        @flush();
+        if (connection_aborted()) break;
+        if ((time() - $start) >= $maxSeconds) break;
+        sleep($interval);
+    }
+    exit;
 }
 ?>

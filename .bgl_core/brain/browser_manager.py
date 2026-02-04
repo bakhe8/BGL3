@@ -96,6 +96,7 @@ class BrowserManager:
                 except Exception:
                     pass
             page = await self._context.new_page()
+            self._install_filechooser_guard(page)
             self._pages.append(page)
             return page
 
@@ -109,8 +110,41 @@ class BrowserManager:
                 except Exception:
                     pass
             page = await self._context.new_page()
+            self._install_filechooser_guard(page)
             self._pages.append(page)
             return page
+
+    def _install_filechooser_guard(self, page: Page) -> None:
+        """
+        Block native OS file dialogs by default.
+
+        Native file pickers are outside the browser and break automation.
+        To allow them (not recommended), set env BGL_ALLOW_FILECHOOSER=1 or set
+        page._bgl_allow_filechooser = True temporarily.
+        """
+        try:
+            if getattr(page, "_bgl_filechooser_hook", False):
+                return
+        except Exception:
+            # If the page proxy doesn't support getattr, just proceed.
+            pass
+
+        def handle_filechooser(fc):
+            allow_env = os.getenv("BGL_ALLOW_FILECHOOSER", "0") == "1"
+            allow_page = bool(getattr(page, "_bgl_allow_filechooser", False))
+            if allow_env or allow_page:
+                return
+            try:
+                asyncio.create_task(fc.cancel())
+            except Exception:
+                pass
+
+        try:
+            page.on("filechooser", handle_filechooser)
+            page._bgl_filechooser_hook = True  # type: ignore[attr-defined]
+        except Exception:
+            # If hook install fails, do not crash browser creation.
+            pass
 
     async def close(self):
         async with self._lock:

@@ -17,6 +17,8 @@ ROOT = Path(__file__).resolve().parents[2]
 DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 
 from perception import UI_MAP_JS  # Shared DOM extraction script
+from observations import latest_env_snapshot  # Unified env snapshot accessor
+from volition import latest_volition
 
 # ---------- Tool implementations ----------
 
@@ -94,6 +96,23 @@ def tool_context_pack() -> Dict[str, Any]:
     except Exception:
         ctx["routes_count"] = 0
     conn.close()
+    # Add a unified snapshot (most recent). This is the canonical "what the agent last observed".
+    try:
+        ctx["env_snapshot"] = latest_env_snapshot(DB, kind="diagnostic")
+    except Exception:
+        ctx["env_snapshot"] = None
+    try:
+        ctx["env_delta"] = latest_env_snapshot(DB, kind="diagnostic_delta")
+    except Exception:
+        ctx["env_delta"] = None
+    try:
+        ctx["project_fingerprint"] = latest_env_snapshot(DB, kind="project_fingerprint")
+    except Exception:
+        ctx["project_fingerprint"] = None
+    try:
+        ctx["volition"] = latest_volition(DB)
+    except Exception:
+        ctx["volition"] = None
     return {"status": "SUCCESS", "context": ctx}
 
 

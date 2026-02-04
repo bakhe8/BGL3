@@ -3,6 +3,10 @@ import json
 import os
 import urllib.request
 
+try:
+    from .llm_client import LLMClient  # type: ignore
+except Exception:
+    from llm_client import LLMClient
 
 def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -12,8 +16,8 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     print("[*] SmartIntentResolver: Interpreting system diagnostics...")
 
     openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
-    # Use 127.0.0.1 to avoid Windows IPv6/localhost resolution issues
-    ollama_url = os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1/chat/completions")
+    # Local LLM base is optional; when absent and no OpenAI, we fall back to signals/heuristics.
+    llm_base_url = os.getenv("LLM_BASE_URL", "")
 
     try:
         from .brain_types import Intent  # type: ignore
@@ -49,7 +53,7 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     """
 
     # Simple fallback if no AI is configured
-    if not (openai_key or "localhost" in ollama_url or "127.0.0.1" in ollama_url):
+    if not (openai_key or llm_base_url):
         if hint:
             try:
                 hint["intent"] = Intent(hint["intent"]).value
@@ -66,30 +70,19 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         }
 
     try:
-        # Heuristic for rapid local testing
-        payload = {
-            "model": os.getenv("LLM_MODEL", "llama3.1:latest"),
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.0,
-        }
-        req = urllib.request.Request(
-            ollama_url,
-            json.dumps(payload).encode(),
-            {"Content-Type": "application/json"},
-        )
-        # Allow cold-start load time for local models
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res = json.loads(response.read().decode())
-            data = json.loads(res["choices"][0]["message"]["content"])
+        client = LLMClient()
+        data = client.chat_json(prompt, temperature=0.0)
 
-            # Validate Enum
-            try:
-                data["intent"] = Intent(data["intent"]).value
-            except ValueError:
-                data["intent"] = Intent.OBSERVE.value  # Fallback
-
-            return data
+        # Validate Enum + ensure required keys exist
+        intent_val = data.get("intent")
+        try:
+            data["intent"] = Intent(intent_val).value
+        except Exception:
+            data["intent"] = Intent.OBSERVE.value
+        data.setdefault("confidence", 0.7)
+        data.setdefault("reason", "local_llm")
+        data.setdefault("scope", [])
+        return data
 
     except Exception as e:
         print(f"[*] SmartIntentResolver: Local AI failed ({e}). Using fallback.")

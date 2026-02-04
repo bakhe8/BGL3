@@ -1,5 +1,5 @@
 <div class="glass-card">
-    <div class="card-header">أحداث آنية من المتصفح (Runtime Events)</div>
+    <div class="card-header">أحداث آنية من المتصفح</div>
     <?php if (empty($events)): ?>
         <p style="color: var(--text-secondary); font-style: italic;">لم تُلتقط أحداث حتى الآن.</p>
     <?php else: ?>
@@ -16,7 +16,7 @@
                             <span style="color: <?= ((int)$ev['status'] >=400) ? 'var(--danger)' : 'var(--success)' ?>;">[<?= $ev['status'] ?>]</span>
                         <?php endif; ?>
                         <?php if(!empty($ev['latency_ms'])): ?>
-                            <span style="color: var(--accent-gold);"> (<?= round($ev['latency_ms']) ?> ms)</span>
+                            <span style="color: var(--accent-gold);"> (<?= round($ev['latency_ms']) ?> مللي ثانية)</span>
                         <?php endif; ?>
                     </div>
                     <?php if(!empty($ev['error'])): ?>

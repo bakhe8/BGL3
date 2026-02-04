@@ -1,5 +1,5 @@
 <div class="glass-card" style="grid-column: span 3;">
-    <div class="card-header">أحدث نشاطات الوكيل (Activity Feed)</div>
+    <div class="card-header">أحدث نشاطات الوكيل</div>
     <div style="display: flex; flex-direction: column; gap: 10px;">
         <?php if(empty($activities)): ?>
             <p style="color: var(--text-secondary); font-style: italic;">لا توجد نشاطات مسجلة حالياً...</p>

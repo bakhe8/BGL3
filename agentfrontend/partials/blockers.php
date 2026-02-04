@@ -1,6 +1,12 @@
-<?php if (!empty($blockers)): ?>
+<?php
+$hasBlockers = !empty($blockers);
+?>
+<p data-empty="blocker" style="color: var(--text-secondary); font-style: italic; <?= $hasBlockers ? 'display:none;' : '' ?>">
+    لا توجد معوّقات حالياً.
+</p>
+<?php if ($hasBlockers): ?>
     <?php foreach($blockers as $b): ?>
-    <div class="blocker-alert">
+    <div class="blocker-alert" data-item="blocker">
         <div class="blocker-icon">!</div>
         <div class="blocker-content">
             <h3>تحدي معرفي: العميل عالق (Cognitive Blocker)</h3>
@@ -10,7 +16,7 @@
                 <span>الأولوية: <?= htmlspecialchars($b['priority'] ?? 'N/A') ?></span>
                 <span>تاريخ: <?= htmlspecialchars($b['timestamp']) ?></span>
             </div>
-            <form method="POST" style="margin-top:10px;">
+            <form method="POST" style="margin-top:10px;" data-live="1" data-remove="blocker">
                 <input type="hidden" name="action" value="resolve">
                 <input type="hidden" name="blocker_id" value="<?= (int)$b['id'] ?>">
                 <button type="submit" class="btn-intervention">تأكيد الحل اليدوي</button>

@@ -44,6 +44,42 @@
   </div>
 
   <div class="section">
+    <h2>Volition</h2>
+    {% if volition and volition.volition %}
+      <p><strong>Focus:</strong> {{ volition.volition }}</p>
+      {% if volition.confidence is not none %}
+      <p>Confidence: {{ volition.confidence }}</p>
+      {% endif %}
+      {% if volition.source %}
+      <p>Source: {{ volition.source }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No volition recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Autonomous Policy</h2>
+    {% if autonomous_policy and autonomous_policy.status %}
+      <p>Status: {{ autonomous_policy.status }}</p>
+      {% if autonomous_policy.action %}
+      <p>Action: {{ autonomous_policy.action }}</p>
+      {% endif %}
+      {% if autonomous_policy.added %}
+      <p>Added: {{ autonomous_policy.added|length }}</p>
+      {% endif %}
+      {% if autonomous_policy.updated %}
+      <p>Updated: {{ autonomous_policy.updated|length }}</p>
+      {% endif %}
+      {% if autonomous_policy.removed %}
+      <p>Removed: {{ autonomous_policy.removed|length }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No autonomous policy changes.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Pending Approvals</h2>
     {% if pending_approvals %}
       <table>

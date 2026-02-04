@@ -1,0 +1,25 @@
+{
+    "execution_mode": "autonomous",
+    "agent_mode": "auto",
+    "decision": {
+        "mode": "auto"
+    },
+    "scenario_exploration": 1,
+    "novelty_auto": 1,
+    "autonomous_scenario": 1,
+    "autonomous_only": 1,
+    "autonomous_max_steps": 120,
+    "autonomous_ui_limit": 240,
+    "autonomous_avoid_upload": 1,
+    "scenario_include_api": 1,
+    "run_scenarios": 1,
+    "keep_browser": 1,
+    "headless": 0,
+    "base_url": "http:\/\/localhost:8000",
+    "tool_server_port": 8891,
+    "llm": {
+        "chat_timeout": 60,
+        "warmup_max_wait": 45,
+        "warmup_poll_s": 2
+    }
+}

@@ -16,7 +16,8 @@ from pathlib import Path
 import sys
 import subprocess
 import shlex
-import requests
+import urllib.request
+import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / ".bgl_core" / "brain"))
@@ -35,7 +36,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Methods", "POST, GET, OPTIONS")
         self.send_header("Access-Control-Max-Age", "86400")
         if extra_headers:
             for k, v in extra_headers.items():
@@ -44,6 +45,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self._set_headers(200)
+
+    def do_GET(self):
+        if self.path == "/health":
+            self._set_headers(200)
+            self.wfile.write(json.dumps({"status": "OK"}).encode("utf-8"))
+            return
+        self._set_headers(404)
+        self.wfile.write(b'{"error":"not found"}')
 
     def do_POST(self):
         length = int(self.headers.get("Content-Length", 0))
@@ -63,6 +72,9 @@ class Handler(BaseHTTPRequestHandler):
             self._handle_tool(req)
         elif self.path == "/chat":
             self._handle_chat(req)
+        elif self.path == "/health":
+            self._set_headers(200)
+            self.wfile.write(json.dumps({"status": "OK"}).encode("utf-8"))
         else:
             self._set_headers(404)
             self.wfile.write(b'{"error":"not found"}')
@@ -501,9 +513,12 @@ class Handler(BaseHTTPRequestHandler):
                         "Accept": "application/vnd.github.v3+json",
                         "User-Agent": "BGL3-Agent",
                     }
-                    resp = requests.get(url, headers=headers, timeout=10)
-                    if resp.status_code == 200:
-                        data = resp.json()
+                    req = urllib.request.Request(url, headers=headers)
+                    with urllib.request.urlopen(req, timeout=10) as resp:
+                        status = getattr(resp, "status", 200)
+                        raw = resp.read().decode("utf-8", errors="ignore")
+                    if status == 200:
+                        data = json.loads(raw)
                         top_repos = data.get("items", [])[:3]
                         results = []
                         for repo in top_repos:
@@ -514,8 +529,8 @@ class Handler(BaseHTTPRequestHandler):
                             "\n".join(results) if results else "No repositories found."
                         )
                     else:
-                        print(f"[!] GitHub API Error: {resp.status_code}")
-                        return f"GitHub API unavailable (Status {resp.status_code})."
+                        print(f"[!] GitHub API Error: {status}")
+                        return f"GitHub API unavailable (Status {status})."
                 except Exception as e:
                     print(f"[!] Search Failed: {e}")
                     return f"Search failed: {e}"
@@ -596,7 +611,12 @@ def main():
     ap = ArgumentParser()
     ap.add_argument("--port", type=int, default=8891)
     args = ap.parse_args()
-    server = HTTPServer(("0.0.0.0", args.port), Handler)
+    try:
+        from http.server import ThreadingHTTPServer
+
+        server = ThreadingHTTPServer(("0.0.0.0", args.port), Handler)
+    except Exception:
+        server = HTTPServer(("0.0.0.0", args.port), Handler)
     print(f"tool_server listening on http://0.0.0.0:{args.port}/tool and /chat")
     try:
         server.serve_forever()

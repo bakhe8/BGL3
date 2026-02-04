@@ -8,8 +8,8 @@ if (typeof globalThis.process === "undefined") {
   globalThis.process = { env: {} };
 }
 
-const TOOL_ENDPOINT = "http://localhost:8891/tool";
-const CHAT_ENDPOINT = "http://localhost:8891/chat";
+const TOOL_ENDPOINT = window.BGL_TOOL_ENDPOINT || "http://localhost:8891/tool";
+const CHAT_ENDPOINT = window.BGL_CHAT_ENDPOINT || "http://localhost:8891/chat";
 
 const defaultSystemMessage = () => `
 أنت مساعد برمجي داخل لوحة تحكم BGL3.
@@ -463,7 +463,6 @@ function ContextBridge() {
 function App() {
   return (
     <>
-      <ContextBridge />
       <ToolRegistry />
       <ChatUI />
     </>
@@ -475,11 +474,9 @@ const mount = () => {
   if (!el) return;
   const root = ReactDOM.createRoot(el);
   root.render(
-    <React.StrictMode>
-      <CopilotProvider>
-        <App />
-      </CopilotProvider>
-    </React.StrictMode>
+    <CopilotProvider>
+      <App />
+    </CopilotProvider>
   );
 };
 

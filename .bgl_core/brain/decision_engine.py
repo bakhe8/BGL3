@@ -3,6 +3,10 @@ import json
 import os
 import urllib.request
 
+try:
+    from .llm_client import LLMClient  # type: ignore
+except Exception:
+    from llm_client import LLMClient
 
 def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -12,7 +16,6 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     print("[*] SmartDecisionEngine: Evaluating risk-benefit ratio...")
 
     openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
-    ollama_url = os.getenv("LLM_BASE_URL", "http://127.0.0.1:11434/v1/chat/completions")
 
     intent = intent_payload.get("intent", "observe")
     confidence = float(intent_payload.get("confidence", 0))
@@ -32,28 +35,12 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     }}
     """
 
-    # 1. Try Ollama (Local) First with generous timeout for cold starts
+    # 1. Try local LLM first (with warm-up and HOT/COLD detection)
     try:
-        payload = {
-            "model": os.getenv("LLM_MODEL", "llama3.1:latest"),
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.0,
-            "stream": False,
-        }
-        req = urllib.request.Request(
-            ollama_url,
-            json.dumps(payload).encode(),
-            {"Content-Type": "application/json"},
-        )
-        # Timeout increased to 30s to allow for Model VRAM loading (Cold Start)
-        with urllib.request.urlopen(req, timeout=30) as response:
-            res = json.loads(response.read().decode())
-            return json.loads(res["choices"][0]["message"]["content"])
+        client = LLMClient()
+        return client.chat_json(prompt, temperature=0.0)
     except Exception as e:
-        print(
-            f"[*] SmartDecisionEngine: Local AI failed/timed out ({e}). Trying OpenAI failover..."
-        )
+        print(f"[*] SmartDecisionEngine: Local AI failed/timed out ({e}). Trying OpenAI failover...")
 
     # 2. Failover to OpenAI
     if not openai_key:

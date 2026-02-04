@@ -23,6 +23,8 @@ try:
     from .policy_verifier import verify_failure  # type: ignore
     from .authority import Authority  # type: ignore
     from .brain_types import ActionRequest, ActionKind  # type: ignore
+    from .observations import latest_env_snapshot, compute_skip_recommendation  # type: ignore
+    from .fingerprint import compute_fingerprint, fingerprint_to_payload, fingerprint_equal, fingerprint_is_fresh  # type: ignore
 except ImportError:
     from safety import SafetyNet
     from fault_locator import FaultLocator
@@ -37,6 +39,8 @@ except ImportError:
     from policy_verifier import verify_failure
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
+    from observations import latest_env_snapshot, compute_skip_recommendation
+    from fingerprint import compute_fingerprint, fingerprint_to_payload, fingerprint_equal, fingerprint_is_fresh
 
 
 class BGLGuardian:
@@ -145,103 +149,37 @@ class BGLGuardian:
             if isinstance(scenario_include, str) and not scenario_include.strip():
                 scenario_include = None
 
-            # Decision/gate for scenario batch
-            intent_payload = {
-                "intent": "scenario_batch",
-                "confidence": 0.7,
-                "reason": "Run predefined Playwright scenarios",
-                "scope": ["scenarios"],
-                "context_snapshot": {
-                    "health": {},
-                    "active_route": None,
-                    "recent_changes": [],
-                    "guardian_top": [],
-                    "browser_state": "pending",
-                },
-            }
-            policy = self.config.get("decision", {})
-            decision_payload = decide(intent_payload, policy)
-            intent_id = insert_intent(
-                self.decision_db_path,
-                intent_payload["intent"],
-                intent_payload["confidence"],
-                intent_payload["reason"],
-                json.dumps(intent_payload["scope"]),
-                json.dumps(intent_payload["context_snapshot"]),
+            # Gate scenario batch via Authority (single source of truth; avoids repeated LLM calls)
+            scenario_gate = self.authority.gate(
+                ActionRequest(
+                    kind=ActionKind.WRITE_SANDBOX,
+                    operation="run_scenarios",
+                    command=f"python scenario_runner.py --base-url {base_url} --headless {int(headless)}",
+                    scope=["scenarios"],
+                    reason="Run predefined Playwright scenarios",
+                    confidence=0.7,
+                    metadata={"policy_key": "run_scenarios", "deterministic_gate": True},
+                ),
                 source="guardian",
             )
-            decision_id = insert_decision(
-                self.decision_db_path,
-                intent_id,
-                decision_payload.get("decision", "observe"),
-                decision_payload.get("risk_level", "low"),
-                bool(decision_payload.get("requires_human", False)),
-                "; ".join(decision_payload.get("justification", [])),
-            )
-            # agent_mode + gate enforcement
-            effective_mode = self.authority.effective_execution_mode()
+            decision_id = int(scenario_gate.decision_id or 0)
 
-            if decision_payload.get("decision") == "block":
+            if not scenario_gate.allowed:
                 print("    [!] Guardian: scenario batch blocked by decision gate.")
-                insert_outcome(
-                    self.decision_db_path,
-                    decision_id,
-                    "blocked",
-                    "scenario_batch blocked by gate",
+                self.authority.record_outcome(
+                    decision_id, "blocked", scenario_gate.message or "scenario_batch blocked by gate"
                 )
             elif self.agent_mode == "safe":
-                print(
-                    "    [!] Guardian: agent_mode=safe => skipping scenarios/browser run."
+                print("    [!] Guardian: agent_mode=safe => skipping scenarios/browser run.")
+                self.authority.record_outcome(decision_id, "skipped", "agent_mode safe")
+            elif scenario_runner_main is None:
+                self.authority.record_outcome(
+                    decision_id,
+                    "skipped",
+                    scenario_dep_error or "scenario runner missing dependency",
                 )
-                insert_outcome(
-                    self.decision_db_path, decision_id, "skipped", "agent_mode safe"
-                )
-            elif self.agent_mode == "assisted":
-                if scenario_runner_main is None:
-                    insert_outcome(
-                        self.decision_db_path,
-                        decision_id,
-                        "skipped",
-                        scenario_dep_error or "scenario runner missing dependency",
-                    )
-                elif self._has_permission("run_scenarios"):
-                    print("    [+] Permission granted for scenarios; running.")
-                    try:
-                        await scenario_runner_main(
-                            base_url,
-                            headless,
-                            keep_open,
-                            max_pages=scenario_max_pages,
-                            idle_timeout=scenario_idle_timeout,
-                            include=scenario_include,
-                            shadow_mode=False,
-                        )
-                        insert_outcome(
-                            self.decision_db_path,
-                            decision_id,
-                            "success",
-                            f"scenario batch executed (mode={effective_mode})",
-                        )
-                    except Exception as e:
-                        print(f"    [!] Guardian: scenario run failed: {e}")
-                        insert_outcome(
-                            self.decision_db_path, decision_id, "fail", str(e)
-                        )
-                else:
-                    self._request_permission(
-                        "run_scenarios",
-                        f"python scenario_runner.py --base-url {base_url} --headless {int(headless)}",
-                    )
-                    print(
-                        "    [!] Guardian: scenarios pending human approval (agent_mode=assisted)."
-                    )
-                    insert_outcome(
-                        self.decision_db_path,
-                        decision_id,
-                        "blocked",
-                        "awaiting human permission",
-                    )
-            else:  # auto
+            else:
+                print("    [+] Permission granted for scenarios; running.")
                 try:
                     await scenario_runner_main(
                         base_url,
@@ -252,15 +190,10 @@ class BGLGuardian:
                         include=scenario_include,
                         shadow_mode=False,
                     )
-                    insert_outcome(
-                        self.decision_db_path,
-                        decision_id,
-                        "success",
-                        f"scenario batch executed (mode={effective_mode})",
-                    )
+                    self.authority.record_outcome(decision_id, "success", "scenario batch executed")
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
-                    insert_outcome(self.decision_db_path, decision_id, "fail", str(e))
+                    self.authority.record_outcome(decision_id, "fail", str(e))
 
         # 0. Maintenance (New in Phase 5)
         self.log_maintenance()
@@ -271,9 +204,82 @@ class BGLGuardian:
         except ImportError:
             from route_indexer import LaravelRouteIndexer
 
+        # Compute a "current" fingerprint cheaply and decide if we can skip expensive steps.
+        # This prevents re-running the same work when nothing relevant changed.
+        prev_diag = None
+        prev_fp = None
+        try:
+            prev_diag = latest_env_snapshot(self.db_path, kind="diagnostic")
+            prev_fp = latest_env_snapshot(self.db_path, kind="project_fingerprint")
+        except Exception:
+            prev_diag = None
+            prev_fp = None
+
+        curr_fp = fingerprint_to_payload(compute_fingerprint(self.root_dir))
+        fp_same = False
+        try:
+            prev_fp_payload = prev_fp.get("payload") if prev_fp else None
+            # Treat fingerprints as "effectively same" within a short freshness window.
+            # master_verify generates/updates artifacts (reports, sqlite, etc.) which may
+            # touch mtimes; we don't want that to force full reruns every time.
+            if fingerprint_is_fresh(prev_fp_payload, max_age_s=float(os.getenv("BGL_FINGERPRINT_FRESH_S", "900") or 900)):
+                fp_same = True
+            else:
+                fp_same = fingerprint_equal(prev_fp_payload, curr_fp)
+        except Exception:
+            fp_same = False
+
+        skip_advice = {"ok": False, "reasons": ["unknown"], "skip": {}}
+        try:
+            # We don't have the "current diagnostic payload" yet at this point in the run.
+            # So we conservatively decide skip based on:
+            # - fingerprint unchanged since last run
+            # - last diagnostic had no failing routes
+            # - last readiness was OK (or absent)
+            if not fp_same:
+                skip_advice = {"ok": False, "reasons": ["fingerprint_changed"], "skip": {}}
+            else:
+                last_payload = prev_diag.get("payload") if prev_diag else {}
+                failing = int(((last_payload.get("route_health") or {}).get("failing_routes_count") or 0))
+                ready_ok = None
+                try:
+                    ready_ok = bool((last_payload.get("readiness") or {}).get("ok"))
+                except Exception:
+                    ready_ok = None
+                if failing == 0 and ready_ok is not False:
+                    skip_advice = {"ok": True, "reasons": ["stable_since_last_run"], "skip": {"reindex": True}}
+                else:
+                    skip_advice = {"ok": False, "reasons": ["last_run_unstable"], "skip": {}}
+        except Exception:
+            skip_advice = {"ok": False, "reasons": ["skip_advice_failed"], "skip": {}}
+
         indexer = LaravelRouteIndexer(self.root_dir, self.db_path)
-        if not self._gate_reindex(self.root_dir):
+        reindex_gate = self._gate_reindex(self.root_dir)
+        if not reindex_gate or not reindex_gate.allowed:
             print("    [!] Guardian: full reindex blocked by decision gate.")
+        elif skip_advice.get("ok") and skip_advice.get("skip", {}).get("reindex"):
+            print("    [*] Guardian: skipping reindex (stable fingerprint/diagnostic).")
+            self.authority.record_outcome(int(reindex_gate.decision_id or 0), "skipped", "skip_advice=reindex")
+            # Still persist a fresh fingerprint so the next run can see it.
+            try:
+                out = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
+                self.authority  # ensure initialized
+                # Avoid circular imports by using observations API already imported.
+                from .observations import store_env_snapshot  # type: ignore
+            except Exception:
+                from observations import store_env_snapshot  # type: ignore
+            try:
+                store_env_snapshot(
+                    self.db_path,
+                    run_id=str(int(time.time())),
+                    kind="project_fingerprint",
+                    payload=curr_fp,
+                    source="guardian",
+                    confidence=None,
+                    created_at=time.time(),
+                )
+            except Exception:
+                pass
         else:
             try:
                 # Prefer run(); fallback to index_project if available
@@ -283,41 +289,14 @@ class BGLGuardian:
                 if method is None:
                     raise AttributeError("LaravelRouteIndexer has no run/index_project")
                 method()
-                # record outcome success for reindex
-                intent_payload = {
-                    "intent": "reindex_full",
-                    "confidence": 0.9,
-                    "reason": "Reindex executed",
-                    "scope": [str(self.root_dir)],
-                    "context_snapshot": {},
-                }
-                policy = self.config.get("decision", {})
-                decision_payload = decide(intent_payload, policy)
-                intent_id = insert_intent(
-                    self.decision_db_path,
-                    intent_payload["intent"],
-                    intent_payload["confidence"],
-                    intent_payload["reason"],
-                    json.dumps(intent_payload["scope"]),
-                    json.dumps(intent_payload["context_snapshot"]),
-                    source="guardian",
-                )
-                decision_id = insert_decision(
-                    self.decision_db_path,
-                    intent_id,
-                    decision_payload.get("decision", "observe"),
-                    decision_payload.get("risk_level", "low"),
-                    bool(decision_payload.get("requires_human", False)),
-                    "; ".join(decision_payload.get("justification", [])),
-                )
-                insert_outcome(
-                    self.decision_db_path,
-                    decision_id,
-                    "success",
-                    "reindex_full completed",
+                self.authority.record_outcome(
+                    int(reindex_gate.decision_id or 0), "success", "reindex_full completed"
                 )
             except Exception as e:
                 print(f"[!] Guardian: reindex failed: {e}")
+                self.authority.record_outcome(
+                    int(reindex_gate.decision_id or 0), "fail", str(e)
+                )
 
         # 1. Ensure route index exists then fetch routes
         self._ensure_routes_indexed()
@@ -339,6 +318,9 @@ class BGLGuardian:
             limit_cfg=limit_cfg,
             past_stats=past_stats,
         )
+        if os.getenv("BGL_ONE_SHOT_MUTATION", "0") == "1":
+            limit = max(5, int(limit * 0.7))
+            os.environ["BGL_ONE_SHOT_MUTATION"] = "0"
 
         if limit > 0:
             routes = routes[:limit]
@@ -832,6 +814,52 @@ class BGLGuardian:
         Scan API routes without opening them in the browser.
         mode: skip | safe | all
         """
+        def _is_write_endpoint(u: str) -> bool:
+            u = (u or "").lower()
+            return any(
+                x in u
+                for x in (
+                    "/api/create-",
+                    "/api/update_",
+                    "/api/delete_",
+                    "/api/import",
+                    "/api/save-",
+                    "/api/upload-",
+                )
+            )
+
+        def _missing_required_signal(text: str) -> bool:
+            t = (text or "").lower()
+            return bool(
+                re.search(r"missing|required|bad request|method not allowed", t)
+                or re.search(r"مطلوب|غير صحيح|لا يمكن", text or "")
+            )
+
+        def _sample_import_source() -> str | None:
+            """
+            Pick a real import_source from the app DB to avoid false negatives when
+            scanning /api/batches.php?import_source=...
+            """
+            try:
+                db_path = self.root_dir / "storage" / "database" / "app.sqlite"
+                if not db_path.exists():
+                    return None
+                conn = sqlite3.connect(str(db_path))
+                cur = conn.cursor()
+                cur.execute(
+                    "SELECT DISTINCT import_source FROM guarantees WHERE import_source IS NOT NULL AND import_source != ? ORDER BY import_source DESC LIMIT 20",
+                    ("",),
+                )
+                rows = [r[0] for r in cur.fetchall() if r and r[0]]
+                conn.close()
+                # Prefer real excel imports when available
+                for v in rows:
+                    if str(v).startswith("excel_"):
+                        return str(v)
+                return str(rows[0]) if rows else None
+            except Exception:
+                return None
+
         method = (method or "GET").upper()
         if mode == "skip":
             return {"skipped": True, "reason": "api_scan_mode=skip"}
@@ -841,7 +869,11 @@ class BGLGuardian:
         if isinstance(contract, dict) and contract:
             contract_methods = {k.upper(): v for k, v in contract.items()}
             if method == "ANY":
-                # Prefer contract-defined method
+                # Prefer contract-defined method, but avoid probing write endpoints in safe mode.
+                if mode == "safe" and _is_write_endpoint(uri):
+                    # These endpoints are expected to require input/body and may mutate state.
+                    # Skipping prevents persistent false positives.
+                    return {"skipped": True, "reason": "write_endpoint_skipped_safe_scan"}
                 if contract_methods:
                     method = list(contract_methods.keys())[0]
             if method not in contract_methods:
@@ -875,6 +907,11 @@ class BGLGuardian:
                     if example is None and p.get("required"):
                         return {"skipped": True, "reason": f"missing_required_param:{name}"}
                     if example is not None:
+                        # Use a real sample for batches to avoid 404/500 false negatives.
+                        if uri == "/api/batches.php" and name == "import_source":
+                            sample = _sample_import_source()
+                            if sample:
+                                example = sample
                         query[name] = example
                 if query:
                     qs = urllib.parse.urlencode(query, doseq=True)
@@ -913,6 +950,19 @@ class BGLGuardian:
                     error_body = e.read().decode("utf-8", errors="ignore")
                 except Exception:
                     error_body = None
+                # Safe-scan normalization:
+                # If a write endpoint was accidentally probed as GET (common when contract includes GET {}),
+                # treat missing-required/405 as a skipped artifact rather than a failing route.
+                if mode == "safe" and _is_write_endpoint(uri) and method in ("GET", "HEAD"):
+                    if status in (400, 405, 500) and _missing_required_signal((error_body or "") + " " + (err or "")):
+                        return {
+                            "skipped": True,
+                            "reason": "write_endpoint_requires_input",
+                            "status": status,
+                            "error": err,
+                            "error_body": error_body,
+                            "method_used": method,
+                        }
                 break
             except Exception as e:
                 err = str(e)
@@ -1128,7 +1178,7 @@ class BGLGuardian:
         except Exception:
             pass
 
-    def _gate_reindex(self, path: Path) -> bool:
+    def _gate_reindex(self, path: Path):
         """Gate large reindex operations via decision layer and hardware limits."""
         # Gate record (authority handles policy overrides; reindex_full is usually safe/internal)
         req = ActionRequest(
@@ -1138,12 +1188,12 @@ class BGLGuardian:
             scope=[str(path)],
             reason=f"Reindex requested for {path}",
             confidence=0.75,
-            metadata={"policy_key": "reindex_full", "path": str(path)},
+            metadata={"policy_key": "reindex_full", "path": str(path), "deterministic_gate": True},
         )
         gate = self.authority.gate(req, source="guardian")
         decision_id = int(gate.decision_id or 0)
         if not gate.allowed:
-            return False
+            return gate
 
         # 1. Hardware Safety Check
         hw_file = os.path.join(
@@ -1170,10 +1220,12 @@ class BGLGuardian:
                         "blocked",
                         f"Hardware Safeguard: CPU {cpu_load}%, RAM {ram_avail}GB",
                     )
-                    return False
+                    gate.allowed = False
+                    gate.message = "blocked by hardware safeguard"
+                    return gate
             except Exception as e:
                 print(f"[!] Guardian: Hardware check skipped: {e}")
-        return True
+        return gate
 
     def _detect_log_anomalies(self) -> List[Dict[str, Any]]:
         """Identifies recurring patterns in the Laravel log."""

@@ -8,7 +8,7 @@
                 <li><?= htmlspecialchars($perm) ?></li>
             <?php endforeach; ?>
         </ul>
-        <form method="POST" style="margin-top: 15px;">
+        <form method="POST" style="margin-top: 15px;" data-live="1">
             <input type="hidden" name="action" value="fix_permissions">
             <button type="submit" class="btn-intervention" style="width: 100%;">🛠️ إصلاح تلقائي للصلاحيات</button>
         </form>

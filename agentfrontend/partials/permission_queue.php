@@ -1,11 +1,11 @@
 <section class="glass-card">
     <div class="card-header">طلبات الموافقة (Pending)</div>
-    <?php if (empty($permissions)): ?>
-        <p style="color: var(--success); font-weight: 600;">لا توجد طلبات معلّقة</p>
-    <?php else: ?>
+    <?php $hasPerms = !empty($permissions); ?>
+    <p data-empty="permission" style="color: var(--success); font-weight: 600; <?= $hasPerms ? 'display:none;' : '' ?>">لا توجد طلبات معلّقة</p>
+    <?php if ($hasPerms): ?>
         <ul style="list-style:none; padding:0; margin:0;">
             <?php foreach ($permissions as $perm): ?>
-                <li style="padding:10px 0; border-bottom:1px solid var(--glass-border);">
+                <li style="padding:10px 0; border-bottom:1px solid var(--glass-border);" data-item="permission">
                     <div style="display:flex; justify-content:space-between; gap:10px;">
                         <div>
                             <strong style="color: var(--accent-cyan);">
@@ -23,7 +23,7 @@
                             <?php endif; ?>
                         </div>
                         <div style="display:flex; gap:8px; align-items:center;">
-                            <form method="POST">
+                            <form method="POST" data-live="1" data-remove="permission">
                                 <input type="hidden" name="action" value="permission">
                                 <input type="hidden" name="perm_id" value="<?= (int)$perm['id'] ?>">
                                 <input type="hidden" name="status" value="GRANTED">
@@ -31,7 +31,7 @@
                                     موافقة
                                 </button>
                             </form>
-                            <form method="POST">
+                            <form method="POST" data-live="1" data-remove="permission">
                                 <input type="hidden" name="action" value="permission">
                                 <input type="hidden" name="perm_id" value="<?= (int)$perm['id'] ?>">
                                 <input type="hidden" name="status" value="DENIED">

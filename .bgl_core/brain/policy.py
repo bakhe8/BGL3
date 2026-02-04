@@ -61,6 +61,9 @@ class Policy:
         cy = box["y"] + box["height"] / 2
         t_start = time.time()
         move_info = await self.motor.move_to(page, cx, cy, danger=danger)
+        if move_info is None:
+            # Defensive: Motor.move_to should always return a dict, but keep this to prevent regressions.
+            move_info = {"status": "unknown", "correction": False}
 
         if self.motor.mouse_state != MouseState.at_target:
             return {"status": "invalid_target", "move": move_info}
@@ -90,7 +93,7 @@ class Policy:
                     "event_type": "mouse_metrics",
                     "route": selector,
                     "method": "CLICK",
-                    "payload": f"move_to_click_ms={move_to_click_ms};dom_change_ms={dom_change_ms};correction={move_info.get('correction')}",
+                    "payload": f"move_to_click_ms={move_to_click_ms};dom_change_ms={dom_change_ms};correction={move_info.get('correction', False)}",
                 },
             )
         # سجل التعلم إن وُجد سجل
@@ -98,7 +101,7 @@ class Policy:
             try:
                 with open(learn_log, "a", encoding="utf-8") as f:
                     f.write(
-                        f"{session}\tclick\t{selector}\tmove_correction={move_info.get('correction')}\t"
+                        f"{session}\tclick\t{selector}\tmove_correction={move_info.get('correction', False)}\t"
                         f"hand_seed={getattr(self.motor.profile, 'seed', '?')}\tbg={tgt.get('bg','')}\trel={tgt.get('relative','')}\t"
                         f"dom_change_ms={dom_change_ms}\n"
                     )

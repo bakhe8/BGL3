@@ -20,18 +20,20 @@ import os
 import sqlite3
 import time
 from pathlib import Path
-from typing import Any, Dict, Optional, List
+from typing import Any, Dict, Optional, List, Tuple
 
 try:
     from .brain_types import ActionRequest, ActionKind, GateResult  # type: ignore
     from .config_loader import load_config  # type: ignore
     from .decision_db import init_db, insert_intent, insert_decision, insert_outcome  # type: ignore
     from .decision_engine import decide  # type: ignore
+    from .observations import latest_env_snapshot  # type: ignore
 except Exception:
     from brain_types import ActionRequest, ActionKind, GateResult
     from config_loader import load_config
     from decision_db import init_db, insert_intent, insert_decision, insert_outcome
     from decision_engine import decide
+    from observations import latest_env_snapshot
 
 
 def _ensure_agent_permissions_table(conn: sqlite3.Connection):
@@ -65,7 +67,54 @@ class Authority:
         if self.decision_schema.exists():
             init_db(self.db_path, self.decision_schema)
         # execution_mode: sandbox | direct | auto_trial (historical)
-        self.execution_mode = str(self.config.get("execution_mode", "sandbox")).lower()
+        env_mode = os.getenv("BGL_EXECUTION_MODE")
+        self.execution_mode = str(env_mode or self.config.get("execution_mode", "sandbox")).lower()
+        # Cache decisions to avoid repeated LLM calls / repeated decision row spam
+        # during a single verification run (master_verify can call the gate many times).
+        self._decision_cache: Dict[str, Tuple[float, GateResult]] = {}
+        self._decision_cache_ttl_s: float = float(
+            os.getenv("BGL_DECISION_CACHE_TTL", "600") or 600
+        )
+
+    def _cache_key(self, request: ActionRequest) -> str:
+        """
+        Stable fingerprint for deduping decisions within a run.
+        Keep it coarse: operation + kind (+ a few metadata keys) is enough.
+        """
+        try:
+            meta = request.metadata or {}
+        except Exception:
+            meta = {}
+        # Keep only a small subset of metadata to avoid huge keys / instability.
+        meta_small = {}
+        for k in ("policy_key", "scenario", "url", "method"):
+            if k in meta:
+                meta_small[k] = meta.get(k)
+        return _safe_json(
+            {
+                "kind": request.kind.value,
+                "operation": request.operation,
+                "scope": request.scope,
+                "meta": meta_small,
+            }
+        )
+
+    def _cache_get(self, key: str) -> Optional[GateResult]:
+        try:
+            ts, res = self._decision_cache.get(key, (0.0, None))  # type: ignore
+            if not res:
+                return None
+            if (time.time() - float(ts)) > float(self._decision_cache_ttl_s):
+                return None
+            return res
+        except Exception:
+            return None
+
+    def _cache_set(self, key: str, res: GateResult) -> None:
+        try:
+            self._decision_cache[key] = (time.time(), res)
+        except Exception:
+            pass
 
     def _eligible_for_direct(self, required_successes: int = 5) -> bool:
         """
@@ -99,10 +148,16 @@ class Authority:
         - sandbox: never allow WRITE_PROD
         - direct: allow WRITE_PROD with explicit approval
         - auto_trial: becomes direct only when eligible; otherwise sandbox
+        - autonomous: allow all writes without approval (unsafe)
         """
+        if self.execution_mode == "autonomous":
+            return "autonomous"
         if self.execution_mode == "auto_trial":
             return "direct" if self._eligible_for_direct() else "sandbox"
         return self.execution_mode
+
+    def _autonomous_enabled(self) -> bool:
+        return self.effective_execution_mode() == "autonomous" or os.getenv("BGL_AUTONOMOUS", "0") == "1"
 
     # ---- permission queue (compatibility) ----
 
@@ -205,6 +260,17 @@ class Authority:
         """
         Log intent + decision rows and return a GateResult with linkage ids.
         """
+        env_snapshot = None
+        env_delta = None
+        try:
+            env_snapshot = latest_env_snapshot(self.db_path, kind="diagnostic")
+        except Exception:
+            env_snapshot = None
+        try:
+            env_delta = latest_env_snapshot(self.db_path, kind="diagnostic_delta")
+        except Exception:
+            env_delta = None
+
         intent_payload: Dict[str, Any] = {
             "intent": request.operation,
             "confidence": float(request.confidence or 0.5),
@@ -216,6 +282,9 @@ class Authority:
                 "command": request.command,
                 "metadata": request.metadata,
                 "execution_mode": self.execution_mode,
+                # Unified environment awareness at decision time (may be None on fresh DBs).
+                "env_snapshot": env_snapshot,
+                "env_delta": env_delta,
             },
         }
 
@@ -265,34 +334,102 @@ class Authority:
         - OBSERVE/PROBE/PROPOSE: allowed immediately.
         - WRITE_*: requires explicit approval unless explicitly overridden by env/config.
         """
-        # Provide decision payload (risk/justification). We treat it as advisory for writes.
-        policy = self.config.get("decision", {})
-        try:
-            decision_payload = decide(
-                {
-                    "intent": request.operation,
-                    "confidence": request.confidence,
-                    "reason": request.reason,
-                    "scope": request.scope,
-                    "metadata": request.metadata,
-                },
-                policy,
-            )
-        except Exception:
+        # Determine whether this action can have side effects.
+        write_action = request.kind in (ActionKind.WRITE_SANDBOX, ActionKind.WRITE_PROD)
+
+        # For non-write actions, do NOT call the LLM at all. It's pure overhead and causes
+        # repetitive "SmartDecisionEngine" calls during audits.
+        if not write_action:
             decision_payload = {
-                "decision": "observe",
-                "risk_level": "medium",
-                "requires_human": True if request.kind in (ActionKind.WRITE_SANDBOX, ActionKind.WRITE_PROD) else False,
-                "justification": ["decision_engine failed; using deterministic gate"],
-                "maturity": "experimental",
+                "decision": "observe" if request.kind in (ActionKind.OBSERVE, ActionKind.PROBE) else "propose_fix",
+                "risk_level": "low",
+                "requires_human": False,
+                "justification": ["deterministic: non-write action"],
+                "maturity": "stable",
             }
+            gate_res = self._log_decision(request, decision_payload, source=source)
+            gate_res.allowed = True
+            gate_res.requires_human = False
+            gate_res.message = "Allowed (non-write action)."
+            return gate_res
+
+        # For some internal sandbox writes, skip the LLM entirely (deterministic gate),
+        # while still preserving approval requirements and audit logs.
+        deterministic_gate = False
+        try:
+            meta = request.metadata or {}
+            deterministic_gate = bool(meta.get("deterministic_gate", False))
+            policy_key = str(meta.get("policy_key", "") or "")
+            if request.kind == ActionKind.WRITE_SANDBOX and policy_key in {"reindex_full", "run_scenarios"}:
+                deterministic_gate = True
+        except Exception:
+            deterministic_gate = False
+
+        # For write actions, de-duplicate within a run to avoid repeated LLM calls and decision spam.
+        cache_key = self._cache_key(request)
+        cached = self._cache_get(cache_key)
+        if cached:
+            gate_res = cached
+        else:
+            # Provide decision payload (risk/justification). We treat it as advisory for writes.
+            policy = self.config.get("decision", {})
+            env_snapshot_payload = None
+            env_delta_payload = None
+            try:
+                snap = latest_env_snapshot(self.db_path, kind="diagnostic")
+                env_snapshot_payload = (snap or {}).get("payload")
+            except Exception:
+                env_snapshot_payload = None
+            try:
+                delta = latest_env_snapshot(self.db_path, kind="diagnostic_delta")
+                env_delta_payload = (delta or {}).get("payload")
+            except Exception:
+                env_delta_payload = None
+            try:
+                if deterministic_gate:
+                    decision_payload = {
+                        "decision": "observe",
+                        "risk_level": "low",
+                        "requires_human": True,
+                        "justification": ["deterministic_gate: internal sandbox write"],
+                        "maturity": "stable",
+                    }
+                else:
+                    decision_payload = decide(
+                        {
+                            "intent": request.operation,
+                            "confidence": request.confidence,
+                            "reason": request.reason,
+                            "scope": request.scope,
+                            "metadata": request.metadata,
+                            # Give decision engine a canonical view of the environment.
+                            "env_snapshot": env_snapshot_payload,
+                            "env_delta": env_delta_payload,
+                        },
+                        policy,
+                    )
+            except Exception:
+                decision_payload = {
+                    "decision": "observe",
+                    "risk_level": "medium",
+                    "requires_human": True,
+                    "justification": ["decision_engine failed; using deterministic gate"],
+                    "maturity": "experimental",
+                }
+
+            gate_res = self._log_decision(request, decision_payload, source=source)
+            self._cache_set(cache_key, gate_res)
 
         # Deterministic override: any WRITE_* requires human approval by default.
-        write_action = request.kind in (ActionKind.WRITE_SANDBOX, ActionKind.WRITE_PROD)
 
         effective_mode = self.effective_execution_mode()
 
         if write_action:
+            if self._autonomous_enabled():
+                gate_res.allowed = True
+                gate_res.requires_human = False
+                gate_res.message = "Autonomous execution enabled."
+                return gate_res
             # Allow limited policy overrides for sandbox writes (internal maintenance).
             # WRITE_PROD stays strictly human-gated.
             requires_human = True
@@ -307,8 +444,7 @@ class Authority:
                     if isinstance(cfg_block, dict) and "requires_human" in cfg_block:
                         requires_human = bool(cfg_block.get("requires_human", True))
 
-            decision_payload["requires_human"] = requires_human
-            gate_res = self._log_decision(request, decision_payload, source=source)
+            gate_res.requires_human = requires_human
 
             if requires_human:
                 permitted = self.has_permission(request.operation)

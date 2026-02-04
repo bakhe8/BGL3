@@ -1,5 +1,5 @@
 <section class="glass-card">
-    <div class="card-header">تحذيرات الأنماط الخارجية (Checks)</div>
+    <div class="card-header">تحذيرات الأنماط الخارجية</div>
     <?php if (empty($externalChecks)): ?>
         <p style="color: var(--text-secondary);">لا توجد تحذيرات حالياً.</p>
     <?php else: ?>
@@ -7,11 +7,11 @@
             <?php foreach($externalChecks as $c): 
                 $passed = !empty($c['passed']);
                 $cls = $passed ? 'badge-ok' : 'badge-warn';
-                $label = $passed ? 'PASS' : 'WARN/FAIL';
+                $label = $passed ? 'نجاح' : 'تحذير/فشل';
             ?>
                 <li style="padding:8px 0; border-bottom:1px solid var(--glass-border);">
                     <span class="badge <?= $cls ?>"><?= $label ?></span>
-                    <strong><?= htmlspecialchars($c['id'] ?? $c['check'] ?? 'check') ?></strong>
+                    <strong><?= htmlspecialchars($c['id'] ?? $c['check'] ?? 'فحص') ?></strong>
                     <?php if (!empty($c['evidence'])): ?>
                         <div style="color:var(--text-secondary); font-size:0.85rem; margin-top:4px;">
                             <?= htmlspecialchars(is_array($c['evidence']) ? implode('; ', $c['evidence']) : $c['evidence']) ?>

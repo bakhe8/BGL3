@@ -1,90 +1,31 @@
-<style>
-.alerts-card {
-    background: white;
-    padding: 20px;
-    border-radius: 8px;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    margin-bottom: 20px;
-    border-right: 4px solid #007bff;
-}
-.alert-item {
-    display: flex;
-    align-items: center;
-    padding: 10px;
-    margin-bottom: 10px;
-    border-radius: 5px;
-}
-.alert-success {
-    background: #d4edda;
-    color: #155724;
-}
-.alert-warning {
-    background: #fff3cd;
-    color: #856404;
-}
-.alert-icon {
-    font-size: 20px;
-    margin-left: 10px;
-}
-.status-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 15px;
-    margin-top: 15px;
-}
-.status-item {
-    text-align: center;
-    padding: 15px;
-    background: #f8f9fa;
-    border-radius: 5px;
-    transition: transform 0.2s;
-}
-.status-item:hover {
-    transform: translateY(-2px);
-    background: #e9ecef;
-}
-.status-count {
-    display: block;
-    font-size: 24px;
-    font-weight: bold;
-    color: #007bff;
-}
-.status-label {
-    font-size: 14px;
-    color: #6c757d;
-}
-</style>
-
-<div class="alerts-card">
-    <h4 style="margin-bottom: 15px; color: #343a40;">👋 أهلاً بك في التحديث الجديد (Self-Evolution Demo)</h4>
-    
-    <div class="alert-item alert-success">
-        <span class="alert-icon">⚡</span>
-        <div>
-            <strong>تحديث تلقائي:</strong> هذا المحتوى تمت كتابته بالكامل بواسطة وكيل الذكاء الاصطناعي (Agent) استجابة لطلبك!
-        </div>
+﻿<?php
+$ts = $latestReport['timestamp'] ?? null;
+$health = $latestReport['health_score'] ?? null;
+$runtimeCount = $latestReport['runtime_events_meta']['count'] ?? null;
+$scanLimit = $latestReport['route_scan_limit'] ?? null;
+$readinessOk = $latestReport['readiness']['ok'] ?? null;
+$llmState = strtoupper((string)($llmStatus['state'] ?? 'UNKNOWN'));
+?>
+<section class="glass-card">
+  <div class="card-header">لقطة سريعة</div>
+  <div class="section-grid-auto">
+    <div>
+      <div class="stat-label">آخر تقرير</div>
+      <div class="stat-value" data-live="snapshot-timestamp" style="font-size:1.2rem;"><?= $ts ? date('Y-m-d H:i', (int)$ts) : 'غير متوفر' ?></div>
     </div>
-
-    <div class="alert-item alert-warning">
-        <span class="alert-icon">📈</span>
-        <div>
-            <strong>تحليل البيانات:</strong> تم رصد زيادة بنسبة 15% في إصدار الضمانات هذا الأسبوع.
-        </div>
+    <div>
+      <div class="stat-label">الأحداث التشغيلية</div>
+      <div class="stat-value" data-live="snapshot-runtime" style="font-size:1.2rem;"><?= $runtimeCount !== null ? (int)$runtimeCount : 'غير متوفر' ?></div>
     </div>
-
-    <h5 style="margin-top: 20px; margin-bottom: 10px; font-size: 0.9rem; color: #6c757d;">ملخص الأداء الفوري</h5>
-    <div class="status-grid">
-        <div class="status-item">
-            <span class="status-count">Active</span>
-            <span class="status-label">حالة النظام</span>
-        </div>
-        <div class="status-item">
-            <span class="status-count">100%</span>
-            <span class="status-label">الجاهزية</span>
-        </div>
-        <div class="status-item">
-            <span class="status-count">∞</span>
-            <span class="status-label">مستقبل التطوير</span>
-        </div>
+    <div>
+      <div class="stat-label">حد فحص المسارات</div>
+      <div class="stat-value" data-live="snapshot-route-scan-limit" style="font-size:1.2rem;"><?= $scanLimit !== null ? (int)$scanLimit : 'غير متوفر' ?></div>
     </div>
-</div>
+    <div>
+      <div class="stat-label">الجاهزية</div>
+      <div class="stat-value" data-live="snapshot-readiness" style="font-size:1.2rem; color: <?= $readinessOk ? 'var(--success)' : 'var(--danger)' ?>;">
+        <?= $readinessOk === null ? 'غير متوفر' : ($readinessOk ? 'سليم' : 'يتطلب مراجعة') ?>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,19 @@
+name: "critical_import_excel_fixture"
+description: >
+  Import an Excel fixture via the real UI file input without native Windows dialogs.
+  NOTE: This is a write operation (imports records). It is guarded by danger:true in the step.
+steps:
+  - action: goto
+    url: "/index.php"
+    wait_until: "networkidle"
+
+  # This input exists on index.php and triggers the fetch('/api/import.php') flow on change.
+  - action: upload
+    selector: "#hiddenFileInput"
+    files:
+      - "storage/uploads/AUGUST.xlsx"
+    # Guarded: will NOT upload unless you set danger:true (will then go through Authority gating/approval).
+    danger: false
+
+  - action: wait
+    ms: 2500

@@ -34,16 +34,6 @@ $simple_suggestions = array_slice($suggest, 0, 3);
       <?php endif; ?>
     </ul>
   </div>
-  <div style="display:flex; gap:10px; margin-top:10px;">
-    <form method="POST">
-      <input type="hidden" name="action" value="assure">
-      <button type="submit" class="btn-primary">تشغيل فحص شامل الآن</button>
-    </form>
-    <form method="POST">
-      <input type="hidden" name="action" value="auto_fix_simple">
-      <button type="submit" class="btn-secondary">تطبيق الإصلاحات المقترحة</button>
-    </form>
-  </div>
   <p style="margin-top:10px; color: var(--text-secondary); font-size:0.9rem;">
     تلميح: يمكنك الضغط على “تشغيل فحص شامل” ثم مراجعة الملخص أعلاه. إذا استمر ظهور مشكلة، اضغط “تأكيد الحل اليدوي” بجوارها بعد إصلاحها.
   </p>

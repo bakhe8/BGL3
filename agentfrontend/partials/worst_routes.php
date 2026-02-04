@@ -4,7 +4,7 @@
         <p style="color: var(--success);">لا مشاكل رصدت مؤخراً</p>
     <?php else: ?>
         <table style="width:100%; color: var(--text-primary); font-size: 0.9rem;">
-            <tr><th>Route</th><th>Score</th><th>HTTP fails</th><th>Net fails</th></tr>
+            <tr><th>المسار</th><th>الدرجة</th><th>فشل HTTP</th><th>فشل الشبكة</th></tr>
             <?php foreach($worstRoutes as $wr): ?>
                 <tr>
                     <td><?= htmlspecialchars($wr['route']) ?></td>

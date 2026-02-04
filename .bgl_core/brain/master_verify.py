@@ -50,6 +50,11 @@ async def master_assurance_diagnostic():
     cfg = load_config(ROOT)
     timeout = int(cfg.get("diagnostic_timeout_sec", 300))
 
+    # Master verify is an automated pipeline; leaving a browser open will hang until timeout.
+    # Force keep-browser off unless explicitly overridden for debugging.
+    if os.getenv("BGL_MASTER_KEEP_BROWSER", "0") != "1":
+        os.environ["BGL_KEEP_BROWSER"] = "0"
+
     # Initialize Core
     core = AgencyCore(ROOT)
 
@@ -59,6 +64,13 @@ async def master_assurance_diagnostic():
     except asyncio.TimeoutError:
         print(f"[CRITICAL] Diagnostic timed out after {timeout}s.")
         return
+    finally:
+        # Best-effort cleanup: Playwright on Windows can emit noisy asyncio subprocess warnings
+        # if its driver is still attached when the event loop shuts down.
+        try:
+            await asyncio.wait_for(core.sensor_browser.close(), timeout=5)
+        except Exception:
+            pass
 
     # Augment diagnostic with route_usage (for suppression) and feature_flags
     diagnostic["route_usage"] = load_route_usage(ROOT)
@@ -202,6 +214,8 @@ async def master_assurance_diagnostic():
             "scenario_deps": diagnostic["findings"].get("scenario_deps", {}),
             "runtime_events_meta": diagnostic["findings"].get("runtime_events_meta", {}),
             "api_scan": diagnostic["findings"].get("api_scan", {}),
+            "volition": diagnostic["findings"].get("volition", {}),
+            "autonomous_policy": diagnostic["findings"].get("autonomous_policy", {}),
             "readiness": diagnostic.get("readiness", {}),
             "api_contract": diagnostic.get("api_contract", {}),
             "api_contract_missing": diagnostic["findings"].get(

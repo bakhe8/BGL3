@@ -37,7 +37,8 @@ class Motor:
 
             if dist < 5:
                 self.mouse_state = MouseState.at_target
-                return
+                # Always return a dict so callers never get None (prevents NoneType.get crashes).
+                return {"status": "at_target", "correction": False}
 
             self.mouse_state = MouseState.approaching
 
