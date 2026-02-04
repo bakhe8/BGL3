@@ -1,0 +1,7 @@
+name: autonomous_1770189437
+kind: ui
+steps:
+- action: click
+  selector: '#manualTestBatchId'
+- action: wait
+  ms: 600

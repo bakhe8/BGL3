@@ -10,6 +10,7 @@ Endpoints:
 """
 
 import json
+import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from argparse import ArgumentParser
 from pathlib import Path
@@ -540,16 +541,52 @@ class Handler(BaseHTTPRequestHandler):
     def _handle_chat(self, req):
         messages = req.get("messages", [])
         target_url = req.get("target_url")
+        # Lightweight anchor to keep specialization without heavy system prompt.
+        if messages:
+            anchor = {
+                "role": "system",
+                "content": "أنت وكيل متخصص في نظام BGL3 (إدارة الضمانات البنكية). استوعب طلب المستخدم العربي وحوّله إلى تعليمات مناسبة للنظام. تجنّب الردود العامة غير المرتبطة بالسؤال.",
+            }
+            messages = [anchor] + messages
 
         try:
-            # use the new grounded chat method which now returns a DICT (plan)
-            plan = asyncio.run(agency.inference.chat(messages, target_url))
+            if self._is_light_chat(messages):
+                content = "مرحباً! كيف أستطيع مساعدتك في نظام BGL3؟"
+                self._set_headers(200)
+                self.wfile.write(
+                    json.dumps({"content": content}, ensure_ascii=False).encode("utf-8")
+                )
+                return
+            # use grounded chat first (actions capable)
+            try:
+                plan = asyncio.run(
+                    asyncio.wait_for(
+                        agency.inference.chat(messages, target_url), timeout=20
+                    )
+                )
+            except Exception:
+                plan = None
 
             # 1. Execute Actions if any
-            action_result = asyncio.run(self._execute_actions(plan))
+            action_result = asyncio.run(self._execute_actions(plan)) if plan else None
 
             # 2. Extract Response Text
-            content = plan.get("response") or plan.get("expert_synthesis") or str(plan)
+            if plan:
+                content = plan.get("response") or plan.get("expert_synthesis") or str(plan)
+            else:
+                content = ""
+
+            # Heuristic: avoid generic security/code-snippet replies for natural questions
+            user_msg = next((m for m in reversed(messages) if m.get("role") == "user"), {})
+            user_text = (user_msg.get("content") or "").lower()
+            suspicious = any(
+                kw in (content or "").lower()
+                for kw in ["code snippet", "security", "vulnerabilities", "php script"]
+            )
+            if (not content) or (suspicious and not any(k in user_text for k in ["كود", "شفرة", "security", "ثغرة", "php"])):
+                content = self._direct_llm_chat(messages, include_context=True)
+            elif not content:
+                content = "تعذر توليد رد مرتبط بالسياق. الرجاء إعادة صياغة الطلب أو توضيحه."
 
             if action_result:
                 content += "\n\n⚡ **SYSTEM UPDATED**: I have applied the changes to the dashboard successfully."
@@ -565,6 +602,58 @@ class Handler(BaseHTTPRequestHandler):
                     {"status": "ERROR", "message": f"Reasoning error: {str(e)}"}
                 ).encode("utf-8")
             )
+
+    def _is_light_chat(self, messages) -> bool:
+        try:
+            if not messages:
+                return True
+            # last user message
+            user = next((m for m in reversed(messages) if m.get("role") == "user"), None)
+            if not user:
+                return True
+            text = (user.get("content") or "").strip()
+            if not text:
+                return True
+            lower = text.lower()
+            greetings = [
+                "hi", "hello", "hey", "ping", "test", "مرحبا", "مرحباً", "السلام", "اهلا", "أهلا", "هلا"
+            ]
+            if any(g in lower for g in greetings):
+                return True
+            # very short messages are treated as light chat
+            return len(text) <= 16
+        except Exception:
+            return True
+
+    def _direct_llm_chat(self, messages, include_context: bool = False):
+        """
+        Fast path for simple greetings/short messages to avoid heavy reasoning timeouts.
+        """
+        try:
+            if include_context:
+                ctx = self._compose_context_summary()
+                messages = [
+                    {"role": "system", "content": "أجب باختصار وبالعربية عن نظام BGL3 فقط. إن كان السؤال غير واضح فاطلب توضيحاً."},
+                    {"role": "system", "content": ctx[:2000]},
+                ] + messages
+            base_url = os.getenv(
+                "LLM_BASE_URL", "http://127.0.0.1:11434/v1/chat/completions"
+            )
+            model = os.getenv("LLM_MODEL", "llama3.1:latest")
+            payload = {"model": model, "messages": messages, "stream": False}
+            req = urllib.request.Request(
+                base_url,
+                json.dumps(payload).encode("utf-8"),
+                {"Content-Type": "application/json"},
+            )
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                data = json.loads(resp.read().decode("utf-8", errors="ignore"))
+            content = (
+                (((data.get("choices") or [{}])[0]).get("message") or {}).get("content")
+            )
+            return content or "مرحباً! كيف أستطيع مساعدتك في نظام BGL3؟"
+        except Exception as e:
+            return f"تعذر الرد حالياً: {e}"
 
     def _compose_context_summary(self):
         parts = []

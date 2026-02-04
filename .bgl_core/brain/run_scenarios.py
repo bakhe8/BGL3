@@ -153,10 +153,10 @@ def main():
 
     try:
         LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LOCK_PATH.write_text(f\"{os.getpid()}|{time.time()}\", encoding=\"utf-8\")
+        LOCK_PATH.write_text(f"{os.getpid()}|{time.time()}", encoding="utf-8")
     except Exception:
         # If we can't lock, proceed but warn (better than blocking)
-        print(\"[!] Unable to write scenario lock; proceeding.\")
+        print("[!] Unable to write scenario lock; proceeding.")
 
     if os.getenv("BGL_SIMULATE_SCENARIOS", "0") == "1":
         simulate_traffic()

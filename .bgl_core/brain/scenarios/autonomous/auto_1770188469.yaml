@@ -1,0 +1,7 @@
+name: autonomous_1770188469
+kind: ui
+steps:
+- action: click
+  selector: '#manualConfidenceMetadata'
+- action: wait
+  ms: 600

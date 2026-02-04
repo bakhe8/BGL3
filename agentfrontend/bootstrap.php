@@ -85,6 +85,91 @@ function bgl_start_tool_watchdog_bg(string $pythonBin, string $watchdogPath, int
     $full = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
     pclose(popen($full, "r"));
 }
+
+function bgl_route_health_from_db(string $dbPath, int $days = 7, int $limit = 12): array {
+    $cutoff = time() - ($days * 86400);
+    $out = [
+        'routes_count' => 0,
+        'failing_routes' => [],
+        'worst_routes' => [],
+        'health_score' => null,
+    ];
+    if (!file_exists($dbPath)) return $out;
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $out['routes_count'] = (int)$lite->query("SELECT COUNT(*) FROM routes")->fetchColumn();
+        $stmt = $lite->prepare("SELECT uri, http_method, file_path, status_score, last_validated FROM routes WHERE last_validated >= ? ORDER BY last_validated DESC LIMIT ?");
+        $stmt->execute([$cutoff, $limit]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $failing = [];
+        $scores = [];
+        foreach ($rows as $r) {
+            $score = (int)($r['status_score'] ?? 0);
+            $scores[] = $score;
+            if ($score <= 0) {
+                $failing[] = [
+                    'uri' => $r['uri'] ?? '',
+                    'method' => $r['http_method'] ?? '',
+                    'file_path' => $r['file_path'] ?? '',
+                    'score' => $score,
+                ];
+            }
+        }
+        $out['failing_routes'] = $failing;
+        $out['worst_routes'] = $failing;
+        if (!empty($scores)) {
+            $avg = array_sum($scores) / max(1, count($scores));
+            $out['health_score'] = round($avg, 1);
+        }
+    } catch (\Exception $e) {}
+    return $out;
+}
+
+function bgl_exploration_failure_stats(string $dbPath, int $minutes = 120): array {
+    $cutoff = time() - ($minutes * 60);
+    $out = [
+        'dom_no_change' => 0,
+        'search_no_change' => 0,
+        'http_error' => 0,
+        'network_fail' => 0,
+        'gap_deepen' => 0,
+        'gap_deepen_recent' => 0,
+        'total' => 0,
+        'failure_rate' => 0.0,
+        'status' => 'UNKNOWN',
+    ];
+    if (!file_exists($dbPath)) return $out;
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $stmt = $lite->prepare(
+            "SELECT event_type, COUNT(*) c FROM runtime_events WHERE timestamp >= ? AND event_type IN ('dom_no_change','search_no_change','http_error','network_fail','gap_deepen') GROUP BY event_type"
+        );
+        $stmt->execute([$cutoff]);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($rows as $r) {
+            $k = $r['event_type'];
+            $out[$k] = (int)$r['c'];
+        }
+        $out['total'] = array_sum([$out['dom_no_change'], $out['search_no_change'], $out['http_error'], $out['network_fail']]);
+        if ($out['total'] > 0) {
+            $out['failure_rate'] = round((($out['dom_no_change'] + $out['search_no_change'] + $out['http_error'] + $out['network_fail']) / $out['total']) * 100, 1);
+        }
+        // gap_deepen from outcomes (recent)
+        try {
+            $stmt2 = $lite->prepare("SELECT COUNT(*) FROM autonomy_goals WHERE goal='gap_deepen' AND created_at >= ?");
+            $stmt2->execute([$cutoff]);
+            $out['gap_deepen_recent'] = (int)$stmt2->fetchColumn();
+        } catch (\Exception $e) {}
+        if ($out['failure_rate'] >= 40 || $out['gap_deepen_recent'] >= 5) {
+            $out['status'] = 'STALLED';
+        } elseif ($out['failure_rate'] <= 10 && $out['gap_deepen_recent'] == 0) {
+            $out['status'] = 'STABLE';
+        } else {
+            $out['status'] = 'MIXED';
+        }
+    } catch (\Exception $e) {}
+    return $out;
+}
 /**
  * Handle Blocker Resolution via POST
  */
@@ -1217,6 +1302,90 @@ class PremiumDashboard
         }
     }
 
+    public function getLatestDelta(): array
+    {
+        $snap = $this->getEnvSnapshot('diagnostic_delta');
+        if (!$snap || !is_array($snap['payload'] ?? null)) {
+            return ['summary' => ['changed_keys' => 0], 'highlights' => []];
+        }
+        return $snap['payload'];
+    }
+
+    public function getRecentRoutes(int $limit = 6, int $days = 7): array
+    {
+        if (!file_exists($this->agentDbPath)) return [];
+        try {
+            $cutoff = time() - ($days * 86400);
+            $lite = new PDO("sqlite:" . $this->agentDbPath);
+            $stmt = $lite->prepare("SELECT uri, http_method, file_path, last_validated FROM routes WHERE last_validated >= ? ORDER BY last_validated DESC LIMIT ?");
+            $stmt->execute([$cutoff, $limit]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
+    public function getLogHighlights(int $limit = 6): array
+    {
+        $out = [];
+        $sources = [
+            ['name' => 'backend', 'path' => $this->projectPath . '/storage/logs/laravel.log'],
+            ['name' => 'backend', 'path' => $this->projectPath . '/storage/logs/app.log'],
+            ['name' => 'agent', 'path' => $this->projectPath . '/.bgl_core/logs/ts.log'],
+        ];
+        $patterns = ['ERROR', 'Exception', 'Traceback', 'CRITICAL', 'FATAL'];
+        foreach ($sources as $src) {
+            $path = $src['path'];
+            if (!file_exists($path)) continue;
+            $lines = @file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            if (!$lines) continue;
+            $lines = array_slice($lines, -200);
+            foreach (array_reverse($lines) as $line) {
+                $match = false;
+                foreach ($patterns as $p) {
+                    if (stripos($line, $p) !== false) { $match = true; break; }
+                }
+                if (!$match) continue;
+                $out[] = [
+                    'source' => $src['name'],
+                    'message' => mb_substr(trim($line), 0, 220),
+                ];
+                if (count($out) >= $limit) break 2;
+            }
+        }
+        return $out;
+    }
+
+    public function getAutonomyGoals(int $limit = 10): array
+    {
+        if (!file_exists($this->agentDbPath)) return [];
+        try {
+            $lite = new PDO("sqlite:" . $this->agentDbPath);
+            $lite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $lite->exec("CREATE TABLE IF NOT EXISTS autonomy_goals (id INTEGER PRIMARY KEY AUTOINCREMENT, goal TEXT, payload TEXT, source TEXT, created_at REAL, expires_at REAL)");
+            $stmt = $lite->prepare("SELECT goal, payload, source, created_at, expires_at FROM autonomy_goals ORDER BY created_at DESC LIMIT ?");
+            $stmt->execute([$limit]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $out = [];
+            foreach ($rows as $r) {
+                $payload = [];
+                try {
+                    $payload = json_decode($r['payload'] ?? '{}', true) ?: [];
+                } catch (\Exception $e) {}
+                $out[] = [
+                    'goal' => $r['goal'] ?? '',
+                    'source' => $r['source'] ?? '',
+                    'payload' => $payload,
+                    'created_at' => $r['created_at'] ?? null,
+                    'expires_at' => $r['expires_at'] ?? null,
+                ];
+            }
+            return $out;
+        } catch (\Exception $e) {
+            return [];
+        }
+    }
+
     public function getLLMStatus(): array
     {
         // Prefer live status from Ollama /api/ps (fast, short timeout).
@@ -1411,6 +1580,10 @@ $experienceStats = $dash->getExperienceStats();
 $experiences = $dash->getExperiences();
 $events = $dash->getRuntimeEvents();
 $autonomyEvents = $dash->getAutonomyEvents();
+$deltaSnapshot = $dash->getLatestDelta();
+$recentRoutes = $dash->getRecentRoutes();
+$logHighlights = $dash->getLogHighlights();
+$autonomyGoals = $dash->getAutonomyGoals();
 $browserStatus = $dash->getBrowserStatus();
 $envSnapshot = $dash->getEnvSnapshot('diagnostic');
 $envDelta = $dash->getEnvSnapshot('diagnostic_delta');
@@ -1490,6 +1663,10 @@ function bgl_build_live_payload(
     array $proposals,
     array $permissionIssues,
     array $experienceStats,
+    array $deltaSnapshot,
+    array $recentRoutes,
+    array $logHighlights,
+    array $autonomyGoals,
     string $systemStatusText,
     string $systemStatusTone,
     int $toolServerPort,
@@ -1498,6 +1675,9 @@ function bgl_build_live_payload(
     string $projectRoot,
     string $llmCfgModel
 ): array {
+    $routesDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
+    $routeHealth = bgl_route_health_from_db($routesDbPath, 7, 24);
+    $exploreStats = bgl_exploration_failure_stats($routesDbPath, 180);
     $cooldownPath = $projectRoot . "/storage/tool_server_autostart.lock";
     $liveToolServerOnline = bgl_ensure_tool_server(
         $pythonBin,
@@ -1521,9 +1701,7 @@ function bgl_build_live_payload(
         }
     }
     $healthVal = null;
-    if (isset($latestReport['health_score'])) {
-        $healthVal = (float)$latestReport['health_score'];
-    } elseif (isset($stats['health_score']) && $stats['health_score'] !== null) {
+    if (isset($stats['health_score']) && $stats['health_score'] !== null) {
         $healthVal = (float)$stats['health_score'];
     }
     $healthDash = $healthVal === null ? 0 : max(0, min(100, (float)$healthVal));
@@ -1539,6 +1717,10 @@ function bgl_build_live_payload(
     $expRecent = (int)($experienceStats['recent'] ?? 0);
     $expLast = $experienceStats['last_ts'] ?? null;
     $expLastText = $expLast ? date('H:i:s', (int)$expLast) : 'غير متوفر';
+    $deltaPayload = is_array($deltaSnapshot) ? $deltaSnapshot : ['summary' => ['changed_keys' => 0], 'highlights' => []];
+    $routePayload = is_array($recentRoutes) ? $recentRoutes : [];
+    $logPayload = is_array($logHighlights) ? $logHighlights : [];
+    $goalPayload = is_array($autonomyGoals) ? $autonomyGoals : [];
 
     $vitalPayload = [];
     foreach ($vitals as $key => $v) {
@@ -1564,13 +1746,17 @@ function bgl_build_live_payload(
         'ok' => true,
         'system_status_text' => $systemStatusText ?? 'غير متوفر',
         'system_status_tone' => $systemStatusTone ?? 'unknown',
-        'system_state' => empty($latestReport['failing_routes']) ? 'PASS' : 'WARN',
+        'system_state' => empty($routeHealth['failing_routes']) ? 'PASS' : 'WARN',
         'pending_playbooks' => (int)$pendingPlaybooks,
         'proposal_count' => is_array($proposals) ? count($proposals) : 0,
         'permission_issues_count' => empty($permissionIssues) ? 0 : count($permissionIssues),
         'experience_total' => $expTotal,
         'experience_recent' => $expRecent,
         'experience_last' => $expLastText,
+        'snapshot_delta' => $deltaPayload,
+        'recent_routes' => $routePayload,
+        'log_highlights' => $logPayload,
+        'autonomy_goals' => $goalPayload,
         'tool_server_online' => (bool)$liveToolServerOnline,
         'tool_server_port' => (int)$toolServerPort,
         'llm_state' => strtoupper((string)($liveLlmStatus['state'] ?? 'UNKNOWN')),
@@ -1585,6 +1771,7 @@ function bgl_build_live_payload(
         'snapshot_readiness' => $readinessText,
         'vitals' => $vitalPayload,
         'kpi_current' => $kpiDisplay,
+        'exploration_stats' => $exploreStats,
     ];
 }
 
@@ -1603,6 +1790,10 @@ $reportJson = $projectRoot . '/.bgl_core/logs/latest_report.json';
 $latestReport = [];
 $volition = [];
 $autonomousPolicy = [];
+// Canonical routes source: knowledge.db (no report-as-input for routes).
+$routesDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
+$routeHealth = bgl_route_health_from_db($routesDbPath, 7, 24);
+$exploreStats = bgl_exploration_failure_stats($routesDbPath, 180);
 if (file_exists($reportJson)) {
     $jr = json_decode(file_get_contents($reportJson), true);
     if (is_array($jr)) {
@@ -1626,18 +1817,25 @@ if (file_exists($reportJson)) {
         }
     }
 }
+// Ensure callgraph uses canonical routes count from DB.
+if (empty($callgraphMeta) || !is_array($callgraphMeta)) {
+    $callgraphMeta = [];
+}
+if (isset($routeHealth['routes_count'])) {
+    $callgraphMeta['total_routes'] = (int)$routeHealth['routes_count'];
+}
 
-// Prefer latest_report health_score over DB-derived heuristic.
-if (isset($latestReport['health_score'])) {
-    $stats['health_score'] = $latestReport['health_score'];
+// Use DB-derived health score as canonical for routes.
+if ($routeHealth['health_score'] !== null) {
+    $stats['health_score'] = $routeHealth['health_score'];
 }
 
 // Header status (avoid static "active" labels)
 $systemStatusText = 'غير متوفر';
 $systemStatusTone = 'unknown'; // ok | warn | unknown
-if (!empty($latestReport)) {
-    $failingRoutes = count($latestReport['failing_routes'] ?? []);
-    $healthScore = $latestReport['health_score'] ?? null;
+{
+    $failingRoutes = count($routeHealth['failing_routes'] ?? []);
+    $healthScore = $routeHealth['health_score'];
     if ($healthScore !== null) {
         if ($healthScore >= 90 && $failingRoutes === 0) {
             $systemStatusText = 'مستقر';
@@ -1786,6 +1984,10 @@ if (isset($_GET['live']) && $_GET['live'] === '1' && bgl_is_ajax()) {
         $proposals ?? [],
         $permissionIssues ?? [],
         $experienceStats ?? [],
+        $deltaSnapshot ?? [],
+        $recentRoutes ?? [],
+        $logHighlights ?? [],
+        $autonomyGoals ?? [],
         $systemStatusText ?? 'غير متوفر',
         $systemStatusTone ?? 'unknown',
         (int)$toolServerPort,
@@ -1822,6 +2024,10 @@ if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'text/eve
             $proposals ?? [],
             $permissionIssues ?? [],
             $experienceStats ?? [],
+            $deltaSnapshot ?? [],
+            $recentRoutes ?? [],
+            $logHighlights ?? [],
+            $autonomyGoals ?? [],
             $systemStatusText ?? 'غير متوفر',
             $systemStatusTone ?? 'unknown',
             (int)$toolServerPort,

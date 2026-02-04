@@ -1,7 +1,7 @@
 <?php
 // Simple user mode: Arabic-only concise summary + two actions
-$health = $latestReport['health_score'] ?? null;
-$fail = $latestReport['failing_routes'] ?? [];
+$health = $stats['health_score'] ?? null;
+$fail = $routeHealth['failing_routes'] ?? [];
 $suggest = $latestReport['suggestions'] ?? [];
 $summary_line = $health !== null
     ? (($health >= 90) ? "النظام سليم إجمالاً." : "النظام يحتاج مراجعة لبعض المسارات.")

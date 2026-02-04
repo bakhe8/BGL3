@@ -1,0 +1,7 @@
+name: autonomous_1770192391
+kind: ui
+steps:
+- action: click
+  selector: '#btnCancelExcel'
+- action: wait
+  ms: 600

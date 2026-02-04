@@ -1,0 +1,7 @@
+name: goal_log_error
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: wait
+  ms: 600

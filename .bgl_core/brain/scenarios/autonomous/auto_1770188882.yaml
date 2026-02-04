@@ -1,0 +1,7 @@
+name: autonomous_1770188882
+kind: ui
+steps:
+- action: click
+  selector: '#relatedTo'
+- action: wait
+  ms: 600

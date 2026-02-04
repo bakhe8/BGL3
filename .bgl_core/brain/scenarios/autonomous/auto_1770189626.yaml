@@ -1,0 +1,7 @@
+name: autonomous_1770189626
+kind: ui
+steps:
+- action: click
+  selector: '#decisionStatus'
+- action: wait
+  ms: 600

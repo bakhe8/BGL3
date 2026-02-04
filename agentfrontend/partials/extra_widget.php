@@ -1,6 +1,6 @@
 ﻿<?php
 $ts = $latestReport['timestamp'] ?? null;
-$health = $latestReport['health_score'] ?? null;
+$health = $stats['health_score'] ?? null;
 $runtimeCount = $latestReport['runtime_events_meta']['count'] ?? null;
 $scanLimit = $latestReport['route_scan_limit'] ?? null;
 $readinessOk = $latestReport['readiness']['ok'] ?? null;

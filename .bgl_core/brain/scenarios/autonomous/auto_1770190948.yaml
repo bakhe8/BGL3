@@ -1,0 +1,7 @@
+name: autonomous_1770190948
+kind: ui
+steps:
+- action: click
+  selector: a[href="/?include_test_data=1"]
+- action: wait
+  ms: 600

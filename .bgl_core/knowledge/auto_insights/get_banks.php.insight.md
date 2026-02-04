@@ -1,9 +1,6 @@
 # Insight: get_banks.php
-**Path**: `api\get_banks.php`
-**Date**: 2026-02-02 04:49:03
+**Path**: `api/get_banks.php`
+**Source-Hash**: 11fc9760f4e86497ea02108f2fc0c7e4ef2fd4ab23f9835c8d01b78e0e40d6a8
+**Date**: 2026-02-04 11:08:37
 
-{"objective": "Analyze the provided code in the context of the BGL3 System", 
-"expert_synthesis": "The code is for a Document Issuance workflow, specifically for managing banks and their information.", 
-"response": "Analyzing the provided code...", 
-"action": "WRITE_FILE", 
-"params": {"path": "api/get_banks.php", "content": "..."}}
+عذراً، حدث خطأ داخلي في معالجة الاستجابة. (JSON Error)

@@ -1,0 +1,7 @@
+name: goal_route_recent
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/api/suggestions-learning.php
+- action: wait
+  ms: 800

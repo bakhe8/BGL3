@@ -94,6 +94,20 @@
                 <?php include __DIR__ . '/partials/kpis.php'; ?>
             </div>
 
+            <div class="section-third">
+                <?php include __DIR__ . '/partials/snapshot_delta.php'; ?>
+            </div>
+            <div class="section-third">
+                <?php include __DIR__ . '/partials/route_updates.php'; ?>
+            </div>
+            <div class="section-third">
+                <?php include __DIR__ . '/partials/log_highlights.php'; ?>
+            </div>
+
+            <div class="section-full">
+                <?php include __DIR__ . '/partials/autonomy_goals.php'; ?>
+            </div>
+
             <div class="section-full">
                 <?php include __DIR__ . '/partials/tool_evidence.php'; ?>
             </div>
@@ -175,6 +189,10 @@
               const v = String(val).toUpperCase();
               displayVal = v === 'PASS' ? 'مستقر' : (v === 'WARN' ? 'يحتاج مراجعة' : 'غير مؤكد');
             }
+            if (key === 'explore-status') {
+              const v = String(val).toUpperCase();
+              displayVal = v === 'STABLE' ? 'مستقر' : (v === 'STALLED' ? 'خامل/متوقف' : (v === 'MIXED' ? 'متذبذب' : 'غير مؤكد'));
+            }
             el.textContent = displayVal;
           }
           if (key === 'llm-state' && el) {
@@ -184,6 +202,10 @@
           if (key === 'tool-server-status' && el) {
             const v = String(val).toUpperCase();
             el.style.color = v === 'ONLINE' ? 'var(--success)' : 'var(--danger)';
+          }
+          if (key === 'explore-status' && el) {
+            const v = String(val).toUpperCase();
+            el.style.color = v === 'STABLE' ? 'var(--success)' : (v === 'STALLED' ? 'var(--danger)' : 'var(--accent-gold)');
           }
         }
 
@@ -200,6 +222,7 @@
             'experience-total': data.experience_total,
             'experience-recent': data.experience_recent,
             'experience-last': data.experience_last,
+            'delta-changed': data.snapshot_delta && data.snapshot_delta.summary ? data.snapshot_delta.summary.changed_keys : null,
             'tool-server-status': data.tool_server_online ? 'ONLINE' : 'OFFLINE',
             'tool-server-port': data.tool_server_port !== undefined ? ('المنفذ: ' + data.tool_server_port) : null,
             'llm-state': data.llm_state,
@@ -210,7 +233,11 @@
             'snapshot-timestamp': data.snapshot_timestamp,
             'snapshot-runtime': data.snapshot_runtime_events,
             'snapshot-route-scan-limit': data.snapshot_route_scan_limit,
-            'snapshot-readiness': data.snapshot_readiness
+            'snapshot-readiness': data.snapshot_readiness,
+            'explore-failure-rate': data.exploration_stats ? (data.exploration_stats.failure_rate + '%') : null,
+            'explore-error-count': data.exploration_stats ? ((data.exploration_stats.http_error || 0) + (data.exploration_stats.network_fail || 0)) : null,
+            'explore-gap-count': data.exploration_stats ? (data.exploration_stats.gap_deepen_recent || 0) : null,
+            'explore-status': data.exploration_stats ? data.exploration_stats.status : null
           };
           Object.keys(bindMap).forEach((key) => {
             const val = bindMap[key];
@@ -266,6 +293,94 @@
                 el.textContent = `الحالي: ${val}`;
               }
             });
+          }
+
+          // Delta list
+          if (data.snapshot_delta && Array.isArray(data.snapshot_delta.highlights)) {
+            const deltaList = document.getElementById('delta-list');
+            if (deltaList) {
+              if (!data.snapshot_delta.highlights.length) {
+                deltaList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا يوجد تغيّر مهم في آخر Snapshot.</p>';
+              } else {
+                deltaList.innerHTML = data.snapshot_delta.highlights.map((h) => {
+                  const from = h.from === undefined || h.from === null ? 'null' : h.from;
+                  const to = h.to === undefined || h.to === null ? 'null' : h.to;
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
+                    <div style="font-size:0.85rem; color: var(--text-secondary);">${h.key || ''}</div>
+                    <div style="font-size:0.9rem;">${from} → ${to}</div>
+                  </div>`;
+                }).join('');
+              }
+            }
+          }
+
+          // Recent routes list
+          if (Array.isArray(data.recent_routes)) {
+            const routesList = document.getElementById('routes-list');
+            if (routesList) {
+              if (!data.recent_routes.length) {
+                routesList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد مسارات تم تحديثها مؤخرًا.</p>';
+              } else {
+                routesList.innerHTML = data.recent_routes.map((r) => {
+                  const file = (r.file_path || '').split(/[\\/]/).pop();
+                  const time = r.last_validated ? new Date(r.last_validated * 1000).toLocaleTimeString('ar-EG') : '';
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border); display:flex; justify-content:space-between; gap:8px;">
+                    <div>
+                      <strong>${r.http_method || 'GET'}</strong>
+                      <span style="margin-right:6px;">${r.uri || ''}</span>
+                      <div style="font-size:0.75rem; color: var(--text-secondary);">${file || ''}</div>
+                    </div>
+                    <div style="font-size:0.75rem; color: var(--text-secondary);">${time}</div>
+                  </div>`;
+                }).join('');
+              }
+            }
+          }
+
+          // Log highlights
+          if (Array.isArray(data.log_highlights)) {
+            const logsList = document.getElementById('logs-list');
+            if (logsList) {
+              if (!data.log_highlights.length) {
+                logsList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد رسائل حرجة مؤخراً.</p>';
+              } else {
+                logsList.innerHTML = data.log_highlights.map((l) => {
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
+                    <div style="font-size:0.8rem; color: var(--text-secondary);">${l.source || ''}</div>
+                    <div style="font-size:0.9rem;">${l.message || ''}</div>
+                  </div>`;
+                }).join('');
+              }
+            }
+          }
+
+          // Autonomy goals list
+          if (Array.isArray(data.autonomy_goals)) {
+            const goalsList = document.getElementById('goals-list');
+            if (goalsList) {
+              if (!data.autonomy_goals.length) {
+                goalsList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد أهداف تلقائية حالياً.</p>';
+              } else {
+                goalsList.innerHTML = data.autonomy_goals.map((g) => {
+                  const payload = g.payload || {};
+                  const ts = g.created_at ? new Date(g.created_at * 1000).toLocaleTimeString('ar-EG') : '';
+                  let body = '';
+                  if (payload.uri) body = payload.uri;
+                  else if (payload.href) body = payload.href;
+                  else if (payload.key) body = `${payload.key}: ${payload.from ?? ''} → ${payload.to ?? ''}`;
+                  else if (payload.message) body = payload.message;
+                  else body = JSON.stringify(payload);
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
+                    <div style="display:flex; justify-content:space-between;">
+                      <strong>${g.goal || ''}</strong>
+                      <span style="font-size:0.75rem; color: var(--text-secondary);">${ts}</span>
+                    </div>
+                    <div style="font-size:0.85rem; color: var(--text-secondary);">${g.source || ''}</div>
+                    <div style="font-size:0.9rem; margin-top:4px;">${body}</div>
+                  </div>`;
+                }).join('');
+              }
+            }
           }
         }
 

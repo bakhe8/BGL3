@@ -1,3 +1,4 @@
+import argparse
 import asyncio
 import os
 import sys
@@ -83,7 +84,7 @@ def purge_orphans(insights_dir: Path, root_path: Path):
         print(f"✅ Purged {purged_count} orphan insights.")
 
 
-async def dream_cycle():
+async def dream_cycle(files_override=None, max_insights_override=None, sleep_seconds=2.0, source="dream"):
     print("🌙 Entering Dream Mode... (Autonomous Learning Night Shift)")
     engine = ReasoningEngine(Path("knowledge.db"))
 
@@ -93,19 +94,21 @@ async def dream_cycle():
 
     print("🔍 Scanning for architectural changes...")
     purge_orphans(insights_dir, root_path)
-    files_to_analyze = discover_files(root_path)
-
-    # Save Architecture Snapshot
-    arch_snapshot = root_path / ".bgl_core" / "knowledge" / "arch_state.json"
-    arch_snapshot.write_text(json.dumps(files_to_analyze, indent=2), encoding="utf-8")
+    if files_override:
+        files_to_analyze = list(dict.fromkeys([str(f) for f in files_override if f]))
+    else:
+        files_to_analyze = discover_files(root_path)
+        # Save Architecture Snapshot (only for full scans)
+        arch_snapshot = root_path / ".bgl_core" / "knowledge" / "arch_state.json"
+        arch_snapshot.write_text(json.dumps(files_to_analyze, indent=2), encoding="utf-8")
 
     # SAFETY LIMITS
-    MAX_INSIGHTS = 1000  # Increased for 1GB quota
+    MAX_INSIGHTS = int(max_insights_override or 1000)  # Increased for 1GB quota
     MAX_STORAGE_BYTES = 1 * 1024 * 1024 * 1024  # 1 GB Limit
     generated_count = 0
 
     print(
-        f"🔭 Found {len(files_to_analyze)} files. Safety Limit: {MAX_INSIGHTS} insights (1GB Quota)."
+        f"🔭 Found {len(files_to_analyze)} files. Safety Limit: {MAX_INSIGHTS} insights (1GB Quota). Source: {source}."
     )
     print("Press Ctrl+C to stop.")
 
@@ -200,10 +203,37 @@ async def dream_cycle():
             print(f"😴 Nightmare on {file_name}: {e}")
 
         # Sleep to process gently
-        time.sleep(2)
+        if sleep_seconds and sleep_seconds > 0:
+            time.sleep(float(sleep_seconds))
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--files",
+        nargs="*",
+        default=None,
+        help="Optional list of relative file paths to analyze (skips full scan).",
+    )
+    parser.add_argument(
+        "--max",
+        type=int,
+        default=None,
+        help="Maximum number of insights to generate in this run.",
+    )
+    parser.add_argument(
+        "--sleep",
+        type=float,
+        default=2.0,
+        help="Seconds to sleep between files.",
+    )
+    parser.add_argument(
+        "--source",
+        default="dream",
+        help="Freeform source tag (e.g. exploration).",
+    )
+    args = parser.parse_args()
+
     # SINGLETON LOCK
     pid_file = Path(".bgl_core/logs/dream_mode.pid")
     pid_file.parent.mkdir(parents=True, exist_ok=True)
@@ -248,10 +278,24 @@ if __name__ == "__main__":
     atexit.register(cleanup)
 
     try:
-        asyncio.run(dream_cycle())
+        asyncio.run(
+            dream_cycle(
+                files_override=args.files,
+                max_insights_override=args.max,
+                sleep_seconds=args.sleep,
+                source=args.source,
+            )
+        )
     except ImportError:
         # Fallback if psutil missing (though it shouldn't be)
         print("⚠️ psutil not found, singleton check weak.")
-        asyncio.run(dream_cycle())
+        asyncio.run(
+            dream_cycle(
+                files_override=args.files,
+                max_insights_override=args.max,
+                sleep_seconds=args.sleep,
+                source=args.source,
+            )
+        )
     except KeyboardInterrupt:
         print("\n👋 Dream Mode stopped by user.")

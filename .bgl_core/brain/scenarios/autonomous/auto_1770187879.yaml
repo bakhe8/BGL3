@@ -1,0 +1,7 @@
+name: autonomous_1770187879
+kind: ui
+steps:
+- action: click
+  selector: '#manualIssue'
+- action: wait
+  ms: 600
