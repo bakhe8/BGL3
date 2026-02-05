@@ -131,7 +131,7 @@ class LLMClient:
 
         self.cfg = cfg or LLMClientConfig(
             base_url=str(base or "http://localhost:11434"),
-            model=str(model or "llama3.1"),
+            model=str(model or "qwen2.5:32b"),  # Changed from llama3.1 to qwen2.5:32b
             max_wait_s=max_wait,
             poll_interval_s=poll,
             chat_timeout_s=chat_timeout,
