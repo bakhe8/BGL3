@@ -1,12 +1,11 @@
 from typing import Dict, Any
 import json
-import os
-import urllib.request
 
 try:
     from .llm_client import LLMClient  # type: ignore
 except Exception:
     from llm_client import LLMClient
+
 
 def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
     """
@@ -14,8 +13,6 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     Uses LLM to evaluate risk and maturity before authorizing actions.
     """
     print("[*] SmartDecisionEngine: Evaluating risk-benefit ratio...")
-
-    openai_key = os.getenv("OPENAI_KEY") or os.getenv("OPENAI_API_KEY")
 
     intent = intent_payload.get("intent", "observe")
     confidence = float(intent_payload.get("confidence", 0))
@@ -35,50 +32,53 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     }}
     """
 
-    # 1. Try local LLM first (with warm-up and HOT/COLD detection)
+    # 1. Try local LLM first (with timeout protection)
     try:
         client = LLMClient()
         return client.chat_json(prompt, temperature=0.0)
-    except Exception as e:
-        print(f"[*] SmartDecisionEngine: Local AI failed/timed out ({e}). Trying OpenAI failover...")
+    except (TimeoutError, Exception) as e:
+        print(
+            f"[!] SmartDecisionEngine: LLM unavailable ({type(e).__name__}). Using deterministic fallback."
+        )
+        return _deterministic_decision(intent, confidence, intent_payload)
 
-    # 2. Failover to OpenAI
-    if not openai_key:
+
+def _deterministic_decision(intent: str, confidence: float, payload: Dict) -> Dict:
+    """
+    Rule-based decision when LLM is unavailable.
+    Conservative approach: require human approval for uncertain tasks.
+    """
+    # Safe operations (observe-only or very low confidence)
+    if intent == "observe" or confidence < 0.3:
         return {
-            "decision": "propose_fix" if intent != "observe" else "observe",
+            "decision": "observe",
+            "risk_level": "low",
+            "requires_human": False,
+            "justification": ["Low-risk observation mode"],
+            "maturity": "stable",
+        }
+
+    # Medium confidence: propose but don't execute
+    if confidence < 0.7:
+        return {
+            "decision": "propose_fix",
             "risk_level": "medium",
             "requires_human": True,
             "justification": [
-                "No AI available for risk assessment (Ollama failed, no OpenAI key)."
+                f"Confidence {confidence:.2f} below auto-fix threshold (0.7)",
+                "Human review required for safety",
             ],
             "maturity": "experimental",
         }
 
-    try:
-        payload = {
-            "model": "gpt-4o",
-            "messages": [{"role": "user", "content": prompt}],
-            "response_format": {"type": "json_object"},
-            "temperature": 0.0,
-        }
-        url = "https://api.openai.com/v1/chat/completions"
-        req = urllib.request.Request(
-            url,
-            json.dumps(payload).encode(),
-            {
-                "Content-Type": "application/json",
-                "Authorization": f"Bearer {openai_key}",
-            },
-        )
-        with urllib.request.urlopen(req, timeout=10) as response:
-            res = json.loads(response.read().decode())
-            return json.loads(res["choices"][0]["message"]["content"])
-    except Exception as e:
-        print(f"[!] SmartDecisionEngine: Failover failed: {e}")
-        return {
-            "decision": "block",
-            "risk_level": "high",
-            "requires_human": True,
-            "justification": ["Decision logic exception; blocking for safety."],
-            "maturity": "experimental",
-        }
+    # High confidence but no LLM: still be conservative
+    return {
+        "decision": "propose_fix",  # Don't auto-fix without LLM validation
+        "risk_level": "low",
+        "requires_human": True,
+        "justification": [
+            f"High confidence ({confidence:.2f}) but LLM unavailable",
+            "Requesting human approval as safety measure",
+        ],
+        "maturity": "stable",
+    }

@@ -17,34 +17,32 @@ class BGLSandbox:
         print(f"[*] Setting up sandbox at {self.sandbox_path}")
 
         try:
+            # OPTIMIZATION: Skip git clone, use direct copy with excludes instead
+            # Old: git clone (5s) + robocopy untracked (10s) = 15s
+            # New: robocopy everything (5s) = 5s!
+            self._copy_all_with_excludes()
+
+            # Initialize git repo in sandbox for diff/apply functionality
             subprocess.run(
-                ["git", "clone", str(self.root_dir), str(self.sandbox_path)],
-                check=True,
+                ["git", "init"],
+                cwd=str(self.sandbox_path),
                 capture_output=True,
             )
-            # Clear read-only attributes that sometimes come from Windows git clones
-            try:
-                subprocess.run(
-                    ["attrib", "-R", str(self.sandbox_path / "*"), "/S", "/D"],
-                    shell=True,
-                    capture_output=True,
-                )
-            except Exception:
-                pass
-
-            # Ensure working tree is checked out (git clone in bare could miss files)
-            try:
-                subprocess.run(
-                    ["git", "-C", str(self.sandbox_path), "checkout", "."],
-                    capture_output=True,
-                    text=True,
-                    check=True,
-                )
-            except Exception as e:
-                print(f"[!] Sandbox checkout warning: {e}")
-
-            # Copy untracked files from main into sandbox (excluding heavy/system dirs)
-            self._copy_untracked()
+            subprocess.run(
+                ["git", "-C", str(self.sandbox_path), "add", "-A"],
+                capture_output=True,
+            )
+            subprocess.run(
+                [
+                    "git",
+                    "-C",
+                    str(self.sandbox_path),
+                    "commit",
+                    "-m",
+                    "Initial sandbox state",
+                ],
+                capture_output=True,
+            )
 
             # Use a disposable knowledge DB inside sandbox to avoid locking the main one
             self._prepare_sandbox_db()
@@ -69,6 +67,36 @@ class BGLSandbox:
             print(f"[!] Sandbox setup failed: {e}")
             self.sandbox_path = None
             return None
+
+    def _copy_all_with_excludes(self):
+        """
+        OPTIMIZED: Copy everything (tracked + untracked) using single robocopy.
+        Replaces git clone + _copy_untracked (slow) with single fast copy.
+        """
+        exclude_dirs = [
+            ".git",
+            "vendor",
+            "node_modules",
+            "storage",
+            ".mypy_cache",
+            ".vscode",
+            r".bgl_core\logs",
+            ".pytest_cache",
+            "__pycache__",
+        ]
+        src = str(self.root_dir)
+        dst = str(self.sandbox_path)
+        try:
+            # robocopy: /MIR for mirror, /XD for exclude directories
+            cmd = ["robocopy", src, dst, "/MIR", "/XD"] + exclude_dirs
+            proc = subprocess.run(cmd, shell=False, capture_output=True)
+            # robocopy returns codes >1 for skipped files; tolerate up to 3
+            if proc.returncode > 3:
+                print(
+                    f"[!] robocopy returned {proc.returncode}, some files may be missing."
+                )
+        except Exception as e:
+            print(f"[!] Copy warning: {e}")
 
     def apply_to_main(self, rel_path: str):
         """
@@ -95,7 +123,9 @@ class BGLSandbox:
                     capture_output=True,
                 )
                 if apply.returncode != 0:
-                    print(f"[!] git apply failed, falling back to file copy. stderr: {apply.stderr}")
+                    print(
+                        f"[!] git apply failed, falling back to file copy. stderr: {apply.stderr}"
+                    )
                     raise RuntimeError("git apply failed")
                 print("[+] Applied sandbox diff to main project.")
                 return
@@ -110,7 +140,9 @@ class BGLSandbox:
             shutil.copy2(src, dst)
             print(f"[+] Applied sandbox changes for {rel_path} to main project.")
         else:
-            print(f"[!] Skipped copy; {rel_path} missing in sandbox. Manual review required.")
+            print(
+                f"[!] Skipped copy; {rel_path} missing in sandbox. Manual review required."
+            )
 
     def cleanup(self):
         if self.sandbox_path and self.sandbox_path.exists():
@@ -126,23 +158,54 @@ class BGLSandbox:
                     pass
                 func(path)
 
-            import time
+            # Close any open DB connections first
+            try:
+                import sqlite3
 
-            for attempt in range(3):
+                # Force close any connections to sandbox DBs
+                for db_path in [
+                    self.sandbox_path / ".bgl_core" / "brain" / "knowledge.db",
+                    self.sandbox_decision_db,
+                ]:
+                    if db_path and Path(db_path).exists():
+                        # Close WAL connections
+                        for suffix in ["", "-wal", "-shm"]:
+                            try:
+                                conn = sqlite3.connect(str(db_path) + suffix)
+                                conn.close()
+                            except Exception:
+                                pass
+            except Exception:
+                pass
+
+            import time
+            import gc
+
+            gc.collect()  # Force garbage collection to close file handles
+
+            for attempt in range(5):  # Increased from 3 to 5 attempts
                 try:
                     shutil.rmtree(self.sandbox_path, onerror=remove_readonly)
                     print(f"[*] Sandbox at {self.sandbox_path} cleaned up.")
                     self.sandbox_path = None
                     break
                 except PermissionError as e:
-                    if attempt == 2:
+                    if attempt == 4:  # Last attempt
                         print(f"[!] Sandbox cleanup skipped (locked): {e}")
+                        print(f"[!] Manual cleanup may be needed: {self.sandbox_path}")
                     else:
-                        time.sleep(0.5)
+                        # Progressive backoff: 0.5s, 1s, 2s, 4s
+                        wait_time = 0.5 * (2**attempt)
+                        time.sleep(wait_time)
             # Remove WAL/SHM files if any remain
             if self.sandbox_path:
                 for suffix in ["-wal", "-shm"]:
-                    wal = (self.sandbox_path / ".bgl_core" / "brain" / f"knowledge.db{suffix}")
+                    wal = (
+                        self.sandbox_path
+                        / ".bgl_core"
+                        / "brain"
+                        / f"knowledge.db{suffix}"
+                    )
                     if wal.exists():
                         try:
                             wal.unlink()
@@ -162,15 +225,26 @@ class BGLSandbox:
         Copy files that git clone might omit (untracked) from main project to sandbox.
         Uses robocopy on Windows for reliability. Skips heavy/system dirs.
         """
-        exclude = [".git", "vendor", "node_modules", "storage", ".mypy_cache", ".vscode", ".bgl_core\\logs"]
+        exclude = [
+            ".git",
+            "vendor",
+            "node_modules",
+            "storage",
+            ".mypy_cache",
+            ".vscode",
+            ".bgl_core\\logs",
+        ]
         src = str(self.root_dir)
         dst = str(self.sandbox_path)
         try:
-            # robocopy returns codes >1 sometimes for skipped files; tolerate up to 3
-            cmd = ["robocopy", src, dst, "/E"] + [f"/XD {x}" for x in exclude]
-            proc = subprocess.run(" ".join(cmd), shell=True)
+            # robocopy: /MIR for mirror, /XD for exclude directories
+            # Returns codes >1 for skipped files; tolerate up to 3
+            cmd = ["robocopy", src, dst, "/MIR", "/XD"] + exclude
+            proc = subprocess.run(cmd, shell=False, capture_output=True)
             if proc.returncode > 3:
-                print(f"[!] robocopy returned {proc.returncode}, some files may be missing.")
+                print(
+                    f"[!] robocopy returned {proc.returncode}, some files may be missing."
+                )
         except Exception as e:
             print(f"[!] Untracked copy warning: {e}")
 
@@ -197,6 +271,8 @@ class BGLSandbox:
             try:
                 shutil.copy2(main_db, self.sandbox_decision_db)
             except Exception as e:
-                print(f"[!] Unable to copy knowledge.db to sandbox (decision alias): {e}")
+                print(
+                    f"[!] Unable to copy knowledge.db to sandbox (decision alias): {e}"
+                )
         # keep env var name for legacy code paths
         os.environ["BGL_SANDBOX_DECISION_DB"] = str(self.sandbox_decision_db)

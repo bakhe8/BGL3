@@ -1,27 +1,22 @@
 import sys
 import os
 from pathlib import Path
-import json
 
 # Add project root to path so we can import .bgl_core
 # Add project root to path so we can import .bgl_core
 ROOT_DIR = Path(__file__).parent.parent
 sys.path.append(str(ROOT_DIR))
 
-# Fix: Import directly from file path mechanism if package import fails
-try:
-    from .bgl_core.brain.inference import InferenceEngine
-except ImportError:
-    # Fallback: add brain dir to path
-    sys.path.append(str(ROOT_DIR / ".bgl_core" / "brain"))
-    from inference import InferenceEngine
+# Add brain dir to path for imports
+sys.path.insert(0, str(ROOT_DIR / ".bgl_core" / "brain"))
+from inference import ReasoningEngine  # type: ignore  # Correct class name
 
 
 def test_local_llm():
     print("--- Testing Local LLM Integration (Ollama) ---")
 
     # Initialize Engine (DB path doesn't matter for this test)
-    engine = InferenceEngine(Path("dummy.db"))
+    engine = ReasoningEngine(Path("dummy.db"))
 
     # Override ENV just in case (though code defaults to localhost)
     os.environ["LLM_MODEL"] = "llama3.1"

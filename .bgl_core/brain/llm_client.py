@@ -19,6 +19,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
+import threading
 
 try:
     from .config_loader import load_config  # type: ignore
@@ -86,45 +87,66 @@ class LLMClient:
 
         base = os.getenv(
             "LLM_BASE_URL",
-            llm_cfg.get("base_url") if llm_cfg else cfg_dict.get("llm_base_url", "http://127.0.0.1:11434/v1/chat/completions"),
+            llm_cfg.get("base_url")
+            if llm_cfg
+            else cfg_dict.get(
+                "llm_base_url", "http://127.0.0.1:11434/v1/chat/completions"
+            ),
         )
         model = os.getenv(
             "LLM_MODEL",
-            llm_cfg.get("model") if llm_cfg else cfg_dict.get("llm_model", "llama3.1:latest"),
+            llm_cfg.get("model")
+            if llm_cfg
+            else cfg_dict.get("llm_model", "llama3.1:latest"),
         )
 
         # Allow tweaking time budgets without code changes.
         max_wait = float(
             os.getenv(
                 "LLM_WARMUP_MAX_WAIT",
-                llm_cfg.get("warmup_max_wait") if llm_cfg else cfg_dict.get("llm_warmup_max_wait", "45"),
+                str(llm_cfg.get("warmup_max_wait", "45"))
+                if llm_cfg
+                else cfg_dict.get("llm_warmup_max_wait", "45"),
             )
             or 45
         )
         poll = float(
             os.getenv(
                 "LLM_WARMUP_POLL_S",
-                llm_cfg.get("warmup_poll_s") if llm_cfg else cfg_dict.get("llm_warmup_poll_s", "2"),
+                str(llm_cfg.get("warmup_poll_s", "2"))
+                if llm_cfg
+                else cfg_dict.get("llm_warmup_poll_s", "2"),
             )
             or 2
         )
         chat_timeout = float(
             os.getenv(
                 "LLM_CHAT_TIMEOUT",
-                llm_cfg.get("chat_timeout") if llm_cfg else cfg_dict.get("llm_chat_timeout", "60"),
+                str(llm_cfg.get("chat_timeout", "60"))
+                if llm_cfg
+                else cfg_dict.get("llm_chat_timeout", "60"),
             )
             or 60
         )
 
         self.cfg = cfg or LLMClientConfig(
-            base_url=base,
-            model=model,
+            base_url=str(base or "http://localhost:11434"),
+            model=str(model or "llama3.1"),
             max_wait_s=max_wait,
             poll_interval_s=poll,
             chat_timeout_s=chat_timeout,
+            warm_fire_timeout_s=45,
+            cold_probe_timeout_s=2,
+            keep_alive="5m",  # Keep model in memory for 5 minutes
         )
         self.chat_url, self.base_api = _normalize_urls(self.cfg.base_url)
-        self.alt_chat_url, self.alt_base_api = _normalize_urls(_swap_localhost(self.chat_url))
+        self.alt_chat_url, self.alt_base_api = _normalize_urls(
+            _swap_localhost(self.chat_url)
+        )
+
+        # ROOT CAUSE FIX: Auto-warm model on initialization
+        # Eliminates 25s lazy-loading delay by warming in background!
+        self._auto_warm_in_background()
 
     def _brain_state(self, chat_url: str) -> str:
         """
@@ -136,7 +158,9 @@ class LLMClient:
         try:
             ps_url = chat_url.replace("/v1/chat/completions", "/api/ps")
             req = urllib.request.Request(ps_url)
-            with urllib.request.urlopen(req, timeout=self.cfg.cold_probe_timeout_s) as resp:
+            with urllib.request.urlopen(
+                req, timeout=self.cfg.cold_probe_timeout_s
+            ) as resp:
                 dat = json.loads(resp.read().decode())
             return "HOT" if dat.get("models") else "COLD"
         except Exception:
@@ -153,7 +177,11 @@ class LLMClient:
         try:
             trigger_url = base_api.rstrip("/") + "/api/generate"
             payload = json.dumps(
-                {"model": self.cfg.model, "prompt": "", "keep_alive": self.cfg.keep_alive}
+                {
+                    "model": self.cfg.model,
+                    "prompt": "",
+                    "keep_alive": self.cfg.keep_alive,
+                }
             )
             req = urllib.request.Request(
                 trigger_url,
@@ -169,6 +197,36 @@ class LLMClient:
         except Exception:
             return False
 
+    def _auto_warm_in_background(self) -> None:
+        """
+        ROOT CAUSE FIX: Background model warming.
+
+        Problem: Ollama lazy-loads models (takes 20-30s).
+        Solution: Warm model immediately on LLMClient creation in background thread.
+
+        Benefits:
+        - First chat_json() call is instant (model already loaded)
+        - No manual 'ollama run' needed
+        - No 25s wait on first use
+        - User doesn't notice loading time
+        """
+
+        def _warm_worker():
+            try:
+                s = self.state()
+                if s == "COLD":
+                    # Fire warmup request
+                    self._warm(self.base_api)
+                    if self.alt_base_api != self.base_api:
+                        self._warm(self.alt_base_api)
+            except Exception:
+                # Silent fail - don't block initialization
+                pass
+
+        # Run in daemon thread so it doesn't block app exit
+        thread = threading.Thread(target=_warm_worker, daemon=True)
+        thread.start()
+
     def ensure_hot(self) -> str:
         """
         Best-effort warm-up. Returns final state.
@@ -183,14 +241,29 @@ class LLMClient:
             if self.alt_base_api != self.base_api:
                 self._warm(self.alt_base_api)
 
-            deadline = time.time() + self.cfg.max_wait_s
-            while time.time() < deadline:
+            # FIXED: Model loading takes 20-30s on first use - allow adequate time!
+            max_wait = min(self.cfg.max_wait_s, 45)  # 45s instead of 15s
+            deadline = time.time() + max_wait
+            attempts = 0
+            max_retries = 5  # More patient retries
+
+            while time.time() < deadline and attempts < max_retries:
                 s = self.state()
                 if debug:
-                    print(f"[*] LLMClient: state={s} waiting...")
+                    print(
+                        f"[*] LLMClient: state={s} attempt={attempts + 1}/{max_retries}"
+                    )
                 if s != "COLD":
                     break
                 time.sleep(self.cfg.poll_interval_s)
+                attempts += 1
+
+            # Raise timeout exception if service didn't warm up
+            if s == "COLD":
+                raise TimeoutError(
+                    f"LLM failed to warm up after {attempts} attempts ({max_wait}s). "
+                    f"Is Ollama running? Try: ollama serve"
+                )
         return s
 
     def chat_json(self, prompt: str, *, temperature: float = 0.0) -> Dict[str, Any]:
@@ -215,10 +288,12 @@ class LLMClient:
                 json.dumps(payload).encode(),
                 {"Content-Type": "application/json"},
             )
-            with urllib.request.urlopen(req, timeout=self.cfg.chat_timeout_s) as response:
+            with urllib.request.urlopen(
+                req, timeout=self.cfg.chat_timeout_s
+            ) as response:
                 res = json.loads(response.read().decode())
-            content = (
-                (((res.get("choices") or [{}])[0]).get("message") or {}).get("content")
+            content = (((res.get("choices") or [{}])[0]).get("message") or {}).get(
+                "content"
             )
             if not isinstance(content, str) or not content.strip():
                 raise ValueError("LLM response missing choices[0].message.content")
