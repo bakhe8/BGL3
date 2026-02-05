@@ -1,0 +1,7 @@
+name: autonomous_1770262932
+kind: ui
+steps:
+- action: click
+  selector: '#pasteTestBatchId'
+- action: wait
+  ms: 600

@@ -12,6 +12,8 @@ import time
 from pathlib import Path
 from typing import List, Dict
 
+from embeddings import add_text
+
 DB_PATH = Path(__file__).parent / "knowledge.db"
 
 
@@ -32,7 +34,9 @@ def fetch_events(conn: sqlite3.Connection, cutoff: float, limit: int):
 def load_route_map(conn: sqlite3.Connection) -> Dict[str, Dict]:
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    rows = cur.execute("SELECT uri, controller, action, file_path FROM routes").fetchall()
+    rows = cur.execute(
+        "SELECT uri, controller, action, file_path FROM routes"
+    ).fetchall()
     return {r["uri"]: dict(r) for r in rows}
 
 
@@ -73,7 +77,11 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
                 g["network_errors"].append(e["error"])
 
     for route, data in grouped.items():
-        lat_avg = round(sum(data["latencies"]) / len(data["latencies"]), 2) if data["latencies"] else 0
+        lat_avg = (
+            round(sum(data["latencies"]) / len(data["latencies"]), 2)
+            if data["latencies"]
+            else 0
+        )
         lat_max = max(data["latencies"]) if data["latencies"] else 0
         controller = route_map.get(route, {}).get("controller") or "unknown"
         file_path = route_map.get(route, {}).get("file_path") or ""
@@ -130,12 +138,21 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                 exp["evidence_count"],
             ),
         )
+
     conn.commit()
+
+    # NEW: Index into semantic memory AFTER commit to avoid locking
+    # Risk Mitigation: Confidence threshold + [Experience] prefix
+    for exp in experiences:
+        if exp["confidence"] >= 0.3:
+            add_text(f"[Experience] {exp['scenario']}", exp["summary"])
 
 
 def main():
     parser = argparse.ArgumentParser()
-    parser.add_argument("--hours", type=float, default=24, help="Lookback window in hours")
+    parser.add_argument(
+        "--hours", type=float, default=24, help="Lookback window in hours"
+    )
     parser.add_argument("--limit", type=int, default=500, help="Max events to process")
     args = parser.parse_args()
 

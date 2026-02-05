@@ -10,14 +10,13 @@ class StructureMemory:
         self._init_schema_once()
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
+        conn = sqlite3.connect(str(self.db_path), timeout=30.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
-        # If running in sandbox (temp DB), use WAL for better concurrency
         try:
+            conn.execute("PRAGMA journal_mode=WAL;")
             if "AppData\\Local\\Temp" in str(self.db_path) or os.environ.get(
                 "BGL_SANDBOX_DB"
             ):
-                conn.execute("PRAGMA journal_mode=WAL;")
                 conn.execute("PRAGMA synchronous=OFF;")
         except Exception:
             pass

@@ -160,7 +160,7 @@ Generated on demand to ensure 100% visibility.
 ### `app\Services\DecisionService.php`
 
 - **Classes**: DecisionService
-- **Functions**: __construct, save, lock, canModify
+- **Functions**: __construct, save, lock, canModify, smartSave
 
 ### `app\Services\ExcelColumnDetector.php`
 
@@ -694,11 +694,20 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\brain\apply_proposal.py`
 
-- **Functions**: insert_outcome, insert_decision, main
+- **Functions**: main
 
 ### `.bgl_core\brain\approve_playbook.py`
 
 - **Functions**: append_rule, approve
+
+### `.bgl_core\brain\authority.py`
+
+- **Classes**: Authority
+- **Functions**: _ensure_agent_permissions_table, _safe_json, __init__, _cache_key, _cache_get, _cache_set, _eligible_for_direct, effective_execution_mode, _autonomous_enabled, dedupe_permissions... (+7 more)
+
+### `.bgl_core\brain\autonomous_policy.py`
+
+- **Functions**: _load_rules, _save_rules, _rule_key, _apply_patch, apply_autonomous_policy_edit
 
 ### `.bgl_core\brain\brain_rules.py`
 
@@ -707,22 +716,22 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\brain\brain_types.py`
 
-- **Classes**: Intent, class, class, OperationalMode, class, class
+- **Classes**: Intent, class, class, OperationalMode, class, class, ActionKind, class, class
 
 ### `.bgl_core\brain\browser_core.py`
 
 - **Classes**: BrowserCore
-- **Functions**: __init__, _env_float, start, stop, heartbeat, restart, navigate, handle_request_failed, _resource_overloaded, _main_test
+- **Functions**: navigate
 
 ### `.bgl_core\brain\browser_manager.py`
 
 - **Classes**: BrowserManager
-- **Functions**: __init__, _ensure_browser, _cleanup_idle_pages, get_page, new_page, close, status
+- **Functions**: __init__, _ensure_browser, _cleanup_idle_pages, get_page, new_page, _install_filechooser_guard, handle_filechooser, close, status
 
 ### `.bgl_core\brain\browser_sensor.py`
 
 - **Classes**: BrowserSensor
-- **Functions**: __init__, _ensure_browser, scan_url, handle_request_failed, _write_status, main
+- **Functions**: __init__, _ensure_browser, close, scan_url, handle_request_failed, _write_status, main
 
 ### `.bgl_core\brain\callgraph_builder.py`
 
@@ -739,7 +748,7 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\brain\config_loader.py`
 
-- **Functions**: load_config
+- **Functions**: _deep_merge, load_config
 
 ### `.bgl_core\brain\context_digest.py`
 
@@ -748,6 +757,10 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\brain\context_extractor.py`
 
 - **Functions**: _read_snippet, extract
+
+### `.bgl_core\brain\contract_seeder.py`
+
+- **Functions**: _load_yaml, _guess_value, _extract_post_fields, _extract_get_params, _param_example_is_placeholder, _ensure_method, _post_only, _example_is_placeholder, seed_contract
 
 ### `.bgl_core\brain\contract_tests.py`
 
@@ -759,7 +772,7 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\brain\decision_engine.py`
 
-- **Functions**: decide
+- **Functions**: decide, _deterministic_decision
 
 ### `.bgl_core\brain\embeddings.py`
 
@@ -778,6 +791,11 @@ Generated on demand to ensure 100% visibility.
 - **Classes**: FaultLocator
 - **Functions**: __init__, get_context_from_log, _locate_url, locate_url, diagnose_fault
 
+### `.bgl_core\brain\fingerprint.py`
+
+- **Classes**: from, class
+- **Functions**: _stat_sig, _walk_globs, compute_fingerprint, fingerprint_is_fresh, fingerprint_equal, fingerprint_to_payload
+
 ### `.bgl_core\brain\generate_openapi.py`
 
 - **Functions**: generate
@@ -794,7 +812,7 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\brain\guardian.py`
 
 - **Classes**: BGLGuardian
-- **Functions**: __init__, perform_full_audit, _update_route_health, auto_remediate, log_maintenance, _prune_logs, _check_learning_confirmations, _check_business_conflicts_real, _get_proxied_routes, _has_permission... (+14 more)
+- **Functions**: __init__, perform_full_audit, _update_route_health, _preflight_services, _load_api_contract, _contract_missing_routes, _contract_quality_gaps, auto_remediate, log_maintenance, _prune_logs... (+30 more)
 
 ### `.bgl_core\brain\guardrails.py`
 
@@ -806,6 +824,10 @@ Generated on demand to ensure 100% visibility.
 - **Classes**: import, class
 - **Functions**: generate
 
+### `.bgl_core\brain\hardware_sensor.py`
+
+- **Functions**: get_gpu_info, main
+
 ### `.bgl_core\brain\indexer.py`
 
 - **Classes**: EntityIndexer
@@ -814,7 +836,7 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\brain\inference.py`
 
 - **Classes**: ReasoningEngine
-- **Functions**: __init__, _get_project_structure, _get_file_hash, reason, _analyze_backend_logic, _json_serializer, _build_reasoning_prompt, _extract_json_from_text, _query_llm, chat... (+1 more)
+- **Functions**: __init__, _get_project_structure, _get_file_hash, reason, _analyze_backend_logic, _json_serializer, _build_reasoning_prompt, _extract_json_from_text, _query_llm, _get_brain_state... (+2 more)
 
 ### `.bgl_core\brain\intent_resolver.py`
 
@@ -824,9 +846,18 @@ Generated on demand to ensure 100% visibility.
 
 - **Functions**: interpret
 
+### `.bgl_core\brain\llm_client.py`
+
+- **Classes**: from, class, LLMClient
+- **Functions**: _swap_localhost, _normalize_urls, __init__, _brain_state, state, _warm, _auto_warm_in_background, _warm_worker, ensure_hot, chat_json... (+1 more)
+
+### `.bgl_core\brain\llm_status.py`
+
+- **Functions**: write_status, main
+
 ### `.bgl_core\brain\llm_tools.py`
 
-- **Functions**: tool_run_checks, tool_route_index, tool_logic_bridge, tool_layout_map, tool_context_pack, tool_score_response, tool_schema, dispatch
+- **Functions**: tool_run_checks, tool_route_index, tool_logic_bridge, tool_layout_map, tool_context_pack, tool_score_response, _method_exists, tool_schema, dispatch
 
 ### `.bgl_core\brain\master_verify.py`
 
@@ -854,19 +885,27 @@ Generated on demand to ensure 100% visibility.
 - **Classes**: MouseState, Motor
 - **Functions**: __init__, move_to
 
+### `.bgl_core\brain\observations.py`
+
+- **Functions**: _ensure_tables, store_env_snapshot, latest_env_snapshot, _safe_get, _diff_scalar, compute_diagnostic_delta, store_latest_diagnostic_delta, diagnostic_to_snapshot, compute_skip_recommendation
+
 ### `.bgl_core\brain\orchestrator.py`
 
 - **Classes**: ExecutionReport, BGLOrchestrator
 - **Functions**: __init__, execute_task
 
+### `.bgl_core\brain\outcome_signals.py`
+
+- **Functions**: _as_list, _top, _candidate_conf_by_uri, _looks_like_scan_artifact, compute_outcome_signals
+
 ### `.bgl_core\brain\patcher.py`
 
 - **Classes**: BGLPatcher, name, using, to, requires
-- **Functions**: __init__, rename_class, add_method, _run_action, _update_references, _derive_impacted_tests, _derive_impacted_files, _post_patch_index, _post_patch_index_all, _discover_composer... (+2 more)
+- **Functions**: __init__, rename_class, add_method, _run_action, _update_references, _derive_impacted_tests, _derive_impacted_files, _post_patch_index, _post_patch_index_all, _discover_composer... (+1 more)
 
 ### `.bgl_core\brain\perception.py`
 
-- **Functions**: capture_local_context
+- **Functions**: pickText, capture_ui_map, project_interactive_elements, capture_local_context
 
 ### `.bgl_core\brain\playbook_loader.py`
 
@@ -876,6 +915,14 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: Policy
 - **Functions**: __init__, perform_click, perform_goto, _start_dom_watch, _wait_dom_change, _find_alternative
+
+### `.bgl_core\brain\policy_verifier.py`
+
+- **Functions**: _find_app_db, _read_file, _method_guard, _required_fields, _foreign_keys_for, verify_failure
+
+### `.bgl_core\brain\readiness_gate.py`
+
+- **Functions**: _swap_localhost, _http_check, _port_check, _ollama_tags, _ollama_warm, run_readiness
 
 ### `.bgl_core\brain\report_builder.py`
 
@@ -888,21 +935,26 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\brain\run_scenarios.py`
 
-- **Functions**: simulate_traffic
+- **Functions**: _log_activity, _ensure_env, _run_real_scenarios, simulate_traffic, main
 
 ### `.bgl_core\brain\safety.py`
 
 - **Classes**: SafetyNet
-- **Functions**: __init__, _safe_float, create_backup, preflight, validate, _gather_unified_logs, _read_backend_logs, _tests_from_experiences, rollback, clear_backup... (+5 more)
+- **Functions**: __init__, _safe_float, create_backup, preflight, validate, validate_async, _gather_unified_logs, _read_backend_logs, _tests_from_experiences, rollback... (+7 more)
 
 ### `.bgl_core\brain\sandbox.py`
 
 - **Classes**: BGLSandbox
-- **Functions**: __init__, setup, apply_to_main, cleanup, remove_readonly, _copy_untracked, _prepare_sandbox_db, _prepare_decision_db
+- **Functions**: __init__, setup, _copy_all_with_excludes, apply_to_main, cleanup, remove_readonly, _copy_untracked, _prepare_sandbox_db, _prepare_decision_db
+
+### `.bgl_core\brain\scenario_deps.py`
+
+- **Classes**: from, class
+- **Functions**: to_dict, _module_present, _playwright_version, check_scenario_deps, check_scenario_deps_async
 
 ### `.bgl_core\brain\scenario_runner.py`
 
-- **Functions**: ensure_cursor, ensure_dev_mode, exploratory_action, run_step, log_event, run_scenario, handle_request_failed, handle_response, main
+- **Functions**: ensure_cursor, ensure_dev_mode, _dom_state_hash, exploratory_action, run_step, log_event, _ensure_outcomes_tables, _log_outcome, _log_relation, _derive_outcomes_from_runtime... (+75 more)
 
 ### `.bgl_core\brain\utils.py`
 
@@ -911,6 +963,10 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\brain\verify_phase_8_simulation.py`
 
 - **Functions**: simulate_recurring_blockers
+
+### `.bgl_core\brain\volition.py`
+
+- **Functions**: _ensure_table, store_volition, latest_volition, derive_volition
 
 ### `.bgl_core\debug_tools\check_dashboard.py`
 
@@ -978,6 +1034,10 @@ Generated on demand to ensure 100% visibility.
 
 - **Functions**: verify_phase_5
 
+### `.bgl_core\brain\checks\authority_drift.py`
+
+- **Functions**: _read_text, run
+
 ### `.bgl_core\brain\checks\css_bloat.py`
 
 - **Functions**: run
@@ -989,6 +1049,10 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\brain\checks\db_index_missing.py`
 
 - **Functions**: run, has_index
+
+### `.bgl_core\brain\checks\hypothesis_meta_separation.py`
+
+- **Functions**: run
 
 ### `.bgl_core\brain\checks\js_bloat.py`
 
@@ -1015,6 +1079,10 @@ Generated on demand to ensure 100% visibility.
 - **Functions**: run
 
 ### `.bgl_core\brain\checks\missing_validation_guards.py`
+
+- **Functions**: run
+
+### `.bgl_core\brain\checks\self_regulation_runtime_link.py`
 
 - **Functions**: run
 
@@ -1046,6 +1114,10 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: name, rename
 
+### `.bgl_core\brain\AUTHORITY_INVENTORY.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\brain\CORE_OPERATIONS.md`
 
 - *Type*: Script / Data / Documentation
@@ -1070,11 +1142,39 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\abc.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\activity.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\ADR-rename-class-sandbox-autoload.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\agent-dashboard.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\agent-event.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\agent.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\agent_audit.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\agent_continuous_verification.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\agent_verify.py.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1093,6 +1193,10 @@ Generated on demand to ensure 100% visibility.
 ### `.bgl_core\knowledge\auto_insights\AnchorSignalFeeder.php.insight.md`
 
 - **Classes**: appears, has
+
+### `.bgl_core\knowledge\auto_insights\appdirs.py.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ArabicEntityAnchorExtractor.php.insight.md`
 
@@ -1121,12 +1225,15 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\ast_bridge.php.insight.md`
 
-- **Classes**: relationships, SecureASTSensor, remains
-- **Functions**: analyzeFile, parseCode, validateFilePath, getMemoryBytes, errorResponse
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\asyncio.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\AttachmentRepository.php.insight.md`
 
-- *Type*: Script / Data / Documentation
+- **Classes**: is, could
 
 ### `.bgl_core\knowledge\auto_insights\AuditLog.php.insight.md`
 
@@ -1136,6 +1243,10 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: AuditTrailTest, exists, must
 - **Functions**: testAuditTrailCapturesGuaranteeLifecycle, testAuditTrailLogsCriticalEvents
+
+### `.bgl_core\knowledge\auto_insights\audit_trail.md.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\AuthManagerAgentService.php.insight.md`
 
@@ -1156,8 +1267,7 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\BackupExportTest.php.insight.md`
 
-- **Classes**: BackupExportTest
-- **Functions**: testBackupCommandExistsAndFunctions, testBackupIncludesCriticalTables
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\Bank.php.insight.md`
 
@@ -1188,6 +1298,10 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\batches.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\BatchMetadataRepository.php.insight.md`
 
 - *Type*: Script / Data / Documentation
@@ -1196,14 +1310,21 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: named
 
+### `.bgl_core\knowledge\auto_insights\berry.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\BGL3_AGENT_MANUAL.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\blockers.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\bootstrap.php.insight.md`
 
-- **Classes**: class
-- **Functions**: validateProposalId, sanitizePath
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\CachingTest.php.insight.md`
 
@@ -1213,18 +1334,37 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\check_dashboard.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\check_deps.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\commit_rule.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\commit_rule.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\compat.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\confidence-demo.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ConfidenceCalculator.php.insight.md`
 
-- **Classes**: named
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ConfidenceCalculatorV2.php.insight.md`
 
-- **Classes**: serves, ConfidenceCalculatorV2
-- **Functions**: __construct, loadBaseScores, calculate, meetsDisplayThreshold, calculateCached
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ConfidenceCalculatorV2.php.insight.md.insight.md`
 
@@ -1239,6 +1379,18 @@ Generated on demand to ensure 100% visibility.
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ConflictDetector.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\contextvars.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\convert-to-real.php.insight.md`
+
+- **Classes**: is, to
+
+### `.bgl_core\knowledge\auto_insights\create-guarantee.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1263,9 +1415,13 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
-### `.bgl_core\knowledge\auto_insights\Database.php.insight.md`
+### `.bgl_core\knowledge\auto_insights\cyaml.meta.json.insight.md`
 
 - *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\Database.php.insight.md`
+
+- **Classes**: with
 
 ### `.bgl_core\knowledge\auto_insights\DataValidationTest.php.insight.md`
 
@@ -1275,7 +1431,23 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\db_add_foreign_keys.sql.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\db_schema.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\db_schema.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\debug.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\debug_inference.py.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1291,7 +1463,19 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\errno.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\events.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\events.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\excel-import-modal.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1299,7 +1483,43 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\exceptions.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\execution_gate.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\experiences.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\export_banks.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\export_suppliers.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\export_suppliers.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\ext.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\extend.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\extensions.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\external_checks.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1307,7 +1527,15 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\feature_request.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\FieldExtractionService.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\filesize.py.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1319,7 +1547,27 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: is
 
+### `.bgl_core\knowledge\auto_insights\flows.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\friendly_grayscale.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\FuzzySignalFeeder.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\gcodelexer.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\get-current-state.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\get-history-snapshot.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1327,7 +1575,19 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\get-record.php.insight.md`
+
+- **Classes**: in
+
+### `.bgl_core\knowledge\auto_insights\get-timeline.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\get_banks.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\get_banks.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1372,14 +1632,21 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: named
 
+### `.bgl_core\knowledge\auto_insights\historical-banner.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\HistoricalSignalFeeder.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\history.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ImportedRecord.php.insight.md`
 
-- **Classes**: ImportedRecord
-- **Functions**: __construct, isValidAmount, isValidDate, isReadyForProcessing
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ImportedRecordRepository.php.insight.md`
 
@@ -1390,6 +1657,10 @@ Generated on demand to ensure 100% visibility.
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ImportFlowSmokeTest.php.insight.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\importlib.data.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1409,10 +1680,13 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\import_banks.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\index.php.insight.md`
 
-- **Classes**: class, GuaranteeSearchService
-- **Functions**: validateNavigationParams, buildSearchConditions
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\index_codebase.py.insight.md`
 
@@ -1424,14 +1698,37 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\Input.php.insight.md`
 
-- **Classes**: for, to, is, that, doesn, currently
-- **Functions**: amount, date, iban
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\JsSmokeTest.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\js_bloat.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\js_inventory.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\js_split_placeholder.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\kpis.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\laguerre.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\learning-action.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\learning-data.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1455,7 +1752,19 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: still, loading
 
+### `.bgl_core\knowledge\auto_insights\letter-renderer.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\letter-template.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\LetterBuilder.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\llm_tools.meta.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1507,6 +1816,10 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: for, assumes, to
 
+### `.bgl_core\knowledge\auto_insights\monitoring_widgets.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\NavigationService.php.insight.md`
 
 - **Classes**: named
@@ -1531,6 +1844,10 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\paraiso_light.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\ParseCoordinatorService.php.insight.md`
 
 - *Type*: Script / Data / Documentation
@@ -1539,7 +1856,15 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\paste-modal.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\patcher.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\patcher.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1551,12 +1876,24 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\proposals_simple.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\queues.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\QuickTrace.php.insight.md`
 
 - **Classes**: provides, doesn, QuickTrace
 - **Functions**: init, log, flushBuffer, normalizeQuery, registerShutdown
 
 ### `.bgl_core\knowledge\auto_insights\QuickTrace.php.insight.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\random.meta.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1577,27 +1914,51 @@ Generated on demand to ensure 100% visibility.
 - **Classes**: serves, RecordHydratorService
 - **Functions**: __construct, hydrate, hydrateBatch, hydrateWithPreloaded
 
+### `.bgl_core\knowledge\auto_insights\reduce.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\release.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\RenameAliasTraitTest.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\RenamePipelinePlaybookTest.php.insight.md`
 
+- **Classes**: that, has
+
+### `.bgl_core\knowledge\auto_insights\roadmap.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\runtime.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\run_scenarios.meta.json.insight.md`
+
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\SafetyTestService.php.insight.md`
 
-- *Type*: Script / Data / Documentation
+- **Classes**: that
 
 ### `.bgl_core\knowledge\auto_insights\SafetyTestServiceTest.php.insight.md`
 
-- **Classes**: for, exists
+- **Classes**: in, exists
 
 ### `.bgl_core\knowledge\auto_insights\SafetyTestServiceTest.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\ScoringConfig.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\ScoringConfig.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1609,11 +1970,23 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\seed_blockers.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\server.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\Settings.php.insight.md`
 
-- **Classes**: named
+- **Classes**: is
 
 ### `.bgl_core\knowledge\auto_insights\SettingsUxTest.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\sharedctypes.meta.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1639,13 +2012,29 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\smart-paste-confidence.php.insight.md`
 
-- **Functions**: extractSupplierFromText
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\smart-paste-confidence.php.insight.md.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\SmartProcessingService.php.insight.md`
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\SmartProcessingService.php.insight.md.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\sre_constants.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\statistics.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\statistics.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1657,13 +2046,37 @@ Generated on demand to ensure 100% visibility.
 
 - **Classes**: is
 
+### `.bgl_core\knowledge\auto_insights\stress_test.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\style.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\subprocess.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\SuggestionDTO.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\SuggestionDTO.php.insight.md.insight.md`
 
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\SuggestionFormatter.php.insight.md`
 
-- **Classes**: that
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\suggestions-learning.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\suggestions.php.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\summary.php.insight.md`
 
@@ -1705,11 +2118,35 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\SupplierRepository.php.insight.md`
 
-- **Classes**: named, in
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\SupplierRepository.php.insight.md.insight.md`
+
+- *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\TableDetectionService.php.insight.md`
 
 - *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\tasks.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\testing.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\test_isoc.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\test_lazyloading.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\test_logic_bridge_contract.py.insight.md`
+
+- **Classes**: is
 
 ### `.bgl_core\knowledge\auto_insights\TimelineDisplayService.php.insight.md`
 
@@ -1720,6 +2157,10 @@ Generated on demand to ensure 100% visibility.
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\tmp_ren.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\tmp_rename.py.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1736,6 +2177,10 @@ Generated on demand to ensure 100% visibility.
 - *Type*: Script / Data / Documentation
 
 ### `.bgl_core\knowledge\auto_insights\TypeNormalizer.php.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\typing.data.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1772,11 +2217,103 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\verify_phase_1.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\verify_phase_2.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\verify_phase_3.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\verify_phase_3.py.insight.md`
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\knowledge\auto_insights\_asyncio.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_asyncio.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_bootstrap.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_ctypes.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_decimal.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_driver.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_driver.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_endian.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_har_router.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\knowledge\auto_insights\_input.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_local_utils.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_map.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_ntuples.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_polynomial_impl.py.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_psutil_windows.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_queue.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_video.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\_waiter.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\__future__.meta.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\__init__.data.json.insight.md`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\knowledge\auto_insights\__init__.meta.json.insight.md`
 
 - *Type*: Script / Data / Documentation
 
@@ -1888,6 +2425,10 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\brain\policy_expectations.json`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\brain\proposed_patterns.json`
 
 - *Type*: Script / Data / Documentation
@@ -1896,11 +2437,35 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\logs\api_contract_gaps.json`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\logs\api_contract_missing.json`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\logs\benchmark_results.json`
 
 - *Type*: Script / Data / Documentation
 
+### `.bgl_core\logs\hardware_vitals.json`
+
+- *Type*: Script / Data / Documentation
+
 ### `.bgl_core\logs\latest_report.json`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\logs\llm_status.json`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\logs\policy_auto_promoted.json`
+
+- *Type*: Script / Data / Documentation
+
+### `.bgl_core\logs\policy_candidates.json`
 
 - *Type*: Script / Data / Documentation
 
@@ -1932,7 +2497,7 @@ Generated on demand to ensure 100% visibility.
 
 ### `scripts\dream_mode.py`
 
-- **Functions**: discover_files, purge_orphans, dream_cycle, get_file_hash
+- **Functions**: discover_files, purge_orphans, dream_cycle, get_file_hash, cleanup
 
 ### `scripts\index_codebase.py`
 
@@ -1965,7 +2530,11 @@ Generated on demand to ensure 100% visibility.
 ### `scripts\tool_server.py`
 
 - **Classes**: Handler
-- **Functions**: _set_headers, do_OPTIONS, do_POST, _handle_tool, _context_snapshot, _log_tail, _phpunit_run, _master_verify, _scenario_run, _route_show... (+10 more)
+- **Functions**: _set_headers, do_OPTIONS, do_GET, do_POST, _handle_tool, _context_snapshot, _log_tail, _phpunit_run, _master_verify, _scenario_run... (+13 more)
+
+### `scripts\tool_watchdog.py`
+
+- **Functions**: _ping, _spawn_tool_server, _kill_hung_tool_server, main
 
 
 ## Tests (tests/)
@@ -2073,6 +2642,14 @@ Generated on demand to ensure 100% visibility.
 - **Classes**: class
 - **Functions**: call_agent_via_cli, call_agent_via_http, _norm, _hash, _similarity, detect_over_reasoning, detect_confidence_language, detect_citations_or_refs, detect_policy_violations, detect_language_mismatch... (+5 more)
 
+### `tests\autonomous_discovery_demo.py`
+
+- **Functions**: autonomous_discovery_demo
+
+### `tests\test_business_logic.py`
+
+- **Functions**: ask_business_logic
+
 ### `tests\test_hybrid_intelligence_flow.py`
 
 - **Functions**: setup_test_db, test_hybrid_flow
@@ -2083,15 +2660,28 @@ Generated on demand to ensure 100% visibility.
 
 ### `tests\test_local_inference.py`
 
+- **Classes**: name
 - **Functions**: test_local_llm
 
 ### `tests\test_logic_bridge_contract.py`
 
 - **Functions**: run_bridge, test_contract_success, test_contract_missing_keys, test_contract_bad_json
 
+### `tests\test_performance.py`
+
+- **Functions**: test_optimized_call
+
 ### `tests\verify_architecture_gap_closure.py`
 
 - **Functions**: test_guardian_daemon_mode, test_audit_rollback_system, test_hybrid_intelligence, test_smart_indexing_logic
+
+### `tests\verify_understanding.py`
+
+- **Functions**: verify_understanding
+
+### `tests\business_logic_report.md`
+
+- *Type*: Script / Data / Documentation
 
 
 ## Others
@@ -2107,11 +2697,11 @@ Generated on demand to ensure 100% visibility.
 ### `agentfrontend\bootstrap.php`
 
 - **Classes**: SimpleYamlParser, PremiumDashboard
-- **Functions**: parseFile, bgl_yaml_parse, __construct, getSystemVitals, getAgentStats, getBlockers, getProposals, getPermissions, getRecentActivity, getExperiences... (+8 more)
+- **Functions**: bgl_is_ajax, bgl_respond, bgl_experience_hash, bgl_start_bg, bgl_start_tool_server_bg, bgl_start_tool_watchdog_bg, bgl_route_health_from_db, bgl_exploration_failure_stats, parseFile, bgl_yaml_parse... (+40 more)
 
 ### `agentfrontend\layout.php`
 
-- *Type*: Script / Data / Documentation
+- **Functions**: showToast, updateHeaderStatus, applyLiveValue, updateLiveValues, sendExperienceAction, refreshLive, startLiveStream, submitLiveForm, submitLiveLink, startLivePolling
 
 ### `partials\confirm-modal.php`
 
@@ -2169,6 +2759,18 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `agentfrontend\partials\agent_autonomy_state.php`
+
+- *Type*: Script / Data / Documentation
+
+### `agentfrontend\partials\agent_controls.php`
+
+- *Type*: Script / Data / Documentation
+
+### `agentfrontend\partials\autonomy_goals.php`
+
+- *Type*: Script / Data / Documentation
+
 ### `agentfrontend\partials\blockers.php`
 
 - *Type*: Script / Data / Documentation
@@ -2209,6 +2811,10 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `agentfrontend\partials\hallucination_metrics.php`
+
+- *Type*: Script / Data / Documentation
+
 ### `agentfrontend\partials\health.php`
 
 - *Type*: Script / Data / Documentation
@@ -2225,11 +2831,19 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `agentfrontend\partials\log_highlights.php`
+
+- *Type*: Script / Data / Documentation
+
 ### `agentfrontend\partials\monitoring_widgets.php`
 
 - *Type*: Script / Data / Documentation
 
 ### `agentfrontend\partials\permissions.php`
+
+- *Type*: Script / Data / Documentation
+
+### `agentfrontend\partials\permission_queue.php`
 
 - *Type*: Script / Data / Documentation
 
@@ -2245,11 +2859,19 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `agentfrontend\partials\route_updates.php`
+
+- *Type*: Script / Data / Documentation
+
 ### `agentfrontend\partials\rules.php`
 
 - *Type*: Script / Data / Documentation
 
 ### `agentfrontend\partials\simple_mode.php`
+
+- *Type*: Script / Data / Documentation
+
+### `agentfrontend\partials\snapshot_delta.php`
 
 - *Type*: Script / Data / Documentation
 
@@ -2265,23 +2887,19 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
+### `agentfrontend\partials\vector_db_status.php`
+
+- *Type*: Script / Data / Documentation
+
 ### `agentfrontend\partials\worst_routes.php`
 
 - *Type*: Script / Data / Documentation
 
+### `check_db.py`
+
+- *Type*: Script / Data / Documentation
+
 ### `raw_chat_test.py`
-
-- **Functions**: main
-
-### `test_github.py`
-
-- **Functions**: main
-
-### `test_github_word.py`
-
-- **Functions**: main
-
-### `test_knowledge.py`
 
 - **Functions**: main
 
@@ -2362,38 +2980,6 @@ Generated on demand to ensure 100% visibility.
 - *Type*: Script / Data / Documentation
 
 ### `docs\domain_map.yml`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_clean.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_debug.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_final.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_final_v3.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_phase3.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_phase3_final.json`
-
-- *Type*: Script / Data / Documentation
-
-### `audit_results_phase4.json`
 
 - *Type*: Script / Data / Documentation
 

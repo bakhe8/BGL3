@@ -17,9 +17,11 @@ except ImportError:
 sys.path.append(str(Path.cwd()))
 try:
     from .bgl_core.brain.inference import ReasoningEngine
+    from .bgl_core.brain.embeddings import add_text
 except ImportError:
     sys.path.append(str(Path.cwd() / ".bgl_core" / "brain"))
     from inference import ReasoningEngine
+    from embeddings import add_text
 
 
 def discover_files(root_path: Path):
@@ -84,7 +86,9 @@ def purge_orphans(insights_dir: Path, root_path: Path):
         print(f"✅ Purged {purged_count} orphan insights.")
 
 
-async def dream_cycle(files_override=None, max_insights_override=None, sleep_seconds=2.0, source="dream"):
+async def dream_cycle(
+    files_override=None, max_insights_override=None, sleep_seconds=2.0, source="dream"
+):
     print("🌙 Entering Dream Mode... (Autonomous Learning Night Shift)")
     engine = ReasoningEngine(Path("knowledge.db"))
 
@@ -100,7 +104,9 @@ async def dream_cycle(files_override=None, max_insights_override=None, sleep_sec
         files_to_analyze = discover_files(root_path)
         # Save Architecture Snapshot (only for full scans)
         arch_snapshot = root_path / ".bgl_core" / "knowledge" / "arch_state.json"
-        arch_snapshot.write_text(json.dumps(files_to_analyze, indent=2), encoding="utf-8")
+        arch_snapshot.write_text(
+            json.dumps(files_to_analyze, indent=2), encoding="utf-8"
+        )
 
     # SAFETY LIMITS
     MAX_INSIGHTS = int(max_insights_override or 1000)  # Increased for 1GB quota
@@ -185,6 +191,8 @@ async def dream_cycle(files_override=None, max_insights_override=None, sleep_sec
             insight = plan.get("expert_synthesis") or plan.get(
                 "response", "No insight generated."
             )
+            if isinstance(insight, dict):
+                insight = json.dumps(insight, indent=2)
 
             # Save Insight with Integrity Metadata
             insight_content = (
@@ -195,6 +203,14 @@ async def dream_cycle(files_override=None, max_insights_override=None, sleep_sec
                 f"{insight}"
             )
             insight_file.write_text(insight_content, encoding="utf-8")
+
+            # Risk Mitigation: Deduplication (via embeddings.py), prefixing, and 0.3 threshold
+            confidence = plan.get("confidence", 0.5)
+            if confidence >= 0.3:
+                add_text(f"[Insight] {relative_path}", insight)
+                print(f"✨ Insight indexed to semantic memory (conf: {confidence})")
+            else:
+                print(f"⚠️ Insight confidence {confidence} too low to index.")
 
             print(f"✨ Insight saved to {insight_file.name}")
             generated_count += 1
@@ -248,11 +264,6 @@ if __name__ == "__main__":
                     is_running = True
             else:
                 # Weak check or assume running if file exists?
-                # Better to assume stale if we can't check, OR just warn.
-                # Standard practice: without psutil, we can't be sure.
-                # Let's assume stale if we can't verify, to avoid deadlock.
-                # Actually, os.kill(pid, 0) works on Unix, but on Windows it's tricky without psutil.
-                # We'll just warn.
                 print(f"⚠️ psutil missing, cannot verify PID {old_pid}. Assuming stale.")
 
             if is_running:

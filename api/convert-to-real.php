@@ -6,6 +6,7 @@
 require_once __DIR__ . '/../app/Support/autoload.php';
 
 use App\Repositories\GuaranteeRepository;
+use App\Support\Database;
 
 header('Content-Type: application/json; charset=utf-8');
 
@@ -23,7 +24,8 @@ try {
         exit;
     }
     
-    $repo = new GuaranteeRepository();
+    $db = Database::connect();
+    $repo = new GuaranteeRepository($db);
     $success = $repo->convertToReal((int)$guaranteeId);
     
     if ($success) {

@@ -30,6 +30,7 @@ from typing import Any, Dict, List, Optional
 import yaml  # type: ignore
 from config_loader import load_config
 from browser_manager import BrowserManager
+
 try:
     # Optional dependency: scenarios should still run without the visible cursor overlay.
     from python_ghost_cursor.playwright_async import install_mouse_helper  # type: ignore
@@ -39,11 +40,12 @@ except Exception:  # pragma: no cover
 # تأكد من إمكانية استيراد الطبقات الداخلية عند التشغيل كسكربت
 sys.path.append(str(Path(__file__).parent))
 from hand_profile import HandProfile  # type: ignore
-from motor import Motor, MouseState  # type: ignore
+from motor import Motor  # type: ignore
 from policy import Policy  # type: ignore
 from authority import Authority  # type: ignore
 from brain_types import ActionRequest, ActionKind  # type: ignore
 from perception import capture_ui_map  # type: ignore
+
 try:
     from llm_client import LLMClient  # type: ignore
 except Exception:
@@ -126,7 +128,9 @@ async def exploratory_action(
         candidate_meta = []
         for el in candidates:
             try:
-                tag = (await el.evaluate("el => (el.tagName || '').toLowerCase()")) or ""
+                tag = (
+                    await el.evaluate("el => (el.tagName || '').toLowerCase()")
+                ) or ""
                 meta = {
                     "element": el,
                     "tag": tag,
@@ -147,17 +151,21 @@ async def exploratory_action(
             except Exception:
                 continue
 
-        explored = _load_explored_selectors(ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db")
-        candidate_meta.sort(key=lambda m: _rank_exploration_candidate(m, explored), reverse=True)
+        explored = _load_explored_selectors(
+            ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
+        )
+        candidate_meta.sort(
+            key=lambda m: _rank_exploration_candidate(m, explored), reverse=True
+        )
         if random.random() < 0.35:
             random.shuffle(candidate_meta)
 
         # Prefer scroll sometimes to explore below the fold
         if random.random() < 0.35:
-                await page.mouse.wheel(0, 600)
-                with open(learn_log, "a", encoding="utf-8") as f:
-                    f.write(f"{time.time()}\t{session}\texplore\tscroll\n")
-                return
+            await page.mouse.wheel(0, 600)
+            with open(learn_log, "a", encoding="utf-8") as f:
+                f.write(f"{time.time()}\t{session}\texplore\tscroll\n")
+            return
 
         # Try typing into a search input if present (diverse terms)
         if random.random() < 0.35:
@@ -217,7 +225,10 @@ async def exploratory_action(
             href = await el.get_attribute("href") or ""
             href_norm = href.strip().lower()
             # Avoid repeatedly hovering/clicking home links
-            if href_norm in ("/", "/index.php", "index.php") or "index.php" in href_norm:
+            if (
+                href_norm in ("/", "/index.php", "index.php")
+                or "index.php" in href_norm
+            ):
                 continue
             h = hash(desc)
             if h in seen:
@@ -355,20 +366,22 @@ async def run_step(
             if is_bare:
                 uploads_dir = (ROOT_DIR / "storage" / "uploads").resolve()
                 if p.suffix:
-                    candidate = (uploads_dir / p.name)
+                    candidate = uploads_dir / p.name
                     if candidate.exists():
                         resolved.append(str(candidate))
                         continue
                 else:
                     for ext in (".xlsx", ".xls", ".csv"):
-                        candidate = (uploads_dir / f"{p.name}{ext}")
+                        candidate = uploads_dir / f"{p.name}{ext}"
                         if candidate.exists():
                             resolved.append(str(candidate))
                             break
                     else:
                         # Fall back to workspace-relative resolution below.
                         pass
-                    if resolved and resolved[-1].lower().startswith(str(uploads_dir).lower()):
+                    if resolved and resolved[-1].lower().startswith(
+                        str(uploads_dir).lower()
+                    ):
                         continue
 
             if not p.is_absolute():
@@ -431,7 +444,9 @@ async def run_step(
                     danger=danger,
                     hover_wait_ms=int(step.get("hover_wait_ms", DEFAULT_HOVER_WAIT_MS)),
                     post_click_ms=int(step.get("click_post_wait_ms", 150)),
-                    learn_log=Path(ROOT_DIR / "storage" / "logs" / "learned_events.tsv"),
+                    learn_log=Path(
+                        ROOT_DIR / "storage" / "logs" / "learned_events.tsv"
+                    ),
                     session=step.get("session", ""),
                     screenshot_dir=Path(ROOT_DIR / "storage" / "logs" / "captures"),
                     log_event_fn=log_event,
@@ -457,7 +472,9 @@ async def run_step(
         await ensure_cursor(page)
         try:
             await page.fill(
-                step["selector"], step.get("text", ""), timeout=step.get("timeout", 5000)
+                step["selector"],
+                step.get("text", ""),
+                timeout=step.get("timeout", 5000),
             )
         except Exception:
             if not step.get("optional"):
@@ -492,7 +509,7 @@ async def run_step(
                         "event_type": "dom_no_change",
                         "route": page.url if hasattr(page, "url") else "",
                         "method": str(action).upper(),
-                        "payload": f"selector:{step.get('selector','')}",
+                        "payload": f"selector:{step.get('selector', '')}",
                         "status": None,
                     },
                 )
@@ -501,7 +518,8 @@ async def run_step(
 
 
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
-    db = sqlite3.connect(str(db_path))
+    db = sqlite3.connect(str(db_path), timeout=30.0)
+    db.execute("PRAGMA journal_mode=WAL;")
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS runtime_events (
@@ -600,7 +618,8 @@ def _log_outcome(
     try:
         if not db_path.exists():
             return None
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
         cur = db.execute(
@@ -627,7 +646,8 @@ def _log_relation(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         db.execute(
             "INSERT INTO outcome_relations (created_at, outcome_id_a, outcome_id_b, relation, score, reason) VALUES (?, ?, ?, ?, ?, ?)",
@@ -639,12 +659,15 @@ def _log_relation(
         return
 
 
-def _derive_outcomes_from_runtime(db_path: Path, since_ts: float, limit: int = 400) -> List[int]:
+def _derive_outcomes_from_runtime(
+    db_path: Path, since_ts: float, limit: int = 400
+) -> List[int]:
     ids: List[int] = []
     try:
         if not db_path.exists():
             return ids
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT timestamp, event_type, route, method, status, payload, session FROM runtime_events WHERE timestamp >= ? ORDER BY id DESC LIMIT ?",
@@ -681,7 +704,12 @@ def _derive_outcomes_from_runtime(db_path: Path, since_ts: float, limit: int = 4
                 kind=kind,
                 value=value,
                 route=str(route or ""),
-                payload={"event_type": event_type, "method": method, "status": status, "payload": payload},
+                payload={
+                    "event_type": event_type,
+                    "method": method,
+                    "status": status,
+                    "payload": payload,
+                },
                 session=str(session or ""),
                 ts=float(ts or time.time()),
             )
@@ -692,7 +720,9 @@ def _derive_outcomes_from_runtime(db_path: Path, since_ts: float, limit: int = 4
     return ids
 
 
-def _derive_outcomes_from_learning(db_path: Path, since_ts: float, limit: int = 120) -> List[int]:
+def _derive_outcomes_from_learning(
+    db_path: Path, since_ts: float, limit: int = 120
+) -> List[int]:
     ids: List[int] = []
     try:
         learn_log = ROOT_DIR / "storage" / "logs" / "learned_events.tsv"
@@ -711,7 +741,7 @@ def _derive_outcomes_from_learning(db_path: Path, since_ts: float, limit: int = 
                 ts = None
             if ts is not None and ts < since_ts:
                 continue
-            action = parts[2]
+            _ = parts[2]
             detail = parts[3]
             if not detail.startswith("search:"):
                 continue
@@ -770,7 +800,8 @@ def _reward_exploration_from_outcomes(db_path: Path, since_ts: float) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT event_type, payload FROM runtime_events WHERE timestamp >= ? AND event_type IN ('dom_no_change','search_no_change','http_error','network_fail','api_call') ORDER BY id DESC LIMIT 200",
@@ -793,7 +824,8 @@ def _score_outcomes(db_path: Path, since_ts: float, window_sec: float = 300.0) -
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         cur = db.cursor()
         rows = cur.execute(
@@ -833,7 +865,9 @@ def _score_outcomes(db_path: Path, since_ts: float, window_sec: float = 300.0) -
                 score = 0.0
                 reason = ""
                 # Contradiction: error + successful api result on same route
-                if (kind_a == "error" and kind_b == "api_result") or (kind_b == "error" and kind_a == "api_result"):
+                if (kind_a == "error" and kind_b == "api_result") or (
+                    kind_b == "error" and kind_a == "api_result"
+                ):
                     try:
                         ok = int(val_a or 0) < 400 or int(val_b or 0) < 400
                     except Exception:
@@ -897,7 +931,8 @@ def _seed_goals_from_outcome_scores(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         rows = db.execute(
             """
@@ -942,7 +977,8 @@ def _load_seen_novel(db_path: Path, limit: int = 500) -> set:
     try:
         if not db_path.exists():
             return set()
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT route FROM runtime_events WHERE event_type='novel_probe' ORDER BY id DESC LIMIT ?",
@@ -974,10 +1010,35 @@ def _is_safe_novel_href(href: str, text: str, base_url: str) -> bool:
         return False
     # Block common write/action words (English + Arabic).
     block = [
-        "delete", "remove", "destroy", "drop", "import", "upload", "save", "update",
-        "edit", "create", "add", "submit", "approve", "reject", "write",
-        "حذف", "استيراد", "رفع", "حفظ", "تحديث", "تعديل", "إنشاء", "انشاء", "اضافة", "إضافة",
-        "رفض", "اعتماد", "ارسال", "إرسال",
+        "delete",
+        "remove",
+        "destroy",
+        "drop",
+        "import",
+        "upload",
+        "save",
+        "update",
+        "edit",
+        "create",
+        "add",
+        "submit",
+        "approve",
+        "reject",
+        "write",
+        "حذف",
+        "استيراد",
+        "رفع",
+        "حفظ",
+        "تحديث",
+        "تعديل",
+        "إنشاء",
+        "انشاء",
+        "اضافة",
+        "إضافة",
+        "رفض",
+        "اعتماد",
+        "ارسال",
+        "إرسال",
     ]
     s = (h + " " + (text or "")).lower()
     for b in block:
@@ -1005,7 +1066,8 @@ def _routes_table_count(db_path: Path) -> int:
     try:
         if not db_path.exists():
             return 0
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         count = cur.execute("SELECT COUNT(*) FROM routes").fetchone()[0]
         db.close()
@@ -1084,7 +1146,8 @@ def _unknown_routes_from_runtime(db_path: Path, limit: int = 60) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT route FROM runtime_events WHERE route IS NOT NULL ORDER BY id DESC LIMIT ?",
@@ -1123,7 +1186,9 @@ def _maybe_reindex_after_exploration(root: Path, db_path: Path) -> None:
     if str(_cfg_value("routes_refresh_on_exploration", "1")) != "1":
         return
     # Only reindex if exploration surfaced routes not in the canonical table.
-    missing = _unknown_routes_from_runtime(db_path, limit=int(_cfg_value("routes_refresh_probe_limit", 60) or 60))
+    missing = _unknown_routes_from_runtime(
+        db_path, limit=int(_cfg_value("routes_refresh_probe_limit", 60) or 60)
+    )
     if not missing:
         return
     try:
@@ -1140,7 +1205,9 @@ def _maybe_reindex_after_exploration(root: Path, db_path: Path) -> None:
                     "event_type": "route_index_exploration",
                     "route": "routes/web.php, routes/api.php",
                     "method": "INDEX",
-                    "payload": json.dumps({"missing_routes": missing[:10]}, ensure_ascii=False),
+                    "payload": json.dumps(
+                        {"missing_routes": missing[:10]}, ensure_ascii=False
+                    ),
                     "status": 200,
                 },
             )
@@ -1162,7 +1229,8 @@ def _recent_runtime_routes(db_path: Path, limit: int = 200) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT route FROM runtime_events ORDER BY id DESC LIMIT ?",
@@ -1183,12 +1251,16 @@ def _recent_runtime_routes(db_path: Path, limit: int = 200) -> List[str]:
     except Exception:
         return []
 
-def _recent_routes_within_days(db_path: Path, days: int = 7, limit: int = 1500) -> List[str]:
+
+def _recent_routes_within_days(
+    db_path: Path, days: int = 7, limit: int = 1500
+) -> List[str]:
     try:
         if not db_path.exists():
             return []
         cutoff = time.time() - (days * 86400)
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT route FROM runtime_events WHERE timestamp >= ? AND route IS NOT NULL ORDER BY timestamp DESC LIMIT ?",
@@ -1211,7 +1283,7 @@ def _recent_routes_within_days(db_path: Path, days: int = 7, limit: int = 1500) 
 
 
 def _load_insight_basenames() -> List[str]:
-    out = []
+    out: List[str] = []
     try:
         base = Path(".bgl_core/knowledge/auto_insights")
         if not base.exists():
@@ -1330,7 +1402,8 @@ def _routes_for_file(db_path: Path, file_rel: str, limit: int = 6) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         like_unix = f"%/{file_rel}"
         like_win = f"%\\{file_rel}"
@@ -1401,13 +1474,17 @@ def _should_trigger_dream() -> bool:
     min_minutes = int(_cfg_value("dream_mode_min_interval_minutes", 60))
     now = time.time()
     try:
-        if last_path.exists() and (now - last_path.stat().st_mtime) < (min_minutes * 60):
+        if last_path.exists() and (now - last_path.stat().st_mtime) < (
+            min_minutes * 60
+        ):
             return False
     except Exception:
         pass
     pid_path = ROOT_DIR / ".bgl_core" / "logs" / "dream_mode.pid"
     try:
-        if pid_path.exists() and (now - pid_path.stat().st_mtime) < max(min_minutes * 60, 1800):
+        if pid_path.exists() and (now - pid_path.stat().st_mtime) < max(
+            min_minutes * 60, 1800
+        ):
             return False
     except Exception:
         pass
@@ -1417,14 +1494,19 @@ def _should_trigger_dream() -> bool:
 def _trigger_dream_from_exploration(db_path: Path) -> None:
     if not _should_trigger_dream():
         return
-    targets = _collect_dream_targets(db_path, limit=int(_cfg_value("dream_mode_batch_limit", 24) or 24))
+    targets = _collect_dream_targets(
+        db_path, limit=int(_cfg_value("dream_mode_batch_limit", 24) or 24)
+    )
     if not targets:
         return
     started = time.time()
     try:
         import sys
+
         dream_path = ROOT_DIR / "scripts" / "dream_mode.py"
-        max_insights = min(len(targets), int(_cfg_value("dream_mode_max_insights", 24) or 24))
+        max_insights = min(
+            len(targets), int(_cfg_value("dream_mode_max_insights", 24) or 24)
+        )
         subprocess.run(
             [
                 sys.executable,
@@ -1441,10 +1523,13 @@ def _trigger_dream_from_exploration(db_path: Path) -> None:
             cwd=ROOT_DIR,
             timeout=int(_cfg_value("dream_mode_timeout_sec", 180) or 180),
         )
-        (ROOT_DIR / ".bgl_core" / "logs" / "dream_mode.last").write_text(str(time.time()))
+        (ROOT_DIR / ".bgl_core" / "logs" / "dream_mode.last").write_text(
+            str(time.time())
+        )
         _ingest_insights_to_goals(db_path, since_ts=started)
     except Exception:
         pass
+
 
 def _href_basename(href: Optional[str]) -> str:
     if not href:
@@ -1520,7 +1605,8 @@ def _load_explored_selectors(db_path: Path, limit: int = 2000) -> set:
     try:
         if not db_path.exists():
             return set()
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_table(db)
         rows = db.execute(
             "SELECT selector, href FROM exploration_history ORDER BY created_at DESC LIMIT ?",
@@ -1538,11 +1624,14 @@ def _load_explored_selectors(db_path: Path, limit: int = 2000) -> set:
         return set()
 
 
-def _record_explored_selector(db_path: Path, selector: str, href: str, tag: str) -> None:
+def _record_explored_selector(
+    db_path: Path, selector: str, href: str, tag: str
+) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_table(db)
         db.execute(
             "INSERT INTO exploration_history (selector, href, tag, created_at) VALUES (?, ?, ?, ?)",
@@ -1566,7 +1655,8 @@ def _record_exploration_outcome(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_novelty_table(db)
         href_base = _href_basename(href or "") if href else ""
         row = db.execute(
@@ -1595,7 +1685,8 @@ def _novelty_score(db_path: Path, selector: str) -> float:
     try:
         if not db_path.exists() or not selector:
             return 1.0
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_novelty_table(db)
         row = db.execute(
             "SELECT seen_count, last_seen, last_score_delta FROM exploration_novelty WHERE selector=?",
@@ -1608,7 +1699,9 @@ def _novelty_score(db_path: Path, selector: str) -> float:
         seen_count = int(seen_count or 0)
         age = time.time() - float(last_seen or 0)
         recent_boost = float(last_score_delta or 0.0)
-        return max(0.3, 1.4 / max(1, seen_count)) + min(1.2, age / 3600.0) + recent_boost
+        return (
+            max(0.3, 1.4 / max(1, seen_count)) + min(1.2, age / 3600.0) + recent_boost
+        )
     except Exception:
         return 1.0
 
@@ -1633,7 +1726,10 @@ def _ensure_autonomy_goals_table(db: sqlite3.Connection) -> None:
 
 def _cleanup_autonomy_goals(db: sqlite3.Connection) -> None:
     try:
-        db.execute("DELETE FROM autonomy_goals WHERE expires_at IS NOT NULL AND expires_at < ?", (time.time(),))
+        db.execute(
+            "DELETE FROM autonomy_goals WHERE expires_at IS NOT NULL AND expires_at < ?",
+            (time.time(),),
+        )
         db.commit()
     except Exception:
         pass
@@ -1643,7 +1739,8 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_autonomy_goals_table(db)
         _cleanup_autonomy_goals(db)
         rows = db.execute(
@@ -1671,16 +1768,21 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
         return []
 
 
-def _write_autonomy_goal(db_path: Path, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 7) -> None:
+def _write_autonomy_goal(
+    db_path: Path, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 7
+) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_autonomy_goals_table(db)
         _cleanup_autonomy_goals(db)
         # Avoid duplicating identical goals
         try:
-            payload_hash = hashlib.sha1(json.dumps(payload, sort_keys=True).encode("utf-8")).hexdigest()
+            payload_hash = hashlib.sha1(
+                json.dumps(payload, sort_keys=True).encode("utf-8")
+            ).hexdigest()
         except Exception:
             payload_hash = ""
         recent = db.execute(
@@ -1692,7 +1794,9 @@ def _write_autonomy_goal(db_path: Path, goal: str, payload: Dict[str, Any], sour
             except Exception:
                 existing = {}
             try:
-                existing_hash = hashlib.sha1(json.dumps(existing, sort_keys=True).encode("utf-8")).hexdigest()
+                existing_hash = hashlib.sha1(
+                    json.dumps(existing, sort_keys=True).encode("utf-8")
+                ).hexdigest()
             except Exception:
                 existing_hash = ""
             if payload_hash and payload_hash == existing_hash:
@@ -1701,7 +1805,13 @@ def _write_autonomy_goal(db_path: Path, goal: str, payload: Dict[str, Any], sour
         expires = time.time() + (ttl_days * 86400)
         db.execute(
             "INSERT INTO autonomy_goals (goal, payload, source, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
-            (goal, json.dumps(payload, ensure_ascii=False), source, time.time(), expires),
+            (
+                goal,
+                json.dumps(payload, ensure_ascii=False),
+                source,
+                time.time(),
+                expires,
+            ),
         )
         db.commit()
         db.close()
@@ -1713,7 +1823,8 @@ def _read_latest_delta(db_path: Path) -> Dict[str, Any]:
     try:
         if not db_path.exists():
             return {}
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         row = cur.execute(
             "SELECT payload_json FROM env_snapshots WHERE kind = 'diagnostic_delta' ORDER BY created_at DESC LIMIT 1"
@@ -1726,12 +1837,15 @@ def _read_latest_delta(db_path: Path) -> Dict[str, Any]:
         return {}
 
 
-def _read_recent_routes_from_db(db_path: Path, days: int = 7, limit: int = 12) -> List[Dict[str, Any]]:
+def _read_recent_routes_from_db(
+    db_path: Path, days: int = 7, limit: int = 12
+) -> List[Dict[str, Any]]:
     try:
         if not db_path.exists():
             return []
         cutoff = time.time() - (days * 86400)
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT uri, http_method, file_path, last_validated FROM routes WHERE last_validated >= ? ORDER BY last_validated DESC LIMIT ?",
@@ -1775,11 +1889,13 @@ def _read_log_highlights(limit: int = 8) -> List[Dict[str, Any]]:
                     return out
     return out
 
+
 def _recent_error_routes(db_path: Path, limit: int = 6) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
             "SELECT route FROM runtime_events WHERE event_type IN ('http_error','network_fail','console_error') AND route IS NOT NULL ORDER BY id DESC LIMIT ?",
@@ -1805,6 +1921,7 @@ def _recent_error_routes(db_path: Path, limit: int = 6) -> List[str]:
     except Exception:
         return []
 
+
 def _seed_goals_from_system_signals(db_path: Path) -> None:
     # Snapshot delta -> goals
     delta = _read_latest_delta(db_path)
@@ -1827,14 +1944,18 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
         _write_autonomy_goal(
             db_path,
             goal="route_recent",
-            payload={"uri": r.get("uri"), "method": r.get("method"), "file": r.get("file_path")},
+            payload={
+                "uri": r.get("uri"),
+                "method": r.get("method"),
+                "file": r.get("file_path"),
+            },
             source="routes",
             ttl_days=7,
         )
     # Log highlights -> goals
     error_routes = _recent_error_routes(db_path, limit=6)
-    for l in _read_log_highlights(limit=8):
-        msg = l.get("message") or ""
+    for item in _read_log_highlights(limit=8):
+        msg = item.get("message") or ""
         # Try to extract related route from log message
         route_hint = None
         m = re.search(r"(\/api\/[A-Za-z0-9_\\-\\/\\.]+)", msg)
@@ -1847,7 +1968,7 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
         # Fallback: bind log error to most recent error route
         if not route_hint and error_routes:
             route_hint = error_routes[0]
-        payload = {"source": l.get("source"), "message": msg}
+        payload = {"source": item.get("source"), "message": msg}
         if route_hint:
             payload["uri"] = route_hint
         _write_autonomy_goal(
@@ -1862,7 +1983,9 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
 def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str, Any]]:
     g = (goal.get("goal") or "").lower()
     payload = goal.get("payload") or {}
-    steps: List[Dict[str, Any]] = [{"action": "goto", "url": base_url.rstrip("/") + "/"}]
+    steps: List[Dict[str, Any]] = [
+        {"action": "goto", "url": base_url.rstrip("/") + "/"}
+    ]
     name = "goal_" + (g or "unknown")
 
     if g == "route_recent":
@@ -1908,7 +2031,7 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             steps = [{"action": "goto", "url": url}, {"action": "wait", "ms": 800}]
         name = "goal_insight_gap"
     elif g == "delta_change":
-        key = payload.get("key") or ""
+        # goal is delta_change
         steps.append({"action": "wait", "ms": 600})
         name = "goal_delta_change"
     elif g == "log_error":
@@ -1932,7 +2055,9 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
                 elif uri.startswith("http"):
                     url = uri
                 else:
-                    url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
+                    url = base_url.rstrip("/") + (
+                        uri if uri.startswith("/") else "/" + uri
+                    )
                 steps = [
                     {"action": "goto", "url": url},
                     {"action": "wait", "ms": 900},
@@ -1943,8 +2068,18 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
         if search_term:
             steps += [
                 {"action": "click", "selector": search_selector, "optional": True},
-                {"action": "type", "selector": search_selector, "text": search_term, "optional": True},
-                {"action": "press", "selector": search_selector, "key": "Enter", "optional": True},
+                {
+                    "action": "type",
+                    "selector": search_selector,
+                    "text": search_term,
+                    "optional": True,
+                },
+                {
+                    "action": "press",
+                    "selector": search_selector,
+                    "key": "Enter",
+                    "optional": True,
+                },
                 {"action": "wait", "ms": 800},
             ]
         # Depth escalation: scroll + try switching tabs/filters
@@ -1952,7 +2087,11 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             {"action": "scroll", "dy": 700},
             {"action": "click", "selector": "[role='tab']", "optional": True},
             {"action": "click", "selector": "[data-filter]", "optional": True},
-            {"action": "click", "selector": "button.filter, .filter button, .filters button", "optional": True},
+            {
+                "action": "click",
+                "selector": "button.filter, .filter button, .filters button",
+                "optional": True,
+            },
             {"action": "scroll", "dy": 600},
         ]
         name = "goal_gap_deepen"
@@ -1960,6 +2099,7 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
         return None
 
     return {"name": name, "kind": "ui", "steps": steps}
+
 
 def _goal_route_kind(uri: str) -> str:
     u = (uri or "").strip().lower()
@@ -1983,11 +2123,14 @@ def _ensure_goal_strategy_table(db: sqlite3.Connection) -> None:
     )
 
 
-def _record_goal_strategy_result(db_path: Path, goal: str, route_kind: str, strategy: str, ok: bool) -> None:
+def _record_goal_strategy_result(
+    db_path: Path, goal: str, route_kind: str, strategy: str, ok: bool
+) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_goal_strategy_table(db)
         row = db.execute(
             "SELECT id, success, fail FROM autonomy_goal_strategy WHERE goal=? AND route_kind=? AND strategy=?",
@@ -2008,7 +2151,14 @@ def _record_goal_strategy_result(db_path: Path, goal: str, route_kind: str, stra
         else:
             db.execute(
                 "INSERT INTO autonomy_goal_strategy (goal, route_kind, strategy, success, fail, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
-                (goal, route_kind, strategy, 1 if ok else 0, 0 if ok else 1, time.time()),
+                (
+                    goal,
+                    route_kind,
+                    strategy,
+                    1 if ok else 0,
+                    0 if ok else 1,
+                    time.time(),
+                ),
             )
         db.commit()
         db.close()
@@ -2016,11 +2166,14 @@ def _record_goal_strategy_result(db_path: Path, goal: str, route_kind: str, stra
         return
 
 
-def _pick_goal_strategy(db_path: Path, goal: str, route_kind: str, default_strategy: str) -> str:
+def _pick_goal_strategy(
+    db_path: Path, goal: str, route_kind: str, default_strategy: str
+) -> str:
     try:
         if not db_path.exists():
             return default_strategy
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         _ensure_goal_strategy_table(db)
         rows = db.execute(
             "SELECT strategy, success, fail FROM autonomy_goal_strategy WHERE goal=? AND route_kind=?",
@@ -2079,7 +2232,9 @@ async def run_goal_scenario(
             with path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(scenario, f, sort_keys=False, allow_unicode=True)
         except Exception:
-            path.write_text(json.dumps(scenario, ensure_ascii=False, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(scenario, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
         log_event(
             db_path,
             "autonomy_goal_scenario",
@@ -2172,6 +2327,7 @@ async def run_goal_scenario(
     except Exception:
         pass
 
+
 def _autonomous_plan_hash(plan: Dict[str, Any]) -> str:
     try:
         steps = plan.get("steps") or []
@@ -2191,7 +2347,8 @@ def _record_autonomous_plan(db_path: Path, plan: Dict[str, Any]) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         cur.execute(
             "CREATE TABLE IF NOT EXISTS autonomous_plans (hash TEXT PRIMARY KEY, created_at REAL)"
@@ -2207,11 +2364,14 @@ def _record_autonomous_plan(db_path: Path, plan: Dict[str, Any]) -> None:
         return
 
 
-def _is_recent_autonomous_plan(db_path: Path, plan: Dict[str, Any], limit: int = 20) -> bool:
+def _is_recent_autonomous_plan(
+    db_path: Path, plan: Dict[str, Any], limit: int = 20
+) -> bool:
     try:
         if not db_path.exists():
             return False
-        db = sqlite3.connect(str(db_path))
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         cur.execute(
             "CREATE TABLE IF NOT EXISTS autonomous_plans (hash TEXT PRIMARY KEY, created_at REAL)"
@@ -2316,7 +2476,7 @@ def _sanitize_steps(
             if raw.get("wait_until"):
                 step["wait_until"] = raw.get("wait_until")
             if raw.get("post_wait_ms") is not None:
-                step["post_wait_ms"] = int(raw.get("post_wait_ms"))
+                step["post_wait_ms"] = int(raw.get("post_wait_ms") or 0)
         elif action in ("click", "type", "press", "upload"):
             selector = raw.get("selector")
             if not selector:
@@ -2362,7 +2522,10 @@ def _fallback_autonomous_steps(
     steps: List[Dict[str, Any]] = []
     if allow_upload and uploads:
         for c in candidates:
-            if str(c.get("tag")).lower() == "input" and str(c.get("type")).lower() == "file":
+            if (
+                str(c.get("tag")).lower() == "input"
+                and str(c.get("type")).lower() == "file"
+            ):
                 steps.append(
                     {
                         "action": "upload",
@@ -2374,7 +2537,11 @@ def _fallback_autonomous_steps(
                 break
     pick = None
     recent_set = set(recent_week_routes or recent_routes or [])
-    fresh = [c.get("selector") for c in candidates if c.get("selector") and c.get("selector") not in recent_set]
+    fresh = [
+        c.get("selector")
+        for c in candidates
+        if c.get("selector") and c.get("selector") not in recent_set
+    ]
     fresh = [s for s in fresh if s]
     if fresh:
         pick = random.choice(fresh)
@@ -2485,7 +2652,9 @@ Context JSON:
         allow_upload=allow_upload,
     )
     if not steps:
-        steps = _fallback_autonomous_steps(candidates, recent_routes, recent_week_routes, uploads, allow_upload)
+        steps = _fallback_autonomous_steps(
+            candidates, recent_routes, recent_week_routes, uploads, allow_upload
+        )
     if not steps:
         return None
 
@@ -2493,10 +2662,16 @@ Context JSON:
     candidate_plan = {"name": str(name), "kind": "ui", "steps": steps}
     if _is_recent_autonomous_plan(db_path, candidate_plan):
         # Force a new fallback plan if recent repeat detected
-        steps = _fallback_autonomous_steps(candidates, recent_routes, uploads, allow_upload)
+        steps = _fallback_autonomous_steps(
+            candidates, recent_routes, recent_week_routes, uploads, allow_upload
+        )
         if not steps:
             return None
-        candidate_plan = {"name": f"autonomous_{int(time.time())}", "kind": "ui", "steps": steps}
+        candidate_plan = {
+            "name": f"autonomous_{int(time.time())}",
+            "kind": "ui",
+            "steps": steps,
+        }
     _record_autonomous_plan(db_path, candidate_plan)
     return candidate_plan
 
@@ -2553,7 +2728,9 @@ async def run_autonomous_scenario(
             yaml.safe_dump(plan, f, sort_keys=False, allow_unicode=True)
     except Exception:
         # Fallback: ensure file exists even if dump fails.
-        path.write_text(json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8")
+        path.write_text(
+            json.dumps(plan, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
 
     log_event(
         db_path,
@@ -2562,7 +2739,9 @@ async def run_autonomous_scenario(
             "event_type": "autonomous_scenario_generated",
             "route": str(path),
             "method": "AUTO",
-            "payload": json.dumps({"steps": len(plan.get("steps", []))}, ensure_ascii=False),
+            "payload": json.dumps(
+                {"steps": len(plan.get("steps", []))}, ensure_ascii=False
+            ),
             "status": 200,
         },
     )
@@ -2714,8 +2893,7 @@ async def run_scenario(
     learn_log = ROOT_DIR / "storage" / "logs" / "learned_events.tsv"
     learn_log.parent.mkdir(parents=True, exist_ok=True)
     # مسار لقطات الأهداف
-    shot_dir = ROOT_DIR / "storage" / "logs" / "captures"
-    explored = set()
+    explored: set = set()
     steps_since_explore = 0
     exploratory_enabled = os.getenv("BGL_EXPLORATION", "1") == "1"
 
@@ -2831,7 +3009,9 @@ async def run_scenario(
                     and steps_since_explore >= 2
                     and step.get("action") != "wait"
                 ):
-                    await exploratory_action(page, motor, explored, name, learn_log, db_path)
+                    await exploratory_action(
+                        page, motor, explored, name, learn_log, db_path
+                    )
                     steps_since_explore = 0
                 await run_step(
                     page,
@@ -2844,7 +3024,9 @@ async def run_scenario(
                 steps_since_explore += 1
                 # بعد أي goto أو عند أول خطوة في صفحة جديدة، استكشاف سريع
                 if exploratory_enabled and step.get("action") == "goto":
-                    await exploratory_action(page, motor, explored, name, learn_log, db_path)
+                    await exploratory_action(
+                        page, motor, explored, name, learn_log, db_path
+                    )
                     steps_since_explore = 0
                 break
             except Exception as e:
@@ -2910,9 +3092,7 @@ def _is_api_scenario(data: Dict[str, Any], scenario_path: Path) -> bool:
     # Heuristic: all urls in steps are API
     steps = data.get("steps", [])
     urls = [
-        str(s.get("url", ""))
-        for s in steps
-        if s.get("action") in ("goto", "request")
+        str(s.get("url", "")) for s in steps if s.get("action") in ("goto", "request")
     ]
     if not urls:
         return False
@@ -2967,7 +3147,12 @@ async def run_api_scenario(
                     scope=[url],
                     reason=f"API scenario write step ({name})",
                     confidence=0.7,
-                    metadata={"scenario": name, "step": step, "method": method, "url": url},
+                    metadata={
+                        "scenario": name,
+                        "step": step,
+                        "method": method,
+                        "url": url,
+                    },
                 ),
                 source="scenario_runner",
             )
@@ -2999,8 +3184,12 @@ async def run_api_scenario(
         status = None
         err = None
         try:
-            req = urllib.request.Request(url, data=data_bytes, method=method, headers=headers)
-            with urllib.request.urlopen(req, timeout=int(step.get("timeout", 8))) as resp:
+            req = urllib.request.Request(
+                url, data=data_bytes, method=method, headers=headers
+            )
+            with urllib.request.urlopen(
+                req, timeout=int(step.get("timeout", 8))
+            ) as resp:
                 status = resp.getcode()
                 resp.read()
         except urllib.error.HTTPError as e:
@@ -3069,7 +3258,10 @@ async def main(
     os.environ.setdefault("BGL_EXPLORATION", str(cfg.get("scenario_exploration", "1")))
     os.environ.setdefault("BGL_NOVELTY_AUTO", str(cfg.get("novelty_auto", "1")))
     # Auto refresh route map when source routes change (or missing)
-    _auto_reindex_routes(ROOT_DIR, Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db"))))
+    _auto_reindex_routes(
+        ROOT_DIR,
+        Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db"))),
+    )
 
     if not SCENARIOS_DIR.exists():
         print("[!] Scenarios directory missing; nothing to run.")
@@ -3169,7 +3361,11 @@ async def main(
             goals = _read_autonomy_goals(db_path, limit=6)
             seen_goal_keys = set()
             for g in goals:
-                key = (g.get("goal") or "") + "|" + json.dumps(g.get("payload") or {}, sort_keys=True)
+                key = (
+                    (g.get("goal") or "")
+                    + "|"
+                    + json.dumps(g.get("payload") or {}, sort_keys=True)
+                )
                 if key in seen_goal_keys:
                     continue
                 seen_goal_keys.add(key)

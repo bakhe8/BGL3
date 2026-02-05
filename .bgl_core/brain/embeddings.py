@@ -37,12 +37,13 @@ def _cosine(a: Dict[str, float], b: Dict[str, float]) -> float:
 
 
 def _ensure_table():
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS embeddings(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          label TEXT,
+          label TEXT UNIQUE,
           text TEXT,
           vector TEXT
         )
@@ -56,9 +57,11 @@ def _ensure_table():
 def add_text(label: str, text: str):
     _ensure_table()
     vec = _vectorize(text)
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
+    # Use INSERT OR REPLACE (UPSERT) to prevent Silent Duplication
     conn.execute(
-        "INSERT INTO embeddings (label, text, vector) VALUES (?, ?, ?)",
+        "INSERT OR REPLACE INTO embeddings (label, text, vector) VALUES (?, ?, ?)",
         (label, text, json.dumps(vec)),
     )
     conn.commit()
@@ -79,7 +82,8 @@ def search(query: str, top_k: int = 5) -> List[Tuple[str, float, str]]:
 
     _ensure_table()
     qv = _vectorize(query)
-    conn = sqlite3.connect(DB)
+    conn = sqlite3.connect(DB, timeout=30.0)
+    conn.execute("PRAGMA journal_mode=WAL;")
     # TODO: In the future, load full table into memory only once if small, or use proper Vector DB
     rows = conn.execute("SELECT label, vector, text FROM embeddings").fetchall()
     conn.close()
@@ -104,7 +108,8 @@ def search(query: str, top_k: int = 5) -> List[Tuple[str, float, str]]:
 
 
 if __name__ == "__main__":
-    import sys, json
+    import sys
+    import json
 
     if len(sys.argv) > 2 and sys.argv[1] == "add":
         add_text(sys.argv[2], " ".join(sys.argv[3:]))

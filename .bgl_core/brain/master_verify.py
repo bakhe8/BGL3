@@ -27,7 +27,8 @@ def log_activity(root_path: Path, message: str):
     """Logs an event to the agent_activity table for dashboard visibility."""
     db_path = root_path / ".bgl_core" / "brain" / "knowledge.db"
     try:
-        with sqlite3.connect(str(db_path)) as conn:
+        with sqlite3.connect(str(db_path), timeout=30.0) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute(
                 "INSERT INTO agent_activity (timestamp, activity, source, details) VALUES (?, ?, ?, ?)",
                 (time.time(), message, "master_verify", "{}"),
@@ -111,7 +112,8 @@ async def master_assurance_diagnostic():
     try:
         db_path = ROOT / ".bgl_core" / "brain" / "knowledge.db"
         if db_path.exists():
-            conn = sqlite3.connect(str(db_path))
+            conn = sqlite3.connect(str(db_path), timeout=30.0)
+            conn.execute("PRAGMA journal_mode=WAL;")
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM runtime_events")
             runtime_meta["count"] = int(cur.fetchone()[0] or 0)
@@ -207,12 +209,16 @@ async def master_assurance_diagnostic():
             "intent": diagnostic["findings"].get("intent", {}),
             "decision": diagnostic["findings"].get("decision", {}),
             "signals": diagnostic["findings"].get("signals", {}),
-            "signals_intent_hint": diagnostic["findings"].get("signals_intent_hint", {}),
+            "signals_intent_hint": diagnostic["findings"].get(
+                "signals_intent_hint", {}
+            ),
             "gap_tests": diagnostic["findings"].get("gap_tests", []),
             "proposals": diagnostic["findings"].get("proposals", []),
             "external_checks": diagnostic["findings"].get("external_checks", []),
             "scenario_deps": diagnostic["findings"].get("scenario_deps", {}),
-            "runtime_events_meta": diagnostic["findings"].get("runtime_events_meta", {}),
+            "runtime_events_meta": diagnostic["findings"].get(
+                "runtime_events_meta", {}
+            ),
             "api_scan": diagnostic["findings"].get("api_scan", {}),
             "volition": diagnostic["findings"].get("volition", {}),
             "autonomous_policy": diagnostic["findings"].get("autonomous_policy", {}),
@@ -224,7 +230,9 @@ async def master_assurance_diagnostic():
             "api_contract_gaps": diagnostic["findings"].get("api_contract_gaps", []),
             "expected_failures": diagnostic["findings"].get("expected_failures", []),
             "policy_candidates": diagnostic["findings"].get("policy_candidates", []),
-            "policy_auto_promoted": diagnostic["findings"].get("policy_auto_promoted", []),
+            "policy_auto_promoted": diagnostic["findings"].get(
+                "policy_auto_promoted", []
+            ),
         }
         build_report(data, template, output)
         # Write JSON alongside HTML for dashboard consumption
