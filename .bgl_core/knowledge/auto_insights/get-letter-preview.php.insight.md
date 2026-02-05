@@ -1,7 +1,7 @@
 # Insight: get-letter-preview.php
 **Path**: `api/get-letter-preview.php`
 **Source-Hash**: 02494b7db3a3966ff9048bb59a98ffffbaf7803b8357b2a3bb0aa9c89350d881
-**Date**: 2026-02-05 06:44:23
+**Date**: 2026-02-05 07:43:54
 
 The provided PHP code appears to be a part of a larger system responsible for generating release letters for guarantees. The code fetches data from the database, enriches it with additional information, and uses a letter-renderer partial to display the final output.
 

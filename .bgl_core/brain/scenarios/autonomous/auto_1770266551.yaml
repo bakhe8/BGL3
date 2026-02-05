@@ -1,0 +1,7 @@
+name: autonomous_1770266551
+kind: ui
+steps:
+- action: click
+  selector: '#details-button'
+- action: wait
+  ms: 600
