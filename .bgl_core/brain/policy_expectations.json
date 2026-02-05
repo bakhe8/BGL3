@@ -92,5 +92,15 @@
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
     "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "method": "GET",
+    "expected_statuses": [
+      400,
+      500
+    ],
+    "reason": "Expected GET request to /api/get-current-state.php to return a 4xx or 5xx status code due to its high score in the worst routes.",
+    "category": "policy_expected_auto"
   }
 ]

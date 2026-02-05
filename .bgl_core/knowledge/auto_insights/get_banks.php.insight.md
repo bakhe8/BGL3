@@ -1,6 +1,6 @@
 # Insight: get_banks.php
 **Path**: `api/get_banks.php`
 **Source-Hash**: 11fc9760f4e86497ea02108f2fc0c7e4ef2fd4ab23f9835c8d01b78e0e40d6a8
-**Date**: 2026-02-04 11:08:37
+**Date**: 2026-02-04 22:44:47
 
 عذراً، حدث خطأ داخلي في معالجة الاستجابة. (JSON Error)

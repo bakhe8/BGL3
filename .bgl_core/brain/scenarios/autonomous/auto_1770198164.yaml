@@ -1,0 +1,7 @@
+name: autonomous_1770198164
+kind: ui
+steps:
+- action: click
+  selector: '#btnUploadExcel'
+- action: wait
+  ms: 600

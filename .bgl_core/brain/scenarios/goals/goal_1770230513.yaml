@@ -1,0 +1,9 @@
+name: goal_route_recent
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href*='get-history-snapshot.php']
+- action: wait
+  ms: 800

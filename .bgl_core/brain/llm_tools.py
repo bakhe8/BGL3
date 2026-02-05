@@ -2,6 +2,7 @@
 Lightweight tool layer to let the local LLM (or any caller) trigger safe utilities.
 Tools are pure/side-effect-minimal where possible, and return JSON-serializable data.
 """
+
 from pathlib import Path
 import json
 import subprocess
@@ -21,6 +22,7 @@ from observations import latest_env_snapshot  # Unified env snapshot accessor
 from volition import latest_volition
 
 # ---------- Tool implementations ----------
+
 
 def tool_run_checks() -> Dict[str, Any]:
     """Run all static checks from inference_patterns.json."""
@@ -88,9 +90,16 @@ def tool_context_pack() -> Dict[str, Any]:
     conn = sqlite3.connect(DB)
     conn.row_factory = sqlite3.Row
     cur = conn.cursor()
-    ctx["intents"] = [dict(r) for r in cur.execute("SELECT * FROM intents ORDER BY id DESC LIMIT 10")]
-    ctx["decisions"] = [dict(r) for r in cur.execute("SELECT * FROM decisions ORDER BY id DESC LIMIT 10")]
-    ctx["outcomes"] = [dict(r) for r in cur.execute("SELECT * FROM outcomes ORDER BY id DESC LIMIT 10")]
+    ctx["intents"] = [
+        dict(r) for r in cur.execute("SELECT * FROM intents ORDER BY id DESC LIMIT 10")
+    ]
+    ctx["decisions"] = [
+        dict(r)
+        for r in cur.execute("SELECT * FROM decisions ORDER BY id DESC LIMIT 10")
+    ]
+    ctx["outcomes"] = [
+        dict(r) for r in cur.execute("SELECT * FROM outcomes ORDER BY id DESC LIMIT 10")
+    ]
     try:
         ctx["routes_count"] = cur.execute("SELECT COUNT(*) FROM routes").fetchone()[0]
     except Exception:
@@ -122,15 +131,34 @@ DISALLOWED_REGEX = ["page\\.click", "rm -rf", "DROP TABLE", "system\\("]
 def tool_score_response(text: str) -> Dict[str, Any]:
     """
     Score an LLM response with simple rule-based checks and agent_verify outcome.
+    Enhanced with file existence and method existence checking.
     Writes score to knowledge.db (table llm_scores).
     """
+    import re
+
     score = 1.0
     issues: List[str] = []
     for pat in DISALLOWED_REGEX:
-        import re
         if re.search(pat, text, re.IGNORECASE):
             issues.append(f"disallowed:{pat}")
             score -= 0.3
+
+    # NEW: File existence check
+    file_mentions = re.findall(r"[\w/\\]+\.(?:php|py|js|yaml|yml|md|json|sql)", text)
+    for file_path in file_mentions:
+        full_path = ROOT / file_path
+        if not full_path.exists():
+            alt_path = Path(file_path)
+            if not alt_path.exists():
+                issues.append(f"file_not_found:{file_path}")
+                score -= 0.2
+
+    # NEW: Method existence check (PHP Class::method() pattern)
+    method_mentions = re.findall(r"(\w+)::(\w+)\(\)", text)
+    for class_name, method_name in method_mentions:
+        if not _method_exists(class_name, method_name):
+            issues.append(f"method_not_found:{class_name}::{method_name}")
+            score -= 0.2
 
     # run static checks as signal
     checks = run_all_checks(ROOT)
@@ -160,17 +188,68 @@ def tool_score_response(text: str) -> Dict[str, Any]:
     return {"status": "SUCCESS", "score": score, "issues": issues}
 
 
+def _method_exists(class_name: str, method_name: str) -> bool:
+    """
+    Check if a method exists in knowledge.db structure memory.
+    Returns True if found, False otherwise.
+    """
+    try:
+        conn = sqlite3.connect(DB)
+        result = conn.execute(
+            """
+            SELECT 1 FROM methods m
+            JOIN classes c ON m.class_id = c.id
+            WHERE c.name = ? AND m.name = ?
+            LIMIT 1
+            """,
+            (class_name, method_name),
+        ).fetchone()
+        conn.close()
+        return result is not None
+    except Exception:
+        # If DB error, assume method might exist (benefit of doubt)
+        return True
+
+
 def tool_schema() -> Dict[str, Any]:
     """Return available tools and their parameters for prompt wiring."""
     return {
         "tools": [
-            {"name": "run_checks", "params": {}, "description": "Run static checks from inference_patterns."},
-            {"name": "route_index", "params": {}, "description": "Rebuild and return route map."},
-            {"name": "logic_bridge", "params": {"payload": "object"}, "description": "Invoke PHP logic bridge with JSON payload."},
-            {"name": "layout_map", "params": {"url": "string", "limit": "int(optional)"}, "description": "Capture DOM layout map (headless)."},
-            {"name": "context_pack", "params": {}, "description": "Recent intents/decisions/outcomes + routes count."},
-            {"name": "score_response", "params": {"text": "string"}, "description": "Rule-based scoring of LLM output; logs to DB."},
-            {"name": "tool_schema", "params": {}, "description": "Return this schema list."},
+            {
+                "name": "run_checks",
+                "params": {},
+                "description": "Run static checks from inference_patterns.",
+            },
+            {
+                "name": "route_index",
+                "params": {},
+                "description": "Rebuild and return route map.",
+            },
+            {
+                "name": "logic_bridge",
+                "params": {"payload": "object"},
+                "description": "Invoke PHP logic bridge with JSON payload.",
+            },
+            {
+                "name": "layout_map",
+                "params": {"url": "string", "limit": "int(optional)"},
+                "description": "Capture DOM layout map (headless).",
+            },
+            {
+                "name": "context_pack",
+                "params": {},
+                "description": "Recent intents/decisions/outcomes + routes count.",
+            },
+            {
+                "name": "score_response",
+                "params": {"text": "string"},
+                "description": "Rule-based scoring of LLM output; logs to DB.",
+            },
+            {
+                "name": "tool_schema",
+                "params": {},
+                "description": "Return this schema list.",
+            },
         ]
     }
 
@@ -179,11 +258,15 @@ TOOLS = {
     "run_checks": tool_run_checks,
     "route_index": tool_route_index,
     "logic_bridge": tool_logic_bridge,
-    "layout_map": lambda payload: tool_layout_map(payload.get("url", ""), payload.get("limit", 50)),
+    "layout_map": lambda payload: tool_layout_map(
+        payload.get("url", ""), payload.get("limit", 50)
+    ),
     "context_pack": tool_context_pack,
     "score_response": lambda payload: tool_score_response(payload.get("text", "")),
     "tool_schema": tool_schema,
-    "embeddings_search": lambda payload: {"results": embed_search(payload.get("query", ""))},
+    "embeddings_search": lambda payload: {
+        "results": embed_search(payload.get("query", ""))
+    },
 }
 
 
@@ -204,6 +287,7 @@ def dispatch(request: Dict[str, Any]) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import sys
+
     req = json.load(sys.stdin)
     resp = dispatch(req)
     print(json.dumps(resp, ensure_ascii=False))

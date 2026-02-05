@@ -48,6 +48,13 @@
                 <?php include __DIR__ . '/partials/summary.php'; ?>
             </div>
 
+            <!-- NEW WIDGETS -->
+            <div class="section-half">
+                <?php include __DIR__ . '/partials/hallucination_metrics.php'; ?>
+            </div>
+            <div class="section-half">
+                <?php include __DIR__ . '/partials/vector_db_status.php'; ?>
+
             <div class="section-full">
             </div>
 

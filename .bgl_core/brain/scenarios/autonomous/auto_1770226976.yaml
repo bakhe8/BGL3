@@ -1,0 +1,7 @@
+name: autonomous_1770226976
+kind: ui
+steps:
+- action: click
+  selector: '#reload-button'
+- action: wait
+  ms: 600

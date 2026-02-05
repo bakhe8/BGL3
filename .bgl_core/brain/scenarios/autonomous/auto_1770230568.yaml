@@ -1,0 +1,7 @@
+name: autonomous_1770230568
+kind: ui
+steps:
+- action: click
+  selector: a[href="#buttons"]
+- action: wait
+  ms: 600

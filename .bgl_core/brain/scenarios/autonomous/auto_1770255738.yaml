@@ -1,0 +1,7 @@
+name: autonomous_1770255738
+kind: ui
+steps:
+- action: click
+  selector: '#supplierInput'
+- action: wait
+  ms: 600

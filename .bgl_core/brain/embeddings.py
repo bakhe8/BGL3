@@ -2,6 +2,7 @@
 Simple embedding cache using bag-of-words hashing stored in SQLite.
 Avoids external dependencies; not high-precision but accelerates similarity search.
 """
+
 import re
 import json
 import math
@@ -47,6 +48,7 @@ def _ensure_table():
         )
         """
     )
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_embeddings_label ON embeddings(label)")
     conn.commit()
     conn.close()
 
@@ -63,10 +65,22 @@ def add_text(label: str, text: str):
     conn.close()
 
 
+# Simple LRU-like cache: { "query:top_k": results_list }
+_search_cache: Dict[str, List[Tuple[str, float, str]]] = {}
+
+
 def search(query: str, top_k: int = 5) -> List[Tuple[str, float, str]]:
+    cache_key = f"{query}:{top_k}"
+    if cache_key in _search_cache:
+        # Move key to end to mark as recently used
+        val = _search_cache.pop(cache_key)
+        _search_cache[cache_key] = val
+        return val
+
     _ensure_table()
     qv = _vectorize(query)
     conn = sqlite3.connect(DB)
+    # TODO: In the future, load full table into memory only once if small, or use proper Vector DB
     rows = conn.execute("SELECT label, vector, text FROM embeddings").fetchall()
     conn.close()
     scored = []
@@ -76,11 +90,22 @@ def search(query: str, top_k: int = 5) -> List[Tuple[str, float, str]]:
         except Exception:
             continue
         scored.append((label, _cosine(qv, v), text))
-    return sorted(scored, key=lambda x: x[1], reverse=True)[:top_k]
+
+    results = sorted(scored, key=lambda x: x[1], reverse=True)[:top_k]
+
+    # Store in cache
+    _search_cache[cache_key] = results
+    # Prune if too big
+    if len(_search_cache) > 100:
+        # Remove first item (oldest inserted/accessed)
+        _search_cache.pop(next(iter(_search_cache)))
+
+    return results
 
 
 if __name__ == "__main__":
     import sys, json
+
     if len(sys.argv) > 2 and sys.argv[1] == "add":
         add_text(sys.argv[2], " ".join(sys.argv[3:]))
     elif len(sys.argv) > 1:
