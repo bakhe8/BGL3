@@ -83,21 +83,21 @@ class LLMClient:
                 cfg_dict = load_config(root) or {}
             except Exception:
                 cfg_dict = {}
-        llm_cfg = cfg_dict.get("llm") if isinstance(cfg_dict.get("llm"), dict) else {}
-
-        base = os.getenv(
-            "LLM_BASE_URL",
-            llm_cfg.get("base_url")
-            if llm_cfg
-            else cfg_dict.get(
-                "llm_base_url", "http://127.0.0.1:11434/v1/chat/completions"
-            ),
+        # Read warmup settings from config or env
+        llm_cfg = cfg_dict.get("llm", {})
+        base = (
+            os.getenv("LLM_BASE_URL") or str(llm_cfg.get("base_url", ""))
+            if llm_cfg.get("base_url")
+            else "http://localhost:11434"
         )
-        model = os.getenv(
-            "LLM_MODEL",
-            llm_cfg.get("model")
-            if llm_cfg
-            else cfg_dict.get("llm_model", "llama3.1:latest"),
+
+        # Smart model selection: qwen2.5-coder:7b default (best for 8GB GPU)
+        default_model = "qwen2.5-coder:7b"  # High coding intelligence, fits in VRAM
+
+        model = str(
+            os.getenv("LLM_MODEL")
+            if os.getenv("LLM_MODEL")
+            else cfg_dict.get("llm_model", default_model),
         )
 
         # Allow tweaking time budgets without code changes.
@@ -131,7 +131,7 @@ class LLMClient:
 
         self.cfg = cfg or LLMClientConfig(
             base_url=str(base or "http://localhost:11434"),
-            model=str(model or "qwen2.5:32b"),  # Changed from llama3.1 to qwen2.5:32b
+            model=str(model or "qwen2.5-coder:7b"),  # Best fit for 8GB GPU
             max_wait_s=max_wait,
             poll_interval_s=poll,
             chat_timeout_s=chat_timeout,
