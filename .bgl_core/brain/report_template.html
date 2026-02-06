@@ -59,6 +59,37 @@
   </div>
 
   <div class="section">
+    <h2>Effective Config (Sources)</h2>
+    {% if effective_config %}
+      <p>Config source: <code>.bgl_core/config.yml</code> + <code>storage/agent_flags.json</code></p>
+      {% if effective_config._sources %}
+      <table>
+        <tr><th>Key</th><th>Value</th><th>Source</th></tr>
+        {% for key, source in effective_config._sources.items() %}
+          {% set val = effective_config %}
+          {% for part in key.split('.') %}
+            {% if val is mapping and part in val %}
+              {% set val = val[part] %}
+            {% else %}
+              {% set val = '' %}
+            {% endif %}
+          {% endfor %}
+          <tr>
+            <td><code>{{ key }}</code></td>
+            <td>{{ val }}</td>
+            <td>{{ source }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+      {% else %}
+      <p class="warn">Effective config sources not available.</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Effective config not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Autonomous Policy</h2>
     {% if autonomous_policy and autonomous_policy.status %}
       <p>Status: {{ autonomous_policy.status }}</p>
@@ -164,6 +195,89 @@
     {% if runtime_events_meta %}
       <p>Runtime events: {{ runtime_events_meta.count|default(0) }}</p>
       <p>Last event timestamp: {{ runtime_events_meta.last_timestamp|default('n/a') }}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Auto Insights</h2>
+    {% if auto_insights_status and auto_insights_status.total is defined %}
+      <p>Loaded: {{ auto_insights_status.loaded|default(0) }} / {{ auto_insights_status.total|default(0) }}</p>
+      <table>
+        <tr><th>Metric</th><th>Count</th></tr>
+        <tr><td>Stale</td><td>{{ auto_insights_status.stale|default(0) }}</td></tr>
+        <tr><td>Missing Meta</td><td>{{ auto_insights_status.missing_meta|default(0) }}</td></tr>
+        <tr><td>Missing Source</td><td>{{ auto_insights_status.missing_source|default(0) }}</td></tr>
+        <tr><td>Nested</td><td>{{ auto_insights_status.nested|default(0) }}</td></tr>
+        <tr><td>Duplicate</td><td>{{ auto_insights_status.duplicate|default(0) }}</td></tr>
+        <tr><td>Skipped (Limit)</td><td>{{ auto_insights_status.skipped_limit|default(0) }}</td></tr>
+      </table>
+    {% else %}
+      <p class="warn">Auto insights status not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>UI Semantic</h2>
+    {% if ui_semantic and ui_semantic.summary %}
+      <p><strong>URL:</strong> {{ ui_semantic.url }}</p>
+      <p><strong>Title:</strong> {{ ui_semantic.summary.title }}</p>
+      {% if ui_semantic.summary.headings %}
+        <p><strong>Headings:</strong> {{ ui_semantic.summary.headings | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.tables %}
+        <p><strong>Tables:</strong> {{ ui_semantic.summary.tables | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.forms %}
+        <p><strong>Forms:</strong> {{ ui_semantic.summary.forms | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.text_keywords %}
+        <p><strong>Keywords:</strong> {{ ui_semantic.summary.text_keywords | join(', ') }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.text_blocks %}
+        <p><strong>Text Blocks:</strong> {{ ui_semantic.summary.text_blocks | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic_delta and ui_semantic_delta.changed %}
+        <p class="warn"><strong>Delta:</strong> Changes detected</p>
+        <pre>{{ ui_semantic_delta | tojson(indent=2) }}</pre>
+      {% else %}
+        <p class="ok">No semantic changes detected.</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No UI semantic snapshot available.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Self Policy</h2>
+    {% if self_policy %}
+      {% if self_policy.semantic_thresholds %}
+        <p><strong>Semantic thresholds:</strong> {{ self_policy.semantic_thresholds | tojson }}</p>
+      {% endif %}
+      {% if self_policy.intent_bias %}
+        <p><strong>Intent bias:</strong> {{ self_policy.intent_bias | tojson }}</p>
+      {% endif %}
+      {% if self_policy.last_updated %}
+        <p>Last updated: {{ self_policy.last_updated }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No self policy recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Self Rules</h2>
+    {% if self_rules %}
+      {% if self_rules.rules %}
+        <p><strong>Rules:</strong> {{ self_rules.rules | tojson }}</p>
+      {% endif %}
+      {% if self_rules.overrides %}
+        <p><strong>Overrides:</strong> {{ self_rules.overrides | tojson }}</p>
+      {% endif %}
+      {% if self_rules.last_updated %}
+        <p>Last updated: {{ self_rules.last_updated }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No self rules recorded.</p>
     {% endif %}
   </div>
 

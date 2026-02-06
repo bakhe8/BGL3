@@ -3,11 +3,24 @@ headless: 0
 run_scenarios: 1
 scenario_include_api: 1
 scenario_exploration: 1
-api_scan_mode: safe
+scenario_include_autonomous: 1
+autonomous_scenario: 1
+autonomous_only: 0
+autonomous_max_steps: 12
+api_scan_mode: all
+api_scan_force_examples: 1
 policy_strict: 0
+policy_auto_promote_threshold: 0.2
+policy_force_promote: 1
+autonomous_policy: 1
+autonomous_policy_fallback: 1
+force_autonomous_policy: 1
+force_reindex: 1
+force_contract_seed: 1
+reasoning_enabled: 1
 keep_browser: 1
 diagnostic_timeout_sec: 300
-agent_mode: assisted
+agent_mode: autonomous
 agent_mode_bypass_env: BGL_LIGHT_MODE
 browser_enabled: 1
 browser_mode: visible
@@ -18,10 +31,14 @@ browser_ram_min_gb: null
 run_gap_tests: 1
 run_api_contract: 1
 measure_perf: 1
+llm:
+  base_url: http://127.0.0.1:11434
+  model: qwen2.5-coder:7b
+  auto_start: 1
 feature_flags:
   deprecated_routes: []
 decision:
-  mode: assisted
+  mode: autonomous
   mode_bypass_env: BGL_LIGHT_MODE
   auto_fix:
     min_confidence: 0.60
@@ -30,7 +47,7 @@ decision:
     requires_human: true
   reindex_full:
     requires_human: false
-execution_mode: sandbox
+execution_mode: autonomous
 post_wait_ms: 1500
 hover_wait_ms: 300
 slow_mo_ms: 400

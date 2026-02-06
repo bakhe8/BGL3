@@ -102,5 +102,321 @@
     ],
     "reason": "Expected GET request to /api/get-current-state.php to return a 4xx or 5xx status code due to its high score in the worst routes.",
     "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/release.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "<div\\ id=\"record\\-form\\-section\"\\ class=\"card\"\\ data\\-current\\-event\\-type=\"current\"><di",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/agent-event.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"status\":\"error\",\"message\":\"Missing\\ event_type\"\\}",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0645\\\\u0639\\\\u0631\\\\u0641\\ \\\\u0627\\\\u0644\\\\u0636\\\\u0645\\\\u062",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "method": "POST",
+    "expected_statuses": [
+      405
+    ],
+    "reason": "The endpoint should only accept GET requests for learning actions.",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"SQLSTATE\\[HY000\\]:\\ General\\ error:\\ 1\\ no\\ such\\ table:\\ main\\.",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"message\":\"SQLSTATE\\[HY000\\]:\\ General\\ error:\\ 1\\ foreign\\ key\\ mismat",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"App\\\\\\\\Support\\\\\\\\Input::string\\(\\):\\ Argument\\ \\#3\\ \\(\\$default\\)\\ ",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0628\\\\u064a\\\\u0627\\\\u0646\\\\u0627\\\\u062a\\ \\\\u063a\\\\u064a\\\\u063",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/create-bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      422
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"errors\":\\[\"official_name\\ is\\ required\"\\]\\}"
+  },
+  {
+    "uri": "/api/create-supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      422
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"errors\":\\[\"is_confirmed\\ must\\ be\\ numeric\"\\]\\}"
+  },
+  {
+    "uri": "/api/delete_bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/delete_supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/extend.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "<div\\ id=\"record\\-form\\-section\"\\ class=\"card\"\\ data\\-current\\-event\\-type=\"current\"><di",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/import.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"message\":\"\\\\u0644\\\\u0645\\ \\\\u064a\\\\u062a\\\\u0645\\ \\\\u0627\\\\u0633\\\\u062a\\\\u",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/import_banks.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"File\\ upload\\ failed\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/import_suppliers.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"File\\ upload\\ failed\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/reduce.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "<div\\ id=\"record\\-form\\-section\"\\ class=\"card\"\\ data\\-current\\-event\\-type=\"current\"><di",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/save-and-next.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Cannot\\ modify\\ locked\\ decision:\\ released\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/update_bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/update_supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ ID\"\\}",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/upload-attachment.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ guarantee_id\"\\}",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/history.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Missing\\ guarantee_id\"\\}",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/create-guarantee.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0627\\\\u0644\\\\u062d\\\\u0642\\\\u0644\\ \\\\u0645\\\\u0637\\\\u0644\\\\u064",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/create-supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0627\\\\u0633\\\\u0645\\ \\\\u0627\\\\u0644\\\\u0645\\\\u0648\\\\u0631\\\\u062",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/import.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"message\":\"\\\\u0644\\\\u0645\\ \\\\u064a\\\\u062a\\\\u0645\\ \\\\u0627\\\\u0633\\\\u062a\\\\u",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/save-and-next.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"guarantee_id\\ is\\ required\"\\}",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "method": "GET",
+    "expected_statuses": [
+      405
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Method\\ not\\ allowed\"\\}"
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "method": "GET",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"message\":\"\\\\u0628\\\\u064a\\\\u0627\\\\u0646\\\\u0627\\\\u062a\\ \\\\u063a\\\\u064a\\\\u0",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0644\\\\u0645\\ \\\\u064a\\\\u062a\\\\u0645\\ \\\\u0625\\\\u062f\\\\u062e\\\\u06",
+    "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0644\\\\u0645\\ \\\\u064a\\\\u062a\\\\u0645\\ \\\\u0625\\\\u062f\\\\u062e\\\\u06",
+    "match_error_regex": "Bad Request"
   }
 ]

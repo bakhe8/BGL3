@@ -109,6 +109,10 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     permission_issues = _as_list(findings.get("permission_issues"))
     experiences = _as_list(findings.get("experiences") or findings.get("recent_experiences"))
     scenario_deps = findings.get("scenario_deps") or {}
+    learning_recent = _as_list(findings.get("learning_recent"))
+    learning_confirmations = _as_list(findings.get("learning_confirmations"))
+    ui_semantic = findings.get("ui_semantic") or {}
+    ui_semantic_delta = findings.get("ui_semantic_delta") or {}
 
     # Classify failing routes into actionable vs likely-expected/scan-artifact.
     cand_conf = _candidate_conf_by_uri([c for c in policy_candidates if isinstance(c, dict)])
@@ -162,6 +166,9 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             "pending_approvals": len(pending_approvals),
             "permission_issues": len(permission_issues),
             "experiences": len(experiences),
+            "learning_events": len(learning_recent),
+            "learning_confirmations": len(learning_confirmations),
+            "ui_semantic_changes": 1 if ui_semantic_delta.get("changed") else 0,
         },
         "top": {
             "failing_routes": _top([f for f in failing_routes if isinstance(f, dict)], "uri", 5),
@@ -171,6 +178,12 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         },
         "scenario_deps_ok": bool(scenario_deps.get("ok", True)) if isinstance(scenario_deps, dict) else True,
         "explained_failures": [{"uri": u, "why": why} for (u, why) in explained[:10]],
+        "ui_semantic": {
+            "url": ui_semantic.get("url"),
+            "changed": bool(ui_semantic_delta.get("changed")),
+            "change_count": int(ui_semantic_delta.get("change_count") or 0),
+            "keywords": (ui_semantic.get("summary") or {}).get("text_keywords", []),
+        },
     }
 
     # ---- Deterministic intent hint (fallback) ----
@@ -217,6 +230,33 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         else:
             hint_reason_parts.append("no actionable failures detected")
 
+    # UI semantic change as a weak evolve/observe signal (when no critical blockers)
+    try:
+        if (
+            ui_semantic_delta.get("changed")
+            and hint_intent == Intent.OBSERVE.value
+            and len(pending_ops) == 0
+            and readiness_ok is not False
+        ):
+            change_count = int(ui_semantic_delta.get("change_count") or 0)
+            # If change is sizable, suggest evolve; otherwise keep observe but explain.
+            if change_count >= 6:
+                hint_intent = Intent.EVOLVE.value
+                hint_conf = 0.6
+                hint_reason_parts.append("ui_semantic_changed")
+                keywords = (ui_semantic.get("summary") or {}).get("text_keywords", [])
+                if isinstance(keywords, list):
+                    hint_scope = [str(k) for k in keywords[:8]]
+            else:
+                hint_reason_parts.append("ui_semantic_changed_minor")
+    except Exception:
+        pass
+
+    if learning_recent:
+        hint_reason_parts.append(f"learning_events={len(learning_recent)}")
+    if learning_confirmations:
+        hint_reason_parts.append(f"learning_confirmations={len(learning_confirmations)}")
+
     hint_reason = "; ".join(hint_reason_parts) if hint_reason_parts else "signals fallback"
 
     intent_hint = {
@@ -227,4 +267,3 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     }
 
     return {"signals": signals, "intent_hint": intent_hint}
-

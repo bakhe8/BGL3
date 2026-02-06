@@ -16,6 +16,8 @@ import os
 import time
 import urllib.error
 import urllib.request
+import subprocess
+import shutil
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
@@ -72,6 +74,7 @@ class LLMClientConfig:
     cold_probe_timeout_s: float = 0.5
     warm_fire_timeout_s: float = 1.0
     chat_timeout_s: float = 60.0
+    auto_start: bool = False
 
 
 class LLMClient:
@@ -129,6 +132,15 @@ class LLMClient:
             or 60
         )
 
+        auto_start_val = os.getenv("LLM_AUTO_START")
+        if auto_start_val is None:
+            auto_start_val = (
+                llm_cfg.get("auto_start")
+                if llm_cfg
+                else cfg_dict.get("llm_auto_start", 0)
+            )
+        auto_start = str(auto_start_val).lower() in ("1", "true", "yes", "on")
+
         self.cfg = cfg or LLMClientConfig(
             base_url=str(base or "http://localhost:11434"),
             model=str(model or "qwen2.5-coder:7b"),  # Best fit for 8GB GPU
@@ -138,11 +150,13 @@ class LLMClient:
             warm_fire_timeout_s=45,
             cold_probe_timeout_s=2,
             keep_alive="5m",  # Keep model in memory for 5 minutes
+            auto_start=auto_start,
         )
         self.chat_url, self.base_api = _normalize_urls(self.cfg.base_url)
         self.alt_chat_url, self.alt_base_api = _normalize_urls(
             _swap_localhost(self.chat_url)
         )
+        self._auto_started = False
 
         # ROOT CAUSE FIX: Auto-warm model on initialization
         # Eliminates 25s lazy-loading delay by warming in background!
@@ -165,6 +179,25 @@ class LLMClient:
             return "HOT" if dat.get("models") else "COLD"
         except Exception:
             return "OFFLINE"
+
+    def _maybe_start_service(self) -> bool:
+        if not getattr(self.cfg, "auto_start", False):
+            return False
+        if self._auto_started:
+            return False
+        if shutil.which("ollama") is None:
+            return False
+        try:
+            subprocess.Popen(
+                ["ollama", "serve"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            )
+            self._auto_started = True
+            return True
+        except Exception:
+            return False
 
     def state(self) -> str:
         # Try primary and alternate.
@@ -214,6 +247,10 @@ class LLMClient:
         def _warm_worker():
             try:
                 s = self.state()
+                if s == "OFFLINE":
+                    self._maybe_start_service()
+                    time.sleep(1.0)
+                    s = self.state()
                 if s == "COLD":
                     # Fire warmup request
                     self._warm(self.base_api)
@@ -235,6 +272,10 @@ class LLMClient:
         s = self.state()
         if debug:
             print(f"[*] LLMClient: state={s} model={self.cfg.model}")
+        if s == "OFFLINE":
+            self._maybe_start_service()
+            time.sleep(1.0)
+            s = self.state()
         if s == "COLD":
             # Fire warm-up on both variants to maximize chances (Windows DNS quirks).
             self._warm(self.base_api)

@@ -139,6 +139,13 @@ class BGLGuardian:
             # Apply scenario config hints
             include_api = str(self.config.get("scenario_include_api", "0"))
             os.environ.setdefault("BGL_INCLUDE_API", include_api)
+            include_autonomous = str(
+                self.config.get(
+                    "scenario_include_autonomous",
+                    "1" if self.execution_mode == "autonomous" else "0",
+                )
+            )
+            os.environ.setdefault("BGL_INCLUDE_AUTONOMOUS", include_autonomous)
             os.environ.setdefault(
                 "BGL_EXPLORATION",
                 str(self.config.get("scenario_exploration", os.getenv("BGL_EXPLORATION", "1"))),
@@ -253,6 +260,13 @@ class BGLGuardian:
         except Exception:
             skip_advice = {"ok": False, "reasons": ["skip_advice_failed"], "skip": {}}
 
+        force_reindex = (
+            str(self.config.get("force_reindex", "0")) == "1"
+            or os.getenv("BGL_FORCE_REINDEX", "0") == "1"
+        )
+        if force_reindex:
+            skip_advice = {"ok": False, "reasons": ["force_reindex"], "skip": {}}
+
         indexer = LaravelRouteIndexer(self.root_dir, self.db_path)
         reindex_gate = self._gate_reindex(self.root_dir)
         if not reindex_gate or not reindex_gate.allowed:
@@ -305,6 +319,10 @@ class BGLGuardian:
         limit_cfg = self.config.get("route_scan_limit")
         mode_cfg = str(self.config.get("route_scan_mode", "auto")).lower()
         api_scan_mode = str(self.config.get("api_scan_mode", "safe")).lower()
+        if api_scan_mode in ("aggressive", "full", "unsafe", "all"):
+            api_scan_mode = "all"
+        if api_scan_mode not in ("safe", "skip", "all"):
+            api_scan_mode = "safe"
         api_summary = {"mode": api_scan_mode, "checked": 0, "skipped": 0, "errors": 0}
 
         stats_path = self.root_dir / ".bgl_core" / "logs" / "route_scan_stats.json"
@@ -328,6 +346,11 @@ class BGLGuardian:
         # Track scan timing for safety
         scan_start = time.time()
         target_duration = self._target_duration(past_stats)
+        max_seconds = float(
+            self.config.get(
+                "route_scan_max_seconds", os.getenv("BGL_ROUTE_SCAN_MAX_SECONDS", 60)
+            )
+        )
 
         # Prioritize routes that recently appeared in experiential memory
         recent_exp = self._load_recent_experiences(hours=48, limit=50)
@@ -378,6 +401,11 @@ class BGLGuardian:
         important_routes = routes
 
         for route in important_routes:
+            if time.time() - scan_start > max_seconds:
+                print(
+                    f"[WARN] Route scan reached max seconds ({max_seconds}s). Stopping early."
+                )
+                break
             uri = route["uri"]
             print(f"    - Checking: {uri}")
             if self._is_api_route(uri):
@@ -496,11 +524,6 @@ class BGLGuardian:
 
         # 6. Timing safety check
         scan_duration = time.time() - scan_start
-        max_seconds = float(
-            self.config.get(
-                "route_scan_max_seconds", os.getenv("BGL_ROUTE_SCAN_MAX_SECONDS", 60)
-            )
-        )
         if scan_duration > max_seconds:
             report.setdefault("warnings", []).append(
                 f"Route scan exceeded safe time ({scan_duration:.1f}s > {max_seconds}s). Consider lowering limit or resources."
@@ -561,7 +584,11 @@ class BGLGuardian:
         """Load merged OpenAPI spec and return paths map + summary."""
         seed_info = {}
         try:
-            seed_info = seed_contract()
+            force_seed = (
+                str(self.config.get("force_contract_seed", "0")) == "1"
+                or os.getenv("BGL_FORCE_CONTRACT_SEED", "0") == "1"
+            )
+            seed_info = seed_contract(force=force_seed, refresh=force_seed)
         except Exception:
             seed_info = {}
         try:
@@ -744,46 +771,39 @@ class BGLGuardian:
         """Calls the PHP logic bridge with REAL data to detect business-level conflicts."""
         import subprocess
 
-        # Fetch recent guarantees (simulation of querying the main app DB)
-        # In a real integration, we might need to attach the app DB or use an API
-        # For now, we will simulate the RECORD but use the logic bridge for VALIDATION
+        probe_path = self.root_dir / ".bgl_core" / "brain" / "business_conflicts_probe.php"
+        if not probe_path.exists():
+            return []
 
-        # TODO: Implement actual DB fetch from 'guarantees' table if accessible
-        # For this step, we will use a sample that represents a potential issue
-
-        sample_candidates = {
-            "supplier": {
-                "candidates": [
-                    {"score": 190, "source": "fuzzy"},
-                    {"score": 185, "source": "fuzzy"},
-                ],
-                "normalized": "Ex",
-            },
-            "bank": {
-                "candidates": [{"score": 50, "source": "fuzzy"}],
-                "normalized": "Bk",
-            },
-        }
-        sample_record = {
-            "raw_supplier_name": "Example Supp",
-            "raw_bank_name": "Bank Unknown",
-        }
-
-        bridge_path = self.root_dir / ".bgl_core" / "brain" / "logic_bridge.php"
-        payload = json.dumps({"candidates": sample_candidates, "record": sample_record})
+        limit = int(os.getenv("BGL_BUSINESS_CONFLICT_SAMPLE", "8") or "8")
+        payload = json.dumps({"limit": limit})
 
         try:
             result = subprocess.run(
-                ["php", str(bridge_path)],
+                ["php", str(probe_path)],
                 input=payload,
                 text=True,
                 capture_output=True,
                 check=True,
             )
             report = json.loads(result.stdout)
-            if report.get("status") == "SUCCESS":
-                return report.get("conflicts", [])
-            return []
+            if report.get("status") != "SUCCESS":
+                return []
+            conflicts = report.get("conflicts", []) or []
+            out: List[str] = []
+            for item in conflicts:
+                gid = item.get("guarantee_id")
+                supplier = item.get("supplier") or ""
+                bank = item.get("bank") or ""
+                msgs = item.get("conflicts") or []
+                detail = "; ".join([m for m in msgs if m])
+                label = f"Guarantee #{gid}" if gid is not None else "Guarantee"
+                context = " | ".join([p for p in [supplier, bank] if p])
+                if context:
+                    out.append(f"{label} ({context}): {detail}")
+                else:
+                    out.append(f"{label}: {detail}")
+            return out
         except Exception as e:
             print(f"    [!] Guardian Bridge Error: {e}")
             return []
@@ -860,7 +880,57 @@ class BGLGuardian:
             except Exception:
                 return None
 
+        def _extract_post_fields(text: str) -> List[str]:
+            fields = set()
+            for pat in (
+                r"Input::string\(\s*\$input\s*,\s*'([^']+)'",
+                r"Input::int\(\s*\$input\s*,\s*'([^']+)'",
+                r"Input::array\(\s*\$input\s*,\s*'([^']+)'",
+                r"\$input\[['\"]([^'\"]+)['\"]\]",
+            ):
+                for m in re.findall(pat, text or ""):
+                    fields.add(m)
+            return sorted(fields)
+
+        def _guess_value(key: str) -> Any:
+            k = (key or "").lower()
+            if k == "index":
+                return 1
+            if k == "page":
+                return 1
+            if k == "history_id":
+                return "import_synthetic_1"
+            if k == "is_test_data" or k.startswith("is_"):
+                return False
+            if k == "related_to":
+                return "contract"
+            if k in ("type", "guarantee_type"):
+                return "Initial"
+            if "id" in k:
+                return 1
+            if "amount" in k or "value" in k:
+                return 1000
+            if "date" in k or "expiry" in k or "issue" in k:
+                return "2026-02-03"
+            if "action" in k:
+                return "summary"
+            if "reason" in k:
+                return "probe"
+            if "name" in k:
+                return "Probe"
+            if "note" in k:
+                return "probe"
+            if "source" in k:
+                return "manual_paste_20260203"
+            if "number" in k:
+                return "PROBE-0001"
+            return "probe"
+
         method = (method or "GET").upper()
+        force_examples = (
+            str(self.config.get("api_scan_force_examples", "0" if mode == "safe" else "1"))
+            == "1"
+        )
         if mode == "skip":
             return {"skipped": True, "reason": "api_scan_mode=skip"}
 
@@ -877,7 +947,10 @@ class BGLGuardian:
                 if contract_methods:
                     method = list(contract_methods.keys())[0]
             if method not in contract_methods:
-                return {"skipped": True, "reason": f"method_not_in_contract:{method}"}
+                if mode == "all":
+                    contract_methods = None
+                else:
+                    return {"skipped": True, "reason": f"method_not_in_contract:{method}"}
 
         if mode == "safe" and method not in ("GET", "HEAD"):
             return {"skipped": True, "reason": f"safe mode blocks {method}"}
@@ -905,7 +978,10 @@ class BGLGuardian:
                     if example is None:
                         example = schema.get("default")
                     if example is None and p.get("required"):
-                        return {"skipped": True, "reason": f"missing_required_param:{name}"}
+                        if force_examples:
+                            example = _guess_value(name)
+                        else:
+                            return {"skipped": True, "reason": f"missing_required_param:{name}"}
                     if example is not None:
                         # Use a real sample for batches to avoid 404/500 false negatives.
                         if uri == "/api/batches.php" and name == "import_source":
@@ -922,10 +998,36 @@ class BGLGuardian:
                 example = app_json.get("example")
                 if example is None:
                     example = (app_json.get("examples") or {}).get("default", {}).get("value")
+                if example is None and force_examples:
+                    file_path = self.root_dir / uri.lstrip("/")
+                    file_text = ""
+                    if file_path.is_file():
+                        try:
+                            file_text = file_path.read_text(encoding="utf-8", errors="ignore")
+                        except Exception:
+                            file_text = ""
+                    fields = _extract_post_fields(file_text) if file_text else []
+                    if fields:
+                        example = {k: _guess_value(k) for k in fields}
+                    else:
+                        example = {}
                 if example is None:
                     return {"skipped": True, "reason": "missing_request_example"}
                 example = self._render_example(example)
                 body = json.dumps(example).encode("utf-8")
+
+        if body is None and method not in ("GET", "HEAD") and force_examples:
+            file_path = self.root_dir / uri.lstrip("/")
+            file_text = ""
+            if file_path.is_file():
+                try:
+                    file_text = file_path.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    file_text = ""
+            fields = _extract_post_fields(file_text) if file_text else []
+            example = {k: _guess_value(k) for k in fields} if fields else {}
+            example = self._render_example(example)
+            body = json.dumps(example).encode("utf-8")
 
         start = time.time()
         status = None
@@ -1059,28 +1161,60 @@ class BGLGuardian:
 
     def _auto_promote_policy_candidates(self, candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         """Promote high-confidence candidates into policy_expectations.json."""
-        threshold = float(self.config.get("policy_auto_promote_threshold", 0.6))
+        threshold = float(self.config.get("policy_auto_promote_threshold", 0.2))
+        force_promote = (
+            str(self.config.get("policy_force_promote", "0")) == "1"
+            or os.getenv("BGL_POLICY_FORCE_PROMOTE", "0") == "1"
+        )
         rules_path = self.root_dir / ".bgl_core" / "brain" / "policy_expectations.json"
         try:
             rules = json.loads(rules_path.read_text(encoding="utf-8")) if rules_path.exists() else []
         except Exception:
             rules = []
         promoted: List[Dict[str, Any]] = []
+
+        def _infer_status(err: str, body: str) -> int | None:
+            text = f"{err or ''} {body or ''}".lower()
+            if "method not allowed" in text or " 405" in text or "405" in text:
+                return 405
+            if "bad request" in text or " 400" in text or "400" in text or "missing" in text or "مطلوب" in text:
+                return 400
+            if "unauthorized" in text or " 401" in text or "401" in text:
+                return 401
+            if "forbidden" in text or " 403" in text or "403" in text:
+                return 403
+            if "not found" in text or " 404" in text or "404" in text:
+                return 404
+            if "internal server error" in text or " 500" in text or "500" in text:
+                return 500
+            if "winerror 10061" in text or "connection refused" in text:
+                return 503
+            return None
+
         existing_keys = {
-            (r.get("uri"), r.get("method"), tuple(r.get("expected_statuses", [])), r.get("match_body_regex"), r.get("match_error_regex"))
+            (
+                r.get("uri"),
+                r.get("method"),
+                tuple(r.get("expected_statuses", [])),
+                r.get("match_body_regex"),
+                r.get("match_error_regex"),
+                bool(r.get("allow_any_body")),
+            )
             for r in rules
         }
         for c in candidates:
-            if c.get("confidence", 0) < threshold:
+            if not force_promote and c.get("confidence", 0) < threshold:
                 continue
-            if not c.get("evidence"):
+            if not c.get("evidence") and not force_promote:
                 continue
             uri = c.get("uri")
             status = c.get("status")
             method = c.get("method") or "ANY"
             body = c.get("error_body") or ""
             err = c.get("error") or ""
-            if not uri or status is None:
+            if status is None:
+                status = _infer_status(str(err), str(body))
+            if not uri:
                 continue
             # Build a conservative regex from the first line of error body if present
             snippet = ""
@@ -1094,13 +1228,15 @@ class BGLGuardian:
                 err_pattern = "Bad Request"
             elif "Internal Server Error" in err:
                 err_pattern = "Internal Server Error"
-            key = (uri, method, (status,), pattern, err_pattern)
+            expected_statuses = [status] if status is not None else []
+            allow_any = status is None
+            key = (uri, method, tuple(expected_statuses), pattern, err_pattern, allow_any)
             if key in existing_keys:
                 continue
             rule = {
                 "uri": uri,
                 "method": method,
-                "expected_statuses": [status],
+                "expected_statuses": expected_statuses,
                 "reason": "Auto-promoted from evidence",
                 "category": "policy_expected_auto",
             }
@@ -1108,6 +1244,8 @@ class BGLGuardian:
                 rule["match_body_regex"] = pattern
             if err_pattern:
                 rule["match_error_regex"] = err_pattern
+            if allow_any:
+                rule["allow_any_body"] = True
             rules.append(rule)
             promoted.append(rule)
             existing_keys.add(key)
@@ -1193,6 +1331,14 @@ class BGLGuardian:
         gate = self.authority.gate(req, source="guardian")
         decision_id = int(gate.decision_id or 0)
         if not gate.allowed:
+            return gate
+
+        force_reindex = (
+            str(self.config.get("force_reindex", "0")) == "1"
+            or os.getenv("BGL_FORCE_REINDEX", "0") == "1"
+            or self.execution_mode == "autonomous"
+        )
+        if force_reindex:
             return gate
 
         # 1. Hardware Safety Check

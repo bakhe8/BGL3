@@ -4,8 +4,10 @@
     <div style="display:flex; gap:10px; align-items:center; font-size:0.85rem;">
       <span style="color: var(--text-secondary);">الحالة:</span>
       <span style="font-weight:700;" data-live="tool-server-status"><?= $toolServerOnline ? 'متصل' : 'غير متصل' ?></span>
-      <span style="color: var(--text-secondary);" data-live="tool-server-port">المنفذ: <?= (int)$toolServerPort ?></span>
     </div>
+  </div>
+  <div style="margin-top:6px; font-size:0.8rem; color: var(--text-secondary);" data-live="tool-server-port">
+    المنفذ: <?= (int)$toolServerPort ?>
   </div>
   <p style="color: var(--text-secondary); margin-top:6px;">تكتب هنا، النموذج يرد ويبث الأدوات تلقائياً.</p>
   <div id="copilot-root"></div>

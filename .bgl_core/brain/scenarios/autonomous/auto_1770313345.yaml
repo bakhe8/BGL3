@@ -1,0 +1,7 @@
+name: autonomous_1770313345
+kind: ui
+steps:
+- action: click
+  selector: '#manualGuarantee'
+- action: wait
+  ms: 600

@@ -17,13 +17,13 @@ This document maps *where* the agent can create side effects today, and how thos
 | `.bgl_core/actuators/patcher.php` | AST-based patching (`rename_class`, `rename_reference`, `add_method`) | Writes files via `file_put_contents`, may rename files | None inside PHP (caller-controlled) | `WRITE_PROD` |
 | `.bgl_core/brain/patcher.py` | Calls `patcher.php`, backs up/rolls back, runs composer, reindexes | Writes project files, runs `composer dump-autoload`, writes `.bgl_core/logs`, updates `knowledge.db` | Local LLM decision + `execution_gate.check()` | `WRITE_PROD` |
 | `.bgl_core/brain/apply_db_fixes.py` | Applies SQL scripts to SQLite DB | Mutates SQLite DB (`storage/database/app.sqlite` by default) | None | `WRITE_SANDBOX` (or `WRITE_PROD` if DB is not isolated) |
-| `.bgl_core/brain/apply_proposal.py` | Logs an "apply proposal" action | Writes to `intents/decisions/outcomes` + `.bgl_core/logs` (actual patching is stubbed) | `--force` bypass exists but is simulated | `PROPOSE` (and `WRITE_PROD` for real future force mode) |
+| `.bgl_core/brain/apply_proposal.py` | Applies patch plans (if provided) via `write_engine` | Writes files (sandbox by default; prod on `--force`), writes `.bgl_core/logs` + decision outcomes | Authority gate (sandbox vs prod); `--force` triggers `WRITE_PROD` | `WRITE_SANDBOX` / `WRITE_PROD` (or `PROPOSE` when no plan) |
 | `.bgl_core/brain/approve_playbook.py` | Approves proposed playbook and appends runtime rule | Moves files, writes `runtime_safety.yml` | None | `PROPOSE` (internal write) |
 | `.bgl_core/brain/agent_tasks.py` | Simulated “agent task” demo | Writes to `agent_blockers` table | None | `PROPOSE` (internal DB write) |
 | `.bgl_core/brain/agent_verify.py` | Runs static checks from `inference_patterns.json` | Read-only | None | `OBSERVE` |
-| `.bgl_core/brain/guardian.py` | Requests approvals (`agent_permissions`), auto-promotes policies | Writes `.bgl_core/logs/*`, writes `policy_expectations.json`, writes DB rows | Custom `_has_permission/_request_permission` | `PROBE` / `PROPOSE` (internal), plus *gates* other writes |
-| `.bgl_core/brain/agency_core.py` | `request_permission/is_permission_granted` | Writes to `agent_permissions` | Separate implementation from Guardian | Gate utility (no direct prod write) |
-| `.bgl_core/brain/scenario_runner.py` | Runs scenarios (UI/API) | Can do HTTP writes when `danger:true` or `BGL_API_WRITE=1` | Inline gate in scenario runner | `PROBE` by default; `WRITE_PROD` when enabled |
+| `.bgl_core/brain/guardian.py` | Requests approvals (`agent_permissions`), auto-promotes policies | Writes `.bgl_core/logs/*`, writes `policy_expectations.json`, writes DB rows | Delegates to `Authority` (`_has_permission/_request_permission`) | `PROBE` / `PROPOSE` (internal), plus *gates* other writes |
+| `.bgl_core/brain/agency_core.py` | `request_permission/is_permission_granted` | Writes to `agent_permissions` | Thin wrappers over `Authority` (single approval queue) | Gate utility (no direct prod write) |
+| `.bgl_core/brain/scenario_runner.py` | Runs scenarios (UI/API) | Can do HTTP writes when `danger:true` or `BGL_API_WRITE=1` | Authority gate for API + UI write steps (click/upload) | `PROBE` by default; `WRITE_PROD` when enabled |
 | `.bgl_core/brain/decision_engine.py` | LLM-based risk decision + OpenAI failover | Network calls to local LLM and optional OpenAI | Not centrally enforced | Decision support |
 | `.bgl_core/brain/execution_gate.py` | Simple allow/deny based on decision payload | None | Used by patcher | Gate utility |
 | `.bgl_core/brain/brain_rules.py` | Deterministic block/override rules | None | Applied inside inference | Policy inputs (should feed Authority) |
@@ -31,9 +31,7 @@ This document maps *where* the agent can create side effects today, and how thos
 
 ## Known Duplications (Drift Risks)
 
-- Approval queue duplicated in `AgencyCore` vs `Guardian` (`agent_permissions` access paths).
-- Execution gating duplicated across `execution_gate.py`, scenario runner, and patcher.
-- Decision logging duplicated (`apply_proposal.py` hand-rolls DB inserts vs `decision_db.py` utilities).
+- Execution gating still exists in multiple places (`execution_gate.py`, scenario runner, patcher). This is partially intentional but should remain consistent with Authority decisions.
 
 ## Next Refactor Goal
 

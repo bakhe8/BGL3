@@ -52,11 +52,6 @@ content_rules:
     pattern: "Green Support"
     description: "Generic banking term not supported in this domain context."
     severity: warning
-  - id: C005
-    name: "Prohibited Concept: IBAN/SWIFT"
-    pattern: "IBAN"
-    description: "The system does NOT handle IBANs. Do not implement IBAN logic."
-    severity: critical
   - id: C006
     name: "Prohibited Concept: SWIFT Code"
     pattern: "SWIFT"

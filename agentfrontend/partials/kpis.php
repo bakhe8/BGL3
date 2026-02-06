@@ -24,7 +24,7 @@
                 $name = (string)($k['name'] ?? '');
                 if ($name !== '') $kpiByName[$name] = $k;
             }
-            $renderKpi = function(string $name) use ($kpiByName, $kpiLabels, $kpiCurrent) {
+            $renderKpi = function(string $name) use ($kpiByName, $kpiLabels, $kpiCurrent, $kpiScopes) {
                 $kpi = $kpiByName[$name] ?? null;
                 if (!$kpi) return;
                 $label = $kpiLabels[$name] ?? $name;

@@ -9,7 +9,6 @@ class ValidationTemplate {
     public function rules(): array
     {
         return [
-            'iban' => ['required', 'string'],
             // {FIELDS}
         ];
     }

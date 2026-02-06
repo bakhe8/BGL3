@@ -1,0 +1,7 @@
+name: autonomous_1770354085
+kind: ui
+steps:
+- action: click
+  selector: input[name="search"]
+- action: wait
+  ms: 600

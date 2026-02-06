@@ -1,9 +1,16 @@
 import json
 import os
 import subprocess
+import time
 from pathlib import Path
 from typing import Dict, Any, List, Optional, TypedDict
 from patcher import BGLPatcher
+try:
+    from .write_engine import WriteEngine  # type: ignore
+    from .patch_plan import PatchPlan, PatchOperation  # type: ignore
+except Exception:
+    from write_engine import WriteEngine
+    from patch_plan import PatchPlan, PatchOperation
 from guardrails import BGLGuardrails
 from safety import SafetyNet
 
@@ -143,18 +150,40 @@ class BGLOrchestrator:
                             }
                             return report
 
-                        sandbox_target_path.parent.mkdir(parents=True, exist_ok=True)
-                        with open(sandbox_target_path, mode, encoding="utf-8") as f:
-                            f.write(content)
-                        # best-effort audit
-                        try:
-                            if gate.decision_id:
-                                self.authority.record_outcome(
-                                    int(gate.decision_id), "success", "sandbox write completed"
+                        # Apply via WriteEngine for policy enforcement
+                        op_mode = "append" if str(mode).lower().startswith("a") else "overwrite"
+                        op_type = "modify" if sandbox_target_path.exists() else "create"
+                        plan = PatchPlan(
+                            version=1,
+                            plan_id=f"orchestrator_write_{int(time.time())}",
+                            operations=[
+                                PatchOperation(
+                                    op=op_type,
+                                    path=rel_path,
+                                    mode=op_mode,
+                                    content=str(content),
                                 )
-                        except Exception:
-                            pass
-                        res = {"status": "success", "message": f"File written: {rel_path}"}
+                            ],
+                            description="orchestrator write_file",
+                            created_at=time.time(),
+                        )
+                        engine = WriteEngine(sandbox_root)
+                        result = engine.apply(plan, dry_run=False)
+                        if not result.ok:
+                            res = {
+                                "status": "error",
+                                "message": f"WriteEngine failed: {result.errors}",
+                            }
+                        else:
+                            # best-effort audit
+                            try:
+                                if gate.decision_id:
+                                    self.authority.record_outcome(
+                                        int(gate.decision_id), "success", "sandbox write completed"
+                                    )
+                            except Exception:
+                                pass
+                            res = {"status": "success", "message": f"File written: {rel_path}"}
                 except Exception as e:
                     try:
                         # If we created a gate decision id above, record a fail outcome

@@ -97,18 +97,39 @@ class ConflictDetector
         // الوكيل يتحقق: هل قمنا بتغيير هذا الاسم لهذا المورد سابقاً؟
         if (!empty($record['raw_supplier_name']) && !empty($candidates['supplier']['candidates'][0]['id'])) {
             $topCandidateId = $candidates['supplier']['candidates'][0]['id'];
-            $db = Database::connect();
-            // البحث عن قرارات سابقة لنفس الاسم الخام ولكن تم ربطها بمورد مختلف
-            $stmt = $db->prepare("
-                SELECT COUNT(*) FROM guarantee_decisions d
-                JOIN guarantees g ON d.guarantee_id = g.id
-                WHERE COALESCE(g.raw_supplier_name, json_extract(g.raw_data, '$.supplier')) = ? 
-                  AND d.supplier_id != ? 
-                  AND d.status = 'released'
-            ");
-            $stmt->execute([$record['raw_supplier_name'], $topCandidateId]);
-            if ($stmt->fetchColumn() > 0) {
-                $conflicts[] = 'تنبيه ذكي: هذا الاسم الخام تم ربطه بمورد مختلف في قرارات سابقة ناجحة!';
+            try {
+                $db = Database::connect();
+                $hasRawColumn = false;
+                try {
+                    $cols = $db->query("PRAGMA table_info(guarantees)")->fetchAll();
+                    foreach ($cols as $col) {
+                        if (($col['name'] ?? '') === 'raw_supplier_name') {
+                            $hasRawColumn = true;
+                            break;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    $hasRawColumn = false;
+                }
+
+                $expr = $hasRawColumn
+                    ? "COALESCE(g.raw_supplier_name, json_extract(g.raw_data, '$.supplier'), json_extract(g.raw_data, '$.supplier_name'), json_extract(g.raw_data, '$.raw_supplier_name'))"
+                    : "COALESCE(json_extract(g.raw_data, '$.supplier'), json_extract(g.raw_data, '$.supplier_name'), json_extract(g.raw_data, '$.raw_supplier_name'))";
+
+                // البحث عن قرارات سابقة لنفس الاسم الخام ولكن تم ربطها بمورد مختلف
+                $stmt = $db->prepare("
+                    SELECT COUNT(*) FROM guarantee_decisions d
+                    JOIN guarantees g ON d.guarantee_id = g.id
+                    WHERE {$expr} = ? 
+                      AND d.supplier_id != ? 
+                      AND d.status = 'released'
+                ");
+                $stmt->execute([$record['raw_supplier_name'], $topCandidateId]);
+                if ($stmt->fetchColumn() > 0) {
+                    $conflicts[] = 'تنبيه ذكي: هذا الاسم الخام تم ربطه بمورد مختلف في قرارات سابقة ناجحة!';
+                }
+            } catch (\Throwable $e) {
+                // If DB schema does not support this query, ignore the historical check.
             }
         }
 

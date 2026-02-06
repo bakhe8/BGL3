@@ -81,10 +81,11 @@ final class ModelIntegrityTest extends TestCase
      */
     public function testBankValidation(): void
     {
-        // Test invalid IBAN
+        // Test invalid contact data
         $payload = [
-            'name' => 'Bad IBAN Bank',
-            'iban' => 'NOT_AN_IBAN'
+            'name' => 'Bad Contact Bank',
+            'email' => 'bad-email',
+            'phone' => 'bad-phone'
         ];
         $res = $this->postJson('/api/create-bank.php', $payload);
         // If the endpoint doesn't exist or doesn't handle JSON, this might fail differently, 

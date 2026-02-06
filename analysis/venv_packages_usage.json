@@ -1,0 +1,47 @@
+﻿{
+  "Jinja2": [
+    "brain\\report_builder.py"
+  ],
+  "MarkupSafe": [],
+  "PyYAML": [
+    "brain\\agency_core.py",
+    "brain\\approve_playbook.py",
+    "brain\\config_loader.py",
+    "brain\\contract_seeder.py",
+    "brain\\generate_openapi.py",
+    "brain\\governor.py",
+    "brain\\guardian.py",
+    "brain\\scenario_runner.py"
+  ],
+  "Pygments": [],
+  "asyncio": [
+    "brain\\archive\\verify_phase_5.py",
+    "brain\\browser_manager.py",
+    "brain\\browser_sensor.py",
+    "brain\\guardian.py",
+    "brain\\master_verify.py",
+    "brain\\run_scenarios.py",
+    "brain\\safety.py",
+    "brain\\scenario_runner.py"
+  ],
+  "bezier": [],
+  "colorama": [],
+  "greenlet": [],
+  "iniconfig": [],
+  "numpy": [],
+  "packaging": [],
+  "pip": [],
+  "playwright": [
+    "brain\\browser_manager.py",
+    "brain\\browser_sensor.py",
+    "brain\\llm_tools.py",
+    "brain\\scenario_deps.py"
+  ],
+  "pluggy": [],
+  "pyee": [],
+  "pytest": [],
+  "python_ghost_cursor": [
+    "brain\\scenario_runner.py"
+  ],
+  "typing_extensions": []
+}

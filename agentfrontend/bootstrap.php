@@ -19,6 +19,7 @@ if (file_exists($localVendor)) {
 }
 
 $projectRoot = dirname(__DIR__);
+$agentDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 $pythonBin = $projectRoot . '/.bgl_core/.venv312/Scripts/python.exe';
 if (!file_exists($pythonBin)) {
     $pythonBin = 'python';
@@ -27,6 +28,11 @@ $pythonEsc = escapeshellarg($pythonBin);
 
 use App\Support\Database;
 // use Symfony\Component\Yaml\Yaml; // Removed due to dependency issues in current environment
+
+// CLI runs may not populate REQUEST_METHOD; default to GET to avoid warnings.
+if (!isset($_SERVER['REQUEST_METHOD'])) {
+    $_SERVER['REQUEST_METHOD'] = 'GET';
+}
 
 function bgl_is_ajax(): bool {
     $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
@@ -47,6 +53,19 @@ function bgl_respond(array $payload, ?string $redirect = null): void {
         exit;
     }
     exit;
+}
+
+function bgl_flatten(array $data, string $prefix = ''): array {
+    $out = [];
+    foreach ($data as $k => $v) {
+        $key = $prefix === '' ? (string)$k : $prefix . '.' . $k;
+        if (is_array($v)) {
+            $out = array_merge($out, bgl_flatten($v, $key));
+        } else {
+            $out[$key] = $v;
+        }
+    }
+    return $out;
 }
 
 function bgl_experience_hash(string $scenario, string $summary): string {
@@ -170,6 +189,38 @@ function bgl_exploration_failure_stats(string $dbPath, int $minutes = 120): arra
     } catch (\Exception $e) {}
     return $out;
 }
+
+// Serve report HTML (latest or template) via dashboard endpoint.
+if (isset($_GET['report'])) {
+    $type = (string)$_GET['report'];
+    $reportMap = [
+        'latest' => $projectRoot . '/.bgl_core/logs/latest_report.html',
+        'template' => $projectRoot . '/.bgl_core/brain/report_template.html',
+    ];
+    if (isset($reportMap[$type]) && file_exists($reportMap[$type])) {
+        header('Content-Type: text/html; charset=utf-8');
+        readfile($reportMap[$type]);
+        exit;
+    }
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Report not available.";
+    exit;
+}
+
+// Serve proposal diff (sandbox) if available.
+if (isset($_GET['diff'])) {
+    $pid = preg_replace('/[^0-9]/', '', (string)$_GET['diff']);
+    $diffPath = $projectRoot . '/.bgl_core/logs/proposal_' . $pid . '_sandbox.diff';
+    if ($pid !== '' && file_exists($diffPath)) {
+        header('Content-Type: text/plain; charset=utf-8');
+        readfile($diffPath);
+        exit;
+    }
+    header('Content-Type: text/plain; charset=utf-8');
+    echo "Diff not available.";
+    exit;
+}
+
 /**
  * Handle Blocker Resolution via POST
  */
@@ -340,6 +391,43 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     bgl_respond(['ok' => true, 'message' => 'تم حفظ الإعدادات.'], "agent-dashboard.php?flags_saved=1");
 }
 
+// Add a manual autonomy goal (operator directive)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'add_goal') {
+    $goal = trim((string)($_POST['goal'] ?? 'operator_goal'));
+    $message = trim((string)($_POST['goal_message'] ?? ''));
+    $uri = trim((string)($_POST['goal_uri'] ?? ''));
+    $expiresHours = (int)($_POST['expires_hours'] ?? 24);
+    if ($goal === '') $goal = 'operator_goal';
+
+    $payload = [];
+    if ($uri !== '') $payload['uri'] = $uri;
+    if ($message !== '') $payload['message'] = $message;
+    if (empty($payload)) {
+        $payload['message'] = 'Operator goal';
+    }
+    $expiresAt = $expiresHours > 0 ? (time() + ($expiresHours * 3600)) : null;
+    $dbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
+    if (!file_exists($dbPath)) {
+        bgl_respond(['ok' => false, 'message' => 'قاعدة المعرفة غير متوفرة.']);
+    }
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $lite->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $lite->exec("CREATE TABLE IF NOT EXISTS autonomy_goals (id INTEGER PRIMARY KEY AUTOINCREMENT, goal TEXT, payload TEXT, source TEXT, created_at REAL, expires_at REAL)");
+        $stmt = $lite->prepare("INSERT INTO autonomy_goals (goal, payload, source, created_at, expires_at) VALUES (?, ?, ?, ?, ?)");
+        $stmt->execute([
+            $goal,
+            json_encode($payload, JSON_UNESCAPED_UNICODE),
+            'operator',
+            time(),
+            $expiresAt,
+        ]);
+        bgl_respond(['ok' => true, 'message' => 'تم إضافة هدف موجّه للوكيل.'], "agent-dashboard.php?goal_added=1");
+    } catch (\Exception $e) {
+        bgl_respond(['ok' => false, 'message' => 'تعذر حفظ الهدف.']);
+    }
+}
+
 // Warm up local LLM and write status snapshot
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'warm_llm') {
     $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/llm_status.py") . " --warm";
@@ -400,6 +488,69 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
     bgl_respond(['ok' => true, 'message' => 'تم تشغيل فحص عقود الـ API.'], "agent-dashboard.php?api_contract_started=1");
 }
 
+// Run Python tests (smoke, full, or custom) and PHPUnit
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['run_pytest_smoke', 'run_pytest_full', 'run_pytest_custom', 'run_phpunit', 'run_ci'])) {
+    $logDir = $projectRoot . '/storage/logs';
+    if (!is_dir($logDir)) {
+        @mkdir($logDir, 0777, true);
+    }
+    $action = (string)$_POST['action'];
+    $logPath = $logDir . '/dashboard_' . $action . '.log';
+    $cmd = '';
+
+    if ($action === 'run_pytest_smoke') {
+        $cmd = "{$pythonEsc} -m pytest tests/test_llm_tools.py tests/test_logic_bridge_contract.py";
+    } elseif ($action === 'run_pytest_full') {
+        $cmd = "{$pythonEsc} -m pytest";
+    } elseif ($action === 'run_pytest_custom') {
+        $selected = $_POST['pytest_files'] ?? [];
+        $selected = is_array($selected) ? $selected : [];
+        $testsRoot = realpath($projectRoot . '/tests');
+        $safeFiles = [];
+        foreach ($selected as $f) {
+            $f = trim((string)$f);
+            if ($f === '') continue;
+            $candidate = realpath($projectRoot . '/' . ltrim($f, '/\\'));
+            if ($candidate && $testsRoot && str_starts_with($candidate, $testsRoot) && file_exists($candidate)) {
+                $rel = str_replace('\\', '/', substr($candidate, strlen($projectRoot) + 1));
+                $safeFiles[] = $rel;
+            }
+        }
+        $argsRaw = trim((string)($_POST['pytest_args'] ?? ''));
+        if ($argsRaw !== '' && !preg_match('/^[A-Za-z0-9_\\.\\-\\s\\/:=]+$/', $argsRaw)) {
+            bgl_respond(['ok' => false, 'message' => 'خيارات Pytest غير صالحة.']);
+        }
+        if (empty($safeFiles)) {
+            bgl_respond(['ok' => false, 'message' => 'اختر ملف اختبار واحد على الأقل.']);
+        }
+        $fileArgs = array_map('escapeshellarg', $safeFiles);
+        $extraArgs = [];
+        if ($argsRaw !== '') {
+            foreach (preg_split('/\\s+/', $argsRaw) as $part) {
+                if ($part !== '') $extraArgs[] = escapeshellarg($part);
+            }
+        }
+        $cmd = "{$pythonEsc} -m pytest " . implode(' ', $fileArgs) . ' ' . implode(' ', $extraArgs);
+    } elseif ($action === 'run_phpunit') {
+        $phpunit = $projectRoot . '/vendor/bin/phpunit';
+        if (file_exists($phpunit . '.bat')) {
+            $phpunit = $phpunit . '.bat';
+        }
+        $cmd = escapeshellarg($phpunit);
+    } elseif ($action === 'run_ci') {
+        $ciPath = $projectRoot . '/run_ci.ps1';
+        $cmd = 'powershell -NoProfile -ExecutionPolicy Bypass -File ' . escapeshellarg($ciPath);
+    }
+
+    if ($cmd !== '') {
+        $cmdLogged = $cmd . ' > ' . escapeshellarg($logPath) . ' 2>&1';
+        bgl_start_bg($cmdLogged);
+        bgl_record_dashboard_run($projectRoot, $action, $cmd, $logPath);
+        bgl_respond(['ok' => true, 'message' => 'تم إطلاق الاختبار في الخلفية.'], "agent-dashboard.php?test_started=" . urlencode($action));
+    }
+    bgl_respond(['ok' => false, 'message' => 'تعذر تشغيل الاختبار.']);
+}
+
 // Restart browser: clear status file; a new launch will recreate it.
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'restart_browser') {
     $statusPath = $projectRoot . '/.bgl_core/logs/browser_reports/browser_status.json';
@@ -438,9 +589,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
     $pid = $_POST['proposal_id'] ?? '';
     $isForce = $_POST['action'] === 'force_apply';
     $flag = $isForce ? '--force' : '';
+    $planArg = '';
+    if (!empty($_POST['plan_path'])) {
+        $absPlan = bgl_normalize_plan_path($projectRoot, (string)$_POST['plan_path']);
+        if ($absPlan && file_exists($absPlan)) {
+            $relPlan = bgl_relative_path($projectRoot, $absPlan);
+            $planArg = ' --plan ' . escapeshellarg($relPlan);
+        }
+    }
     
     if ($pid) {
-        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/apply_proposal.py") . " --proposal {$pid} {$flag}";
+        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/apply_proposal.py") . " --proposal {$pid} {$flag}{$planArg}";
         bgl_start_bg($cmd);
         $msg = $isForce ? "proposal_forced=" . urlencode($pid) : "proposal_started=" . urlencode($pid);
         bgl_respond(
@@ -448,6 +607,128 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
             "agent-dashboard.php?" . $msg
         );
     }
+}
+
+// Generate a patch plan for a proposal (LLM-assisted)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generate_plan') {
+    $pid = trim((string)($_POST['proposal_id'] ?? ''));
+    if ($pid === '') {
+        bgl_respond(['ok' => false, 'message' => 'معرّف الاقتراح غير صالح.']);
+    }
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/generate_patch_plan.py") . " --proposal " . escapeshellarg($pid);
+    exec($cmd, $output, $return_var);
+    if ($return_var === 0) {
+        bgl_respond(['ok' => true, 'message' => 'تم توليد خطة للـ اقتراح.', 'reload' => true], "agent-dashboard.php?plan_generated=" . urlencode($pid));
+    }
+    bgl_respond(['ok' => false, 'message' => 'فشل توليد الخطة.']);
+}
+
+// Upload a patch plan and optionally attach it to a proposal
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_plan') {
+    $pid = trim((string)($_POST['proposal_id'] ?? ''));
+    if (!isset($_FILES['plan_file'])) {
+        bgl_respond(['ok' => false, 'message' => 'لم يتم اختيار ملف الخطة.']);
+    }
+    $file = $_FILES['plan_file'];
+    if (($file['error'] ?? UPLOAD_ERR_OK) !== UPLOAD_ERR_OK) {
+        bgl_respond(['ok' => false, 'message' => 'فشل رفع ملف الخطة.']);
+    }
+    $orig = (string)($file['name'] ?? '');
+    $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
+    if (!in_array($ext, ['json', 'yml', 'yaml'], true)) {
+        bgl_respond(['ok' => false, 'message' => 'صيغة الخطة غير مدعومة.']);
+    }
+    $planDir = bgl_patch_plan_dir($projectRoot);
+    $base = bgl_safe_plan_name(pathinfo($orig, PATHINFO_FILENAME));
+    $target = $planDir . '/' . $base . '.' . $ext;
+    if (file_exists($target)) {
+        $target = $planDir . '/' . $base . '_' . date('Ymd_His') . '.' . $ext;
+    }
+    if (!move_uploaded_file($file['tmp_name'], $target)) {
+        bgl_respond(['ok' => false, 'message' => 'تعذر حفظ ملف الخطة.']);
+    }
+    $rel = bgl_relative_path($projectRoot, $target);
+    if ($pid !== '' && file_exists($projectRoot . '/.bgl_core/brain/knowledge.db')) {
+        try {
+            $lite = new PDO("sqlite:" . $projectRoot . '/.bgl_core/brain/knowledge.db');
+            $stmt = $lite->prepare("UPDATE agent_proposals SET solution = ? WHERE id = ?");
+            $stmt->execute([$rel, $pid]);
+        } catch (\Exception $e) {}
+    }
+    bgl_respond(['ok' => true, 'message' => 'تم رفع الخطة وربطها بنجاح.', 'reload' => true], "agent-dashboard.php?plan_uploaded=1");
+}
+
+// Attach an existing plan to a proposal
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'attach_plan') {
+    $pid = trim((string)($_POST['proposal_id'] ?? ''));
+    $planPath = trim((string)($_POST['plan_path'] ?? ''));
+    if ($pid === '' || $planPath === '') {
+        bgl_respond(['ok' => false, 'message' => 'بيانات الخطة غير مكتملة.']);
+    }
+    $absPlan = bgl_normalize_plan_path($projectRoot, $planPath);
+    if (!$absPlan || !file_exists($absPlan)) {
+        bgl_respond(['ok' => false, 'message' => 'مسار الخطة غير صالح.']);
+    }
+    $rel = bgl_relative_path($projectRoot, $absPlan);
+    try {
+        $lite = new PDO("sqlite:" . $projectRoot . '/.bgl_core/brain/knowledge.db');
+        $stmt = $lite->prepare("UPDATE agent_proposals SET solution = ? WHERE id = ?");
+        $stmt->execute([$rel, $pid]);
+    } catch (\Exception $e) {}
+    bgl_respond(['ok' => true, 'message' => 'تم ربط الخطة بالاقتراح.', 'reload' => true], "agent-dashboard.php?plan_attached=1");
+}
+
+// Clear attached plan
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_plan') {
+    $pid = trim((string)($_POST['proposal_id'] ?? ''));
+    if ($pid === '') {
+        bgl_respond(['ok' => false, 'message' => 'بيانات الخطة غير مكتملة.']);
+    }
+    try {
+        $lite = new PDO("sqlite:" . $projectRoot . '/.bgl_core/brain/knowledge.db');
+        $stmt = $lite->prepare("UPDATE agent_proposals SET solution = '' WHERE id = ?");
+        $stmt->execute([$pid]);
+    } catch (\Exception $e) {}
+    bgl_respond(['ok' => true, 'message' => 'تم إزالة الخطة من الاقتراح.', 'reload' => true], "agent-dashboard.php?plan_cleared=1");
+}
+
+// Apply a patch plan directly (creates proposal if needed)
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['apply_plan', 'force_plan'])) {
+    $planPath = trim((string)($_POST['plan_path'] ?? ''));
+    $pid = trim((string)($_POST['proposal_id'] ?? ''));
+    $isForce = $_POST['action'] === 'force_plan';
+    if ($planPath === '') {
+        bgl_respond(['ok' => false, 'message' => 'مسار الخطة غير محدد.']);
+    }
+    $absPlan = bgl_normalize_plan_path($projectRoot, $planPath);
+    if (!$absPlan || !file_exists($absPlan)) {
+        bgl_respond(['ok' => false, 'message' => 'مسار الخطة غير صالح.']);
+    }
+    $rel = bgl_relative_path($projectRoot, $absPlan);
+    if ($pid === '' && file_exists($projectRoot . '/.bgl_core/brain/knowledge.db')) {
+        try {
+            $lite = new PDO("sqlite:" . $projectRoot . '/.bgl_core/brain/knowledge.db');
+            $name = 'خطة كتابة: ' . basename($rel) . ' #' . date('His');
+            $desc = 'اقتراح تلقائي لتطبيق خطة كتابة.';
+            $ins = $lite->prepare("INSERT INTO agent_proposals (name, description, action, count, evidence, impact, solution, expectation) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
+            $ins->execute([$name, $desc, 'apply_plan', 1, '', 'medium', $rel, '']);
+            $pid = (string)($lite->lastInsertId() ?: '');
+        } catch (\Exception $e) {}
+    } elseif ($pid !== '') {
+        try {
+            $lite = new PDO("sqlite:" . $projectRoot . '/.bgl_core/brain/knowledge.db');
+            $stmt = $lite->prepare("UPDATE agent_proposals SET solution = ? WHERE id = ?");
+            $stmt->execute([$rel, $pid]);
+        } catch (\Exception $e) {}
+    }
+    if ($pid === '') {
+        bgl_respond(['ok' => false, 'message' => 'تعذر إنشاء اقتراح للخطة.']);
+    }
+    $flag = $isForce ? '--force' : '';
+    $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/.bgl_core/brain/apply_proposal.py") . " --proposal {$pid} {$flag} --plan " . escapeshellarg($rel);
+    bgl_start_bg($cmd);
+    $msg = $isForce ? "proposal_forced=" . urlencode($pid) : "proposal_started=" . urlencode($pid);
+    bgl_respond(['ok' => true, 'message' => $isForce ? 'تم التطبيق المباشر للخطة.' : 'تم تشغيل الخطة في الساندبوكس.', 'reload' => true], "agent-dashboard.php?" . $msg);
 }
 
 // Approve auto-generated playbook (GET for simplicity)
@@ -522,6 +803,30 @@ if (isset($_GET['error'])) {
         'title' => 'تم حفظ الإعدادات',
         'message' => 'تم تحديث مفاتيح التحكم السلوكي للوكيل.'
     ];
+} elseif (isset($_GET['plan_uploaded'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم رفع الخطة',
+        'message' => 'تم حفظ خطة الكتابة وربطها بالاقتراح.'
+    ];
+} elseif (isset($_GET['plan_attached'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم ربط الخطة',
+        'message' => 'تم ربط الخطة بالاقتراح.'
+    ];
+} elseif (isset($_GET['plan_cleared'])) {
+    $feedback = [
+        'type' => 'info',
+        'title' => 'تم إزالة الخطة',
+        'message' => 'تم إزالة الخطة من الاقتراح.'
+    ];
+} elseif (isset($_GET['plan_generated'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تم توليد الخطة',
+        'message' => 'تم توليد خطة كتابة لهذا الاقتراح.'
+    ];
 } elseif (isset($_GET['llm_warm_started'])) {
     $feedback = [
         'type' => 'info',
@@ -551,6 +856,18 @@ if (isset($_GET['error'])) {
         'type' => 'success',
         'title' => 'تم التطبيق المباشر (Production)',
         'message' => '⚠️ تم تنفيذ التعديلات على النظام الحي (Forced Apply).'
+    ];
+} elseif (isset($_GET['goal_added'])) {
+    $feedback = [
+        'type' => 'success',
+        'title' => 'تمت إضافة الهدف',
+        'message' => 'سيظهر الهدف ضمن قائمة الأهداف الحالية.'
+    ];
+} elseif (isset($_GET['test_started'])) {
+    $feedback = [
+        'type' => 'info',
+        'title' => 'تم إطلاق الاختبار',
+        'message' => 'تم تشغيل الاختبار في الخلفية. راجع سجل الاختبارات لنتيجة التنفيذ.'
     ];
 }
 
@@ -679,6 +996,130 @@ function bgl_write_json(string $path, array $data): bool {
     }
     $payload = json_encode($data, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
     return file_put_contents($path, $payload) !== false;
+}
+
+function bgl_patch_plan_dir(string $projectRoot): string {
+    $dir = $projectRoot . '/.bgl_core/patch_plans';
+    if (!is_dir($dir)) {
+        @mkdir($dir, 0777, true);
+    }
+    return $dir;
+}
+
+function bgl_relative_path(string $projectRoot, string $absPath): string {
+    $projectRoot = rtrim(str_replace('\\', '/', $projectRoot), '/');
+    $abs = str_replace('\\', '/', $absPath);
+    if (str_starts_with($abs, $projectRoot . '/')) {
+        return substr($abs, strlen($projectRoot) + 1);
+    }
+    return $abs;
+}
+
+function bgl_safe_plan_name(string $name): string {
+    $name = trim($name);
+    $name = preg_replace('/[^A-Za-z0-9_\\-\\.]+/', '_', $name);
+    $name = trim($name, '._-');
+    return $name !== '' ? $name : 'plan';
+}
+
+function bgl_normalize_plan_path(string $projectRoot, string $path, bool $mustExist = true): ?string {
+    $base = realpath(bgl_patch_plan_dir($projectRoot));
+    if (!$base) return null;
+    $path = str_replace('\\', '/', trim($path));
+    if ($path === '') return null;
+    if (str_contains($path, '..')) return null;
+    $candidate = $path;
+    if (!preg_match('/^[A-Za-z]:\\//', $candidate) && !str_starts_with($candidate, '/')) {
+        $candidate = $base . '/' . ltrim($candidate, '/');
+    }
+    $candidate = str_replace('\\', '/', $candidate);
+    $real = $mustExist ? realpath($candidate) : $candidate;
+    if ($real === false) return null;
+    $real = str_replace('\\', '/', $real);
+    if (!str_starts_with($real, str_replace('\\', '/', $base))) return null;
+    return $real;
+}
+
+function bgl_list_patch_plans(string $projectRoot): array {
+    $dir = bgl_patch_plan_dir($projectRoot);
+    if (!is_dir($dir)) return [];
+    $plans = [];
+    $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS));
+    foreach ($rii as $file) {
+        if (!$file->isFile()) continue;
+        $ext = strtolower($file->getExtension());
+        if (!in_array($ext, ['json','yml','yaml'], true)) continue;
+        $abs = $file->getPathname();
+        $plans[] = [
+            'path' => bgl_relative_path($projectRoot, $abs),
+            'name' => $file->getBasename(),
+            'mtime' => $file->getMTime(),
+            'size' => $file->getSize(),
+        ];
+    }
+    usort($plans, fn($a, $b) => ($b['mtime'] ?? 0) <=> ($a['mtime'] ?? 0));
+    return $plans;
+}
+
+function bgl_detect_plan_path(string $projectRoot, string $value): ?string {
+    $value = trim($value);
+    if ($value === '') return null;
+    // direct path
+    if (preg_match('/\\.(json|ya?ml)$/i', $value)) {
+        $abs = bgl_normalize_plan_path($projectRoot, $value);
+        if ($abs && file_exists($abs)) return bgl_relative_path($projectRoot, $abs);
+    }
+    // embedded json
+    $payload = json_decode($value, true);
+    if (is_array($payload)) {
+        foreach (['plan','patch_plan','write_plan'] as $k) {
+            $cand = $payload[$k] ?? null;
+            if (is_string($cand) && preg_match('/\\.(json|ya?ml)$/i', $cand)) {
+                $abs = bgl_normalize_plan_path($projectRoot, $cand);
+                if ($abs && file_exists($abs)) return bgl_relative_path($projectRoot, $abs);
+            }
+        }
+    }
+    return null;
+}
+
+function bgl_tail_file(string $path, int $lines = 120, int $maxBytes = 120000): string {
+    if (!file_exists($path)) return '';
+    $size = filesize($path);
+    if ($size === false || $size <= 0) return '';
+    $readBytes = min($size, max(1024, $maxBytes));
+    $fp = @fopen($path, 'rb');
+    if (!$fp) return '';
+    $offset = $size - $readBytes;
+    if ($offset < 0) $offset = 0;
+    fseek($fp, $offset);
+    $data = fread($fp, $readBytes);
+    fclose($fp);
+    if ($data === false) return '';
+    if ($offset > 0) {
+        $pos = strpos($data, "\n");
+        if ($pos !== false) {
+            $data = substr($data, $pos + 1);
+        }
+    }
+    $rows = preg_split("/\r\n|\n/", (string)$data);
+    $rows = array_slice($rows, -$lines);
+    return implode("\n", $rows);
+}
+
+function bgl_read_diff_snippet(string $path, int $lines = 160): string {
+    return bgl_tail_file($path, $lines, 200000);
+}
+
+function bgl_record_dashboard_run(string $projectRoot, string $key, string $command, string $logPath): void {
+    $runsPath = $projectRoot . '/storage/logs/dashboard_runs.json';
+    $runs = bgl_read_json($runsPath);
+    $runs[$key] = [
+        'timestamp' => time(),
+        'command' => $command,
+        'log' => $logPath,
+    ];
+    bgl_write_json($runsPath, $runs);
 }
 
 function bgl_deep_merge(array $base, array $override): array {
@@ -1051,12 +1492,16 @@ class PremiumDashboard
                             FROM outcomes o 
                             JOIN decisions d ON o.decision_id = d.id 
                             JOIN intents i ON d.intent_id = i.id 
-                            WHERE i.intent LIKE 'apply_%'
+                            WHERE i.intent LIKE 'apply_%' OR i.intent LIKE 'proposal.apply|%'
                             ORDER BY o.id DESC"; // Latest first
                     $history = $dec->query($sql)->fetchAll(PDO::FETCH_ASSOC);
                     
                     foreach ($history as $h) {
                         $pid = str_replace('apply_', '', $h['intent']);
+                        if (str_starts_with($h['intent'], 'proposal.apply|')) {
+                            $parts = explode('|', $h['intent']);
+                            $pid = $parts[1] ?? $pid;
+                        }
                         if (!isset($statuses[$pid])) {
                             $statuses[$pid] = [
                                 'result' => $h['result'],
@@ -1072,6 +1517,17 @@ class PremiumDashboard
                 $stat = $statuses[$r['id']] ?? [];
                 $r['status'] = $stat['result'] ?? null;
                 $r['status_note'] = $stat['notes'] ?? null;
+                $planPath = null;
+                foreach (['solution','expectation','action','evidence'] as $field) {
+                    if (!isset($r[$field])) continue;
+                    $cand = bgl_detect_plan_path($this->projectPath, (string)$r[$field]);
+                    if ($cand) {
+                        $planPath = $cand;
+                        break;
+                    }
+                }
+                $r['plan_path'] = $planPath;
+                $r['plan_exists'] = $planPath ? file_exists($this->projectPath . '/' . $planPath) : false;
                 $proposals[] = $r;
             }
         } catch (\Exception $e) {
@@ -1159,8 +1615,14 @@ class PremiumDashboard
                     $msg = $r['intent'];
                     $status = 'success';
                     
+                    $pid = '';
                     if (str_starts_with($r['intent'], 'apply_')) {
                         $pid = substr($r['intent'], 6);
+                    } elseif (str_starts_with($r['intent'], 'proposal.apply|')) {
+                        $parts = explode('|', $r['intent']);
+                        $pid = $parts[1] ?? '';
+                    }
+                    if (!empty($pid)) {
                         if ($r['result'] === 'success_direct') {
                             $msg = "تم التطبيق المباشر للاقتراح #$pid";
                             $status = 'warning';
@@ -1238,7 +1700,7 @@ class PremiumDashboard
                 if (isset($seen[$hash])) continue;
                 $seen[$hash] = true;
                 $act = $actions[$hash] ?? null;
-                if (in_array($act, ['ignored', 'accepted', 'rejected', 'promoted'], true)) {
+                if (in_array($act, ['ignored', 'accepted', 'rejected', 'promoted', 'auto_promoted'], true)) {
                     continue;
                 }
                 $r['exp_hash'] = $hash;
@@ -1574,6 +2036,7 @@ $stats = $dash->getAgentStats();
 $laws = $dash->getActiveLaws();
 $blockers = $dash->getBlockers();
 $proposals = $dash->getProposals();
+$patchPlans = bgl_list_patch_plans($projectRoot);
 $permissions = $dash->getPermissions();
 $activities = $dash->getRecentActivity();
 $experienceStats = $dash->getExperienceStats();
@@ -1593,6 +2056,21 @@ $permissionIssues = $dash->getPermissionIssues();
 $worstRoutes = $dash->getWorstRoutes();
 $recentIntents = $dash->getRecentIntents();
 $recentDecisions = $dash->getRecentDecisions();
+$recentOutcomes = [];
+$decisionDbPath = $projectRoot . '/.bgl_core/brain/decision.db';
+if (file_exists($decisionDbPath)) {
+    try {
+        $dec = new PDO("sqlite:" . $decisionDbPath);
+        $sql = "SELECT o.result, o.notes, o.timestamp, i.intent, d.decision, d.risk_level
+                FROM outcomes o
+                JOIN decisions d ON o.decision_id = d.id
+                JOIN intents i ON d.intent_id = i.id
+                ORDER BY o.id DESC LIMIT 10";
+        $recentOutcomes = $dec->query($sql)->fetchAll(PDO::FETCH_ASSOC);
+    } catch (\Exception $e) {
+        $recentOutcomes = [];
+    }
+}
 $pendingPlaybooks = glob($projectRoot . '/.bgl_core/brain/playbooks_proposed/*.md');
 $pendingPlaybooks = $pendingPlaybooks ? count($pendingPlaybooks) : 0;
 $externalChecks = [];
@@ -1612,12 +2090,61 @@ $directAttempts = 0;
 $successRate = null;
 $proposedPatterns = [];
 $cfg = [];
+$dashboardRuns = bgl_read_json($projectRoot . '/storage/logs/dashboard_runs.json');
+$dashboardTestLogs = [
+    'run_pytest_smoke' => bgl_tail_file($projectRoot . '/storage/logs/dashboard_run_pytest_smoke.log'),
+    'run_pytest_full' => bgl_tail_file($projectRoot . '/storage/logs/dashboard_run_pytest_full.log'),
+    'run_pytest_custom' => bgl_tail_file($projectRoot . '/storage/logs/dashboard_run_pytest_custom.log'),
+    'run_phpunit' => bgl_tail_file($projectRoot . '/storage/logs/dashboard_run_phpunit.log'),
+    'run_ci' => bgl_tail_file($projectRoot . '/storage/logs/dashboard_run_ci.log'),
+];
+$proposalChangeMap = [];
+$proposalChangePath = $projectRoot . '/.bgl_core/logs/proposal_changes.jsonl';
+if (file_exists($proposalChangePath)) {
+    $lines = file($proposalChangePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if ($lines) {
+        $lines = array_slice($lines, -200);
+        foreach ($lines as $line) {
+            $entry = json_decode($line, true);
+            if (!is_array($entry)) continue;
+            $pid = $entry['id'] ?? null;
+            if ($pid === null || $pid === '') continue;
+            $proposalChangeMap[(string)$pid] = $entry;
+        }
+    }
+}
+$pytestFiles = [];
+$testsRoot = $projectRoot . '/tests';
+if (is_dir($testsRoot)) {
+    $rii = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($testsRoot, FilesystemIterator::SKIP_DOTS));
+    foreach ($rii as $file) {
+        if (!$file->isFile()) continue;
+        $name = $file->getFilename();
+        if (!preg_match('/^test_.*\\.py$/i', $name)) continue;
+        $rel = str_replace('\\', '/', substr($file->getPathname(), strlen($projectRoot) + 1));
+        $pytestFiles[] = $rel;
+        if (count($pytestFiles) >= 120) break;
+    }
+    sort($pytestFiles);
+}
 if (file_exists($configPath)) {
     $parsed = bgl_yaml_parse($configPath);
     $cfg = is_array($parsed) ? $parsed : [];
 }
 $agentFlags = bgl_read_json($flagsPath);
 $effectiveCfg = bgl_deep_merge($cfg, $agentFlags);
+$effectiveSources = [];
+try {
+    $flatCfg = bgl_flatten($cfg);
+    $flatFlags = bgl_flatten($agentFlags);
+    foreach (array_keys($flatCfg + $flatFlags) as $k) {
+        if (array_key_exists($k, $flatFlags)) {
+            $effectiveSources[$k] = 'flags';
+        } elseif (array_key_exists($k, $flatCfg)) {
+            $effectiveSources[$k] = 'config';
+        }
+    }
+} catch (\Exception $e) {}
 $llmCfg = is_array($effectiveCfg['llm'] ?? null) ? $effectiveCfg['llm'] : [];
 $llmCfgModel = (string)($llmCfg['model'] ?? ($effectiveCfg['llm_model'] ?? 'llama3.1:latest'));
 $llmCfgBase = (string)($llmCfg['base_url'] ?? ($effectiveCfg['llm_base_url'] ?? ''));

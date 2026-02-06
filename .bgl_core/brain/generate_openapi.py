@@ -1,4 +1,5 @@
 import json
+import time
 from pathlib import Path
 import yaml  # type: ignore
 
@@ -32,7 +33,16 @@ def generate(root: Path) -> Path:
                     "responses": {"200": {"description": "OK"}},
                 }
         conn.close()
-    spec = {"openapi": "3.0.0", "info": {"title": "BGL3 API (Generated)", "version": "0.1"}, "paths": paths}
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    spec = {
+        "openapi": "3.0.0",
+        "info": {
+            "title": "BGL3 API (Generated)",
+            "version": "0.1",
+            "x-bgl-generated-at": stamp,
+        },
+        "paths": paths,
+    }
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text(yaml.safe_dump(spec, sort_keys=False, allow_unicode=True), encoding="utf-8")
 
@@ -43,6 +53,8 @@ def generate(root: Path) -> Path:
             base = yaml.safe_load(manual.read_text(encoding="utf-8")) or base
         except Exception:
             pass
+    base.setdefault("info", {})
+    base["info"].setdefault("x-bgl-merged-at", stamp)
     merged_paths = spec["paths"]
     merged_paths.update(base.get("paths", {}))
     base["paths"] = merged_paths

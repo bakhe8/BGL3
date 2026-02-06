@@ -15,7 +15,6 @@ The system manages **Letter of Guarantees** (BGs) issued by banks to beneficiari
 
 - **NO Financial Payments**: "Batches" (الدفعات) refers to batches of documents, NOT money transfers.
 - **NO Loans/Credit Cards**: This is a documentation system, not a retail banking app.
-- **NO IBAN/SWIFT**: Transactional banking data is out of scope.
 
 ---
 

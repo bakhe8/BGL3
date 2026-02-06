@@ -250,6 +250,12 @@
     "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php",
     "dependencies": [
       {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
+      {
         "name": "GuaranteeRepository",
         "layer": "repo",
         "type": "instantiation",
@@ -1993,6 +1999,12 @@
     "action": "query",
     "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php",
     "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
       {
         "name": "GuaranteeRepository",
         "layer": "repo",
@@ -3723,6 +3735,12 @@
     "action": "query",
     "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php",
     "dependencies": [
+      {
+        "name": "Database",
+        "layer": "other",
+        "type": "static_call",
+        "method": "connect"
+      },
       {
         "name": "GuaranteeRepository",
         "layer": "repo",

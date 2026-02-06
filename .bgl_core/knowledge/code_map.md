@@ -362,7 +362,7 @@ Generated on demand to ensure 100% visibility.
 ### `app\Support\Validation.php`
 
 - **Classes**: Validation
-- **Functions**: validateBank, isValidIban
+- **Functions**: validateBank
 
 ### `app\Services\Learning\AuthorityFactory.php`
 
@@ -1425,7 +1425,7 @@ Generated on demand to ensure 100% visibility.
 
 ### `.bgl_core\knowledge\auto_insights\DataValidationTest.php.insight.md`
 
-- **Functions**: testBankCreationValidation, testIbanAndEmailValidation
+- **Functions**: testBankCreationValidation, testEmailAndPhoneValidation
 
 ### `.bgl_core\knowledge\auto_insights\DateTime.php.insight.md`
 
@@ -2575,7 +2575,7 @@ Generated on demand to ensure 100% visibility.
 ### `tests\Gap\DataValidationTest.php`
 
 - **Classes**: DataValidationTest
-- **Functions**: testIbanValidation
+- **Functions**: testEmailAndPhoneValidation
 
 ### `tests\Gap\GuaranteeFlowValidationTest.php`
 

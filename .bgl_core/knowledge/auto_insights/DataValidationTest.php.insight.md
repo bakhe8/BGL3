@@ -15,12 +15,12 @@
 # Analysis of DataValidationTest
 
 ## 1. Purpose Summary
-The `DataValidationTest` is a PHPUnit gap test that validates the data validation functionality in the BGL3 system, specifically testing IBAN and email validation during bank creation. It serves as a safety check to ensure that invalid data formats are properly rejected by the system's API endpoints.
+The `DataValidationTest` is a PHPUnit gap test that validates the data validation functionality in the BGL3 system, specifically testing email and phone validation during bank creation. It serves as a safety check to ensure that invalid data formats are properly rejected by the system's API endpoints.
 
 ## 2. Business Logic (Document Issuance Context)
 While this test doesn't directly handle bank guarantee lifecycle operations (Issue, Extend, Release), it supports the core BGL3 workflows by:
 
-- **Data Integrity**: Ensures that bank entities created in the system have valid IBAN and email formats
+- **Data Integrity**: Ensures that bank entities created in the system have valid email and phone formats
 - **API Validation**: Tests the validation layer that protects the guarantee issuance system from malformed data
 - **Error Handling**: Validates that the system properly rejects invalid input with appropriate HTTP status codes
 
@@ -37,13 +37,12 @@ While this test doesn't directly handle bank guarantee lifecycle operations (Iss
 - No authentication/authorization testing
 
 **Business Logic Gaps:**
-- Test only validates IBAN/email but doesn't test critical bank fields required for guarantee issuance
+- Test only validates email/phone but doesn't test critical bank fields required for guarantee issuance
 - Missing tests for supplier validation which is equally important for the guarantee workflow
 - No verification that the error response contains meaningful validation messages
 
 **Hardcoded Values:**
-- Test bank name hardcoded as 'Invalid IBAN Bank'
-- Invalid IBAN hardcoded as 'INVALID_IBAN'
+- Test bank name hardcoded as 'Invalid Contact Bank'
 - Invalid email hardcoded as 'not-an-email'
 - Timeout hardcoded as 5 seconds
 
@@ -85,7 +84,7 @@ public function testBankCreationValidation(): void
         "Should return 400/422 when required fields are missing. Code: $code");
 }
 
-public function testIbanAndEmailValidation(): void
+public function testEmailAndPhoneValidation(): void
 {
     $base = getenv('BGL_BASE_URL') ?: 'http://localhost:8000';
     $url = rtrim($base, '/') . '/api/create-bank.php';
@@ -94,8 +93,8 @@ public function testIbanAndEmailValidation(): void
         'arabic_name' => 'بنك اختبار',
         'english_name' => 'Test Bank',
         'short_name' => 'TB',
-        'iban' => 'INVALID_IBAN',
-        'contact_email' => 'not-an-email'
+        'contact_email' => 'not-an-email',
+        'phone' => 'bad-phone'
     ]);
 
     $ch = curl_init($url);
@@ -117,11 +116,11 @@ public function testIbanAndEmailValidation(): void
     curl_close($ch);
 
     $this->assertContains($code, [400, 422], 
-        "Should return 400/422 for invalid IBAN/email. Code: $code");
+        "Should return 400/422 for invalid email/phone. Code: $code");
     
     // Verify response contains meaningful error messages
-    $this->assertStringContainsString('IBAN', $body, 
-        "Error response should mention IBAN validation");
+    $this->assertStringContainsString('phone', $body, 
+        "Error response should mention phone validation");
     $this->assertStringContainsString('email', $body, 
         "Error response should mention email validation");
 }
@@ -129,7 +128,7 @@ public function testIbanAndEmailValidation(): void
 
 This would provide:
 - Domain-specific validation aligned with BGL3's actual bank creation requirements
-- Testing of required field validation beyond just IBAN/email
+- Testing of required field validation beyond just email/phone
 - Verification of error message content for better user experience
 - Better timeout handling for slower environments
 - More comprehensive coverage of BGL3's validation rules

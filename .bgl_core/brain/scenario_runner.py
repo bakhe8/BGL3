@@ -37,6 +37,24 @@ try:
 except Exception:  # pragma: no cover
     install_mouse_helper = None  # type: ignore
 
+try:
+    from .behavior_learning import (
+        record_behavior_hint,
+        get_behavior_hints,
+        mark_hint_result,
+    )  # type: ignore
+except Exception:
+    try:
+        from behavior_learning import (
+            record_behavior_hint,
+            get_behavior_hints,
+            mark_hint_result,
+        )  # type: ignore
+    except Exception:
+        record_behavior_hint = None  # type: ignore
+        get_behavior_hints = None  # type: ignore
+        mark_hint_result = None  # type: ignore
+
 # تأكد من إمكانية استيراد الطبقات الداخلية عند التشغيل كسكربت
 sys.path.append(str(Path(__file__).parent))
 from hand_profile import HandProfile  # type: ignore
@@ -58,6 +76,22 @@ ROOT_DIR = Path(__file__).resolve().parents[2]
 # Defaults for human-like pacing (can be overridden via env)
 DEFAULT_POST_WAIT_MS = int(os.getenv("BGL_POST_WAIT_MS", "400"))
 DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
+
+# Active run identifier to tag runtime_events for attribution.
+_CURRENT_RUN_ID = ""
+
+
+def _decorate_session(session: str) -> str:
+    global _CURRENT_RUN_ID
+    rid = str(_CURRENT_RUN_ID or "")
+    raw = str(session or "").strip()
+    if not rid:
+        return raw
+    if not raw:
+        return rid
+    if raw.startswith(rid):
+        return raw
+    return f"{rid}|{raw}"
 
 
 async def ensure_cursor(page):
@@ -203,6 +237,29 @@ async def exploratory_action(
                                 "status": None,
                             },
                         )
+                        # Persist hint for future sessions (press Enter / click search button).
+                        try:
+                            if record_behavior_hint:
+                                record_behavior_hint(
+                                    db_path,
+                                    page_url=page.url if hasattr(page, "url") else "",
+                                    action="type",
+                                    selector="input[type='search']",
+                                    hint="press_enter",
+                                    confidence=0.55,
+                                    notes="search_no_change",
+                                )
+                                record_behavior_hint(
+                                    db_path,
+                                    page_url=page.url if hasattr(page, "url") else "",
+                                    action="type",
+                                    selector="input[type='search']",
+                                    hint="click_search_button",
+                                    confidence=0.5,
+                                    notes="search_no_change",
+                                )
+                        except Exception:
+                            pass
                     _record_exploration_outcome(
                         db_path,
                         selector="input[type='search']",
@@ -280,6 +337,13 @@ async def run_step(
     action = step.get("action")
     is_interactive = action in ("click", "type", "press")
     before_hash = ""
+    page_url = ""
+    try:
+        page_url = page.url if hasattr(page, "url") else ""
+    except Exception:
+        page_url = ""
+    used_hint_ids: List[int] = []
+    extra_wait_ms = 0
     if is_interactive and step.get("track_outcome", True):
         before_hash = await _dom_state_hash(page)
     if action == "goto":
@@ -303,6 +367,53 @@ async def run_step(
     elif action == "click":
         await ensure_cursor(page)
         danger = bool(step.get("danger", False))
+        # Apply learned hint: wait longer after click
+        try:
+            if get_behavior_hints and page_url:
+                hints = get_behavior_hints(
+                    db_path,
+                    page_url=page_url,
+                    action="click",
+                    selector=str(step.get("selector", "")),
+                    limit=3,
+                )
+                for h in hints:
+                    if str(h.get("hint") or "").lower() == "wait_longer":
+                        extra_wait_ms = max(extra_wait_ms, 700)
+                        used_hint_ids.append(int(h.get("id") or 0))
+                        break
+        except Exception:
+            pass
+        if danger:
+            try:
+                auth = authority or Authority(ROOT_DIR)
+                gate = auth.gate(
+                    ActionRequest(
+                        kind=ActionKind.WRITE_PROD,
+                        operation="scenario.ui_click",
+                        command=f"click {step.get('selector','')}",
+                        scope=[str(step.get("selector", ""))],
+                        reason=f"UI click marked dangerous ({scenario_name})",
+                        confidence=0.6,
+                        metadata={"scenario": scenario_name, "step": step},
+                    ),
+                    source="scenario_runner",
+                )
+                if not gate.allowed:
+                    log_event(
+                        db_path,
+                        step.get("session", ""),
+                        {
+                            "event_type": "ui_click_skipped",
+                            "route": step.get("selector", ""),
+                            "method": "CLICK",
+                            "payload": gate.message or "blocked by authority gate",
+                            "status": None,
+                        },
+                    )
+                    return
+            except Exception:
+                pass
         try:
             await policy.perform_click(
                 page,
@@ -316,6 +427,8 @@ async def run_step(
                 log_event_fn=log_event,
                 db_path=db_path,
             )
+            if extra_wait_ms:
+                await page.wait_for_timeout(int(extra_wait_ms))
         except Exception:
             if not step.get("optional"):
                 raise
@@ -345,6 +458,36 @@ async def run_step(
                 },
             )
             return
+        # Gate upload via Authority
+        try:
+            auth = authority or Authority(ROOT_DIR)
+            gate = auth.gate(
+                ActionRequest(
+                    kind=ActionKind.WRITE_PROD,
+                    operation="scenario.file_upload",
+                    command=f"upload {step.get('selector','')}",
+                    scope=[str(step.get("selector", ""))],
+                    reason=f"File upload in scenario ({scenario_name})",
+                    confidence=0.7,
+                    metadata={"scenario": scenario_name, "step": step},
+                ),
+                source="scenario_runner",
+            )
+            if not gate.allowed:
+                log_event(
+                    db_path,
+                    step.get("session", ""),
+                    {
+                        "event_type": "file_upload_skipped",
+                        "route": step.get("selector", ""),
+                        "method": "UPLOAD",
+                        "payload": gate.message or "blocked by authority gate",
+                        "status": None,
+                    },
+                )
+                return
+        except Exception:
+            pass
         selector = step["selector"]
         files = step.get("files") or step.get("file") or []
         if isinstance(files, str):
@@ -476,6 +619,26 @@ async def run_step(
                 step.get("text", ""),
                 timeout=step.get("timeout", 5000),
             )
+            # Apply learned hints (press Enter / click search button)
+            try:
+                if get_behavior_hints and page_url:
+                    hints = get_behavior_hints(
+                        db_path,
+                        page_url=page_url,
+                        action="type",
+                        selector=str(step.get("selector", "")),
+                        limit=3,
+                    )
+                    for h in hints:
+                        hint = str(h.get("hint") or "").lower()
+                        if hint == "press_enter":
+                            await page.press(step["selector"], "Enter", timeout=3000)
+                            used_hint_ids.append(int(h.get("id") or 0))
+                        elif hint == "click_search_button":
+                            if await _try_click_search_button(page):
+                                used_hint_ids.append(int(h.get("id") or 0))
+            except Exception:
+                pass
         except Exception:
             if not step.get("optional"):
                 raise
@@ -513,6 +676,47 @@ async def run_step(
                         "status": None,
                     },
                 )
+                # Record persistent behavior hints
+                try:
+                    if record_behavior_hint and page_url:
+                        selector = str(step.get("selector", ""))
+                        if action == "type" and await _is_search_input(page, selector):
+                            record_behavior_hint(
+                                db_path,
+                                page_url=page_url,
+                                action="type",
+                                selector=selector,
+                                hint="press_enter",
+                                confidence=0.6,
+                                notes="dom_no_change",
+                            )
+                            record_behavior_hint(
+                                db_path,
+                                page_url=page_url,
+                                action="type",
+                                selector=selector,
+                                hint="click_search_button",
+                                confidence=0.55,
+                                notes="dom_no_change",
+                            )
+                        elif action == "click":
+                            record_behavior_hint(
+                                db_path,
+                                page_url=page_url,
+                                action="click",
+                                selector=selector,
+                                hint="wait_longer",
+                                confidence=0.5,
+                                notes="dom_no_change",
+                            )
+                except Exception:
+                    pass
+            # Update hint success/failure
+            if used_hint_ids and mark_hint_result:
+                success = bool(before_hash and after_hash and before_hash != after_hash)
+                for hid in used_hint_ids:
+                    if hid:
+                        mark_hint_result(db_path, hid, success)
         except Exception:
             pass
 
@@ -544,7 +748,7 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     """,
         (
             event.get("timestamp", time.time()),
-            session,
+            _decorate_session(session),
             event.get("event_type"),
             event.get("route"),
             event.get("method"),
@@ -562,7 +766,7 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
 def _ensure_outcomes_tables(db: sqlite3.Connection) -> None:
     db.execute(
         """
-        CREATE TABLE IF NOT EXISTS outcomes (
+        CREATE TABLE IF NOT EXISTS exploration_outcomes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp REAL NOT NULL,
             source TEXT,
@@ -576,7 +780,7 @@ def _ensure_outcomes_tables(db: sqlite3.Connection) -> None:
     )
     db.execute(
         """
-        CREATE TABLE IF NOT EXISTS outcome_relations (
+        CREATE TABLE IF NOT EXISTS exploration_outcome_relations (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             created_at REAL NOT NULL,
             outcome_id_a INTEGER NOT NULL,
@@ -584,21 +788,21 @@ def _ensure_outcomes_tables(db: sqlite3.Connection) -> None:
             relation TEXT NOT NULL,
             score REAL NOT NULL,
             reason TEXT,
-            FOREIGN KEY(outcome_id_a) REFERENCES outcomes(id),
-            FOREIGN KEY(outcome_id_b) REFERENCES outcomes(id)
+            FOREIGN KEY(outcome_id_a) REFERENCES exploration_outcomes(id),
+            FOREIGN KEY(outcome_id_b) REFERENCES exploration_outcomes(id)
         )
         """
     )
     db.execute(
         """
-        CREATE TABLE IF NOT EXISTS outcome_scores (
+        CREATE TABLE IF NOT EXISTS exploration_outcome_scores (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             outcome_id INTEGER NOT NULL,
             created_at REAL NOT NULL,
             base_score REAL NOT NULL,
             relation_score REAL NOT NULL,
             total_score REAL NOT NULL,
-            FOREIGN KEY(outcome_id) REFERENCES outcomes(id)
+            FOREIGN KEY(outcome_id) REFERENCES exploration_outcomes(id)
         )
         """
     )
@@ -623,8 +827,16 @@ def _log_outcome(
         _ensure_outcomes_tables(db)
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
         cur = db.execute(
-            "INSERT INTO outcomes (timestamp, source, kind, value, route, payload_json, session) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (ts or time.time(), source, kind, value, route, payload_json, session),
+            "INSERT INTO exploration_outcomes (timestamp, source, kind, value, route, payload_json, session) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                ts or time.time(),
+                source,
+                kind,
+                value,
+                route,
+                payload_json,
+                _decorate_session(session),
+            ),
         )
         oid = cur.lastrowid
         db.commit()
@@ -650,7 +862,7 @@ def _log_relation(
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         db.execute(
-            "INSERT INTO outcome_relations (created_at, outcome_id_a, outcome_id_b, relation, score, reason) VALUES (?, ?, ?, ?, ?, ?)",
+            "INSERT INTO exploration_outcome_relations (created_at, outcome_id_a, outcome_id_b, relation, score, reason) VALUES (?, ?, ?, ?, ?, ?)",
             (time.time(), a_id, b_id, relation, score, reason),
         )
         db.commit()
@@ -771,6 +983,9 @@ def _last_selector_from_payload(payload: str) -> str:
             return ""
         if payload.startswith("selector:"):
             return payload.split("selector:", 1)[1].strip()
+        if payload.startswith("term:"):
+            # Map search term payloads to a generic search selector for scoring
+            return "input[type='search']"
         # try json
         obj = json.loads(payload)
         if isinstance(obj, dict):
@@ -804,14 +1019,42 @@ def _reward_exploration_from_outcomes(db_path: Path, since_ts: float) -> None:
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
-            "SELECT event_type, payload FROM runtime_events WHERE timestamp >= ? AND event_type IN ('dom_no_change','search_no_change','http_error','network_fail','api_call') ORDER BY id DESC LIMIT 200",
+            "SELECT event_type, payload, route FROM runtime_events WHERE timestamp >= ? AND event_type IN ('dom_no_change','search_no_change','http_error','network_fail','api_call') ORDER BY id DESC LIMIT 200",
             (since_ts,),
         ).fetchall()
         db.close()
-        for event_type, payload in rows:
+        for event_type, payload, route in rows:
             sel = _last_selector_from_payload(str(payload or ""))
             if event_type in ("dom_no_change", "search_no_change"):
-                _apply_exploration_reward(db_path, sel, -0.6)
+                penalty = -0.6
+                try:
+                    # Increase penalty if selector is repeatedly unproductive
+                    if sel and _novelty_score(db_path, sel) < 0.2:
+                        penalty = -1.0
+                except Exception:
+                    pass
+                _apply_exploration_reward(db_path, sel, penalty)
+                # If repeated no-change, push a gap-deepen goal
+                try:
+                    if penalty <= -1.0:
+                        term = ""
+                        if str(payload or "").startswith("term:"):
+                            term = str(payload or "").split("term:", 1)[1].strip()
+                        _write_autonomy_goal(
+                            db_path,
+                            goal="gap_deepen",
+                            payload={
+                                "uri": str(route or ""),
+                                "kind": "gap",
+                                "value": event_type,
+                                "score": float(penalty),
+                                "search_term": term,
+                            },
+                            source="stall_guard",
+                            ttl_days=5,
+                        )
+                except Exception:
+                    pass
             elif event_type in ("http_error", "network_fail"):
                 _apply_exploration_reward(db_path, sel, -0.3)
             elif event_type == "api_call":
@@ -829,7 +1072,7 @@ def _score_outcomes(db_path: Path, since_ts: float, window_sec: float = 300.0) -
         _ensure_outcomes_tables(db)
         cur = db.cursor()
         rows = cur.execute(
-            "SELECT id, timestamp, kind, value, route FROM outcomes WHERE timestamp >= ? ORDER BY id DESC LIMIT 400",
+            "SELECT id, timestamp, kind, value, route FROM exploration_outcomes WHERE timestamp >= ? ORDER BY id DESC LIMIT 400",
             (since_ts,),
         ).fetchall()
         if not rows:
@@ -905,12 +1148,12 @@ def _score_outcomes(db_path: Path, since_ts: float, window_sec: float = 300.0) -
         # Aggregate relation scores per outcome and write outcome_scores
         for oid in base_scores:
             rel_sum = cur.execute(
-                "SELECT COALESCE(SUM(score),0) FROM outcome_relations WHERE outcome_id_a=? OR outcome_id_b=?",
+                "SELECT COALESCE(SUM(score),0) FROM exploration_outcome_relations WHERE outcome_id_a=? OR outcome_id_b=?",
                 (oid, oid),
             ).fetchone()[0]
             total = float(base_scores[oid]) + float(rel_sum or 0)
             db.execute(
-                "INSERT INTO outcome_scores (outcome_id, created_at, base_score, relation_score, total_score) VALUES (?, ?, ?, ?, ?)",
+                "INSERT INTO exploration_outcome_scores (outcome_id, created_at, base_score, relation_score, total_score) VALUES (?, ?, ?, ?, ?)",
                 (oid, time.time(), float(base_scores[oid]), float(rel_sum or 0), total),
             )
         db.commit()
@@ -937,8 +1180,8 @@ def _seed_goals_from_outcome_scores(
         rows = db.execute(
             """
             SELECT o.id, o.kind, o.value, o.route, o.payload_json, s.total_score
-            FROM outcome_scores s
-            JOIN outcomes o ON o.id = s.outcome_id
+            FROM exploration_outcome_scores s
+            JOIN exploration_outcomes o ON o.id = s.outcome_id
             WHERE s.created_at >= ? AND s.total_score <= ?
             ORDER BY s.total_score ASC
             LIMIT ?
@@ -1578,6 +1821,59 @@ def _build_search_terms(limit: int = 12) -> List[str]:
     return out
 
 
+async def _is_search_input(page, selector: str) -> bool:
+    try:
+        el = await page.query_selector(selector)
+        if not el:
+            return False
+        info = await el.evaluate(
+            """el => ({
+                tag: (el.tagName || '').toLowerCase(),
+                type: (el.getAttribute('type') || ''),
+                name: (el.getAttribute('name') || ''),
+                placeholder: (el.getAttribute('placeholder') || ''),
+                aria: (el.getAttribute('aria-label') || '')
+            })"""
+        )
+        if not isinstance(info, dict):
+            return False
+        text = " ".join(
+            [
+                str(info.get("type", "")),
+                str(info.get("name", "")),
+                str(info.get("placeholder", "")),
+                str(info.get("aria", "")),
+            ]
+        ).lower()
+        if "search" in text or "بحث" in text:
+            return True
+        return str(info.get("type", "")).lower() == "search"
+    except Exception:
+        return False
+
+
+async def _try_click_search_button(page) -> bool:
+    selectors = [
+        "button[type='submit']",
+        "input[type='submit']",
+        "button[aria-label*='search' i]",
+        "button[aria-label*='بحث' i]",
+        "[role='button'][aria-label*='search' i]",
+        "button:has-text('Search')",
+        "button:has-text('بحث')",
+    ]
+    for sel in selectors:
+        try:
+            el = await page.query_selector(sel)
+            if not el:
+                continue
+            await el.click(timeout=2000)
+            return True
+        except Exception:
+            continue
+    return False
+
+
 def _ensure_exploration_table(db: sqlite3.Connection) -> None:
     db.execute(
         "CREATE TABLE IF NOT EXISTS exploration_history (id INTEGER PRIMARY KEY AUTOINCREMENT, selector TEXT, href TEXT, tag TEXT, created_at REAL)"
@@ -1699,9 +1995,10 @@ def _novelty_score(db_path: Path, selector: str) -> float:
         seen_count = int(seen_count or 0)
         age = time.time() - float(last_seen or 0)
         recent_boost = float(last_score_delta or 0.0)
-        return (
-            max(0.3, 1.4 / max(1, seen_count)) + min(1.2, age / 3600.0) + recent_boost
-        )
+        # Strongly penalize repeated "no-change" selectors for a while
+        if seen_count >= 4 and recent_boost <= -0.5 and age < 4 * 3600:
+            return 0.1
+        return max(0.3, 1.4 / max(1, seen_count)) + min(1.2, age / 3600.0) + recent_boost
     except Exception:
         return 1.0
 
@@ -1715,6 +2012,9 @@ def _rank_exploration_candidate(meta: Dict[str, Any], explored: set) -> float:
         ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db", selector
     )
     tag_bonus = 0.4 if tag in ("button", "a") else 0.1
+    # If selector is heavily penalized, push it down
+    if novelty < 0.25:
+        return novelty * 0.2 + tag_bonus * 0.1
     return novelty + tag_bonus
 
 
@@ -1766,6 +2066,27 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
         return out
     except Exception:
         return []
+
+
+def _extract_goal_targets(goals: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, str]]]:
+    """Extract target URLs from goals, prioritizing operator-sourced goals."""
+    operator: List[Dict[str, str]] = []
+    others: List[Dict[str, str]] = []
+    for g in goals:
+        payload = g.get("payload") or {}
+        target = payload.get("href") or payload.get("uri") or payload.get("url")
+        if not target:
+            continue
+        entry = {
+            "target": str(target),
+            "goal": str(g.get("goal") or ""),
+            "source": str(g.get("source") or ""),
+        }
+        if str(g.get("source") or "") == "operator":
+            operator.append(entry)
+        else:
+            others.append(entry)
+    return {"operator": operator, "all": operator + others}
 
 
 def _write_autonomy_goal(
@@ -2095,6 +2416,44 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             {"action": "scroll", "dy": 600},
         ]
         name = "goal_gap_deepen"
+    elif g in ("purpose_focus", "decision_focus"):
+        uri = payload.get("uri") or payload.get("href") or ""
+        term = (
+            payload.get("term")
+            or payload.get("purpose")
+            or payload.get("reason")
+            or payload.get("intent")
+            or ""
+        )
+        term = str(term or "").strip()
+        search_selector = "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+        if uri:
+            basename = _href_basename(uri)
+            if basename and basename not in ("index.php", ""):
+                steps = [
+                    {"action": "goto", "url": base_url.rstrip("/") + "/"},
+                    {"action": "click", "selector": f"a[href*='{basename}']"},
+                    {"action": "wait", "ms": 800},
+                ]
+            else:
+                if uri in ("/", "/index.php", "index.php", ""):
+                    url = base_url.rstrip("/") + "/"
+                elif uri.startswith("http"):
+                    url = uri
+                else:
+                    url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
+                steps = [{"action": "goto", "url": url}, {"action": "wait", "ms": 800}]
+        else:
+            steps = [{"action": "goto", "url": base_url.rstrip("/") + "/"}]
+            if term:
+                steps += [
+                    {"action": "click", "selector": search_selector, "optional": True},
+                    {"action": "type", "selector": search_selector, "text": term, "optional": True},
+                    {"action": "press", "selector": search_selector, "key": "Enter", "optional": True},
+                    {"action": "wait", "ms": 800},
+                ]
+            steps += [{"action": "scroll", "dy": 600}]
+        name = "goal_" + g
     else:
         return None
 
@@ -2518,8 +2877,13 @@ def _fallback_autonomous_steps(
     recent_week_routes: List[str],
     uploads: List[str],
     allow_upload: bool,
+    goal_targets: Optional[List[Dict[str, str]]] = None,
 ) -> List[Dict[str, Any]]:
     steps: List[Dict[str, Any]] = []
+    if goal_targets:
+        target = goal_targets[0].get("target")
+        if target:
+            steps.append({"action": "goto", "url": target})
     if allow_upload and uploads:
         for c in candidates:
             if (
@@ -2544,7 +2908,16 @@ def _fallback_autonomous_steps(
     ]
     fresh = [s for s in fresh if s]
     if fresh:
-        pick = random.choice(fresh)
+        # Avoid repeatedly unproductive selectors if possible
+        scored = []
+        for s in fresh:
+            score = _novelty_score(ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db", s)
+            scored.append((score, s))
+        scored.sort(reverse=True)
+        if scored and scored[0][0] < 0.2:
+            pick = random.choice(fresh)
+        else:
+            pick = scored[0][1] if scored else random.choice(fresh)
     elif candidates:
         pick = candidates[random.randrange(0, len(candidates))].get("selector")
     if pick:
@@ -2578,21 +2951,53 @@ async def _generate_autonomous_plan(
         if href_base and href_base not in insight_names:
             gap_candidates.append(href_base)
     goals = _read_autonomy_goals(db_path, limit=8)
+    goal_targets = _extract_goal_targets(goals)
+    operator_targets = goal_targets["operator"]
+    all_targets = goal_targets["all"]
+    # Filter out stale/unproductive selectors when enough alternatives exist
+    if len(candidates) > 8:
+        filtered = []
+        for c in candidates:
+            sel = str(c.get("selector") or "")
+            if not sel:
+                continue
+            if _novelty_score(db_path, sel) < 0.15:
+                continue
+            filtered.append(c)
+        if len(filtered) >= 4:
+            candidates = filtered
     # Shuffle candidates to avoid deterministic repetition
     random.shuffle(candidates)
     # Soft-bias candidates using goals (do not block open exploration)
     if goals:
-        goal_hrefs = set()
-        for g in goals:
-            href = (g.get("payload") or {}).get("href")
-            if href:
-                goal_hrefs.add(str(href).lower())
-        if goal_hrefs:
-            preferred = []
-            others = []
+        operator_hrefs = {str(t["target"]).lower() for t in operator_targets if t.get("target")}
+        goal_hrefs = {str(t["target"]).lower() for t in all_targets if t.get("target")}
+
+        def _split_by_hrefs(hrefs: set[str]) -> tuple[list, list]:
+            pref, rest = [], []
             for c in candidates:
                 href = str(c.get("href") or "").lower()
-                if href and href in goal_hrefs:
+                if href and href in hrefs:
+                    pref.append(c)
+                else:
+                    rest.append(c)
+            return pref, rest
+
+        if operator_hrefs:
+            pref, rest = _split_by_hrefs(operator_hrefs)
+            candidates = pref + rest
+        elif goal_hrefs:
+            pref, rest = _split_by_hrefs(goal_hrefs)
+            candidates = pref + rest
+
+        # If goal asks for gap deepen, prioritize gap candidates.
+        if any(str(g.get("goal") or "") in ("gap_deepen", "gap") for g in goals) and gap_candidates:
+            preferred = []
+            others = []
+            gap_set = set(gap_candidates)
+            for c in candidates:
+                href_base = _href_basename(c.get("href"))
+                if href_base and href_base in gap_set:
                     preferred.append(c)
                 else:
                     others.append(c)
@@ -2612,6 +3017,7 @@ async def _generate_autonomous_plan(
 
     plan = None
     if LLMClient is not None:
+        operator_goal_urls = [t["target"] for t in operator_targets if t.get("target")]
         prompt = f"""
 You are the BGL3 agent running in autonomous mode.
 Create ONE UI scenario. Output JSON ONLY:
@@ -2635,9 +3041,10 @@ Rules:
 - Prefer selectors that are not used in the last 7 days.
 - Prefer hrefs whose filename is missing in auto_insights (gap_candidates).
 - Prefer goal targets in autonomy_goals when available, but do not ignore open exploration.
+ - Operator goals MUST be prioritized. If operator provides a URL, include a goto to it before other steps.
 
 Context JSON:
-{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "candidates": candidates}, ensure_ascii=False)}
+{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates}, ensure_ascii=False)}
 """
         try:
             client = LLMClient()
@@ -2653,7 +3060,12 @@ Context JSON:
     )
     if not steps:
         steps = _fallback_autonomous_steps(
-            candidates, recent_routes, recent_week_routes, uploads, allow_upload
+            candidates,
+            recent_routes,
+            recent_week_routes,
+            uploads,
+            allow_upload,
+            goal_targets=all_targets,
         )
     if not steps:
         return None
@@ -2663,7 +3075,12 @@ Context JSON:
     if _is_recent_autonomous_plan(db_path, candidate_plan):
         # Force a new fallback plan if recent repeat detected
         steps = _fallback_autonomous_steps(
-            candidates, recent_routes, recent_week_routes, uploads, allow_upload
+            candidates,
+            recent_routes,
+            recent_week_routes,
+            uploads,
+            allow_upload,
+            goal_targets=all_targets,
         )
         if not steps:
             return None
@@ -3251,6 +3668,8 @@ async def main(
     shadow_mode: bool = False,
 ):
     run_started = time.time()
+    global _CURRENT_RUN_ID
+    _CURRENT_RUN_ID = f"run_{int(run_started)}_{os.getpid()}"
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
     cfg = load_config(ROOT_DIR)
@@ -3272,7 +3691,10 @@ async def main(
         scenario_files = [
             p for p in scenario_files if include.lower() in p.stem.lower()
         ]
-    include_autonomous = os.getenv("BGL_INCLUDE_AUTONOMOUS", "0") == "1"
+    auto_flag = os.getenv("BGL_INCLUDE_AUTONOMOUS")
+    if auto_flag is None:
+        auto_flag = str(_cfg_value("scenario_include_autonomous", "0"))
+    include_autonomous = str(auto_flag) == "1"
     if not include_autonomous:
         scenario_files = [
             p
@@ -3320,6 +3742,20 @@ async def main(
     extra_headers = {"X-Shadow-Mode": "true"} if shadow_mode else None
 
     db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
+    try:
+        log_event(
+            db_path,
+            "agent_run",
+            {
+                "event_type": "agent_run_start",
+                "payload": json.dumps(
+                    {"run_id": _CURRENT_RUN_ID, "mode": "scenario_runner"},
+                    ensure_ascii=False,
+                ),
+            },
+        )
+    except Exception:
+        pass
     try:
         # Split scenarios into API vs UI
         api_scenarios = []
@@ -3403,6 +3839,19 @@ async def main(
         _derive_outcomes_from_runtime(db_path, since_ts=run_started)
         _derive_outcomes_from_learning(db_path, since_ts=run_started)
         _score_outcomes(db_path, since_ts=run_started, window_sec=300.0)
+        try:
+            try:
+                from .hypothesis import ingest_exploration_outcomes  # type: ignore
+            except Exception:
+                from hypothesis import ingest_exploration_outcomes  # type: ignore
+            ingest_exploration_outcomes(db_path, since_ts=run_started)
+            try:
+                from .hypothesis import refresh_hypothesis_status  # type: ignore
+            except Exception:
+                from hypothesis import refresh_hypothesis_status  # type: ignore
+            refresh_hypothesis_status(db_path)
+        except Exception:
+            pass
         _reward_exploration_from_outcomes(db_path, since_ts=run_started)
         _seed_goals_from_outcome_scores(
             db_path,
@@ -3422,6 +3871,21 @@ async def main(
     # After exploration, generate targeted insights (Dream Mode subset)
     try:
         _trigger_dream_from_exploration(db_path)
+    except Exception:
+        pass
+
+    try:
+        log_event(
+            db_path,
+            "agent_run",
+            {
+                "event_type": "agent_run_end",
+                "payload": json.dumps(
+                    {"run_id": _CURRENT_RUN_ID, "mode": "scenario_runner"},
+                    ensure_ascii=False,
+                ),
+            },
+        )
     except Exception:
         pass
 

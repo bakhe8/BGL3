@@ -93,7 +93,7 @@ def simulate_traffic():
             latency = float(random.randint(50, 300))
         elif rand > 0.02:
             status = 422
-            error = "Validation Failed: Invalid IBAN"
+            error = "Validation Failed: Invalid contact data"
             latency = float(random.randint(20, 100))
         else:
             status = 500
@@ -109,7 +109,7 @@ def simulate_traffic():
         """,
             (
                 time.time(),
-                "sim_session_1",
+                "run_sim_session_1",
                 "import_banks" if "import" in route else "api_call",
                 route,
                 method,

@@ -47,7 +47,7 @@ rules:
   scope: app
 - id: RS007
   name: data_validation_required
-  description: Enforce IBAN/email/phone validation on write/import
+  description: Enforce email/phone validation on write/import
   action: WARN
   rationale: Prevent bad data and user-facing errors
   scope: app

@@ -1,5 +1,6 @@
 from pathlib import Path
 from typing import Optional, Dict, Any
+import re
 
 
 UI_MAP_JS = r"""
@@ -39,6 +40,99 @@ UI_MAP_JS = r"""
 """
 
 
+UI_SEMANTIC_JS = r"""
+(limit) => {
+  function norm(t) {
+    return (t || '').replace(/\s+/g, ' ').trim().slice(0, 160);
+  }
+  function textOf(el) {
+    if (!el) return '';
+    return norm(el.innerText || el.textContent || '');
+  }
+
+  const title = norm(document.title || '');
+  const headings = Array.from(document.querySelectorAll('h1,h2,h3'))
+    .slice(0, limit)
+    .map(h => ({ tag: (h.tagName || '').toLowerCase(), text: textOf(h) }))
+    .filter(h => h.text);
+
+  const landmarks = {};
+  ['header','nav','main','aside','footer','section'].forEach(tag => {
+    const nodes = Array.from(document.querySelectorAll(tag))
+      .slice(0, 3)
+      .map(n => textOf(n))
+      .filter(Boolean);
+    if (nodes.length) landmarks[tag] = nodes;
+  });
+
+  const forms = Array.from(document.querySelectorAll('form'))
+    .slice(0, 3)
+    .map(form => {
+      const action = form.getAttribute('action') || '';
+      const method = (form.getAttribute('method') || 'get').toLowerCase();
+      const fields = [];
+      const inputs = Array.from(form.querySelectorAll('input, select, textarea')).slice(0, 12);
+      inputs.forEach(el => {
+        const id = el.getAttribute('id') || '';
+        let label = '';
+        if (id) {
+          const lab = form.querySelector(`label[for='${id}']`);
+          if (lab) label = textOf(lab);
+        }
+        if (!label) {
+          const parent = el.closest('label');
+          if (parent) label = textOf(parent);
+        }
+        fields.push({
+          tag: (el.tagName || '').toLowerCase(),
+          type: el.getAttribute('type') || '',
+          name: el.getAttribute('name') || '',
+          placeholder: el.getAttribute('placeholder') || '',
+          label: label
+        });
+      });
+      return { action, method, fields };
+    });
+
+  const tables = Array.from(document.querySelectorAll('table'))
+    .slice(0, 3)
+    .map(table => {
+      const headers = Array.from(table.querySelectorAll('th'))
+        .map(th => textOf(th))
+        .filter(Boolean)
+        .slice(0, 10);
+      const caption = textOf(table.querySelector('caption'));
+      let rows = 0;
+      try { rows = table.querySelectorAll('tbody tr').length; } catch (e) { rows = 0; }
+      if (!rows) {
+        const totalRows = table.querySelectorAll('tr').length;
+        rows = totalRows > 0 ? Math.max(0, totalRows - 1) : 0;
+      }
+      return { headers, rows, caption };
+    });
+
+  const stats = Array.from(document.querySelectorAll('[class*="stat"],[class*="metric"],[class*="kpi"],[data-stat],[data-metric]'))
+    .slice(0, 8)
+    .map(el => textOf(el))
+    .filter(Boolean)
+    .map(t => t.slice(0, 120));
+
+  const container = document.querySelector('main') || document.body;
+  let text_excerpt = '';
+  try {
+    text_excerpt = norm((container && container.innerText) ? container.innerText : '').slice(0, 1200);
+  } catch (e) { text_excerpt = ''; }
+
+  const text_blocks = Array.from(container ? container.querySelectorAll('p, li, td, th, caption, article, section') : [])
+    .map(el => textOf(el))
+    .filter(t => t && t.length > 20)
+    .slice(0, Math.max(6, limit * 3));
+
+  return { title, headings, landmarks, forms, tables, stats, text_blocks, text_excerpt };
+}
+"""
+
+
 async def capture_ui_map(page, limit: int = 50):
     """
     Return a compact UI map for interactive elements:
@@ -49,6 +143,67 @@ async def capture_ui_map(page, limit: int = 50):
         return await page.evaluate(UI_MAP_JS, limit)
     except Exception:
         return []
+
+
+async def capture_semantic_map(page, limit: int = 12) -> Dict[str, Any]:
+    """
+    Return a compact semantic summary of the page:
+    title/headings/landmarks/forms/tables/stats.
+    """
+    try:
+        return await page.evaluate(UI_SEMANTIC_JS, limit)
+    except Exception:
+        return {}
+
+
+def summarize_semantic_map(semantic: Dict[str, Any], max_items: int = 5) -> Dict[str, Any]:
+    if not semantic:
+        return {}
+    def _norm_text(text: str) -> str:
+        return re.sub(r"\s+", " ", (text or "").strip())
+    def _take(items):
+        return list(items[:max_items]) if isinstance(items, list) else []
+    # Aggregate text blocks for keyword extraction
+    text_blocks = semantic.get("text_blocks") or []
+    if not isinstance(text_blocks, list):
+        text_blocks = []
+    text_joined = " ".join([_norm_text(t) for t in text_blocks if t])
+    keywords = _extract_keywords(text_joined, max_keywords=10)
+    summary = {
+        "title": semantic.get("title") or "",
+        "headings": _take(semantic.get("headings") or []),
+        "landmarks": semantic.get("landmarks") or {},
+        "forms": _take(semantic.get("forms") or []),
+        "tables": _take(semantic.get("tables") or []),
+        "stats": _take(semantic.get("stats") or []),
+        "text_blocks": _take(text_blocks),
+        "text_excerpt": semantic.get("text_excerpt") or "",
+        "text_keywords": keywords,
+    }
+    return summary
+
+
+def _extract_keywords(text: str, max_keywords: int = 8) -> list[str]:
+    if not text:
+        return []
+    # Basic multilingual tokenization (Arabic + Latin)
+    tokens = re.findall(r"[A-Za-z]{3,}|[\u0600-\u06FF]{2,}", text)
+    if not tokens:
+        return []
+    stop = {
+        "the","and","for","with","that","this","from","have","has","are","was","were","not",
+        "you","your","but","into","over","under","then","than","there","their","here","also",
+        "على","الى","من","في","عن","أن","إن","كان","كانت","هذا","هذه","ذلك","لكن","كما",
+        "تم","هو","هي","هم","هن","مع","او","و","ما","لم","لن","قد","كل","تم","تمت","تمكن",
+    }
+    freq: Dict[str, int] = {}
+    for t in tokens:
+        k = t.strip().lower()
+        if k in stop or len(k) < 2:
+            continue
+        freq[k] = freq.get(k, 0) + 1
+    sorted_tokens = sorted(freq.items(), key=lambda x: (-x[1], x[0]))
+    return [t for t, _ in sorted_tokens[:max_keywords]]
 
 
 def project_interactive_elements(ui_map):

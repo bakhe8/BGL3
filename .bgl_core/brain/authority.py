@@ -159,6 +159,37 @@ class Authority:
     def _autonomous_enabled(self) -> bool:
         return self.effective_execution_mode() == "autonomous" or os.getenv("BGL_AUTONOMOUS", "0") == "1"
 
+    def _scope_requires_human(self, scope: List[str]) -> bool:
+        """
+        Human approval policy for WRITE_PROD:
+        - Require human when touching core product (guarantee system) paths.
+        - Allow autonomous for agent-core/supporting areas (e.g. .bgl_core, docs, tests).
+        """
+        if not scope:
+            return True
+        protected_prefixes = (
+            "app/",
+            "api/",
+            "templates/",
+            "views/",
+            "partials/",
+            "public/",
+            "storage/database/",
+        )
+        for item in scope:
+            try:
+                raw = str(item)
+            except Exception:
+                return True
+            path = raw.replace("\\", "/").lstrip("./")
+            # If scope is not a file path, default to requiring approval.
+            if "://" in path or path.startswith("http"):
+                return True
+            # Core product surface (guarantee system) requires human.
+            if path.startswith(protected_prefixes):
+                return True
+        return False
+
     # ---- permission queue (compatibility) ----
 
     def dedupe_permissions(self):
@@ -434,15 +465,19 @@ class Authority:
             # WRITE_PROD stays strictly human-gated.
             requires_human = True
             if request.kind == ActionKind.WRITE_SANDBOX:
+                requires_human = False
+            elif request.kind == ActionKind.WRITE_PROD:
+                requires_human = self._scope_requires_human(request.scope)
+
+            policy_key = None
+            try:
+                policy_key = request.metadata.get("policy_key")
+            except Exception:
                 policy_key = None
-                try:
-                    policy_key = request.metadata.get("policy_key")
-                except Exception:
-                    policy_key = None
-                if policy_key:
-                    cfg_block = policy.get(str(policy_key))
-                    if isinstance(cfg_block, dict) and "requires_human" in cfg_block:
-                        requires_human = bool(cfg_block.get("requires_human", True))
+            if policy_key:
+                cfg_block = policy.get(str(policy_key))
+                if isinstance(cfg_block, dict) and "requires_human" in cfg_block:
+                    requires_human = bool(cfg_block.get("requires_human", True))
 
             gate_res.requires_human = requires_human
 

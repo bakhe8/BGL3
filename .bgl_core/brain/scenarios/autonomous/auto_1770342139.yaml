@@ -1,0 +1,7 @@
+name: autonomous_1770342139
+kind: ui
+steps:
+- action: click
+  selector: button.note-cancel-btn
+- action: wait
+  ms: 600

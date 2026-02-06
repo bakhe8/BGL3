@@ -22,7 +22,7 @@
 - سجلات كثيرة الأخطاء → يعاد import_failure مع قائمة أخطاء.
 
 ## الحواجز
-- Playbook data_validation (IBAN/Email/Phone/Tax).
+- Playbook data_validation (Email/Phone/Tax).
 - Import safety (حجم/نوع، Sanitization).
 - Audit لنتائج الاستيراد (ملف سجل أو جدول).
 

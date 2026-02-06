@@ -1,7 +1,7 @@
 # Insight: index.php
 **Path**: `views/index.php`
 **Source-Hash**: 05c17908c449a1b475f23ffeec21f11ed80eb62599d5c1b676fbb030f76a08bd
-**Date**: 2026-02-05 07:43:11
+**Date**: 2026-02-06 08:04:31
 
 {
   "vulnerabilities": [

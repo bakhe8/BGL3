@@ -2,6 +2,7 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Manual Seed)
   version: '0.1'
+  x-bgl-last-refresh: '2026-02-06 10:59:50'
 paths:
   /api/batches.php:
     get:
@@ -12,7 +13,7 @@ paths:
         required: true
         schema:
           type: string
-        example: excel_20240201_test
+        example: manual_paste_{{date}}
       responses:
         '200':
           description: OK
@@ -69,7 +70,17 @@ paths:
                   type: string
             example:
               action: summary
-              import_source: excel_20240201_test
+              batch_name: Probe {{ts}}
+              batch_notes: probe
+              closed_by: probe
+              guarantee_ids: 1
+              import_source: manual_paste_{{date}}
+              new_amount: 1000
+              new_expiry: '2026-02-03'
+              reason: probe
+              reductions: probe
+              reopened_by: probe
+              user_id: 1
       responses:
         '200':
           description: OK
@@ -240,8 +251,10 @@ paths:
                 test_note:
                   type: string
             example:
-              text: 'Guarantee No: BG-1001 Supplier: ACME Bank: ABC Amount: 100000
-                Expiry: 2027-02-03'
+              is_test_data: false
+              test_batch_id: 1
+              test_note: probe
+              text: probe
       responses:
         '200':
           description: OK
@@ -268,11 +281,10 @@ paths:
                 test_note:
                   type: string
             example:
-              text: 'Guarantee No: BG-1001 Supplier: ACME Bank: ABC Amount: 100000
-                Expiry: 2027-02-03'
-              is_test_data: true
-              test_batch_id: test_batch_1
-              test_note: smoke
+              is_test_data: false
+              test_batch_id: 1
+              test_note: probe
+              text: probe
       responses:
         '200':
           description: OK
@@ -481,7 +493,7 @@ paths:
         required: true
         schema:
           type: string
-        example: probe_source
+        example: manual_paste_{{date}}
   /views/batch-print.php:
     get:
       parameters:

@@ -30,6 +30,15 @@ else:
         from brain_rules import RuleEngine  # type: ignore
         from brain_types import Context, CognitiveState  # type: ignore
 
+try:
+    from .auto_insights import should_include_insight  # type: ignore
+except Exception:
+    try:
+        sys.path.append(str(Path(__file__).parent))
+        from auto_insights import should_include_insight  # type: ignore
+    except Exception:
+        should_include_insight = None  # type: ignore
+
 
 class ReasoningEngine:
     """
@@ -403,45 +412,58 @@ class ReasoningEngine:
         # 2. Dynamic Recursive Scan of docs/ and knowledge/
         search_paths = [Path(".bgl_core/knowledge"), Path("docs")]
         loaded_files = set()
+        try:
+            project_root = self.db_path.parent.parent.parent
+        except Exception:
+            project_root = Path(os.getcwd())
+
+        allow_legacy = os.getenv("BGL_ALLOW_LEGACY_INSIGHTS", "0") == "1"
+        try:
+            max_insights = int(os.getenv("BGL_MAX_AUTO_INSIGHTS", "0") or "0")
+        except Exception:
+            max_insights = 0
+        auto_insights_counts = {
+            "total": 0,
+            "loaded": 0,
+            "duplicate": 0,
+            "missing_meta": 0,
+            "nested": 0,
+            "missing_source": 0,
+            "stale": 0,
+            "skipped_limit": 0,
+        }
+        auto_insights_loaded = 0
 
         for root_path in search_paths:
             if root_path.exists():
                 # Find all .md and .txt files recursively
                 for doc_file in root_path.rglob("*"):
-                    if (
-                        doc_file.suffix in [".md", ".txt"]
-                        and doc_file.name not in loaded_files
-                    ):
+                    if doc_file.suffix in [".md", ".txt"]:
+                        doc_key = str(doc_file.resolve())
+                        if doc_key in loaded_files:
+                            continue
                         try:
-                            # [INTEGRITY CHECK] For Auto-Insights
-                            if ".insight.md" in doc_file.name:
-                                content = doc_file.read_text(encoding="utf-8")
-                                # Extract Path and Source-Hash from metadata
-                                # Format: **Path**: `...` \n **Source-Hash**: ...
-                                import re
-
-                                path_match = re.search(
-                                    r"\*\*Path\*\*: `(.+?)`", content
+                            is_insight = doc_file.name.endswith(
+                                ".insight.md"
+                            ) or doc_file.name.endswith(".insight.md.insight.md")
+                            if is_insight:
+                                auto_insights_counts["total"] += 1
+                                if should_include_insight is None:
+                                    auto_insights_counts["missing_meta"] += 1
+                                    continue
+                                ok, reason = should_include_insight(
+                                    doc_file, project_root, allow_legacy=allow_legacy
                                 )
-                                hash_match = re.search(
-                                    r"\*\*Source-Hash\*\*: ([a-f0-9]{64})", content
-                                )
-
-                                if path_match and hash_match:
-                                    source_rel = path_match.group(1)
-                                    stored_hash = hash_match.group(1)
-                                    source_full = (
-                                        Path(
-                                            r"c:\Users\Bakheet\Documents\Projects\BGL3"
-                                        )
-                                        / source_rel
+                                if not ok:
+                                    auto_insights_counts[reason] = (
+                                        auto_insights_counts.get(reason, 0) + 1
                                     )
-
-                                    if source_full.exists():
-                                        current_hash = self._get_file_hash(source_full)
-                                        if current_hash != stored_hash:
-                                            # STALE: Skip this insight
-                                            continue
+                                    continue
+                                if max_insights and auto_insights_loaded >= max_insights:
+                                    auto_insights_counts["skipped_limit"] += 1
+                                    continue
+                                auto_insights_loaded += 1
+                                auto_insights_counts["loaded"] += 1
 
                             content = doc_file.read_text(encoding="utf-8")
                             # Truncate very large files to avoid blowing up context (limit to 10KB per file)
@@ -453,9 +475,22 @@ class ReasoningEngine:
                             knowledge_context += (
                                 f"\n--- DOCUMENT: {doc_file.name} ---\n{content}\n"
                             )
-                            loaded_files.add(doc_file.name)
+                            loaded_files.add(doc_key)
                         except Exception:
                             pass  # Skip unreadable files
+
+        if auto_insights_counts["total"] > 0:
+            knowledge_context += (
+                "\n--- AUTO_INSIGHTS STATUS ---\n"
+                f"loaded={auto_insights_counts['loaded']} "
+                f"total={auto_insights_counts['total']} "
+                f"stale={auto_insights_counts['stale']} "
+                f"missing_meta={auto_insights_counts['missing_meta']} "
+                f"missing_source={auto_insights_counts['missing_source']} "
+                f"nested={auto_insights_counts['nested']} "
+                f"duplicate={auto_insights_counts['duplicate']} "
+                f"skipped_limit={auto_insights_counts['skipped_limit']}\n"
+            )
 
         knowledge_context += "\n*****************************\n"
 

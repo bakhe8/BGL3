@@ -37,6 +37,25 @@ def _ensure_tables(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_ui_semantic_tables(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ui_semantic_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          created_at REAL NOT NULL,
+          url TEXT NOT NULL,
+          source TEXT,
+          digest TEXT,
+          summary_json TEXT NOT NULL,
+          payload_json TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ui_semantic_url_time ON ui_semantic_snapshots(url, created_at DESC)"
+    )
+
+
 def store_env_snapshot(
     db_path: Path,
     *,
@@ -65,6 +84,215 @@ def store_env_snapshot(
             ),
         )
         conn.commit()
+
+
+def store_ui_semantic_snapshot(
+    db_path: Path,
+    *,
+    url: str,
+    summary: Dict[str, Any],
+    payload: Optional[Dict[str, Any]] = None,
+    source: str = "browser_sensor",
+    created_at: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
+    if not url:
+        return None
+    created_at = float(created_at if created_at is not None else time.time())
+    try:
+        import hashlib
+
+        digest = hashlib.sha1(
+            json.dumps(summary or {}, ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+    except Exception:
+        digest = ""
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_ui_semantic_tables(conn)
+        try:
+            prev = conn.execute(
+                "SELECT digest FROM ui_semantic_snapshots WHERE url = ? ORDER BY created_at DESC LIMIT 1",
+                (url,),
+            ).fetchone()
+            if prev and prev.get("digest") == digest:
+                return None
+        except Exception:
+            pass
+        conn.execute(
+            """
+            INSERT INTO ui_semantic_snapshots (created_at, url, source, digest, summary_json, payload_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                created_at,
+                url,
+                source,
+                digest,
+                json.dumps(summary or {}, ensure_ascii=False),
+                json.dumps(payload or {}, ensure_ascii=False) if payload else None,
+            ),
+        )
+        conn.commit()
+    return {"created_at": created_at, "digest": digest}
+
+
+def latest_ui_semantic_snapshot(
+    db_path: Path, *, url: Optional[str] = None
+) -> Optional[Dict[str, Any]]:
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_ui_semantic_tables(conn)
+        if url:
+            row = conn.execute(
+                """
+                SELECT * FROM ui_semantic_snapshots
+                WHERE url = ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (url,),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT * FROM ui_semantic_snapshots
+                ORDER BY created_at DESC
+                LIMIT 1
+                """
+            ).fetchone()
+        if not row:
+            return None
+        summary = {}
+        payload = {}
+        try:
+            summary = json.loads(row["summary_json"] or "{}")
+        except Exception:
+            summary = {"raw": row["summary_json"]}
+        try:
+            payload = json.loads(row["payload_json"] or "{}") if row["payload_json"] else {}
+        except Exception:
+            payload = {"raw": row["payload_json"]}
+        return {
+            "id": row["id"],
+            "created_at": row["created_at"],
+            "url": row["url"],
+            "source": row["source"],
+            "digest": row["digest"],
+            "summary": summary,
+            "payload": payload,
+        }
+
+
+def previous_ui_semantic_snapshot(
+    db_path: Path, *, url: str, before_ts: float
+) -> Optional[Dict[str, Any]]:
+    if not url:
+        return None
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_ui_semantic_tables(conn)
+        row = conn.execute(
+            """
+            SELECT * FROM ui_semantic_snapshots
+            WHERE url = ? AND created_at < ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (url, float(before_ts)),
+        ).fetchone()
+        if not row:
+            return None
+        summary = {}
+        payload = {}
+        try:
+            summary = json.loads(row["summary_json"] or "{}")
+        except Exception:
+            summary = {"raw": row["summary_json"]}
+        try:
+            payload = json.loads(row["payload_json"] or "{}") if row["payload_json"] else {}
+        except Exception:
+            payload = {"raw": row["payload_json"]}
+        return {
+            "id": row["id"],
+            "created_at": row["created_at"],
+            "url": row["url"],
+            "source": row["source"],
+            "digest": row["digest"],
+            "summary": summary,
+            "payload": payload,
+        }
+
+
+def compute_ui_semantic_delta(
+    prev_summary: Optional[Dict[str, Any]], curr_summary: Optional[Dict[str, Any]]
+) -> Dict[str, Any]:
+    if not prev_summary or not curr_summary:
+        return {"changed": False, "reason": "missing_prev_or_curr"}
+
+    def _norm(s: Any) -> str:
+        return str(s or "").strip().lower()
+
+    def _list_set(items: Any) -> set:
+        if not isinstance(items, list):
+            return set()
+        out = set()
+        for item in items:
+            if isinstance(item, dict):
+                if "text" in item:
+                    out.add(_norm(item.get("text")))
+                else:
+                    out.add(_norm(json.dumps(item, ensure_ascii=False, sort_keys=True)))
+            else:
+                out.add(_norm(item))
+        return {i for i in out if i}
+
+    def _diff(a: set, b: set, limit: int = 8) -> Dict[str, Any]:
+        added = sorted(b - a)[:limit]
+        removed = sorted(a - b)[:limit]
+        return {"added": added, "removed": removed, "count_added": len(b - a), "count_removed": len(a - b)}
+
+    delta = {
+        "title_changed": _norm(prev_summary.get("title")) != _norm(curr_summary.get("title")),
+        "headings": _diff(_list_set(prev_summary.get("headings")), _list_set(curr_summary.get("headings"))),
+        "forms": _diff(_list_set(prev_summary.get("forms")), _list_set(curr_summary.get("forms"))),
+        "tables": _diff(_list_set(prev_summary.get("tables")), _list_set(curr_summary.get("tables"))),
+        "stats": _diff(_list_set(prev_summary.get("stats")), _list_set(curr_summary.get("stats"))),
+        "text_blocks": _diff(_list_set(prev_summary.get("text_blocks")), _list_set(curr_summary.get("text_blocks"))),
+        "text_keywords": _diff(_list_set(prev_summary.get("text_keywords")), _list_set(curr_summary.get("text_keywords"))),
+    }
+
+    changed = (
+        delta["title_changed"]
+        or delta["headings"]["count_added"]
+        or delta["headings"]["count_removed"]
+        or delta["forms"]["count_added"]
+        or delta["forms"]["count_removed"]
+        or delta["tables"]["count_added"]
+        or delta["tables"]["count_removed"]
+        or delta["stats"]["count_added"]
+        or delta["stats"]["count_removed"]
+        or delta["text_blocks"]["count_added"]
+        or delta["text_blocks"]["count_removed"]
+        or delta["text_keywords"]["count_added"]
+        or delta["text_keywords"]["count_removed"]
+    )
+
+    change_count = 0
+    try:
+        change_count = (
+            int(delta["headings"]["count_added"]) + int(delta["headings"]["count_removed"])
+            + int(delta["forms"]["count_added"]) + int(delta["forms"]["count_removed"])
+            + int(delta["tables"]["count_added"]) + int(delta["tables"]["count_removed"])
+            + int(delta["stats"]["count_added"]) + int(delta["stats"]["count_removed"])
+            + int(delta["text_blocks"]["count_added"]) + int(delta["text_blocks"]["count_removed"])
+            + int(delta["text_keywords"]["count_added"]) + int(delta["text_keywords"]["count_removed"])
+        )
+    except Exception:
+        change_count = 0
+
+    delta["changed"] = bool(changed)
+    delta["change_count"] = change_count
+    return delta
 
 
 def latest_env_snapshot(
@@ -180,13 +408,139 @@ def compute_diagnostic_delta(prev_payload: Dict[str, Any], curr_payload: Dict[st
     }
 
 
-def store_latest_diagnostic_delta(db_path: Path, *, run_id: str, curr_snapshot_payload: Dict[str, Any]) -> None:
+def _previous_env_snapshot(
+    db_path: Path, *, kind: str, before_ts: float
+) -> Optional[Dict[str, Any]]:
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_tables(conn)
+        row = conn.execute(
+            """
+            SELECT * FROM env_snapshots
+            WHERE kind = ? AND created_at < ?
+            ORDER BY created_at DESC
+            LIMIT 1
+            """,
+            (kind, float(before_ts)),
+        ).fetchone()
+        if not row:
+            return None
+        payload = {}
+        try:
+            payload = json.loads(row["payload_json"] or "{}")
+        except Exception:
+            payload = {"raw": row["payload_json"]}
+        return {
+            "id": row["id"],
+            "created_at": row["created_at"],
+            "run_id": row["run_id"],
+            "kind": row["kind"],
+            "source": row["source"],
+            "confidence": row["confidence"],
+            "payload": payload,
+        }
+
+
+def _count_runtime_events(
+    db_path: Path, *, start_ts: float, end_ts: float
+) -> int:
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                """
+                SELECT COUNT(*) FROM runtime_events
+                WHERE timestamp >= ? AND timestamp <= ?
+                  AND (session LIKE 'run_%' OR event_type LIKE 'agent_run_%')
+                """,
+                (float(start_ts), float(end_ts)),
+            ).fetchone()
+            return int(row[0] or 0) if row else 0
+    except Exception:
+        return 0
+
+
+def _count_internal_writes(
+    db_path: Path, *, start_ts: float, end_ts: float
+) -> int:
+    try:
+        with sqlite3.connect(str(db_path)) as conn:
+            cur = conn.cursor()
+            row = cur.execute(
+                """
+                SELECT COUNT(*)
+                FROM outcomes o
+                JOIN decisions d ON o.decision_id = d.id
+                JOIN intents i ON d.intent_id = i.id
+                WHERE (strftime('%s', o.timestamp) >= ? AND strftime('%s', o.timestamp) <= ?)
+                  AND o.result IN ('success_direct','mode_direct')
+                """,
+                (int(start_ts), int(end_ts)),
+            ).fetchone()
+            return int(row[0] or 0) if row else 0
+    except Exception:
+        return 0
+
+
+def compute_change_attribution(
+    db_path: Path,
+    *,
+    prev_snapshot: Dict[str, Any],
+    curr_created_at: float,
+    delta_payload: Dict[str, Any],
+) -> Dict[str, Any]:
+    prev_ts = float(prev_snapshot.get("created_at") or 0)
+    curr_ts = float(curr_created_at or time.time())
+    changed_keys = int((delta_payload.get("summary") or {}).get("changed_keys") or 0)
+    test_events = _count_runtime_events(db_path, start_ts=prev_ts, end_ts=curr_ts)
+    write_events = _count_internal_writes(db_path, start_ts=prev_ts, end_ts=curr_ts)
+
+    classification = "no_change"
+    confidence = 0.6
+    if changed_keys > 0:
+        if write_events > 0 and test_events > 0:
+            classification = "mixed_internal"
+            confidence = 0.7
+        elif write_events > 0:
+            classification = "internal_write"
+            confidence = 0.85
+        elif test_events > 0:
+            classification = "internal_test"
+            confidence = 0.8
+        else:
+            classification = "external_change"
+            confidence = 0.75
+
+    return {
+        "classification": classification,
+        "confidence": confidence,
+        "window": {
+            "prev_ts": prev_ts,
+            "curr_ts": curr_ts,
+            "seconds": max(0.0, curr_ts - prev_ts),
+        },
+        "signals": {
+            "changed_keys": changed_keys,
+            "test_events": test_events,
+            "write_events": write_events,
+        },
+    }
+
+
+def store_latest_diagnostic_delta(
+    db_path: Path,
+    *,
+    run_id: str,
+    curr_snapshot_payload: Dict[str, Any],
+    created_at: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
     """
     Compute and store delta against the previous diagnostic snapshot (if any).
     """
-    prev = latest_env_snapshot(db_path, kind="diagnostic")
+    curr_ts = float(created_at if created_at is not None else time.time())
+    prev = _previous_env_snapshot(db_path, kind="diagnostic", before_ts=curr_ts)
     if not prev or not isinstance(prev.get("payload"), dict):
-        return
+        return None
     prev_payload = prev["payload"]
     delta = compute_diagnostic_delta(prev_payload, curr_snapshot_payload)
     store_env_snapshot(
@@ -196,8 +550,24 @@ def store_latest_diagnostic_delta(db_path: Path, *, run_id: str, curr_snapshot_p
         payload=delta,
         source="agency_core",
         confidence=None,
-        created_at=time.time(),
+        created_at=curr_ts,
     )
+    attribution = compute_change_attribution(
+        db_path,
+        prev_snapshot=prev,
+        curr_created_at=curr_ts,
+        delta_payload=delta,
+    )
+    store_env_snapshot(
+        db_path,
+        run_id=run_id,
+        kind="diagnostic_attribution",
+        payload=attribution,
+        source="agency_core",
+        confidence=float(attribution.get("confidence") or 0.6),
+        created_at=curr_ts,
+    )
+    return attribution
 
 
 def diagnostic_to_snapshot(diagnostic_map: Dict[str, Any]) -> Dict[str, Any]:

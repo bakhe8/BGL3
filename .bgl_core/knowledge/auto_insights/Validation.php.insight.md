@@ -15,13 +15,12 @@
 # Analysis of Validation Class
 
 ## 1. Purpose Summary
-The `Validation` class provides data validation functionality specifically for bank entities in the BGL3 system. It validates email format, phone numbers, and IBAN (International Bank Account Number) format to ensure data integrity for bank-related operations.
+The `Validation` class provides data validation functionality specifically for bank entities in the BGL3 system. It validates email format and phone numbers to ensure data integrity for bank-related operations.
 
 ## 2. Business Logic (Document Issuance Context)
 While this utility class doesn't directly handle bank guarantee lifecycle operations (Issue, Extend, Release), it supports the core BGL3 workflows by:
 
 - **Bank Entity Validation**: Ensures bank contact information (email, phone) meets basic format requirements
-- **IBAN Validation**: Validates International Bank Account Numbers for bank correspondence and documentation
 - **Data Integrity**: Prevents malformed data from entering the system during bank creation/updates
 
 ## 3. Potential Issues & Risks
@@ -30,7 +29,6 @@ While this utility class doesn't directly handle bank guarantee lifecycle operat
 - Phone validation regex is overly permissive: `/^[0-9+()\\-\\s]{6,20}$/` allows many invalid phone formats
 - No validation for required bank fields (name, short_name, etc.)
 - Missing length validation for email field (could exceed database constraints)
-- IBAN validation uses simplified algorithm that may not cover all country-specific formats
 
 **Business Logic Gaps:**
 - No integration with BGL3-specific validation rules for bank guarantee workflows
@@ -38,12 +36,10 @@ While this utility class doesn't directly handle bank guarantee lifecycle operat
 - No handling for Arabic text validation (bank names, addresses)
 
 **Performance Issues:**
-- IBAN validation performs multiple string operations and modulus calculations for each character
 - No caching mechanism for frequently validated patterns
 
 **Hardcoded Values:**
 - Error messages hardcoded in Arabic without localization support
-- IBAN length constraints hardcoded (15-34 characters)
 - Phone regex pattern hardcoded without configuration
 
 ## 4. Modernization Improvement
@@ -78,11 +74,6 @@ public static function validateBank(array $data): array
         if (!self::isValidInternationalPhone($data['phone'])) {
             $errors[] = 'رقم الهاتف غير صالح';
         }
-    }
-
-    // IBAN validation (existing)
-    if (!empty($data['iban']) && !self::isValidIban($data['iban'])) {
-        $errors[] = 'IBAN غير صالح';
     }
 
     // BGL3-specific: Validate SWIFT code if provided

@@ -24,7 +24,7 @@
 
 ## الحواجز (Guards)
 - Rate limit على مسارات الكتابة (playbook rate_limit).
-- Validation قوية (IBAN للبنك، Email/Phone للمورد عبر playbook data_validation).
+- Validation قوية (Email/Phone للمورد عبر playbook data_validation).
 - Audit trail على عمليات الضمان (create/extend/release/reduce).
 
 ## معايير القبول (Acceptance)

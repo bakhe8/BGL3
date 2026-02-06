@@ -22,7 +22,7 @@
 - Sections Gap/Proposals في التقرير/الـDashboard: ✅ التقرير + بطاقات Dashboard مضافة
 - Patch templates: ✅ مضافة (rate_limit_laravel.php, audit_trigger.sql, validation_request.php، alerts_handler.php، caching_layer.php، import_safety_guard.php، backup_export_task.php، settings_autosave.js، critical_test.php، db_add_indexes.sql، db_add_foreign_keys.sql، js_split_placeholder.md)
 - النضج/التعارض/الكبح: ✅ decision_engine يستهلك maturity/conflicts/suppression، outcomes تُسجَّل من المسار الفعلي (patcher/guardian/master_verify) وتغذي success_rate/nضج.
-- الحمايات المفعّلة فعلياً: Import Safety (حجم/نوع + تنبيه)، Data Validation (Email/Phone/IBAN) + AuditTrail للإنشاءات (banks/suppliers) + RateLimit اختياري (قابل للتعطيل في testing) + Caching بسيط للتقارير + Alerts logging + Backup export command.
+- الحمايات المفعّلة فعلياً: Import Safety (حجم/نوع + تنبيه)، Data Validation (Email/Phone) + AuditTrail للإنشاءات (banks/suppliers) + RateLimit اختياري (قابل للتعطيل في testing) + Caching بسيط للتقارير + Alerts logging + Backup export command.
 - Gap Suite: ✅ جميع اختبارات Gap تمر (9/9) مع متغيّر `BGL_BASE_URL` وخادم PHP محلي، دون Fail/Skip.
 - المكتبات الجاهزة: ✅ تم تثبيت schemathesis / email-validator / phonenumbers / python-stdnum (pip user install) و dredd (npm -g). جاهزة للتفعيل في gap suite عند الحاجة.
 - Contract Tests: إضافة `contract_tests.py` لتشغيل Schemathesis/Dredd تلقائياً عند تفعيل `run_api_contract=1` في config ووجود openapi أو api.apib.
@@ -39,7 +39,7 @@
   - `playbooks/import_safety.md`
   - `playbooks/backup_export.md`
 - لكل Playbook: الهدف، السياق، الخطوات، معايير القبول، نقاط الحقن (autoload/middleware/controllers/DB).
-- إضافة قواعد في `runtime_safety.yml` أو `style_rules.yml` لكل محور (action=WARN) تصف الحالة المطلوبة (مثلاً: وجود RateLimiter للكتابة، سجلات Audit، فحوص IBAN/Email، فهارس تقارير، إلخ).
+- إضافة قواعد في `runtime_safety.yml` أو `style_rules.yml` لكل محور (action=WARN) تصف الحالة المطلوبة (مثلاً: وجود RateLimiter للكتابة، سجلات Audit، فحوص Email/Phone، فهارس تقارير، إلخ).
 - **كيفية التنفيذ**:
   1) انسخ قالب `playbooks/production_guard.md` وأعد ملء الحقول للمحاور الأخرى (هدف، سياق، خطوات، معايير قبول، نقاط حقن).
   2) لكل Playbook أضف Rule مقابلة في `runtime_safety.yml` أو `style_rules.yml` بصيغة موحدة: id، name، description، action، rationale، scope.
@@ -61,7 +61,7 @@
 - إضافة اختبارات/سيناريوهات قصيرة تُشغّل في الساندبوكس:
   - RateLimit: 6 طلبات متتالية → توقع 429.
   - Audit: تحديث بنك → توقع سجل تدقيق.
-  - Validation: IBAN/Email خاطئ → 422 ورسالة موحّدة.
+  - Validation: Email/Phone خاطئ → 422 ورسالة موحّدة.
   - ImportSafety: ملف كبير/نوع خاطئ → 400 برسالة محددة.
   - Critical: سيناريو إنشاء/تحديث/تصدير مختصر.
 - وضعها في `tests/Gap/` أو سيناريوهات Playwright قصيرة، وربطها بـ SafetyNet/Master Verify (مُفعّلة عبر config).
@@ -129,7 +129,7 @@
 
 ## 12) مكتبات جاهزة (لتقليل الجهد)
 - API/Gap Tests: schemathesis (توليد اختبارات من OpenAPI)، Dredd (contract testing).
-- Validation: python-stdnum/iban، email-validator، phonenumbers.
+- Validation: email-validator، phonenumbers.
 - Diff عرضي: diff2html أو git diff → HTML.
 - DB introspection: INFORMATION_SCHEMA أو مكتبات inspection (SQLAlchemy Inspector).
 

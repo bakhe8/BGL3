@@ -1,0 +1,118 @@
+{
+  "version": 1,
+  "policy": {
+    "mode": "direct",
+    "require_backup": true,
+    "require_tests": false,
+    "max_files_per_change": 30,
+    "max_lines_per_change": 500,
+    "max_file_bytes": 400000,
+    "allow_create": true,
+    "allow_delete": true
+  },
+  "forbid_paths": [
+    ".git/**",
+    "vendor/**",
+    "node_modules/**",
+    "storage/database/**",
+    "storage/framework/**",
+    ".bgl_core/.venv*/**",
+    ".bgl_core/brain/knowledge.db",
+    ".bgl_core/brain/decision.db",
+    ".bgl_core/brain/knowledge.db-journal",
+    ".bgl_core/brain/decision.db-journal",
+    ".bgl_core/brain/knowledge.db-wal",
+    ".bgl_core/brain/decision.db-wal"
+  ],
+  "operations": [
+    "modify",
+    "create",
+    "delete",
+    "rename",
+    "move"
+  ],
+  "scopes": [
+    {
+      "id": "brain_core",
+      "paths": [
+        ".bgl_core/brain/**/*.py",
+        ".bgl_core/brain/**/*.md",
+        ".bgl_core/brain/**/*.json",
+        ".bgl_core/brain/**/*.yml",
+        ".bgl_core/brain/**/*.yaml"
+      ]
+    },
+    {
+      "id": "knowledge_base",
+      "paths": [
+        ".bgl_core/knowledge/**/*.md",
+        ".bgl_core/knowledge/**/*.json",
+        ".bgl_core/knowledge/**/*.yml",
+        ".bgl_core/knowledge/**/*.yaml"
+      ]
+    },
+    {
+      "id": "scenarios",
+      "paths": [
+        ".bgl_core/brain/scenarios/**/*.yaml",
+        ".bgl_core/brain/scenarios/**/*.yml",
+        ".bgl_core/brain/scenarios/**/*.md"
+      ]
+    },
+    {
+      "id": "plan_library",
+      "paths": [
+        ".bgl_core/patch_plans/**/*.json",
+        ".bgl_core/patch_plans/**/*.yml",
+        ".bgl_core/patch_plans/**/*.yaml"
+      ]
+    },
+    {
+      "id": "app_logic",
+      "paths": [
+        "app/**/*.php"
+      ]
+    },
+    {
+      "id": "api_layer",
+      "paths": [
+        "api/**/*.php"
+      ]
+    },
+    {
+      "id": "views",
+      "paths": [
+        "templates/**/*.php",
+        "views/**/*.php",
+        "partials/**/*.php"
+      ]
+    },
+    {
+      "id": "docs",
+      "paths": [
+        "docs/**/*.md",
+        "docs/**/*.yml",
+        "docs/**/*.yaml"
+      ]
+    },
+    {
+      "id": "tests",
+      "paths": [
+        "tests/**/*"
+      ]
+    },
+    {
+      "id": "scripts",
+      "paths": [
+        "scripts/**/*"
+      ]
+    },
+    {
+      "id": "storage_manifests",
+      "paths": [
+        "storage/logs/**/*.json",
+        "storage/logs/**/*.md"
+      ]
+    }
+  ]
+}

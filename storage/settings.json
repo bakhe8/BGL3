@@ -1,6 +1,6 @@
 {
-    "MATCH_AUTO_THRESHOLD": 95,
-    "MATCH_REVIEW_THRESHOLD": 0.7,
+    "MATCH_AUTO_THRESHOLD": 0,
+    "MATCH_REVIEW_THRESHOLD": 0,
     "MATCH_WEAK_THRESHOLD": 0.7,
     "BANK_FUZZY_THRESHOLD": 0.95,
     "LEARNING_SCORE_CAP": 0.9,
@@ -21,7 +21,7 @@
     "LEVEL_C_THRESHOLD": 65,
     "TIMEZONE": "Asia\/Riyadh",
     "PRODUCTION_MODE": 0,
-    "CANDIDATES_LIMIT": 20,
+    "CANDIDATES_LIMIT": 1,
     "debug": 1,
     "auto_save_probe": "autosave_697e0e34859e00.68035536"
 }

@@ -535,3 +535,9 @@ Indexes:
 - idx_batch_actions_guarantee: guarantee_id
 - idx_batch_actions_batch: batch_identifier
 - sqlite_autoindex_batch_actions_1 UNIQUE: batch_identifier, guarantee_id
+
+---
+
+## ملاحظة
+هذه الوثيقة تخص قاعدة بيانات التطبيق الأساسية (`storage/database/app.sqlite`).  
+مخطط قاعدة بيانات الوكيل (Agent Brain) موثّق في: `docs/knowledge_db_schema.md`.

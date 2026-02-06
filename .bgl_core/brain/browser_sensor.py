@@ -6,7 +6,12 @@ from playwright.async_api import async_playwright
 from pathlib import Path
 from typing import Dict, Any, Optional
 
-from perception import capture_ui_map, project_interactive_elements
+from perception import (
+    capture_ui_map,
+    project_interactive_elements,
+    capture_semantic_map,
+    summarize_semantic_map,
+)
 
 
 class BrowserSensor:
@@ -27,11 +32,29 @@ class BrowserSensor:
         self.base_url = base_url
         self.headless = headless
         root = Path(project_root) if project_root else Path(os.getcwd())
+        self.project_root = root
         self.reports_dir = root / ".bgl_core" / "logs" / "browser_reports"
         self.reports_dir.mkdir(parents=True, exist_ok=True)
         self.capture_har = capture_har
         self.capture_failures = capture_failures
         self.status_file = self.reports_dir / "browser_status.json"
+        self.store_semantic = os.getenv("BGL_STORE_UI_SEMANTIC", "0") == "1"
+        try:
+            self.semantic_limit = int(os.getenv("BGL_SEMANTIC_LIMIT", "12") or "12")
+        except Exception:
+            self.semantic_limit = 12
+
+    def _should_store_semantic(self, path: str) -> bool:
+        if self.store_semantic:
+            return True
+        if not path:
+            return False
+        if path == "/":
+            return True
+        # if full URL equals base URL or base URL root
+        if path.startswith("http") and path.rstrip("/") == self.base_url.rstrip("/"):
+            return True
+        return False
 
     async def _ensure_browser(self):
         if not BrowserSensor._playwright:
@@ -179,6 +202,48 @@ class BrowserSensor:
                 ui_map = await capture_ui_map(page, limit=80)
                 report["layout_map"] = ui_map
                 report["interactive_elements"] = project_interactive_elements(ui_map)
+                try:
+                    semantic_map = await capture_semantic_map(
+                        page, limit=self.semantic_limit
+                    )
+                except Exception:
+                    semantic_map = {}
+                if semantic_map:
+                    report["semantic_map"] = semantic_map
+                    report["semantic_summary"] = summarize_semantic_map(semantic_map)
+
+                # Persist a compact semantic snapshot (optional, default: homepage only)
+                if semantic_map and self._should_store_semantic(path):
+                    try:
+                        from observations import (
+                            store_ui_semantic_snapshot,
+                            previous_ui_semantic_snapshot,
+                            compute_ui_semantic_delta,
+                        )
+
+                        db_path = (
+                            self.project_root / ".bgl_core" / "brain" / "knowledge.db"
+                        )
+                        if db_path.exists():
+                            created_at = time.time()
+                            store_ui_semantic_snapshot(
+                                db_path,
+                                url=target_url,
+                                summary=report.get("semantic_summary", {}),
+                                payload=semantic_map,
+                                source="browser_sensor",
+                                created_at=created_at,
+                            )
+                            prev = previous_ui_semantic_snapshot(
+                                db_path, url=target_url, before_ts=created_at
+                            )
+                            if prev and prev.get("summary"):
+                                report["semantic_delta"] = compute_ui_semantic_delta(
+                                    prev.get("summary"),
+                                    report.get("semantic_summary", {}),
+                                )
+                    except Exception:
+                        pass
 
                 # Capture Performance Data
                 if measure_perf:

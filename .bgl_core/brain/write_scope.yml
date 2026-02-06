@@ -1,0 +1,138 @@
+version: 1
+policy:
+  mode: direct
+  require_backup: true
+  require_tests: false
+  max_files_per_change: 30
+  max_lines_per_change: 500
+  max_file_bytes: 400000
+  allow_create: true
+  allow_delete: true
+  forbid_paths:
+    - ".git/**"
+    - "vendor/**"
+    - "node_modules/**"
+    - "storage/database/**"
+    - "storage/framework/**"
+    - ".bgl_core/.venv*/**"
+    - ".bgl_core/brain/knowledge.db"
+    - ".bgl_core/brain/decision.db"
+    - ".bgl_core/brain/knowledge.db-journal"
+    - ".bgl_core/brain/decision.db-journal"
+    - ".bgl_core/brain/knowledge.db-wal"
+    - ".bgl_core/brain/decision.db-wal"
+scopes:
+  - id: brain_core
+    description: "Agent core logic and diagnostics"
+    paths:
+      - ".bgl_core/brain/**/*.py"
+      - ".bgl_core/brain/**/*.md"
+      - ".bgl_core/brain/**/*.json"
+      - ".bgl_core/brain/**/*.yml"
+      - ".bgl_core/brain/**/*.yaml"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+      - move
+  - id: knowledge_base
+    description: "Knowledge artifacts and insights (non-db)"
+    paths:
+      - ".bgl_core/knowledge/**/*.md"
+      - ".bgl_core/knowledge/**/*.json"
+      - ".bgl_core/knowledge/**/*.yml"
+      - ".bgl_core/knowledge/**/*.yaml"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: scenarios
+    description: "Scenario library"
+    paths:
+      - ".bgl_core/brain/scenarios/**/*.yaml"
+      - ".bgl_core/brain/scenarios/**/*.yml"
+      - ".bgl_core/brain/scenarios/**/*.md"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: plan_library
+    description: "Patch plan library"
+    paths:
+      - ".bgl_core/patch_plans/**/*.json"
+      - ".bgl_core/patch_plans/**/*.yml"
+      - ".bgl_core/patch_plans/**/*.yaml"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: app_logic
+    description: "Core PHP business logic"
+    paths:
+      - "app/**/*.php"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: api_layer
+    description: "API endpoints"
+    paths:
+      - "api/**/*.php"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: views
+    description: "Templates and UI fragments"
+    paths:
+      - "templates/**/*.php"
+      - "views/**/*.php"
+      - "partials/**/*.php"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: docs
+    description: "Documentation and maps"
+    paths:
+      - "docs/**/*.md"
+      - "docs/**/*.yml"
+      - "docs/**/*.yaml"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: tests
+    description: "Test suites"
+    paths:
+      - "tests/**/*"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: scripts
+    description: "Automation scripts"
+    paths:
+      - "scripts/**/*"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: storage_manifests
+    description: "Safe logs/manifests only (no DB)"
+    paths:
+      - "storage/logs/**/*.json"
+      - "storage/logs/**/*.md"
+    operations:
+      - modify
+      - create

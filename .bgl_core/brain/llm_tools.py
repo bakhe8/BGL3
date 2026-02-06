@@ -153,8 +153,8 @@ def tool_score_response(text: str) -> Dict[str, Any]:
                 issues.append(f"file_not_found:{file_path}")
                 score -= 0.2
 
-    # NEW: Method existence check (PHP Class::method() pattern)
-    method_mentions = re.findall(r"(\w+)::(\w+)\(\)", text)
+    # NEW: Method existence check (PHP Class::method() pattern, supports namespaces)
+    method_mentions = re.findall(r"([A-Za-z_\\\\][A-Za-z0-9_\\\\]*)::([A-Za-z_][A-Za-z0-9_]*)\(\)", text)
     for class_name, method_name in method_mentions:
         if not _method_exists(class_name, method_name):
             issues.append(f"method_not_found:{class_name}::{method_name}")
@@ -194,16 +194,43 @@ def _method_exists(class_name: str, method_name: str) -> bool:
     Returns True if found, False otherwise.
     """
     try:
+        if not class_name or not method_name:
+            return True
+        cls = class_name.strip()
+        if not cls:
+            return True
+        cls = cls.lstrip("\\")
+        if cls.lower() in ("self", "static", "parent"):
+            return True
+
+        candidates = [cls]
+        if "\\" in cls:
+            candidates.append(cls.split("\\")[-1])
+        # Deduplicate while preserving order
+        seen = set()
+        normalized = []
+        for c in candidates:
+            key = c.lower()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(c)
+
+        if not normalized:
+            return True
+
         conn = sqlite3.connect(DB)
-        result = conn.execute(
-            """
-            SELECT 1 FROM methods m
-            JOIN classes c ON m.class_id = c.id
-            WHERE c.name = ? AND m.name = ?
-            LIMIT 1
-            """,
-            (class_name, method_name),
-        ).fetchone()
+        placeholders = ",".join(["?"] * len(normalized))
+        sql = (
+            "SELECT 1 FROM methods m "
+            "JOIN entities e ON m.entity_id = e.id "
+            "WHERE e.type IN ('class','trait','interface') "
+            f"AND LOWER(e.name) IN ({placeholders}) "
+            "AND LOWER(m.name) = LOWER(?) "
+            "LIMIT 1"
+        )
+        params = [c.lower() for c in normalized] + [method_name]
+        result = conn.execute(sql, params).fetchone()
         conn.close()
         return result is not None
     except Exception:

@@ -5,9 +5,11 @@ from typing import List, Tuple
 
 try:
     from .brain_types import Context, Rule, CognitiveState, OperationalMode  # type: ignore
+    from .self_rules import load_self_rules, safe_rules_from_data  # type: ignore
 except ImportError:
     sys.path.append(str(Path(__file__).parent))
     from brain_types import Context, Rule, CognitiveState, OperationalMode  # type: ignore
+    from self_rules import load_self_rules, safe_rules_from_data  # type: ignore
 
 
 class RuleRegistry:
@@ -55,10 +57,63 @@ class RuleRegistry:
             ),
         ]
 
+    @staticmethod
+    def protected_rule_names() -> set[str]:
+        return {
+            "Force Arabic Language",
+            "Audit Mode Determinism",
+            "Policy Violation: New Screen",
+            "Privacy Protection: Credentials",
+        }
+
+    @staticmethod
+    def overridable_rule_names() -> set[str]:
+        # Only non-critical rules may be tuned automatically.
+        return {"Deep Analysis for Evolution"}
+
+    @staticmethod
+    def get_rules(root_dir: Path) -> List[Rule]:
+        core = RuleRegistry.get_core_rules()
+        core_names = {r.name for r in core}
+        data = load_self_rules(root_dir)
+        overrides = data.get("overrides") or {}
+        if isinstance(overrides, dict):
+            for rule in core:
+                if rule.name not in RuleRegistry.overridable_rule_names():
+                    continue
+                ov = overrides.get(rule.name) or {}
+                if not isinstance(ov, dict):
+                    continue
+                if ov.get("enabled") is False:
+                    rule.priority = -1  # mark disabled
+                    continue
+                try:
+                    new_pri = int(ov.get("priority", rule.priority))
+                    new_pri = max(10, min(200, new_pri))
+                    rule.priority = new_pri
+                except Exception:
+                    pass
+
+        # Filter disabled overrides
+        core = [r for r in core if r.priority >= 0]
+
+        # Append safe self rules (non-overlapping, safe action types)
+        safe_rules = safe_rules_from_data(
+            data,
+            protected_names=RuleRegistry.protected_rule_names(),
+            existing_names=core_names,
+        )
+        # Keep ordering stable; append self rules by priority desc
+        safe_rules.sort(key=lambda r: r.priority, reverse=True)
+        return core + safe_rules
+
 
 class RuleEngine:
-    def __init__(self):
-        self.rules = RuleRegistry.get_core_rules()
+    def __init__(self, root_dir: Path | None = None):
+        if root_dir is None:
+            root_dir = Path(__file__).resolve().parents[2]
+        self.root_dir = root_dir
+        self.rules = RuleRegistry.get_rules(self.root_dir)
 
     def evaluate(
         self, context: Context, state: CognitiveState
@@ -69,9 +124,16 @@ class RuleEngine:
         """
         instructions = []
 
+        # Refresh rules each evaluation (self-updates are applied without restart)
+        try:
+            self.rules = RuleRegistry.get_rules(self.root_dir)
+        except Exception:
+            pass
+
         # 1. Condition Checkers
         is_arabic = self._check_is_arabic(context.query_text)
         is_audit = context.env_state.get("mode") == "audit"
+        ui_semantic_changed = bool(context.env_state.get("ui_semantic_changed"))
 
         # 2. Rule Execution
         for rule in self.rules:
@@ -90,6 +152,9 @@ class RuleEngine:
             elif rule.condition == "intent_is_evolve":
                 # Assuming intent is passed in context or inferred (for now check if intent enum matches)
                 if context.intent.value == "evolve":
+                    triggered = True
+            elif rule.condition == "ui_semantic_changed":
+                if ui_semantic_changed:
                     triggered = True
             elif rule.condition == "request_credentials":
                 sensitive_keywords = [

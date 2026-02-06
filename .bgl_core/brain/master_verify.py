@@ -13,7 +13,7 @@ if current_dir not in sys.path:
     sys.path.append(current_dir)
 
 from agency_core import AgencyCore  # noqa: E402
-from config_loader import load_config  # noqa: E402
+from config_loader import load_config, load_effective_config  # noqa: E402
 from report_builder import build_report  # noqa: E402
 from generate_playbooks import generate_from_proposed  # noqa: E402
 from contract_tests import run_contract_suite  # noqa: E402
@@ -21,6 +21,7 @@ from utils import load_route_usage  # noqa: E402
 from callgraph_builder import build_callgraph  # noqa: E402
 from generate_openapi import generate as generate_openapi  # noqa: E402
 from scenario_deps import check_scenario_deps_async  # noqa: E402
+from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
 
 
 def log_activity(root_path: Path, message: str):
@@ -49,6 +50,7 @@ async def master_assurance_diagnostic():
     print("=" * 70)
 
     cfg = load_config(ROOT)
+    effective_cfg = load_effective_config(ROOT)
     timeout = int(cfg.get("diagnostic_timeout_sec", 300))
 
     # Master verify is an automated pipeline; leaving a browser open will hang until timeout.
@@ -76,6 +78,7 @@ async def master_assurance_diagnostic():
     # Augment diagnostic with route_usage (for suppression) and feature_flags
     diagnostic["route_usage"] = load_route_usage(ROOT)
     diagnostic["feature_flags"] = cfg.get("feature_flags", {})
+    diagnostic["effective_config"] = effective_cfg
 
     # Build callgraph for reporting/reference
     diagnostic["findings"]["callgraph_meta"] = build_callgraph(ROOT)
@@ -123,6 +126,21 @@ async def master_assurance_diagnostic():
     except Exception:
         pass
     diagnostic["findings"]["runtime_events_meta"] = runtime_meta
+
+    # Auto-insights status (staleness/coverage)
+    try:
+        allow_legacy = os.getenv("BGL_ALLOW_LEGACY_INSIGHTS", "0") == "1"
+        try:
+            max_insights = int(os.getenv("BGL_MAX_AUTO_INSIGHTS", "0") or "0")
+        except Exception:
+            max_insights = 0
+        auto_insights_status = audit_auto_insights(
+            ROOT, allow_legacy=allow_legacy, max_insights=max_insights
+        )
+        diagnostic["findings"]["auto_insights_status"] = auto_insights_status
+        write_auto_insights_status(ROOT, auto_insights_status)
+    except Exception:
+        diagnostic["findings"]["auto_insights_status"] = {}
 
     # Auto-generate playbook skeletons from proposed patterns (discovery-only)
     generated = generate_from_proposed(Path(__file__).parent.parent.parent)
@@ -219,6 +237,9 @@ async def master_assurance_diagnostic():
             "runtime_events_meta": diagnostic["findings"].get(
                 "runtime_events_meta", {}
             ),
+            "auto_insights_status": diagnostic["findings"].get(
+                "auto_insights_status", {}
+            ),
             "api_scan": diagnostic["findings"].get("api_scan", {}),
             "volition": diagnostic["findings"].get("volition", {}),
             "autonomous_policy": diagnostic["findings"].get("autonomous_policy", {}),
@@ -233,6 +254,10 @@ async def master_assurance_diagnostic():
             "policy_auto_promoted": diagnostic["findings"].get(
                 "policy_auto_promoted", []
             ),
+            "ui_semantic": diagnostic["findings"].get("ui_semantic", {}),
+            "ui_semantic_delta": diagnostic["findings"].get("ui_semantic_delta", {}),
+            "self_policy": diagnostic["findings"].get("self_policy", {}),
+            "self_rules": diagnostic["findings"].get("self_rules", {}),
         }
         build_report(data, template, output)
         # Write JSON alongside HTML for dashboard consumption

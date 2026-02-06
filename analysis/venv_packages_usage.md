@@ -1,0 +1,42 @@
+﻿# استخدام حزم .venv312 داخل .bgl_core
+
+- Jinja2: مستخدمة في 1 ملف/ملفات داخل .bgl_core
+  - brain\report_builder.py
+- MarkupSafe: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- PyYAML: مستخدمة في 8 ملف/ملفات داخل .bgl_core
+  - brain\agency_core.py
+  - brain\approve_playbook.py
+  - brain\config_loader.py
+  - brain\contract_seeder.py
+  - brain\generate_openapi.py
+  - brain\governor.py
+  - brain\guardian.py
+  - brain\scenario_runner.py
+- Pygments: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- asyncio: مستخدمة في 8 ملف/ملفات داخل .bgl_core
+  - brain\archive\verify_phase_5.py
+  - brain\browser_manager.py
+  - brain\browser_sensor.py
+  - brain\guardian.py
+  - brain\master_verify.py
+  - brain\run_scenarios.py
+  - brain\safety.py
+  - brain\scenario_runner.py
+- bezier: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- colorama: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- greenlet: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- iniconfig: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- numpy: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- packaging: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- pip: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- playwright: مستخدمة في 4 ملف/ملفات داخل .bgl_core
+  - brain\browser_manager.py
+  - brain\browser_sensor.py
+  - brain\llm_tools.py
+  - brain\scenario_deps.py
+- pluggy: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- pyee: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- pytest: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)
+- python_ghost_cursor: مستخدمة في 1 ملف/ملفات داخل .bgl_core
+  - brain\scenario_runner.py
+- typing_extensions: غير مستوردة مباشرة في ملفات .bgl_core (قد تكون تبعية غير مباشرة)

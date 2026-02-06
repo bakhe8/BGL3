@@ -1,0 +1,2447 @@
+﻿{
+  "brain\\agency_core.py": {
+    "module_doc": null,
+    "classes": {
+      "AgencyCore": {
+        "doc": "BGL3 Agency Core (The Brain) - Singleton\nCoordinates all sensors, actors, and knowledge.",
+        "methods": [
+          {
+            "name": "__new__",
+            "doc": null
+          },
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "run_full_diagnostic",
+            "doc": "Orchestrates a complete project-wide diagnostic.\nStandardizes output to a DiagnosticMap."
+          },
+          {
+            "name": "_execution_stats",
+            "doc": null
+          },
+          {
+            "name": "get_active_blockers",
+            "doc": "Retrieves unresolved agent struggles from cognitive memory."
+          },
+          {
+            "name": "solve_blocker",
+            "doc": "Marks a cognitive struggle as resolved."
+          },
+          {
+            "name": "commit_proposed_rule",
+            "doc": "Appends a proposed rule to domain_rules.yml."
+          },
+          {
+            "name": "request_permission",
+            "doc": "Logs a risky operation for human approval (delegates to Authority)."
+          },
+          {
+            "name": "is_permission_granted",
+            "doc": "Checks if the user has approved a specific operation (delegates to Authority)."
+          },
+          {
+            "name": "log_activity",
+            "doc": "Persistent activity logging for dashboard visibility."
+          },
+          {
+            "name": "log_trace",
+            "doc": "Systemic tracing for audit trails."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\agent_tasks.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "simulate_agent_task",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\agent_verify.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run_all_checks",
+        "doc": "مصدر موحد لتشغيل كل checks المحددة في inference_patterns.json.\nيعيد JSON يحتوي على النتائج وتمرير/فشل إجمالي."
+      }
+    ]
+  },
+  "brain\\apply_db_fixes.py": {
+    "module_doc": "Apply DB fixes in sandbox: indexes and FKs based on patch_templates.\nAssumes SQLite sandbox DB at storage/database/app.sqlite (or as configured).",
+    "classes": {},
+    "functions": [
+      {
+        "name": "run_sqlite",
+        "doc": null
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\apply_proposal.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\approve_playbook.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "append_rule",
+        "doc": null
+      },
+      {
+        "name": "approve",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\authority.py": {
+    "module_doc": null,
+    "classes": {
+      "Authority": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_cache_key",
+            "doc": "Stable fingerprint for deduping decisions within a run.\nKeep it coarse: operation + kind (+ a few metadata keys) is enough."
+          },
+          {
+            "name": "_cache_get",
+            "doc": null
+          },
+          {
+            "name": "_cache_set",
+            "doc": null
+          },
+          {
+            "name": "_eligible_for_direct",
+            "doc": "Auto-trial policy: allow \"direct\" mode only after N consecutive successes.\nMatches the historical behavior used by patcher/guardian."
+          },
+          {
+            "name": "effective_execution_mode",
+            "doc": "Compute effective execution mode:\n- sandbox: never allow WRITE_PROD\n- direct: allow WRITE_PROD with explicit approval\n- auto_trial: becomes direct only when eligible; otherwise sandbox\n- autonomous: allow all writes without approval (unsafe)"
+          },
+          {
+            "name": "_autonomous_enabled",
+            "doc": null
+          },
+          {
+            "name": "dedupe_permissions",
+            "doc": "Keep only the latest PENDING permission per operation to avoid queue spam."
+          },
+          {
+            "name": "has_permission",
+            "doc": null
+          },
+          {
+            "name": "request_permission",
+            "doc": "Upserts a PENDING permission request and returns its id."
+          },
+          {
+            "name": "permission_status",
+            "doc": "Return the status for a permission id (GRANTED/PENDING/REJECTED/...)."
+          },
+          {
+            "name": "is_permission_granted",
+            "doc": null
+          },
+          {
+            "name": "_log_decision",
+            "doc": "Log intent + decision rows and return a GateResult with linkage ids."
+          },
+          {
+            "name": "record_outcome",
+            "doc": null
+          },
+          {
+            "name": "gate",
+            "doc": "Gate an action.\n- OBSERVE/PROBE/PROPOSE: allowed immediately.\n- WRITE_*: requires explicit approval unless explicitly overridden by env/config."
+          }
+        ]
+      }
+    },
+    "functions": [
+      {
+        "name": "_ensure_agent_permissions_table",
+        "doc": null
+      },
+      {
+        "name": "_safe_json",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\autonomous_policy.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_load_rules",
+        "doc": null
+      },
+      {
+        "name": "_save_rules",
+        "doc": null
+      },
+      {
+        "name": "_rule_key",
+        "doc": null
+      },
+      {
+        "name": "_apply_patch",
+        "doc": null
+      },
+      {
+        "name": "apply_autonomous_policy_edit",
+        "doc": "Uses LLM to propose a policy_expectations patch and applies it immediately.\nReturns summary of changes."
+      }
+    ]
+  },
+  "brain\\brain_rules.py": {
+    "module_doc": null,
+    "classes": {
+      "RuleRegistry": {
+        "doc": "Hardcoded structural rules that override LLM reasoning.",
+        "methods": [
+          {
+            "name": "get_core_rules",
+            "doc": null
+          }
+        ]
+      },
+      "RuleEngine": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "evaluate",
+            "doc": "Applies rules to the current context and state.\nReturns: (Updated State, List[Action Instructions for LLM/System])"
+          },
+          {
+            "name": "_check_is_arabic",
+            "doc": "Returns True if text is predominantly Arabic."
+          },
+          {
+            "name": "_apply_action",
+            "doc": "Executes the side-effect of a rule."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\brain_types.py": {
+    "module_doc": null,
+    "classes": {
+      "Intent": {
+        "doc": null,
+        "methods": []
+      },
+      "HealthScore": {
+        "doc": null,
+        "methods": []
+      },
+      "Context": {
+        "doc": "Level 3: Context Schema ◼◼",
+        "methods": []
+      },
+      "OperationalMode": {
+        "doc": null,
+        "methods": []
+      },
+      "CognitiveState": {
+        "doc": "Tracks the agent's internal reasoning state.",
+        "methods": []
+      },
+      "Rule": {
+        "doc": "A deterministic logic unit.",
+        "methods": []
+      },
+      "ActionKind": {
+        "doc": "Unified action taxonomy for authority/gating.\n\nNOTE: This is about *side effects* (what can mutate state), not about \"intent\".",
+        "methods": []
+      },
+      "ActionRequest": {
+        "doc": "Request to perform an action that may have side effects.\nAll write-capable modules should describe their operations through this schema.",
+        "methods": []
+      },
+      "GateResult": {
+        "doc": "Output of the Authority gate.\n- allowed: whether execution may proceed now\n- requires_human: whether the action is pending explicit approval",
+        "methods": []
+      }
+    },
+    "functions": []
+  },
+  "brain\\browser_core.py": {
+    "module_doc": "browser_core.py (Deprecated)\n----------------------------\nThis module used to provide a separate Playwright wrapper.\n\nWe keep it as a thin compatibility layer to avoid maintaining multiple\ncompeting browser abstractions.\n\nUse `.bgl_core/brain/browser_sensor.py` (BrowserSensor) for scanning.\nUse `.bgl_core/brain/browser_manager.py` (BrowserManager) for scenarios.",
+    "classes": {
+      "BrowserCore": {
+        "doc": "Compatibility wrapper around BrowserSensor.\n\nHistorical API: navigate()\nCurrent API: scan_url()",
+        "methods": [
+          {
+            "name": "navigate",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\browser_manager.py": {
+    "module_doc": null,
+    "classes": {
+      "BrowserManager": {
+        "doc": "Singleton-style manager for Playwright browser/context reuse.\nControls max pages, idle time, and restart on failure.",
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_ensure_browser",
+            "doc": null
+          },
+          {
+            "name": "_cleanup_idle_pages",
+            "doc": null
+          },
+          {
+            "name": "get_page",
+            "doc": null
+          },
+          {
+            "name": "new_page",
+            "doc": null
+          },
+          {
+            "name": "_install_filechooser_guard",
+            "doc": "Block native OS file dialogs by default.\n\nNative file pickers are outside the browser and break automation.\nTo allow them (not recommended), set env BGL_ALLOW_FILECHOOSER=1 or set\npage._bgl_allow_filechooser = True temporarily."
+          },
+          {
+            "name": "close",
+            "doc": null
+          },
+          {
+            "name": "status",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\browser_sensor.py": {
+    "module_doc": null,
+    "classes": {
+      "BrowserSensor": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_ensure_browser",
+            "doc": null
+          },
+          {
+            "name": "close",
+            "doc": "Close the singleton Playwright resources.\n\nImportant on Windows: leaving Playwright's driver subprocess attached to an\nevent loop that is about to close can emit noisy asyncio transport warnings."
+          },
+          {
+            "name": "scan_url",
+            "doc": "Scans a specific URL for frontend errors (Console and Network).\nIf measure_perf is True, captures timing data and identifies JS hotspots."
+          },
+          {
+            "name": "_write_status",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": [
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\callgraph_builder.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_guess_layer",
+        "doc": null
+      },
+      {
+        "name": "_get_dependencies",
+        "doc": null
+      },
+      {
+        "name": "_get_entity_method_id",
+        "doc": null
+      },
+      {
+        "name": "build_callgraph",
+        "doc": "Rich Callgraph: route -> controller -> service -> repo"
+      }
+    ]
+  },
+  "brain\\check_mouse_layer.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\commit_rule.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\config_loader.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_deep_merge",
+        "doc": null
+      },
+      {
+        "name": "load_config",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\context_digest.py": {
+    "module_doc": "Context Digest\n--------------\nSummarizes recent runtime_events into experiential memory for later analysis.\nUsage:\n    python .bgl_core/brain/context_digest.py --hours 24 --limit 500",
+    "classes": {},
+    "functions": [
+      {
+        "name": "fetch_events",
+        "doc": null
+      },
+      {
+        "name": "load_route_map",
+        "doc": null
+      },
+      {
+        "name": "summarize",
+        "doc": null
+      },
+      {
+        "name": "upsert_experiences",
+        "doc": null
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\context_extractor.py": {
+    "module_doc": "Lightweight context extractor for LLM prompts.\n- Gathers small code snippets around symbols/paths.\n- Optionally uses call graph + AST indexes later; current version file/line based.",
+    "classes": {},
+    "functions": [
+      {
+        "name": "_read_snippet",
+        "doc": null
+      },
+      {
+        "name": "extract",
+        "doc": "targets: list of relative paths or symbols.\nReturns list of {path, snippet}."
+      }
+    ]
+  },
+  "brain\\contract_seeder.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_load_yaml",
+        "doc": null
+      },
+      {
+        "name": "_guess_value",
+        "doc": null
+      },
+      {
+        "name": "_extract_post_fields",
+        "doc": null
+      },
+      {
+        "name": "_extract_get_params",
+        "doc": null
+      },
+      {
+        "name": "_param_example_is_placeholder",
+        "doc": "Decide whether an existing OpenAPI parameter example should be updated.\nWe keep this conservative to avoid rewriting curated specs."
+      },
+      {
+        "name": "_ensure_method",
+        "doc": null
+      },
+      {
+        "name": "_post_only",
+        "doc": null
+      },
+      {
+        "name": "_example_is_placeholder",
+        "doc": null
+      },
+      {
+        "name": "seed_contract",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\contract_tests.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run_contract_suite",
+        "doc": "Runs optional API contract/property tests if specs exist.\n- Schemathesis: looks for openapi.(yaml|json) under public/ or api/.\n- Dredd: looks for api.apib\nReturns a list of gap-like results to merge into diagnostic[\"gap_tests\"]."
+      }
+    ]
+  },
+  "brain\\decision_db.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "init_db",
+        "doc": null
+      },
+      {
+        "name": "_connect",
+        "doc": null
+      },
+      {
+        "name": "insert_intent",
+        "doc": null
+      },
+      {
+        "name": "insert_decision",
+        "doc": null
+      },
+      {
+        "name": "insert_outcome",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\decision_engine.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "decide",
+        "doc": "Smart Decision Engine.\nUses LLM to evaluate risk and maturity before authorizing actions."
+      },
+      {
+        "name": "_deterministic_decision",
+        "doc": "Rule-based decision when LLM is unavailable.\nConservative approach: require human approval for uncertain tasks."
+      }
+    ]
+  },
+  "brain\\embeddings.py": {
+    "module_doc": "Simple embedding cache using bag-of-words hashing stored in SQLite.\nAvoids external dependencies; not high-precision but accelerates similarity search.",
+    "classes": {},
+    "functions": [
+      {
+        "name": "_tokenize",
+        "doc": null
+      },
+      {
+        "name": "_vectorize",
+        "doc": null
+      },
+      {
+        "name": "_cosine",
+        "doc": null
+      },
+      {
+        "name": "_ensure_table",
+        "doc": null
+      },
+      {
+        "name": "add_text",
+        "doc": null
+      },
+      {
+        "name": "search",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\execution_gate.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "check",
+        "doc": "Central gate. For الآن يبقى غير مانع إلا في الحالات الواضحة.\nReturns True if action is allowed to proceed."
+      }
+    ]
+  },
+  "brain\\experience_replay.py": {
+    "module_doc": "Experience replay store for LLM:\n- save(prompt, response, domain, outcome)\n- fetch top N by domain (most recent)",
+    "classes": {},
+    "functions": [
+      {
+        "name": "_ensure",
+        "doc": null
+      },
+      {
+        "name": "save",
+        "doc": null
+      },
+      {
+        "name": "fetch",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\fault_locator.py": {
+    "module_doc": null,
+    "classes": {
+      "FaultLocator": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "get_context_from_log",
+            "doc": "Reads the last N lines from the application's log file."
+          },
+          {
+            "name": "_locate_url",
+            "doc": "Maps a URL to its backend route information. (Internal method)"
+          },
+          {
+            "name": "locate_url",
+            "doc": "Public wrapper used by Guardian and Safety layers."
+          },
+          {
+            "name": "diagnose_fault",
+            "doc": "Diagnoses a fault by locating the URL and grabbing recent log context."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\fingerprint.py": {
+    "module_doc": null,
+    "classes": {
+      "Fingerprint": {
+        "doc": null,
+        "methods": []
+      }
+    },
+    "functions": [
+      {
+        "name": "_stat_sig",
+        "doc": null
+      },
+      {
+        "name": "_walk_globs",
+        "doc": null
+      },
+      {
+        "name": "compute_fingerprint",
+        "doc": "Focus on files that meaningfully affect routes/runtime behavior:\n- PHP app + api + views + public JS/CSS\n- agent brain configs and scenario definitions\n- OpenAPI specs"
+      },
+      {
+        "name": "fingerprint_is_fresh",
+        "doc": "Avoid thrashing on self-modifying repositories (logs, db, etc.) by allowing a\nshort freshness window. If the last fingerprint is recent, treat it as \"fresh\"\neven if mtime moved due to verification artifacts."
+      },
+      {
+        "name": "fingerprint_equal",
+        "doc": null
+      },
+      {
+        "name": "fingerprint_to_payload",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\generate_openapi.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "generate",
+        "doc": "Generates a minimal OpenAPI spec from indexed routes (knowledge.db -> routes table).\nMerges manual seed if present."
+      }
+    ]
+  },
+  "brain\\generate_playbooks.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "generate_from_proposed",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\governor.py": {
+    "module_doc": null,
+    "classes": {
+      "BGLGovernor": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_load_rules",
+            "doc": null
+          },
+          {
+            "name": "audit",
+            "doc": null
+          },
+          {
+            "name": "_check_content_rule",
+            "doc": null
+          },
+          {
+            "name": "_classify_entities",
+            "doc": "Maps entity_id to its classified type (controller, service, etc)"
+          },
+          {
+            "name": "_check_relationship_rule",
+            "doc": null
+          },
+          {
+            "name": "_check_naming_rule",
+            "doc": null
+          },
+          {
+            "name": "_get_entities_by_type",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\guardian.py": {
+    "module_doc": null,
+    "classes": {
+      "BGLGuardian": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "perform_full_audit",
+            "doc": "Scans all indexed routes and provides a proactive health report."
+          },
+          {
+            "name": "_update_route_health",
+            "doc": "Upserts health status to avoid failing when a route record is missing."
+          },
+          {
+            "name": "_preflight_services",
+            "doc": "Readiness gate before deep audits to reduce timing false negatives."
+          },
+          {
+            "name": "_load_api_contract",
+            "doc": "Load merged OpenAPI spec and return paths map + summary."
+          },
+          {
+            "name": "_contract_missing_routes",
+            "doc": "Return API routes present in code but missing in contract spec."
+          },
+          {
+            "name": "_contract_quality_gaps",
+            "doc": "Identify contract paths that exist but lack enough detail to run a probe.\nFlags missing requestBody for write methods and missing required query examples for GET."
+          },
+          {
+            "name": "auto_remediate",
+            "doc": "Experimental: Attempts to solve a high-confidence suggestion using pre-defined rules.\nNow integrates BGLPatcher."
+          },
+          {
+            "name": "log_maintenance",
+            "doc": "Standard maintenance tasks for the system."
+          },
+          {
+            "name": "_prune_logs",
+            "doc": "Clears old log entries to preserve performance."
+          },
+          {
+            "name": "_check_learning_confirmations",
+            "doc": "Queries the memory for confirmed anomalies or rejected false positives."
+          },
+          {
+            "name": "_check_business_conflicts_real",
+            "doc": "Calls the PHP logic bridge with REAL data to detect business-level conflicts."
+          },
+          {
+            "name": "_get_proxied_routes",
+            "doc": null
+          },
+          {
+            "name": "_is_api_route",
+            "doc": null
+          },
+          {
+            "name": "_scan_api_route",
+            "doc": "Scan API routes without opening them in the browser.\nmode: skip | safe | all"
+          },
+          {
+            "name": "_classify_expected_failure",
+            "doc": "Classify expected policy failures based on local rules."
+          },
+          {
+            "name": "_maybe_record_policy_candidate",
+            "doc": "Use tools to verify if a failure could be policy-expected, then log candidate."
+          },
+          {
+            "name": "_auto_promote_policy_candidates",
+            "doc": "Promote high-confidence candidates into policy_expectations.json."
+          },
+          {
+            "name": "_render_example",
+            "doc": "Replace placeholder tokens in examples to avoid duplicate conflicts."
+          },
+          {
+            "name": "_dedupe_permissions",
+            "doc": "Keep only the latest PENDING permission per operation to avoid queue spam."
+          },
+          {
+            "name": "_ensure_routes_indexed",
+            "doc": "Ensure routes table is populated at least once (read-only safety net)."
+          },
+          {
+            "name": "_has_permission",
+            "doc": null
+          },
+          {
+            "name": "_request_permission",
+            "doc": null
+          },
+          {
+            "name": "_gate_reindex",
+            "doc": "Gate large reindex operations via decision layer and hardware limits."
+          },
+          {
+            "name": "_detect_log_anomalies",
+            "doc": "Identifies recurring patterns in the Laravel log."
+          },
+          {
+            "name": "_generate_suggestions",
+            "doc": null
+          },
+          {
+            "name": "_worst_routes",
+            "doc": "Infer worst routes from experiences + failing routes + http errors count."
+          },
+          {
+            "name": "_check_permissions",
+            "doc": "Verify write access to critical paths; report issues without modifying files."
+          },
+          {
+            "name": "_pending_approvals",
+            "doc": "Return pending human approvals from agent_permissions (best-effort)."
+          },
+          {
+            "name": "_recent_outcomes",
+            "doc": "Return recent outcomes joined with their decisions/intents (best-effort)."
+          },
+          {
+            "name": "_load_recent_experiences",
+            "doc": "Fetch recent experiential summaries to inform audit suggestions."
+          },
+          {
+            "name": "_load_route_stats",
+            "doc": null
+          },
+          {
+            "name": "_persist_route_stats",
+            "doc": null
+          },
+          {
+            "name": "_target_duration",
+            "doc": null
+          },
+          {
+            "name": "_compute_adaptive_limit",
+            "doc": null
+          },
+          {
+            "name": "run_daemon",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\guardrails.py": {
+    "module_doc": null,
+    "classes": {
+      "BGLGuardrails": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "is_path_allowed",
+            "doc": null
+          },
+          {
+            "name": "validate_changes",
+            "doc": null
+          },
+          {
+            "name": "filter_paths",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\hand_profile.py": {
+    "module_doc": null,
+    "classes": {
+      "HandProfile": {
+        "doc": "يمثل \"هوية يد\" ثابتة طوال الجلسة: سرعات وجيتّر وتصحيحات بسيطة.\nتتغير فقط بين الجلسات.",
+        "methods": [
+          {
+            "name": "generate",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\hardware_sensor.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "get_gpu_info",
+        "doc": "Attempts to get GPU load and memory using nvidia-smi."
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\indexer.py": {
+    "module_doc": null,
+    "classes": {
+      "EntityIndexer": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "update_impacted",
+            "doc": "Re-index only the provided relative paths (for targeted updates after patch)."
+          },
+          {
+            "name": "index_project",
+            "doc": null
+          },
+          {
+            "name": "close",
+            "doc": null
+          },
+          {
+            "name": "_should_index",
+            "doc": "Only index if mtime differs from memory."
+          },
+          {
+            "name": "_index_file",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\inference.py": {
+    "module_doc": null,
+    "classes": {
+      "ReasoningEngine": {
+        "doc": "LLM-First Reasoning Engine.\nImplements a Plan-Act-Reflect loop for autonomous intelligence.",
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_get_project_structure",
+            "doc": "Discovers real files to prevent hallucination."
+          },
+          {
+            "name": "_get_file_hash",
+            "doc": "Calculates SHA-256 hash of a file."
+          },
+          {
+            "name": "reason",
+            "doc": "Main reasoning loop: Plan -> Act -> Reflect.\nArgs:\n    context_input: Either a raw dict (Level 0) or structured Context (Level 3)."
+          },
+          {
+            "name": "_analyze_backend_logic",
+            "doc": "Maps a URL to a local file and reads its key logic to understand 'False Positives' etc."
+          },
+          {
+            "name": "_json_serializer",
+            "doc": null
+          },
+          {
+            "name": "_build_reasoning_prompt",
+            "doc": null
+          },
+          {
+            "name": "_extract_json_from_text",
+            "doc": "Robustly extracts JSON object from text (e.g. Markdown code fences or preambles)."
+          },
+          {
+            "name": "_query_llm",
+            "doc": "Queries LLM (Local Ollama or OpenAI) with zero external dependencies."
+          },
+          {
+            "name": "_get_brain_state",
+            "doc": "Diagnose Brain State: \"HOT\" (Ready), \"COLD\" (Loading), or \"OFFLINE\"."
+          },
+          {
+            "name": "chat",
+            "doc": "Conversational entry point with grounding.\nReturns the FULL PLAN (Dict) so the server can execute actions."
+          },
+          {
+            "name": "_parse_structured_plan",
+            "doc": "Robustly parses JSON even if wrapped in markdown or containing garbage."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\intent_resolver.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "resolve_intent",
+        "doc": "Smart Intent Resolver.\nUses LLM to interpret diagnostic data and determine true intent."
+      }
+    ]
+  },
+  "brain\\interpretation.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "interpret",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\llm_client.py": {
+    "module_doc": null,
+    "classes": {
+      "LLMClientConfig": {
+        "doc": null,
+        "methods": []
+      },
+      "LLMClient": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_brain_state",
+            "doc": "Diagnose brain state using Ollama /api/ps:\n- HOT: at least one model loaded\n- COLD: service reachable but no models listed\n- OFFLINE: cannot reach endpoint"
+          },
+          {
+            "name": "state",
+            "doc": null
+          },
+          {
+            "name": "_warm",
+            "doc": null
+          },
+          {
+            "name": "_auto_warm_in_background",
+            "doc": "ROOT CAUSE FIX: Background model warming.\n\nProblem: Ollama lazy-loads models (takes 20-30s).\nSolution: Warm model immediately on LLMClient creation in background thread.\n\nBenefits:\n- First chat_json() call is instant (model already loaded)\n- No manual 'ollama run' needed\n- No 25s wait on first use\n- User doesn't notice loading time"
+          },
+          {
+            "name": "ensure_hot",
+            "doc": "Best-effort warm-up. Returns final state."
+          },
+          {
+            "name": "chat_json",
+            "doc": "Chat completion expecting a JSON object in message content.\nRaises on network/parse errors; callers should handle fallback."
+          }
+        ]
+      }
+    },
+    "functions": [
+      {
+        "name": "_swap_localhost",
+        "doc": null
+      },
+      {
+        "name": "_normalize_urls",
+        "doc": "Returns (chat_url, base_api_url).\nchat_url: .../v1/chat/completions\nbase_api_url: ... (no /v1/...) suitable for /api/* endpoints"
+      }
+    ]
+  },
+  "brain\\llm_tools.py": {
+    "module_doc": "Lightweight tool layer to let the local LLM (or any caller) trigger safe utilities.\nTools are pure/side-effect-minimal where possible, and return JSON-serializable data.",
+    "classes": {},
+    "functions": [
+      {
+        "name": "tool_run_checks",
+        "doc": "Run all static checks from inference_patterns.json."
+      },
+      {
+        "name": "tool_route_index",
+        "doc": "Rebuild route index and return the discovered routes."
+      },
+      {
+        "name": "tool_logic_bridge",
+        "doc": "Call the PHP logic bridge with a JSON payload."
+      },
+      {
+        "name": "tool_layout_map",
+        "doc": "Capture a lightweight layout map from a page (headless Chromium).\nReturns positions/text/role of interactive elements."
+      },
+      {
+        "name": "tool_context_pack",
+        "doc": "Gather hot context: latest intents/decisions/outcomes + routes count."
+      },
+      {
+        "name": "tool_score_response",
+        "doc": "Score an LLM response with simple rule-based checks and agent_verify outcome.\nEnhanced with file existence and method existence checking.\nWrites score to knowledge.db (table llm_scores)."
+      },
+      {
+        "name": "_method_exists",
+        "doc": "Check if a method exists in knowledge.db structure memory.\nReturns True if found, False otherwise."
+      },
+      {
+        "name": "tool_schema",
+        "doc": "Return available tools and their parameters for prompt wiring."
+      },
+      {
+        "name": "dispatch",
+        "doc": "request = {\"tool\": \"run_checks\"} or {\"tool\": \"logic_bridge\", \"payload\": {...}}"
+      }
+    ]
+  },
+  "brain\\master_verify.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "log_activity",
+        "doc": "Logs an event to the agent_activity table for dashboard visibility."
+      },
+      {
+        "name": "master_assurance_diagnostic",
+        "doc": "Main entry point for Master Technical Assurance.\nRuns a full AgencyCore diagnostic and presents the results."
+      }
+    ]
+  },
+  "brain\\memory.py": {
+    "module_doc": null,
+    "classes": {
+      "StructureMemory": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_connect",
+            "doc": null
+          },
+          {
+            "name": "_init_schema_once",
+            "doc": null
+          },
+          {
+            "name": "register_file",
+            "doc": null
+          },
+          {
+            "name": "get_file_info",
+            "doc": null
+          },
+          {
+            "name": "clear_file_data",
+            "doc": null
+          },
+          {
+            "name": "store_nested_symbols",
+            "doc": null
+          },
+          {
+            "name": "_store_calls",
+            "doc": null
+          },
+          {
+            "name": "close",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\metrics_guard.py": {
+    "module_doc": "Metrics guard: يقارن ملخص mouse_metrics بحدود مطلوبة.\nيُستخدم في CI لإيقاف البناء إذا خرجت القياسات عن النطاق.\n\nمتغيرات البيئة للتحكم:\n- BGL_TARGET_MOVE_MIN_MS, BGL_TARGET_MOVE_MAX_MS (القيم الافتراضية 2000..6000)\n- BGL_REQUIRE_DOM_CHANGE (1/0) يفرض وجود عينات click→DOM",
+    "classes": {},
+    "functions": [
+      {
+        "name": "load_summary",
+        "doc": null
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\metrics_summary.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "summarize",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\migrate_decision_to_knowledge.py": {
+    "module_doc": "One-time migration: copy intents/decisions/outcomes from decision.db to knowledge.db.\nSafe to re-run; skips if source missing.",
+    "classes": {},
+    "functions": [
+      {
+        "name": "ensure_schema",
+        "doc": null
+      },
+      {
+        "name": "migrate",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\motor.py": {
+    "module_doc": null,
+    "classes": {
+      "MouseState": {
+        "doc": null,
+        "methods": []
+      },
+      "Motor": {
+        "doc": "طبقة الحركة الفيزيائية: تحوّل أمر \"اذهب هنا\" إلى مسار بشري نسبي.",
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "move_to",
+            "doc": "ينفّذ حركة محسوبة مع تسارع/تباطؤ، overshoot بسيط، وجيتّر خفيف."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\observations.py": {
+    "module_doc": "Unified Observations\n--------------------\nPersist a compact, queryable snapshot of \"what the agent observed\" about the BGL3\nenvironment per diagnostic run.\n\nGoal:\n- Keep the agent's perception/health/route signals in one canonical place\n  (knowledge.db) so downstream reasoning can be consistent even when LLM is offline.",
+    "classes": {},
+    "functions": [
+      {
+        "name": "_ensure_tables",
+        "doc": null
+      },
+      {
+        "name": "store_env_snapshot",
+        "doc": null
+      },
+      {
+        "name": "latest_env_snapshot",
+        "doc": null
+      },
+      {
+        "name": "_safe_get",
+        "doc": null
+      },
+      {
+        "name": "_diff_scalar",
+        "doc": null
+      },
+      {
+        "name": "compute_diagnostic_delta",
+        "doc": "A compact, stable delta between two diagnostic snapshots.\n\nKeep it small and deterministic: only compare a curated set of keys plus some\naggregate counts to avoid noisy diffs."
+      },
+      {
+        "name": "store_latest_diagnostic_delta",
+        "doc": "Compute and store delta against the previous diagnostic snapshot (if any)."
+      },
+      {
+        "name": "diagnostic_to_snapshot",
+        "doc": "Keep the snapshot compact and stable (schema-ish)."
+      },
+      {
+        "name": "compute_skip_recommendation",
+        "doc": "Decide what to skip next run when things look stable.\nThis is advisory; callers can enforce policy."
+      }
+    ]
+  },
+  "brain\\orchestrator.py": {
+    "module_doc": null,
+    "classes": {
+      "ExecutionReport": {
+        "doc": null,
+        "methods": []
+      },
+      "BGLOrchestrator": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "execute_task",
+            "doc": "Executes a task based on the formal Task Spec JSON and returns an Execution Report."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\outcome_signals.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_as_list",
+        "doc": null
+      },
+      {
+        "name": "_top",
+        "doc": null
+      },
+      {
+        "name": "_candidate_conf_by_uri",
+        "doc": null
+      },
+      {
+        "name": "_looks_like_scan_artifact",
+        "doc": "Best-effort heuristic:\nSome failing routes are not product defects but artifacts of \"safe scan\"\n(e.g., GET on write-only endpoints => \"Missing required field\")."
+      },
+      {
+        "name": "compute_outcome_signals",
+        "doc": "Input expects a diagnostic-like dict:\n{\n  \"vitals\": {...},\n  \"findings\": {...},\n  \"readiness\": {...} (optional)\n}\nReturns:\n{\n  \"signals\": {...},\n  \"intent_hint\": {...}\n}"
+      }
+    ]
+  },
+  "brain\\patcher.py": {
+    "module_doc": null,
+    "classes": {
+      "BGLPatcher": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "rename_class",
+            "doc": null
+          },
+          {
+            "name": "add_method",
+            "doc": null
+          },
+          {
+            "name": "_run_action",
+            "doc": null
+          },
+          {
+            "name": "_update_references",
+            "doc": "Best-effort reference rename across key project directories.\nWorks inside sandbox; changes will be diff-applied back to main.\nUses AST-based rename_reference action to avoid accidental text replacements."
+          },
+          {
+            "name": "_derive_impacted_tests",
+            "doc": "Find tests touching callers of the renamed class using call graph (entity+method) and fallback heuristics."
+          },
+          {
+            "name": "_derive_impacted_files",
+            "doc": "Find caller files of the renamed class to reindex selectively."
+          },
+          {
+            "name": "_post_patch_index",
+            "doc": "Re-index modified PHP files to keep knowledge.db fresh."
+          },
+          {
+            "name": "_post_patch_index_all",
+            "doc": "Full project reindex (used after rename for accurate dependency graph)."
+          },
+          {
+            "name": "_discover_composer",
+            "doc": "Find composer executable/phar. Hard requirement: return path or None (fail)."
+          },
+          {
+            "name": "_refresh_autoload",
+            "doc": "Run composer dump-autoload in sandbox. Policy: hard requirement."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\perception.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "capture_ui_map",
+        "doc": "Return a compact UI map for interactive elements:\n- tag/role/text/id/classes/type (+ x/y/w/h).\nShared implementation used by tools/sensors to avoid drift."
+      },
+      {
+        "name": "project_interactive_elements",
+        "doc": "Backwards-compatible projection for older consumers (no coordinates)."
+      },
+      {
+        "name": "capture_local_context",
+        "doc": "يجمع ما نراه موضعياً: الهدف، جار قريب، عنوان قريب، وسبب الاختيار (selector/hint).\nلا يلتقط الصفحة كاملة.\nيمكنه حفظ لقطة صغيرة للهدف لأغراض التعلم/التوثيق."
+      }
+    ]
+  },
+  "brain\\playbook_loader.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "load_playbooks_meta",
+        "doc": "Load front-matter metadata from playbooks/*.md\nSupports simple YAML-like header bounded by --- ... --- with key: value."
+      }
+    ]
+  },
+  "brain\\policy.py": {
+    "module_doc": null,
+    "classes": {
+      "Policy": {
+        "doc": "طبقة القرار: تأخذ hint (من السيناريو أو من الاستكشاف) وتقرر ماذا تفعل بعد الوصول.",
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "perform_click",
+            "doc": "اقتراب → تقييم موضعي → قرار نقر أو تغيير فرضية."
+          },
+          {
+            "name": "perform_goto",
+            "doc": null
+          },
+          {
+            "name": "_start_dom_watch",
+            "doc": "يزرع MutationObserver قبل النقر لالتقاط أول تغيير DOM بعد الحدث."
+          },
+          {
+            "name": "_wait_dom_change",
+            "doc": "ينتظر نتيجة المراقبة المزروعة مسبقاً ويعيد delta ms أو None."
+          },
+          {
+            "name": "_find_alternative",
+            "doc": "يحاول العثور على عنصر بديل قريب من آخر موضع للماوس (زر/رابط) عند فشل الـ selector."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\policy_verifier.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_find_app_db",
+        "doc": null
+      },
+      {
+        "name": "_read_file",
+        "doc": null
+      },
+      {
+        "name": "_method_guard",
+        "doc": null
+      },
+      {
+        "name": "_required_fields",
+        "doc": null
+      },
+      {
+        "name": "_foreign_keys_for",
+        "doc": null
+      },
+      {
+        "name": "verify_failure",
+        "doc": "Build evidence for whether a failure is policy-expected.\nReturns candidate with confidence and evidence."
+      }
+    ]
+  },
+  "brain\\readiness_gate.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_swap_localhost",
+        "doc": null
+      },
+      {
+        "name": "_http_check",
+        "doc": null
+      },
+      {
+        "name": "_port_check",
+        "doc": null
+      },
+      {
+        "name": "_ollama_tags",
+        "doc": null
+      },
+      {
+        "name": "_ollama_warm",
+        "doc": null
+      },
+      {
+        "name": "run_readiness",
+        "doc": "Readiness gate: checks HTTP base_url, tool_server port, and local LLM health.\nReturns a structured report without raising."
+      }
+    ]
+  },
+  "brain\\report_builder.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "build_report",
+        "doc": null
+      },
+      {
+        "name": "load_latest_health",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\route_indexer.py": {
+    "module_doc": null,
+    "classes": {
+      "LaravelRouteIndexer": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "run",
+            "doc": null
+          },
+          {
+            "name": "index_project",
+            "doc": null
+          },
+          {
+            "name": "_analyze_file",
+            "doc": "Attempts to find the primary Service/Controller used in a PHP file."
+          },
+          {
+            "name": "_infer_method",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\run_scenarios.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_log_activity",
+        "doc": null
+      },
+      {
+        "name": "_ensure_env",
+        "doc": null
+      },
+      {
+        "name": "_run_real_scenarios",
+        "doc": null
+      },
+      {
+        "name": "simulate_traffic",
+        "doc": "Legacy simulator (disabled by default).\nEnable via BGL_SIMULATE_SCENARIOS=1."
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\safety.py": {
+    "module_doc": null,
+    "classes": {
+      "SafetyNet": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "_safe_float",
+            "doc": null
+          },
+          {
+            "name": "create_backup",
+            "doc": "Creates a protected backup of a file before patching."
+          },
+          {
+            "name": "preflight",
+            "doc": "Pre-checks runtime safety rules (e.g., writability) before patching."
+          },
+          {
+            "name": "validate",
+            "doc": "Runs the validation chain: php -l -> PHPUnit -> Architectural Audit."
+          },
+          {
+            "name": "validate_async",
+            "doc": "Async-safe variant of validate().\nUse this when validate() would be called from within an active event loop."
+          },
+          {
+            "name": "_gather_unified_logs",
+            "doc": "Correlates frontend and backend logs."
+          },
+          {
+            "name": "_read_backend_logs",
+            "doc": "Reads and filters Laravel logs."
+          },
+          {
+            "name": "_tests_from_experiences",
+            "doc": "Derive test files to run based on experiential memory linking to the file."
+          },
+          {
+            "name": "rollback",
+            "doc": "Restores file from backup. Explicitly called on validation failure."
+          },
+          {
+            "name": "clear_backup",
+            "doc": "Deletes backup after successful validation."
+          },
+          {
+            "name": "_check_lint",
+            "doc": null
+          },
+          {
+            "name": "_check_phpunit",
+            "doc": "Runs PHPUnit on targeted tests if available; otherwise, falls back to fast suite if configured.\nIf impacted_tests provided, run those first (selective re-verify)."
+          },
+          {
+            "name": "_async_browser_check",
+            "doc": "Internal async bridge for Playwright."
+          },
+          {
+            "name": "_browser_audit_async",
+            "doc": "Async browser audit safe to call from within an event loop."
+          },
+          {
+            "name": "_check_browser_audit",
+            "doc": "Synchronous wrapper for the async browser scan."
+          },
+          {
+            "name": "_check_architectural_rules",
+            "doc": "Runs BGLGovernor to ensure no domain rules were broken."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\sandbox.py": {
+    "module_doc": null,
+    "classes": {
+      "BGLSandbox": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "setup",
+            "doc": null
+          },
+          {
+            "name": "_copy_all_with_excludes",
+            "doc": "OPTIMIZED: Copy everything (tracked + untracked) using single robocopy.\nReplaces git clone + _copy_untracked (slow) with single fast copy."
+          },
+          {
+            "name": "apply_to_main",
+            "doc": "Applies all modified files from the sandbox back to the main project using git diff.\nFalls back to copying the provided path if git diff is unavailable."
+          },
+          {
+            "name": "cleanup",
+            "doc": null
+          },
+          {
+            "name": "_copy_untracked",
+            "doc": "Copy files that git clone might omit (untracked) from main project to sandbox.\nUses robocopy on Windows for reliability. Skips heavy/system dirs."
+          },
+          {
+            "name": "_prepare_sandbox_db",
+            "doc": "Copy knowledge.db to a sandbox-local temp DB to avoid locking the main file."
+          },
+          {
+            "name": "_prepare_decision_db",
+            "doc": "Legacy hook: now uses knowledge.db; keeps env var for backward compatibility."
+          }
+        ]
+      }
+    },
+    "functions": []
+  },
+  "brain\\scenario_deps.py": {
+    "module_doc": null,
+    "classes": {
+      "ScenarioDepsReport": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "to_dict",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": [
+      {
+        "name": "_module_present",
+        "doc": null
+      },
+      {
+        "name": "_playwright_version",
+        "doc": null
+      },
+      {
+        "name": "check_scenario_deps",
+        "doc": "Lightweight dependency check for scenario execution.\nDoes not install anything; only reports what is missing."
+      },
+      {
+        "name": "check_scenario_deps_async",
+        "doc": "Async-safe variant for use inside asyncio loops (guardian)."
+      }
+    ]
+  },
+  "brain\\scenario_runner.py": {
+    "module_doc": "Scenario Runner\n---------------\nReads YAML scenarios from .bgl_core/brain/scenarios and executes them with Playwright.\nIntended to generate runtime_events via the in-page sensor before Guardian auditing.\n\nUsage:\n    python .bgl_core/brain/scenario_runner.py --base-url http://localhost:8000 --headless 1\nEnv overrides:\n    BGL_BASE_URL      (default http://localhost:8000)\n    BGL_HEADLESS      (1/0, default 1)",
+    "classes": {},
+    "functions": [
+      {
+        "name": "ensure_cursor",
+        "doc": "Inject ghost-cursor overlay once per page."
+      },
+      {
+        "name": "ensure_dev_mode",
+        "doc": "Guard: لا تُشغّل السيناريوهات في وضع الإنتاج.\nيعتمد على storage/settings.json إن وُجد، وإلا يفترض وضع التطوير."
+      },
+      {
+        "name": "_dom_state_hash",
+        "doc": null
+      },
+      {
+        "name": "exploratory_action",
+        "doc": "تنفيذ تفاعل آمن واحد غير مذكور (hover/scroll) لا يغيّر البيانات."
+      },
+      {
+        "name": "run_step",
+        "doc": null
+      },
+      {
+        "name": "log_event",
+        "doc": null
+      },
+      {
+        "name": "_ensure_outcomes_tables",
+        "doc": null
+      },
+      {
+        "name": "_log_outcome",
+        "doc": null
+      },
+      {
+        "name": "_log_relation",
+        "doc": null
+      },
+      {
+        "name": "_derive_outcomes_from_runtime",
+        "doc": null
+      },
+      {
+        "name": "_derive_outcomes_from_learning",
+        "doc": null
+      },
+      {
+        "name": "_last_selector_from_payload",
+        "doc": null
+      },
+      {
+        "name": "_apply_exploration_reward",
+        "doc": null
+      },
+      {
+        "name": "_reward_exploration_from_outcomes",
+        "doc": "Positive reward for useful outcomes; penalty for no-effect outcomes."
+      },
+      {
+        "name": "_score_outcomes",
+        "doc": null
+      },
+      {
+        "name": "_seed_goals_from_outcome_scores",
+        "doc": "Convert strongly negative outcomes into 'gap_deepen' goals."
+      },
+      {
+        "name": "_load_seen_novel",
+        "doc": "Return a set of routes previously used in novel probes to avoid repeats."
+      },
+      {
+        "name": "_is_safe_novel_href",
+        "doc": "Conservative safety filter: only allow read-only navigation."
+      },
+      {
+        "name": "_autonomous_enabled",
+        "doc": null
+      },
+      {
+        "name": "_routes_table_count",
+        "doc": null
+      },
+      {
+        "name": "_route_source_files",
+        "doc": null
+      },
+      {
+        "name": "_routes_last_index_ts",
+        "doc": null
+      },
+      {
+        "name": "_routes_need_reindex",
+        "doc": null
+      },
+      {
+        "name": "_auto_reindex_routes",
+        "doc": null
+      },
+      {
+        "name": "_unknown_routes_from_runtime",
+        "doc": "Return recent runtime routes not present in the canonical routes table.\nThis lets exploration drive when to refresh the route index."
+      },
+      {
+        "name": "_maybe_reindex_after_exploration",
+        "doc": null
+      },
+      {
+        "name": "_cfg_value",
+        "doc": null
+      },
+      {
+        "name": "_recent_runtime_routes",
+        "doc": null
+      },
+      {
+        "name": "_recent_routes_within_days",
+        "doc": null
+      },
+      {
+        "name": "_load_insight_basenames",
+        "doc": null
+      },
+      {
+        "name": "_normalize_route_path",
+        "doc": null
+      },
+      {
+        "name": "_resolve_route_to_file",
+        "doc": null
+      },
+      {
+        "name": "_collect_dream_targets",
+        "doc": null
+      },
+      {
+        "name": "_routes_for_file",
+        "doc": null
+      },
+      {
+        "name": "_ingest_insights_to_goals",
+        "doc": null
+      },
+      {
+        "name": "_should_trigger_dream",
+        "doc": null
+      },
+      {
+        "name": "_trigger_dream_from_exploration",
+        "doc": null
+      },
+      {
+        "name": "_href_basename",
+        "doc": null
+      },
+      {
+        "name": "_build_search_terms",
+        "doc": null
+      },
+      {
+        "name": "_ensure_exploration_table",
+        "doc": null
+      },
+      {
+        "name": "_ensure_exploration_novelty_table",
+        "doc": null
+      },
+      {
+        "name": "_load_explored_selectors",
+        "doc": null
+      },
+      {
+        "name": "_record_explored_selector",
+        "doc": null
+      },
+      {
+        "name": "_record_exploration_outcome",
+        "doc": null
+      },
+      {
+        "name": "_novelty_score",
+        "doc": null
+      },
+      {
+        "name": "_rank_exploration_candidate",
+        "doc": null
+      },
+      {
+        "name": "_ensure_autonomy_goals_table",
+        "doc": null
+      },
+      {
+        "name": "_cleanup_autonomy_goals",
+        "doc": null
+      },
+      {
+        "name": "_read_autonomy_goals",
+        "doc": null
+      },
+      {
+        "name": "_write_autonomy_goal",
+        "doc": null
+      },
+      {
+        "name": "_read_latest_delta",
+        "doc": null
+      },
+      {
+        "name": "_read_recent_routes_from_db",
+        "doc": null
+      },
+      {
+        "name": "_read_log_highlights",
+        "doc": null
+      },
+      {
+        "name": "_recent_error_routes",
+        "doc": null
+      },
+      {
+        "name": "_seed_goals_from_system_signals",
+        "doc": null
+      },
+      {
+        "name": "_goal_to_scenario",
+        "doc": null
+      },
+      {
+        "name": "_goal_route_kind",
+        "doc": null
+      },
+      {
+        "name": "_ensure_goal_strategy_table",
+        "doc": null
+      },
+      {
+        "name": "_record_goal_strategy_result",
+        "doc": null
+      },
+      {
+        "name": "_pick_goal_strategy",
+        "doc": null
+      },
+      {
+        "name": "_http_check",
+        "doc": null
+      },
+      {
+        "name": "run_goal_scenario",
+        "doc": null
+      },
+      {
+        "name": "_autonomous_plan_hash",
+        "doc": null
+      },
+      {
+        "name": "_record_autonomous_plan",
+        "doc": null
+      },
+      {
+        "name": "_is_recent_autonomous_plan",
+        "doc": null
+      },
+      {
+        "name": "_is_simple_token",
+        "doc": null
+      },
+      {
+        "name": "_selector_from_element",
+        "doc": null
+      },
+      {
+        "name": "_build_selector_candidates",
+        "doc": null
+      },
+      {
+        "name": "_list_upload_fixtures",
+        "doc": null
+      },
+      {
+        "name": "_sanitize_steps",
+        "doc": null
+      },
+      {
+        "name": "_fallback_autonomous_steps",
+        "doc": null
+      },
+      {
+        "name": "_generate_autonomous_plan",
+        "doc": null
+      },
+      {
+        "name": "run_autonomous_scenario",
+        "doc": null
+      },
+      {
+        "name": "run_novel_probe",
+        "doc": "Attempt one safe, novel navigation per run."
+      },
+      {
+        "name": "run_scenario",
+        "doc": null
+      },
+      {
+        "name": "_is_api_url",
+        "doc": null
+      },
+      {
+        "name": "_is_api_scenario",
+        "doc": null
+      },
+      {
+        "name": "run_api_scenario",
+        "doc": null
+      },
+      {
+        "name": "main",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\utils.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "load_route_usage",
+        "doc": "Compute simple usage frequency from runtime_events in knowledge.db.\nReturns a map route -> normalized usage (0..1)."
+      }
+    ]
+  },
+  "brain\\verify_phase_8_simulation.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "simulate_recurring_blockers",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\volition.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_ensure_table",
+        "doc": null
+      },
+      {
+        "name": "store_volition",
+        "doc": null
+      },
+      {
+        "name": "latest_volition",
+        "doc": null
+      },
+      {
+        "name": "derive_volition",
+        "doc": "Produce a lightweight volition string from the current diagnostic context.\nThis does NOT trigger execution; it's a statement of focus."
+      }
+    ]
+  },
+  "debug_tools\\check_dashboard.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\check_deps.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\debug_kpi.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\tmp_add.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\tmp_print.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\tmp_ren.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "debug_tools\\tmp_rename.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "brain\\archive\\verify_confidence.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "brain\\archive\\verify_failure_modes.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "test_atomic_rollback",
+        "doc": "Scenario: Apply a valid patch but force a failure during validation.\nGoal: Verify that the file is rolled back perfectly."
+      },
+      {
+        "name": "test_sandbox_isolation",
+        "doc": "Scenario: Large change in sandbox.\nGoal: Verify no files are created in main project until final success."
+      },
+      {
+        "name": "test_guardrail_barrier",
+        "doc": "Scenario: Accessing forbidden files."
+      }
+    ]
+  },
+  "brain\\archive\\verify_final_agent.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "test_specialized_programming",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\archive\\verify_intelligence.py": {
+    "module_doc": null,
+    "classes": {
+      "AgentBenchmark": {
+        "doc": null,
+        "methods": [
+          {
+            "name": "__init__",
+            "doc": null
+          },
+          {
+            "name": "run_case",
+            "doc": null
+          },
+          {
+            "name": "save_report",
+            "doc": null
+          }
+        ]
+      }
+    },
+    "functions": [
+      {
+        "name": "benchmark_intelligence",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\archive\\verify_patch.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  },
+  "brain\\archive\\verify_phase_1.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "test_browser_sensor_integration",
+        "doc": "Test that SafetyNet correctly uses BrowserSensor to detect frontend errors."
+      }
+    ]
+  },
+  "brain\\archive\\verify_phase_2.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "test_unified_perception",
+        "doc": "Simulates a task execution where both backend and (simulated) frontend errors occur."
+      }
+    ]
+  },
+  "brain\\archive\\verify_phase_3.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "test_fault_localization",
+        "doc": "Verifies that SafetyNet can map a failing URL to a suspect PHP file."
+      }
+    ]
+  },
+  "brain\\archive\\verify_phase_5.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "verify_phase_5",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\authority_drift.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "_read_text",
+        "doc": null
+      },
+      {
+        "name": "run",
+        "doc": "Hard check:\nPrevent gate/approval drift by ensuring there is a *single* writer of the approval queue\nand a single patch actuator entrypoint."
+      }
+    ]
+  },
+  "brain\\checks\\css_bloat.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Simple CSS bloat detector: flags files over size/line thresholds.\nUses .bgl_core/brain/css_inventory.json generated by inventory step."
+      }
+    ]
+  },
+  "brain\\checks\\db_fk_missing.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Detect missing foreign keys between guarantees -> banks/suppliers.\nUses .bgl_core/brain/db_schema.json (generated from app.sqlite)."
+      }
+    ]
+  },
+  "brain\\checks\\db_index_missing.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Detect missing indexes on common filter/sort columns for reporting.\nUses .bgl_core/brain/db_schema.json (generated from app.sqlite)."
+      }
+    ]
+  },
+  "brain\\checks\\hypothesis_meta_separation.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Advisory check:\nEnsure hypothesis handling and meta-reasoning are not merged in the same module.\nStrict mode (BGL_POLICY_STRICT=1 or config policy_strict=1) turns this into a failing check."
+      }
+    ]
+  },
+  "brain\\checks\\js_bloat.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "JS bloat detector: flags large/long files and reports top offenders.\nUses .bgl_core/brain/js_inventory.json generated by inventory step."
+      }
+    ]
+  },
+  "brain\\checks\\missing_alerts_aggregator.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\missing_audit_trail.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\missing_caching_reports.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\missing_import_safety.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\missing_rate_limit_middleware.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Check if any rate limiting middleware/guard is present.\nHeuristic: search for 'RateLimit' or 'rate limit' in autoload/router files."
+      }
+    ]
+  },
+  "brain\\checks\\missing_validation_guards.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": null
+      }
+    ]
+  },
+  "brain\\checks\\self_regulation_runtime_link.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": [
+      {
+        "name": "run",
+        "doc": "Advisory check:\nEnsure self-regulation layers are tied to runtime sensing signals.\nStrict mode (BGL_POLICY_STRICT=1 or config policy_strict=1) turns this into a failing check."
+      }
+    ]
+  },
+  "brain\\checks\\__init__.py": {
+    "module_doc": null,
+    "classes": {},
+    "functions": []
+  }
+}

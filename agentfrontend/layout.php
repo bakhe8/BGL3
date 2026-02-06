@@ -3,148 +3,97 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BGL3 | مركز تحكم الوكيل</title>
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&family=Noto+Kufi+Arabic:wght@400;500;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="agentfrontend/theme_light.css">
+    <title>BGL3 | مركز القيادة</title>
+    <link href="https://fonts.googleapis.com/css2?family=Changa:wght@400;600;700&family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="agentfrontend/theme_ops.css">
 </head>
 <body>
-
-    <header>
-        <div class="brand">
-            <h1>وكيل BGL3</h1>
-            <p>لوحة التحكم المركزية</p>
+    <header class="ops-header">
+        <div class="brand-block">
+            <h1>مركز القيادة للوكيل BGL3</h1>
+            <p>تحكم وتشخيص وشفافية القرار في واجهة واحدة.</p>
         </div>
-        <div class="badge-live <?= $systemStatusTone === 'warn' ? 'badge-warn' : ($systemStatusTone === 'unknown' ? 'badge-unknown' : '') ?>">
-            <div class="pulse <?= $systemStatusTone === 'warn' ? 'warn' : ($systemStatusTone === 'unknown' ? 'unknown' : '') ?>"></div>
-            حالة النظام: <?= htmlspecialchars($systemStatusText ?? 'غير متوفر') ?>
+        <div class="status-stack">
+            <div class="badge-live <?= $systemStatusTone === 'warn' ? 'badge-warn' : ($systemStatusTone === 'unknown' ? 'badge-unknown' : '') ?>">
+                <div class="pulse <?= $systemStatusTone === 'warn' ? 'warn' : ($systemStatusTone === 'unknown' ? 'unknown' : '') ?>"></div>
+                حالة النظام: <?= htmlspecialchars($systemStatusText ?? 'غير متوفر') ?>
+            </div>
+            <div class="status-row">
+                <div class="status-item">LLM: <strong data-live="llm-state"><?= htmlspecialchars($llmStatus['state'] ?? 'غير متوفر') ?></strong></div>
+                <div class="status-item">الموديل: <strong data-live="llm-model"><?= htmlspecialchars($llmStatus['model'] ?? 'غير متوفر') ?></strong></div>
+            </div>
         </div>
     </header>
 
-    <main class="container">
-        
-        <!-- Flash Messages -->
+    <main class="ops-grid">
         <?php if ($feedback): ?>
-            <div class="flash-alert flash-<?= $feedback['type'] ?>">
-                <div style="font-size: 1.5rem;">
-                    <?= $feedback['type'] === 'success' ? '✅' : '⚠️' ?>
-                </div>
-                <div>
-                    <div style="font-weight:700"><?= htmlspecialchars($feedback['title']) ?></div>
-                    <div><?= htmlspecialchars($feedback['message']) ?></div>
+            <div class="span-12">
+                <div class="flash-alert">
+                    <div style="font-size:1.4rem;"> <?= $feedback['type'] === 'success' ? '✓' : '!' ?> </div>
+                    <div>
+                        <div style="font-weight:700"><?= htmlspecialchars($feedback['title']) ?></div>
+                        <div><?= htmlspecialchars($feedback['message']) ?></div>
+                    </div>
                 </div>
             </div>
         <?php endif; ?>
-        <!-- NEW WIDGET AREA (Self-Evolution) -->
-        <?php if (file_exists(__DIR__ . '/partials/extra_widget.php')): ?>
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/extra_widget.php'; ?>
-            </div>
-        <?php endif; ?>
 
-        <div class="dashboard-grid">
-            
-            <!-- SECTION 1: HIGH LEVEL SUMMARY -->
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/summary.php'; ?>
-            </div>
+        <div class="span-12">
+            <?php include __DIR__ . '/partials/summary.php'; ?>
+        </div>
 
-            <!-- NEW WIDGETS -->
-            <div class="section-half">
-                <?php include __DIR__ . '/partials/hallucination_metrics.php'; ?>
-            </div>
-            <div class="section-half">
-                <?php include __DIR__ . '/partials/vector_db_status.php'; ?>
+        <?php include __DIR__ . '/partials/command_center.php'; ?>
 
-            <div class="section-full">
-            </div>
+        <?php include __DIR__ . '/partials/operator_goals.php'; ?>
+        <?php include __DIR__ . '/partials/decision_impact.php'; ?>
 
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/agent_controls.php'; ?>
-            </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/permission_queue.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/proposals_simple.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/plan_library.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/proposed_playbooks_simple.php'; ?>
+        </div>
+        <?php include __DIR__ . '/partials/report_viewer.php'; ?>
 
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/agent_autonomy_state.php'; ?>
-            </div>
+        <?php include __DIR__ . '/partials/test_console.php'; ?>
 
-            <!-- SECTION 2: ATTENTION REQUIRED -->
-            <!-- Blockers are critical, show full width if they exist -->
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/blockers.php'; ?>
-            </div>
+        <div class="span-4">
+            <?php include __DIR__ . '/partials/snapshot_delta.php'; ?>
+        </div>
+        <div class="span-4">
+            <?php include __DIR__ . '/partials/route_updates.php'; ?>
+        </div>
+        <div class="span-4">
+            <?php include __DIR__ . '/partials/log_highlights.php'; ?>
+        </div>
 
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/permission_queue.php'; ?>
-            </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/health.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/kpis.php'; ?>
+        </div>
 
-            <div class="section-half">
-                <?php include __DIR__ . '/partials/proposed_playbooks_simple.php'; ?>
-            </div>
-            
-            <div class="section-half">
-                <?php include __DIR__ . '/partials/proposals_simple.php'; ?>
-            </div>
+        <div class="span-12">
+            <?php include __DIR__ . '/partials/copilot_chat.php'; ?>
+        </div>
 
-            <!-- SECTION 3: SYSTEM HEALTH (Simplified) -->
-            <div class="section-full" style="margin-top: 2rem;">
-                <h3 style="color: var(--text-secondary); font-size: 0.9rem; border-bottom: 1px solid var(--border-color); padding-bottom: 0.5rem; margin-bottom: 1rem;">
-                    مؤشرات الأداء والحالة التقنية
-                </h3>
-            </div>
-
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/health.php'; ?>
-            </div>
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/permissions.php'; ?>
-            </div>
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/kpis.php'; ?>
-            </div>
-
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/snapshot_delta.php'; ?>
-            </div>
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/route_updates.php'; ?>
-            </div>
-            <div class="section-third">
-                <?php include __DIR__ . '/partials/log_highlights.php'; ?>
-            </div>
-
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/autonomy_goals.php'; ?>
-            </div>
-
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/tool_evidence.php'; ?>
-            </div>
-
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/copilot_chat.php'; ?>
-            </div>
-
-            
-            <!-- SECTION 4: ACTIVITY LOG -->
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/activity.php'; ?>
-            </div>
-
-            <!-- SECTION 5: EXPERIENCES -->
-            <div class="section-full">
-                <?php include __DIR__ . '/partials/experiences.php'; ?>
-            </div>
-            
-            <!-- HIDDEN/SECONDARY SECTIONS (Not for non-specialists) -->
-            <!-- 
-                partials: domain_map, flows, js_inventory, gap_tests, external_checks, worst_routes, rules, intents, decisions
-                These are hidden to keep the UI minimal.
-            -->
-
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/activity.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/experiences.php'; ?>
         </div>
     </main>
 
-    <footer style="margin-top: 50px; text-align: center; color: var(--text-secondary); font-size: 0.8rem;">
-        لوحة عمليات وكيل BGL3 &bull; المرحلة 6 للنواة الموحدة &bull; 2026
+    <footer style="margin:30px 0; text-align:center; color: var(--muted); font-size:0.8rem;">
+        منصة تشغيل وكيل BGL3 — 2026
     </footer>
 
     <div id="live-toast" class="live-toast" aria-live="polite"></div>
@@ -204,7 +153,7 @@
           }
           if (key === 'llm-state' && el) {
             const v = String(val).toUpperCase();
-            el.style.color = v === 'HOT' ? 'var(--success)' : (v === 'COLD' ? 'var(--accent-gold)' : 'var(--text-secondary)');
+            el.style.color = v === 'HOT' ? 'var(--success)' : (v === 'COLD' ? 'var(--accent-2)' : 'var(--muted)');
           }
           if (key === 'tool-server-status' && el) {
             const v = String(val).toUpperCase();
@@ -212,7 +161,7 @@
           }
           if (key === 'explore-status' && el) {
             const v = String(val).toUpperCase();
-            el.style.color = v === 'STABLE' ? 'var(--success)' : (v === 'STALLED' ? 'var(--danger)' : 'var(--accent-gold)');
+            el.style.color = v === 'STABLE' ? 'var(--success)' : (v === 'STALLED' ? 'var(--danger)' : 'var(--accent-2)');
           }
         }
 
@@ -261,7 +210,7 @@
                 const v = String(val).toUpperCase();
                 const label = v === 'OK' ? 'سليم' : (v === 'WARN' ? 'يتطلب مراجعة' : 'غير متوفر');
                 el.textContent = label;
-                el.style.color = v === 'OK' ? 'var(--success)' : (v === 'WARN' ? 'var(--danger)' : 'var(--text-secondary)');
+                el.style.color = v === 'OK' ? 'var(--success)' : (v === 'WARN' ? 'var(--danger)' : 'var(--muted)');
               }
               return;
             }
@@ -275,7 +224,7 @@
 
           if (data.health_score_value !== null && data.health_score_value !== undefined) {
             const val = parseFloat(data.health_score_value);
-            const scoreColor = val >= 80 ? 'var(--success)' : 'var(--accent-gold)';
+            const scoreColor = val >= 80 ? 'var(--success)' : 'var(--accent-2)';
             const path = document.querySelector('[data-live="health-score-dash"]');
             if (path) path.setAttribute('stroke', scoreColor);
           }
@@ -302,18 +251,17 @@
             });
           }
 
-          // Delta list
           if (data.snapshot_delta && Array.isArray(data.snapshot_delta.highlights)) {
             const deltaList = document.getElementById('delta-list');
             if (deltaList) {
               if (!data.snapshot_delta.highlights.length) {
-                deltaList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا يوجد تغيّر مهم في آخر Snapshot.</p>';
+                deltaList.innerHTML = '<p style="color: var(--muted); font-style: italic;">لا يوجد تغيّر مهم في آخر Snapshot.</p>';
               } else {
                 deltaList.innerHTML = data.snapshot_delta.highlights.map((h) => {
                   const from = h.from === undefined || h.from === null ? 'null' : h.from;
                   const to = h.to === undefined || h.to === null ? 'null' : h.to;
-                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
-                    <div style="font-size:0.85rem; color: var(--text-secondary);">${h.key || ''}</div>
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--line);">
+                    <div style="font-size:0.85rem; color: var(--muted);">${h.key || ''}</div>
                     <div style="font-size:0.9rem;">${from} → ${to}</div>
                   </div>`;
                 }).join('');
@@ -321,39 +269,37 @@
             }
           }
 
-          // Recent routes list
           if (Array.isArray(data.recent_routes)) {
             const routesList = document.getElementById('routes-list');
             if (routesList) {
               if (!data.recent_routes.length) {
-                routesList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد مسارات تم تحديثها مؤخرًا.</p>';
+                routesList.innerHTML = '<p style="color: var(--muted); font-style: italic;">لا توجد مسارات تم تحديثها مؤخرًا.</p>';
               } else {
                 routesList.innerHTML = data.recent_routes.map((r) => {
                   const file = (r.file_path || '').split(/[\\/]/).pop();
                   const time = r.last_validated ? new Date(r.last_validated * 1000).toLocaleTimeString('ar-EG') : '';
-                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border); display:flex; justify-content:space-between; gap:8px;">
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--line); display:flex; justify-content:space-between; gap:8px;">
                     <div>
                       <strong>${r.http_method || 'GET'}</strong>
                       <span style="margin-right:6px;">${r.uri || ''}</span>
-                      <div style="font-size:0.75rem; color: var(--text-secondary);">${file || ''}</div>
+                      <div style="font-size:0.75rem; color: var(--muted);">${file || ''}</div>
                     </div>
-                    <div style="font-size:0.75rem; color: var(--text-secondary);">${time}</div>
+                    <div style="font-size:0.75rem; color: var(--muted);">${time}</div>
                   </div>`;
                 }).join('');
               }
             }
           }
 
-          // Log highlights
           if (Array.isArray(data.log_highlights)) {
             const logsList = document.getElementById('logs-list');
             if (logsList) {
               if (!data.log_highlights.length) {
-                logsList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد رسائل حرجة مؤخراً.</p>';
+                logsList.innerHTML = '<p style="color: var(--muted); font-style: italic;">لا توجد رسائل حرجة مؤخراً.</p>';
               } else {
                 logsList.innerHTML = data.log_highlights.map((l) => {
-                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
-                    <div style="font-size:0.8rem; color: var(--text-secondary);">${l.source || ''}</div>
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--line);">
+                    <div style="font-size:0.8rem; color: var(--muted);">${l.source || ''}</div>
                     <div style="font-size:0.9rem;">${l.message || ''}</div>
                   </div>`;
                 }).join('');
@@ -361,12 +307,11 @@
             }
           }
 
-          // Autonomy goals list
           if (Array.isArray(data.autonomy_goals)) {
             const goalsList = document.getElementById('goals-list');
             if (goalsList) {
               if (!data.autonomy_goals.length) {
-                goalsList.innerHTML = '<p style="color: var(--text-secondary); font-style: italic;">لا توجد أهداف تلقائية حالياً.</p>';
+                goalsList.innerHTML = '<p style="color: var(--muted); font-style: italic;">لا توجد أهداف تلقائية حالياً.</p>';
               } else {
                 goalsList.innerHTML = data.autonomy_goals.map((g) => {
                   const payload = g.payload || {};
@@ -377,12 +322,12 @@
                   else if (payload.key) body = `${payload.key}: ${payload.from ?? ''} → ${payload.to ?? ''}`;
                   else if (payload.message) body = payload.message;
                   else body = JSON.stringify(payload);
-                  return `<div style="padding:6px 0; border-bottom:1px solid var(--glass-border);">
+                  return `<div style="padding:6px 0; border-bottom:1px solid var(--line);">
                     <div style="display:flex; justify-content:space-between;">
                       <strong>${g.goal || ''}</strong>
-                      <span style="font-size:0.75rem; color: var(--text-secondary);">${ts}</span>
+                      <span style="font-size:0.75rem; color: var(--muted);">${ts}</span>
                     </div>
-                    <div style="font-size:0.85rem; color: var(--text-secondary);">${g.source || ''}</div>
+                    <div style="font-size:0.85rem; color: var(--muted);">${g.source || ''}</div>
                     <div style="font-size:0.9rem; margin-top:4px;">${body}</div>
                   </div>`;
                 }).join('');
@@ -440,9 +385,7 @@
             });
             const json = await res.json();
             if (json && json.ok) updateLiveValues(json);
-          } catch (e) {
-            // silent
-          }
+          } catch (e) {}
         }
 
         let liveStream = null;
@@ -460,7 +403,6 @@
           liveStream.onerror = () => {
             try { liveStream.close(); } catch (e) {}
             liveStream = null;
-            // fallback to polling if stream fails
             startLivePolling();
           };
         }
@@ -548,7 +490,6 @@
           });
         });
 
-        // Auto-refresh live status (SSE primary, polling fallback).
         let liveTimer = null;
         function startLivePolling() {
           if (liveTimer) return;

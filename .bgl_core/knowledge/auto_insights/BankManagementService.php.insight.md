@@ -34,7 +34,7 @@ While this service doesn't directly handle bank guarantee lifecycle operations (
 
 **Business Logic Gaps:**
 - No validation that the bank name normalization produces valid results
-- Missing integration with BGL3-specific validation rules (IBAN/SWIFT validation)
+- Missing integration with BGL3-specific validation rules (email/phone validation)
 - No handling for concurrent bank creation (race condition possible)
 
 **Transaction Safety:**

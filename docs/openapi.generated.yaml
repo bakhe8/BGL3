@@ -2,6 +2,7 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Generated)
   version: '0.1'
+  x-bgl-generated-at: '2026-02-06 10:59:50'
 paths:
   /:
     get:

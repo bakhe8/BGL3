@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+import os
 from typing import Dict, Any, List, Tuple
 import time
 
@@ -83,11 +84,13 @@ def _extract_get_params(text: str) -> List[Tuple[str, bool]]:
     return [(k, params[k]) for k in params]
 
 
-def _param_example_is_placeholder(name: str, example: Any) -> bool:
+def _param_example_is_placeholder(name: str, example: Any, force: bool = False) -> bool:
     """
     Decide whether an existing OpenAPI parameter example should be updated.
     We keep this conservative to avoid rewriting curated specs.
     """
+    if force:
+        return True
     n = (name or "").lower()
     if example is None:
         return True
@@ -118,7 +121,9 @@ def _post_only(text: str) -> bool:
     )
 
 
-def _example_is_placeholder(example: Any) -> bool:
+def _example_is_placeholder(example: Any, force: bool = False) -> bool:
+    if force:
+        return True
     if not isinstance(example, dict):
         return True
     for v in example.values():
@@ -127,9 +132,11 @@ def _example_is_placeholder(example: Any) -> bool:
     return False
 
 
-def seed_contract() -> dict:
+def seed_contract(force: bool = False, refresh: bool = False) -> dict:
     merged = _load_yaml(MERGED)
     manual = _load_yaml(MANUAL)
+    force = bool(force) or os.getenv("BGL_FORCE_CONTRACT_SEED", "0") == "1"
+    refresh = bool(refresh) or os.getenv("BGL_FORCE_CONTRACT_REFRESH", "0") == "1" or force
     manual_paths = manual.setdefault("paths", {})
     changes = []
 
@@ -146,7 +153,7 @@ def seed_contract() -> dict:
             if m in ("post", "put", "patch", "delete"):
                 current = _ensure_method(manual_paths, uri, m)
                 rb = current.get("requestBody", {}).get("content", {}).get("application/json", {})
-                if "example" in rb and not _example_is_placeholder(rb.get("example")):
+                if "example" in rb and not _example_is_placeholder(rb.get("example"), force=force):
                     continue
                 fields = _extract_post_fields(file_text) if file_text else []
                 if not fields:
@@ -177,7 +184,7 @@ def seed_contract() -> dict:
                     if existing:
                         # Update required/example if placeholder
                         existing["required"] = bool(required) or bool(existing.get("required"))
-                        if _param_example_is_placeholder(key, existing.get("example")):
+                        if _param_example_is_placeholder(key, existing.get("example"), force=force):
                             existing["example"] = _guess_value(key)
                             updated += 1
                         out_params.append(existing)
@@ -206,6 +213,15 @@ def seed_contract() -> dict:
                         f"{uri} {m}: query params updated (created={created}, updated_examples={updated})"
                     )
 
+    stamp = time.strftime("%Y-%m-%d %H:%M:%S")
+    if refresh:
+        info = manual.setdefault("info", {})
+        info["x-bgl-last-refresh"] = stamp
+        if "version" in info and isinstance(info.get("version"), str):
+            info["version"] = info.get("version") or "0.1"
+        if not changes:
+            changes.append("forced_refresh")
+
     # Backup before overwrite
     if MANUAL.exists():
         backup = MANUAL.with_suffix(".yaml.bak")
@@ -216,7 +232,6 @@ def seed_contract() -> dict:
     )
     if changes:
         LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
-        stamp = time.strftime("%Y-%m-%d %H:%M:%S")
         LOG_PATH.write_text(
             LOG_PATH.read_text(encoding="utf-8") + f"\n[{stamp}]\n" + "\n".join(changes)
             if LOG_PATH.exists()
