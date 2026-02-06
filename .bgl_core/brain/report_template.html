@@ -44,6 +44,59 @@
   </div>
 
   <div class="section">
+    <h2>Change Attribution</h2>
+    {% if diagnostic_attribution and diagnostic_attribution.classification %}
+      <p>Classification: <strong>{{ diagnostic_attribution.classification }}</strong></p>
+      {% if diagnostic_attribution.confidence is not none %}
+      <p>Confidence: {{ diagnostic_attribution.confidence }}</p>
+      {% endif %}
+      {% if diagnostic_attribution.window %}
+      <p>Window: {{ diagnostic_attribution.window.seconds|default(0)|round(1) }}s</p>
+      {% endif %}
+      {% if diagnostic_attribution.signals %}
+      <p>Signals: changed_keys={{ diagnostic_attribution.signals.changed_keys|default(0) }},
+         test_events={{ diagnostic_attribution.signals.test_events|default(0) }},
+         write_events={{ diagnostic_attribution.signals.write_events|default(0) }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">No attribution recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Authority Matrix</h2>
+    {% if authority_matrix %}
+      <p>Status: <span class="{{ 'ok' if authority_matrix.ok else 'warn' }}">{{ authority_matrix.ok }}</span></p>
+      {% if authority_matrix.warnings %}
+        <ul>{% for w in authority_matrix.warnings %}<li class="warn">{{ w }}</li>{% endfor %}</ul>
+      {% endif %}
+      {% if authority_matrix.protected_prefixes %}
+        <p>Protected prefixes: {{ authority_matrix.protected_prefixes | tojson }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Authority matrix not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Schema Drift</h2>
+    {% if schema_drift %}
+      <p>Status: <span class="{{ 'ok' if schema_drift.ok else 'warn' }}">{{ schema_drift.ok }}</span></p>
+      {% if schema_drift.missing_tables %}
+        <p class="warn">Missing tables: {{ schema_drift.missing_tables | tojson }}</p>
+      {% endif %}
+      {% if schema_drift.missing_columns %}
+        <p class="warn">Missing columns: {{ schema_drift.missing_columns | tojson }}</p>
+      {% endif %}
+      {% if schema_drift.error %}
+        <p class="warn">Error: {{ schema_drift.error }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Schema check not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Volition</h2>
     {% if volition and volition.volition %}
       <p><strong>Focus:</strong> {{ volition.volition }}</p>
@@ -209,6 +262,7 @@
         <tr><td>Missing Source</td><td>{{ auto_insights_status.missing_source|default(0) }}</td></tr>
         <tr><td>Nested</td><td>{{ auto_insights_status.nested|default(0) }}</td></tr>
         <tr><td>Duplicate</td><td>{{ auto_insights_status.duplicate|default(0) }}</td></tr>
+        <tr><td>Expired</td><td>{{ auto_insights_status.expired|default(0) }}</td></tr>
         <tr><td>Skipped (Limit)</td><td>{{ auto_insights_status.skipped_limit|default(0) }}</td></tr>
       </table>
     {% else %}

@@ -40,11 +40,21 @@ CREATE TABLE IF NOT EXISTS outcomes (
   timestamp TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS proposal_outcome_links (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  proposal_id INTEGER,
+  decision_id INTEGER,
+  outcome_id INTEGER,
+  created_at REAL,
+  source TEXT
+);
+
 -- فهارس خفيفة
 CREATE INDEX IF NOT EXISTS idx_intents_ts ON intents(timestamp);
 CREATE INDEX IF NOT EXISTS idx_decisions_intent ON decisions(intent_id);
 CREATE INDEX IF NOT EXISTS idx_overrides_decision ON overrides(decision_id);
 CREATE INDEX IF NOT EXISTS idx_outcomes_decision ON outcomes(decision_id);
+CREATE INDEX IF NOT EXISTS idx_prop_outcome ON proposal_outcome_links(proposal_id);
 
 -- Knowledge DB: Exploration + Autonomy + Learning + Hypotheses
 

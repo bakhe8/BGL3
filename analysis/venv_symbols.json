@@ -1,4 +1,4 @@
-﻿{
+{
   "note": "Parsed .py only. Compiled/binary modules (.pyd/.dll) are not introspected.",
   "files": {
     ".venv312\\Lib\\site-packages\\py.py": {

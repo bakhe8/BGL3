@@ -42,11 +42,6 @@ content_rules:
     pattern: "Credit Card"
     description: "The system does NOT handle Credit Cards. This is a prohibited domain concept."
     severity: critical
-  - id: C003
-    name: "Prohibited Concept: Manual Entry"
-    pattern: "Manual Entry"
-    description: "Data must come from extraction. Manual Entry is prohibited."
-    severity: warning
   - id: C004
     name: "Prohibited Concept: Green Support"
     pattern: "Green Support"

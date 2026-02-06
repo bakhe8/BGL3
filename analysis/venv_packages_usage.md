@@ -1,4 +1,4 @@
-﻿# استخدام حزم .venv312 داخل .bgl_core
+# استخدام حزم .venv312 داخل .bgl_core
 
 - Jinja2: مستخدمة في 1 ملف/ملفات داخل .bgl_core
   - brain\report_builder.py

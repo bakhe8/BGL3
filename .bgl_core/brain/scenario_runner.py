@@ -225,7 +225,19 @@ async def exploratory_action(
                     seen.add(hash(f"search:{term}"))
                     with open(learn_log, "a", encoding="utf-8") as f:
                         f.write(f"{time.time()}\t{session}\texplore\tsearch:{term}\n")
-                    if before_hash and after_hash and before_hash == after_hash:
+                    unchanged = bool(before_hash and after_hash and before_hash == after_hash)
+                    if unchanged:
+                        auto_changed = await _attempt_search_submit(
+                            page,
+                            selector="input[type='search']",
+                            db_path=db_path,
+                            session=session,
+                            reason="search_no_change",
+                        )
+                        if auto_changed:
+                            after_hash = await _dom_state_hash(page)
+                            unchanged = False
+                    if unchanged:
                         log_event(
                             db_path,
                             session,
@@ -664,7 +676,22 @@ async def run_step(
     if is_interactive and step.get("track_outcome", True):
         try:
             after_hash = await _dom_state_hash(page)
-            if before_hash and after_hash and before_hash == after_hash:
+            unchanged = bool(before_hash and after_hash and before_hash == after_hash)
+            # If typing into search and nothing changed, attempt auto-submit once.
+            if unchanged and action == "type":
+                selector = str(step.get("selector", ""))
+                if await _is_search_input(page, selector):
+                    auto_changed = await _attempt_search_submit(
+                        page,
+                        selector=selector,
+                        db_path=db_path,
+                        session=step.get("session", ""),
+                        reason="dom_no_change",
+                    )
+                    if auto_changed:
+                        after_hash = await _dom_state_hash(page)
+                        unchanged = False
+            if unchanged:
                 log_event(
                     db_path,
                     step.get("session", ""),
@@ -676,41 +703,41 @@ async def run_step(
                         "status": None,
                     },
                 )
-                # Record persistent behavior hints
-                try:
-                    if record_behavior_hint and page_url:
-                        selector = str(step.get("selector", ""))
-                        if action == "type" and await _is_search_input(page, selector):
-                            record_behavior_hint(
-                                db_path,
-                                page_url=page_url,
-                                action="type",
-                                selector=selector,
-                                hint="press_enter",
-                                confidence=0.6,
-                                notes="dom_no_change",
-                            )
-                            record_behavior_hint(
-                                db_path,
-                                page_url=page_url,
-                                action="type",
-                                selector=selector,
-                                hint="click_search_button",
-                                confidence=0.55,
-                                notes="dom_no_change",
-                            )
-                        elif action == "click":
-                            record_behavior_hint(
-                                db_path,
-                                page_url=page_url,
-                                action="click",
-                                selector=selector,
-                                hint="wait_longer",
-                                confidence=0.5,
-                                notes="dom_no_change",
-                            )
-                except Exception:
-                    pass
+            # Record persistent behavior hints
+            try:
+                if record_behavior_hint and page_url and unchanged:
+                    selector = str(step.get("selector", ""))
+                    if action == "type" and await _is_search_input(page, selector):
+                        record_behavior_hint(
+                            db_path,
+                            page_url=page_url,
+                            action="type",
+                            selector=selector,
+                            hint="press_enter",
+                            confidence=0.6,
+                            notes="dom_no_change",
+                        )
+                        record_behavior_hint(
+                            db_path,
+                            page_url=page_url,
+                            action="type",
+                            selector=selector,
+                            hint="click_search_button",
+                            confidence=0.55,
+                            notes="dom_no_change",
+                        )
+                    elif action == "click":
+                        record_behavior_hint(
+                            db_path,
+                            page_url=page_url,
+                            action="click",
+                            selector=selector,
+                            hint="wait_longer",
+                            confidence=0.5,
+                            notes="dom_no_change",
+                        )
+            except Exception:
+                pass
             # Update hint success/failure
             if used_hint_ids and mark_hint_result:
                 success = bool(before_hash and after_hash and before_hash != after_hash)
@@ -1871,6 +1898,76 @@ async def _try_click_search_button(page) -> bool:
             return True
         except Exception:
             continue
+    return False
+
+
+async def _attempt_search_submit(
+    page,
+    *,
+    selector: str,
+    db_path: Path,
+    session: str,
+    reason: str = "dom_no_change",
+) -> bool:
+    """
+    After a no-change search input, try a single submit (Enter, then click).
+    Returns True if DOM hash changes.
+    """
+    before = await _dom_state_hash(page)
+    changed = False
+    try:
+        await page.press(selector, "Enter", timeout=2000)
+        await page.wait_for_timeout(250)
+    except Exception:
+        pass
+    after = await _dom_state_hash(page)
+    if before and after and before != after:
+        changed = True
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "search_auto_submit",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "ENTER",
+                "payload": reason,
+                "status": 200,
+            },
+        )
+        return True
+    # Fallback: try clicking a search button
+    try:
+        if await _try_click_search_button(page):
+            await page.wait_for_timeout(250)
+            after2 = await _dom_state_hash(page)
+            if before and after2 and before != after2:
+                changed = True
+                log_event(
+                    db_path,
+                    session,
+                    {
+                        "event_type": "search_auto_submit",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "CLICK",
+                        "payload": reason,
+                        "status": 200,
+                    },
+                )
+                return True
+    except Exception:
+        pass
+    if not changed:
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "search_auto_submit_fail",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "SUBMIT",
+                "payload": reason,
+                "status": None,
+            },
+        )
     return False
 
 

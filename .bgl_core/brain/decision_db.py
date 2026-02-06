@@ -63,10 +63,11 @@ def insert_outcome(
 ):
     conn = _connect(db_path)
     with conn:
-        conn.execute(
+        cur = conn.execute(
             """
             INSERT INTO outcomes (decision_id, result, notes, backup_path, timestamp)
             VALUES (?, ?, ?, ?, datetime('now'))
             """,
             (decision_id, result, notes, backup_path),
         )
+        return cur.lastrowid

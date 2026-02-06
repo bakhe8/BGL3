@@ -10,6 +10,17 @@ This document maps *where* the agent can create side effects today, and how thos
 - `WRITE_SANDBOX`: Mutate sandbox-only artifacts (e.g. sandbox DB) for validation.
 - `WRITE_PROD`: Mutate the real product surface (code, prod DB/API writes).
 
+## Gating Matrix (Effective)
+
+| Action Kind | Human Approval | Notes |
+|---|---|---|
+| `OBSERVE` / `PROBE` / `PROPOSE` | No | Read-only or internal notes only. |
+| `WRITE_SANDBOX` | No | Sandbox tree only; still subject to `write_scope.yml`. |
+| `WRITE_PROD` (core product) | **Yes** | Any path under `app/`, `api/`, `templates/`, `views/`, `partials/`, `public/`, `storage/database/`, or any URL scope. |
+| `WRITE_PROD` (agent/supporting) | No | `.bgl_core`, `docs/`, `tests/`, `scripts/` unless blocked by `write_scope.yml`. |
+
+Validation: `Authority.validate_gating_matrix()` checks that protected prefixes are represented in `write_scope.yml` (or explicitly forbidden).
+
 ## Current Side-Effect Paths
 
 | Path | What It Does | Side Effects | Current Gate | Target Kind |

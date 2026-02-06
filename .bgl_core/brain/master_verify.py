@@ -22,6 +22,7 @@ from callgraph_builder import build_callgraph  # noqa: E402
 from generate_openapi import generate as generate_openapi  # noqa: E402
 from scenario_deps import check_scenario_deps_async  # noqa: E402
 from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
+from schema_check import check_schema  # noqa: E402
 
 
 def log_activity(root_path: Path, message: str):
@@ -258,7 +259,17 @@ async def master_assurance_diagnostic():
             "ui_semantic_delta": diagnostic["findings"].get("ui_semantic_delta", {}),
             "self_policy": diagnostic["findings"].get("self_policy", {}),
             "self_rules": diagnostic["findings"].get("self_rules", {}),
+            "diagnostic_attribution": diagnostic["findings"].get("diagnostic_attribution", {}),
         }
+        try:
+            data["schema_drift"] = check_schema(ROOT / ".bgl_core" / "brain" / "knowledge.db")
+        except Exception:
+            data["schema_drift"] = {"ok": False, "error": "schema_check_failed"}
+        # Validate Authority vs write_scope.yml (gating matrix)
+        try:
+            data["authority_matrix"] = core.authority.validate_gating_matrix()
+        except Exception:
+            data["authority_matrix"] = {"ok": False, "warnings": ["authority_matrix_unavailable"]}
         build_report(data, template, output)
         # Write JSON alongside HTML for dashboard consumption
         json_out = Path(".bgl_core/logs/latest_report.json")

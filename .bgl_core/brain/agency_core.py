@@ -40,6 +40,7 @@ try:
     from .autonomous_policy import apply_autonomous_policy_edit  # type: ignore
     from .self_policy import update_self_policy  # type: ignore
     from .self_rules import update_self_rules  # type: ignore
+    from .schema_check import check_schema  # type: ignore
 except (ImportError, ValueError):
     from safety import SafetyNet
     from guardian import BGLGuardian
@@ -74,6 +75,7 @@ except (ImportError, ValueError):
     from autonomous_policy import apply_autonomous_policy_edit
     from self_policy import update_self_policy
     from self_rules import update_self_rules
+    from schema_check import check_schema
 
 
 class AgencyCore:
@@ -117,6 +119,14 @@ class AgencyCore:
         if self.decision_schema.exists():
             init_db(self.decision_db_path, self.decision_schema)
         self.execution_mode = str(self.config.get("execution_mode", "sandbox")).lower()
+
+        # Schema drift check (best-effort, non-fatal)
+        try:
+            drift = check_schema(self.db_path)
+            if isinstance(drift, dict) and not drift.get("ok", True):
+                self.log_activity("SCHEMA_DRIFT", json.dumps(drift), "WARN")
+        except Exception:
+            pass
 
         self._initialized = True
         print(f"[*] AgencyCore: Intelligence engine initialized at {self.root_dir}")
@@ -541,6 +551,9 @@ class AgencyCore:
                 curr_snapshot_payload=snapshot,
                 created_at=float(diagnostic_map.get("timestamp") or time.time()),
             )
+            if isinstance(attribution, dict):
+                diagnostic_map["findings"]["diagnostic_attribution"] = attribution
+                diagnostic_map["diagnostic_attribution"] = attribution
             # If changes are detected without internal test/write activity, prompt exploration.
             try:
                 if (

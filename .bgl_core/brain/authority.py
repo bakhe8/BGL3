@@ -190,6 +190,63 @@ class Authority:
                 return True
         return False
 
+    def validate_gating_matrix(self) -> Dict[str, Any]:
+        """
+        Validate that Authority's protected prefixes align with write_scope.yml.
+        Returns a small status payload for diagnostics/reporting.
+        """
+        status: Dict[str, Any] = {
+            "ok": True,
+            "warnings": [],
+            "protected_prefixes": [
+                "app/",
+                "api/",
+                "templates/",
+                "views/",
+                "partials/",
+                "public/",
+                "storage/database/",
+            ],
+        }
+        scope_path = self.root_dir / ".bgl_core" / "brain" / "write_scope.yml"
+        if not scope_path.exists():
+            status["ok"] = False
+            status["warnings"].append("write_scope.yml missing")
+            return status
+        try:
+            import yaml  # type: ignore
+
+            data = yaml.safe_load(scope_path.read_text(encoding="utf-8")) or {}
+            scopes = data.get("scopes", []) or []
+            policy = data.get("policy", {}) or {}
+            forbid = policy.get("forbid_paths", []) or []
+            # Flatten allowed scope paths
+            scope_paths = []
+            for s in scopes:
+                scope_paths.extend(s.get("paths", []) or [])
+            scope_paths = [str(p).replace("\\", "/").lstrip("./") for p in scope_paths]
+            forbid_paths = [str(p).replace("\\", "/").lstrip("./") for p in forbid]
+
+            missing = []
+            for prefix in status["protected_prefixes"]:
+                covered = any(p.startswith(prefix) for p in scope_paths)
+                if not covered:
+                    # If explicitly forbidden, consider it covered by policy.
+                    covered = any(p.startswith(prefix) for p in forbid_paths)
+                if not covered:
+                    missing.append(prefix)
+            if missing:
+                status["ok"] = False
+                status["warnings"].append(
+                    f"protected prefixes not represented in write_scope.yml: {', '.join(missing)}"
+                )
+            status["scope_paths_checked"] = len(scope_paths)
+            status["forbid_paths_checked"] = len(forbid_paths)
+        except Exception as exc:
+            status["ok"] = False
+            status["warnings"].append(f"failed_to_parse_write_scope: {exc}")
+        return status
+
     # ---- permission queue (compatibility) ----
 
     def dedupe_permissions(self):
@@ -352,10 +409,13 @@ class Authority:
         self, decision_id: int, result: str, notes: str = "", backup_path: str = ""
     ):
         try:
-            insert_outcome(self.db_path, decision_id, result, notes, backup_path=backup_path)
+            return insert_outcome(
+                self.db_path, decision_id, result, notes, backup_path=backup_path
+            )
         except Exception:
             # Never crash the caller because of audit logging.
             pass
+        return None
 
     # ---- main gate ----
 

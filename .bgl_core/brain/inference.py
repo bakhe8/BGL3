@@ -422,6 +422,14 @@ class ReasoningEngine:
             max_insights = int(os.getenv("BGL_MAX_AUTO_INSIGHTS", "0") or "0")
         except Exception:
             max_insights = 0
+        try:
+            max_docs = int(os.getenv("BGL_MAX_DOCS_FILES", "140") or "140")
+        except Exception:
+            max_docs = 140
+        try:
+            max_knowledge = int(os.getenv("BGL_MAX_KNOWLEDGE_FILES", "200") or "200")
+        except Exception:
+            max_knowledge = 200
         auto_insights_counts = {
             "total": 0,
             "loaded": 0,
@@ -430,12 +438,15 @@ class ReasoningEngine:
             "nested": 0,
             "missing_source": 0,
             "stale": 0,
+            "expired": 0,
             "skipped_limit": 0,
         }
         auto_insights_loaded = 0
 
         for root_path in search_paths:
             if root_path.exists():
+                file_cap = max_docs if root_path.name == "docs" else max_knowledge
+                loaded_for_root = 0
                 # Find all .md and .txt files recursively
                 for doc_file in root_path.rglob("*"):
                     if doc_file.suffix in [".md", ".txt"]:
@@ -465,6 +476,8 @@ class ReasoningEngine:
                                 auto_insights_loaded += 1
                                 auto_insights_counts["loaded"] += 1
 
+                            if file_cap and loaded_for_root >= file_cap:
+                                continue
                             content = doc_file.read_text(encoding="utf-8")
                             # Truncate very large files to avoid blowing up context (limit to 10KB per file)
                             if len(content) > 15000:
@@ -476,6 +489,7 @@ class ReasoningEngine:
                                 f"\n--- DOCUMENT: {doc_file.name} ---\n{content}\n"
                             )
                             loaded_files.add(doc_key)
+                            loaded_for_root += 1
                         except Exception:
                             pass  # Skip unreadable files
 
@@ -489,6 +503,7 @@ class ReasoningEngine:
                 f"missing_source={auto_insights_counts['missing_source']} "
                 f"nested={auto_insights_counts['nested']} "
                 f"duplicate={auto_insights_counts['duplicate']} "
+                f"expired={auto_insights_counts['expired']} "
                 f"skipped_limit={auto_insights_counts['skipped_limit']}\n"
             )
 

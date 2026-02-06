@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import json
 import re
+import os
+import time
 from pathlib import Path
 from typing import Dict, Tuple, Optional
 
@@ -26,7 +28,7 @@ def should_include_insight(
     """
     Decide whether an auto-insight should be included.
     Returns (include, reason_code).
-    reason_code: ok | duplicate | missing_meta | nested | missing_source | stale
+    reason_code: ok | duplicate | missing_meta | nested | missing_source | stale | expired
     """
     name = doc_file.name
     if name.endswith(".insight.md.insight.md"):
@@ -52,6 +54,17 @@ def should_include_insight(
         current_hash = ""
     if current_hash and current_hash != stored_hash:
         return False, "stale"
+    try:
+        ttl_days = int(os.getenv("BGL_AUTO_INSIGHTS_TTL_DAYS", "0") or 0)
+    except Exception:
+        ttl_days = 0
+    if ttl_days > 0:
+        try:
+            age_days = (time.time() - doc_file.stat().st_mtime) / 86400.0
+            if age_days > float(ttl_days):
+                return False, "expired"
+        except Exception:
+            pass
     return True, "ok"
 
 
@@ -82,6 +95,7 @@ def audit_auto_insights(
         "nested": 0,
         "missing_source": 0,
         "stale": 0,
+        "expired": 0,
         "skipped_limit": 0,
     }
     if not folder.exists():

@@ -2,13 +2,14 @@ from pathlib import Path
 import json
 from typing import Dict, Any, List
 from jinja2 import Template  # type: ignore
+from encoding_utils import read_text_utf8, write_text_utf8
 import time
 
 
 def build_report(data: Dict[str, Any], template_path: Path, output_path: Path):
-    tmpl = Template(template_path.read_text(encoding="utf-8"))
+    tmpl = Template(read_text_utf8(template_path))
     html = tmpl.render(**data)
-    output_path.write_text(html, encoding="utf-8")
+    write_text_utf8(output_path, html)
     return output_path
 
 
