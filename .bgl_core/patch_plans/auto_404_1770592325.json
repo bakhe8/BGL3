@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "id": "404",
+  "description": "Route button.btn-input: 8 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770592244,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 404,
+    "generated_at": 1770592325.3159583
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for button.btn-input\n- event: click\n  action: stabilize\n"
+      }
+    }
+  ]
+}

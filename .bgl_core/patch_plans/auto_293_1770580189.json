@@ -1,0 +1,226 @@
+{
+  "version": 2,
+  "id": "patch_plan_293",
+  "description": "Route http://localhost:8000/index.php?search=bank: 14 events, 4 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1680756800,
+  "metadata": {
+    "proposal_id": 293,
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770580189.5853553
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: DELETE\n  handler: handleBankDelete",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: DELETE\n  handler: handleBankDelete"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: DELETE\n  handler: handleSupplierDelete",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: DELETE\n  handler: handleSupplierDelete"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankExtend",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankExtend"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: getBankLetterPreview",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: getBankLetterPreview"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankLearningAction",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankLearningAction"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankManualEntry",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: handleBankManualEntry"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: parseBankPaste",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: parseBankPaste"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: parseBankPasteV2",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: POST\n  handler: parseBankPasteV2"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankConfidenceDemo",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankConfidenceDemo"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankIndex",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankIndex"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankMaintenance",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankMaintenance"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankSettings",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankSettings"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankStatistics",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankStatistics"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_ui_action_index_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankActionIndex",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankActionIndex"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_ui_action_views_maintenance_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankActionMaintenance",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=bank\n  method: GET\n  handler: showBankActionMaintenance"
+      }
+    }
+  ]
+}

@@ -10,10 +10,12 @@ try:
     from .browser_sensor import BrowserSensor  # type: ignore
     from .fault_locator import FaultLocator  # type: ignore
     from .config_loader import load_config  # type: ignore
+    from .test_gate import evaluate_files, require_tests_enabled  # type: ignore
 except ImportError:
     from browser_sensor import BrowserSensor
     from fault_locator import FaultLocator
     from config_loader import load_config
+    from test_gate import evaluate_files, require_tests_enabled
 
 
 class SafetyNet:
@@ -365,8 +367,26 @@ class SafetyNet:
         tests_dir = self.root_dir / "tests"
         phpunit_bin = self.root_dir / "vendor" / "bin" / "phpunit"
         config = self.root_dir / "phpunit.xml"
+        require_tests = require_tests_enabled(self.root_dir, False)
+        allow_scenarios = bool(int(os.getenv("BGL_ALLOW_SCENARIO_AS_TEST", "1")))
+        if require_tests:
+            try:
+                rel = str(file_path.relative_to(self.root_dir)).replace("\\", "/")
+            except Exception:
+                rel = str(file_path).replace("\\", "/")
+            gate = evaluate_files(
+                self.root_dir,
+                [rel],
+                require_tests=True,
+                allow_scenarios=allow_scenarios,
+            )
+            if not gate.get("ok", True):
+                msg = "; ".join(gate.get("errors") or []) or "tests_required"
+                return {"valid": False, "output": msg}
 
         if not phpunit_bin.exists():
+            if require_tests:
+                return {"valid": False, "output": "PHPUnit missing (required)"}
             return {"valid": True, "output": "PHPUnit skipped (binary missing)"}
 
         # Map to nearest test; else run a fast group if defined
@@ -403,6 +423,8 @@ class SafetyNet:
                 args.extend(["--group", "fast"])
                 mode = "group:fast"
             else:
+                if require_tests:
+                    return {"valid": False, "output": "PHPUnit skipped (no tests mapped)"}
                 return {"valid": True, "output": "PHPUnit skipped (no tests mapped)"}
 
         try:

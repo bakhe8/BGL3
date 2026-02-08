@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_273",
+  "description": "Patch Plan for route http://localhost:8000/index.php?search=%D8%AA%D9%82%D8%B1%D9%8A%D8%B1",
+  "created_at": 1770576267,
+  "metadata": {
+    "proposal_id": 273,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770576325.3934925
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '1.0'\nscenarios:\n  - name: get_letter_preview\n    steps:\n      - action: fetch_letter\n        url: /api/get_letter\n        method: GET\n        params:\n          search: %D8%AA%D9%82%D8%B1%D9%8A%D8%B1\n      - action: parse_response\n        key: data\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '1.0'\nscenarios:\n  - name: get_letter_preview\n    steps:\n      - action: fetch_letter\n        url: /api/get_letter\n        method: GET\n        params:\n          search: %D8%AA%D9%82%D8%B1%D9%8A%D8%B1\n      - action: parse_response\n        key: data\n"
+      }
+    }
+  ]
+}

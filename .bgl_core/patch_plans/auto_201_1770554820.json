@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "201",
+  "description": "Route http://localhost:8000/index.php?search=%D8%AF%D9%81%D8%B9%D8%A9: 6 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770554739,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 201,
+    "generated_at": 1770554820.2781582
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /index.php?search=%D8%AF%D9%81%D8%B9%D8%A9\n  confidence: 0.85",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /index.php?search=%D8%AF%D9%81%D8%B9%D8%A9\n  confidence: 0.85"
+      }
+    }
+  ]
+}

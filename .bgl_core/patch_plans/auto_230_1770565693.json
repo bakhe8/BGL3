@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "230",
+  "description": "Route http://localhost:8000/index.php: 8 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770565549,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 230,
+    "generated_at": 1770565693.9799411
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": null,
+      "content": "stabilize",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "stabilize"
+      }
+    }
+  ]
+}

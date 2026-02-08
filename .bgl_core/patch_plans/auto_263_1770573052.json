@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_263",
+  "description": "Route #btnCancelManualEntry: 12 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1689456000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 263,
+    "generated_at": 1770573052.736339
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_manual_entry_php\n    events:\n      - event_id: 1\n        action: cancel_manual_entry\n        parameters:\n          button_id: #btnCancelManualEntry",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_manual_entry_php\n    events:\n      - event_id: 1\n        action: cancel_manual_entry\n        parameters:\n          button_id: #btnCancelManualEntry"
+      }
+    }
+  ]
+}

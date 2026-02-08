@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_292",
+  "description": "Route input[name=\"search\"]: 72 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1683072800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 292,
+    "generated_at": 1770580134.2557917
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/autonomous/auto_1770543148.yaml",
+      "mode": null,
+      "content": "stabilize_route_input_search:\n  description: Stabilize route input[name=\"search\"]\n  steps:\n    - step_id: 1\n      action: update_route\n      target: input[name=\"search\"]\n      parameters:\n        method: GET\n        path: /api/search\n        response:\n          status_code: 200\n          body: {\"message\": \"Search results found\"}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "stabilize_route_input_search:\n  description: Stabilize route input[name=\"search\"]\n  steps:\n    - step_id: 1\n      action: update_route\n      target: input[name=\"search\"]\n      parameters:\n        method: GET\n        path: /api/search\n        response:\n          status_code: 200\n          body: {\"message\": \"Search results found\"}\n"
+      }
+    }
+  ]
+}

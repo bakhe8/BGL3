@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_369",
+  "description": "Patch Plan for Outcome blocked for reindex.full|C:\\Users\\Bakheet\\Documents\\Projects\\BGL3:blocked #1770590498",
+  "created_at": 1704582400,
+  "metadata": {
+    "proposal_id": 369,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770590568.2580397
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/reindex.py",
+      "mode": "append",
+      "content": "\n# Add reindex full functionality\nif 'reindex.full' in scenario:\n    perform_full_reindex()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add reindex full functionality\nif 'reindex.full' in scenario:\n    perform_full_reindex()\n"
+      }
+    }
+  ]
+}

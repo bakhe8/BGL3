@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_395",
+  "description": "Route /: 86 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1684072800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 395,
+    "generated_at": 1770592063.1258404
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/autonomous/auto_1770543148.yaml",
+      "mode": null,
+      "content": "\n- action: stabilize\n  impact: medium",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "\n- action: stabilize\n  impact: medium"
+      }
+    }
+  ]
+}

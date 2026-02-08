@@ -1,0 +1,15 @@
+name: autonomous_1770568936
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/views/settings.php
+- action: type
+  selector: input[name="search"]
+  text: تقرير
+  auto_submit: true
+- action: click
+  selector: '#btnCancelManualEntry'
+- action: click
+  selector: button.historical-banner-btn
+- action: wait
+  ms: 600

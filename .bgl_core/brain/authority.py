@@ -80,6 +80,35 @@ def _normalize_scope(scope_val: Any) -> str:
     return s
 
 
+def _compact_fallback_context(rule: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    if not isinstance(rule, dict):
+        return {}
+    temporal = rule.get("temporal_profile") or {}
+    temporal_summary: Dict[str, Any] = {}
+    if isinstance(temporal, dict):
+        for key in ("stateful", "startup_exec", "accumulates", "first_request_writes"):
+            if key in temporal:
+                temporal_summary[key] = temporal.get(key)
+    ctx: Dict[str, Any] = {
+        "key": rule.get("key"),
+        "source": rule.get("source"),
+        "action": rule.get("action"),
+        "intent": rule.get("intent"),
+        "risk": rule.get("risk"),
+        "reason": rule.get("reason"),
+        "repeat_count": rule.get("repeat_count"),
+        "tests_stale": rule.get("tests_stale"),
+        "scope": rule.get("scope"),
+        "operation": rule.get("operation"),
+    }
+    if temporal_summary:
+        ctx["temporal"] = temporal_summary
+    log_hints = rule.get("log_hints")
+    if isinstance(log_hints, list) and log_hints:
+        ctx["log_hints"] = log_hints[:2]
+    return {k: v for k, v in ctx.items() if v not in (None, "", [], {})}
+
+
 class Authority:
     def __init__(self, root_dir: Path):
         self.root_dir = root_dir
@@ -96,6 +125,14 @@ class Authority:
         self._decision_cache: Dict[str, Tuple[float, GateResult]] = {}
         self._decision_cache_ttl_s: float = float(
             os.getenv("BGL_DECISION_CACHE_TTL", "600") or 600
+        )
+        self._runtime_contracts_cache: Dict[str, Any] = {
+            "ts": 0.0,
+            "routes": {},
+            "files": {},
+        }
+        self._runtime_contracts_ttl_s: float = float(
+            os.getenv("BGL_RUNTIME_CONTRACTS_TTL", "600") or 600
         )
 
     def _cache_key(self, request: ActionRequest) -> str:
@@ -137,6 +174,169 @@ class Authority:
             self._decision_cache[key] = (time.time(), res)
         except Exception:
             pass
+
+    def _normalize_route(self, route: str) -> str:
+        if not route:
+            return ""
+        r = str(route).strip()
+        if r.startswith("http"):
+            try:
+                r = "/" + r.split("://", 1)[1].split("/", 1)[1]
+            except Exception:
+                pass
+        if not r.startswith("/"):
+            r = "/" + r
+        return r
+
+    def _normalize_path(self, path: str) -> str:
+        if not path:
+            return ""
+        p = str(path).replace("\\", "/").lstrip("./")
+        return p
+
+    def _load_runtime_contracts(self) -> Dict[str, Any]:
+        now = time.time()
+        if (now - float(self._runtime_contracts_cache.get("ts") or 0)) < float(
+            self._runtime_contracts_ttl_s
+        ):
+            return self._runtime_contracts_cache
+
+        contracts_path = self.root_dir / "analysis" / "code_contracts.json"
+        if not contracts_path.exists():
+            try:
+                from .code_contracts import build_code_contracts  # type: ignore
+            except Exception:
+                try:
+                    from code_contracts import build_code_contracts  # type: ignore
+                except Exception:
+                    build_code_contracts = None  # type: ignore
+            if build_code_contracts:
+                try:
+                    build_code_contracts(self.root_dir)
+                except Exception:
+                    pass
+
+        routes: Dict[str, Dict[str, Any]] = {}
+        files: Dict[str, Dict[str, Any]] = {}
+        try:
+            data = json.loads(contracts_path.read_text(encoding="utf-8"))
+            for c in data.get("contracts", []):
+                if not isinstance(c, dict):
+                    continue
+                runtime = c.get("runtime") or {}
+                if not runtime:
+                    continue
+                kind = str(c.get("kind") or "")
+                if kind == "api":
+                    route = self._normalize_route(str(c.get("route") or ""))
+                    if route:
+                        routes[route] = runtime
+                    file_path = self._normalize_path(str(c.get("file") or ""))
+                    if file_path:
+                        files[file_path] = runtime
+                elif kind == "php_module":
+                    file_path = self._normalize_path(str(c.get("file") or ""))
+                    if file_path:
+                        files[file_path] = runtime
+        except Exception:
+            routes = {}
+            files = {}
+
+        self._runtime_contracts_cache = {
+            "ts": now,
+            "routes": routes,
+            "files": files,
+        }
+        return self._runtime_contracts_cache
+
+    def _runtime_hint(self, scope: List[str], metadata: Dict[str, Any]) -> Dict[str, Any]:
+        cache = self._load_runtime_contracts()
+        routes = cache.get("routes") or {}
+        files = cache.get("files") or {}
+
+        scope_items = []
+        for item in scope or []:
+            p = self._normalize_path(str(item))
+            if p:
+                scope_items.append(p)
+
+        route_candidates: List[str] = []
+        for key in ("route", "url", "uri", "target"):
+            val = metadata.get(key)
+            if not val:
+                continue
+            route = self._normalize_route(str(val))
+            if route:
+                route_candidates.append(route)
+
+        matched: List[Tuple[str, Dict[str, Any]]] = []
+        for p in scope_items:
+            if p in files:
+                matched.append((f"file:{p}", files[p]))
+            else:
+                # try suffix match
+                for fpath, stats in files.items():
+                    if fpath.endswith(p):
+                        matched.append((f"file:{fpath}", stats))
+                        break
+
+        for r in route_candidates:
+            if r in routes:
+                matched.append((f"route:{r}", routes[r]))
+
+        if not matched:
+            return {"has_evidence": False, "event_count": 0, "error_count": 0}
+
+        total_events = 0
+        total_errors = 0
+        latency_sum = 0.0
+        last_ts = 0.0
+        last_error = ""
+        last_error_ts = 0.0
+        sources: List[str] = []
+        for source, stats in matched:
+            sources.append(source)
+            try:
+                cnt = int(stats.get("event_count") or 0)
+            except Exception:
+                cnt = 0
+            total_events += cnt
+            try:
+                total_errors += int(stats.get("error_count") or 0)
+            except Exception:
+                pass
+            try:
+                lat = float(stats.get("avg_latency_ms") or 0.0)
+                latency_sum += lat * max(cnt, 1)
+            except Exception:
+                pass
+            try:
+                ts = float(stats.get("last_ts") or 0.0)
+                if ts > last_ts:
+                    last_ts = ts
+            except Exception:
+                pass
+            try:
+                err_ts = float(stats.get("last_error_ts") or 0.0)
+                if err_ts > last_error_ts:
+                    last_error_ts = err_ts
+                    last_error = str(stats.get("last_error") or "")
+            except Exception:
+                pass
+
+        avg_latency = round(latency_sum / max(total_events, 1), 2)
+        error_rate = round(total_errors / max(total_events, 1), 3)
+        return {
+            "has_evidence": True,
+            "event_count": total_events,
+            "error_count": total_errors,
+            "error_rate": error_rate,
+            "avg_latency_ms": avg_latency,
+            "last_ts": last_ts,
+            "last_error": last_error,
+            "last_error_ts": last_error_ts,
+            "sources": sources[:20],
+        }
 
     def _eligible_for_direct(self, required_successes: int = 5) -> bool:
         """
@@ -207,9 +407,27 @@ class Authority:
         now = time.time()
         req_scope = _normalize_scope(request.scope)
         req_op = str(request.operation or "")
+        # Internal sandbox maintenance should not be blocked by fallback rules.
+        try:
+            if request.kind == ActionKind.WRITE_SANDBOX:
+                if req_op in {"run_scenarios", "reindex_full"} or req_op.startswith("reindex.full"):
+                    return None
+        except Exception:
+            pass
         for rule in rules:
             if not isinstance(rule, dict):
                 continue
+            try:
+                rule_source = str(rule.get("source") or "")
+                if (
+                    rule_source == "external_dependency"
+                    and request.kind == ActionKind.WRITE_SANDBOX
+                    and (req_op in {"run_scenarios", "reindex_full"} or req_op.startswith("reindex.full"))
+                ):
+                    # Allow safe sandbox maintenance even during external dependency incidents.
+                    continue
+            except Exception:
+                pass
             try:
                 exp = rule.get("expires_at")
                 if exp and float(exp) < now:
@@ -527,6 +745,11 @@ class Authority:
         except Exception:
             env_delta = None
 
+        try:
+            meta = request.metadata or {}
+        except Exception:
+            meta = {}
+
         intent_payload: Dict[str, Any] = {
             "intent": request.operation,
             "confidence": float(request.confidence or 0.5),
@@ -536,11 +759,16 @@ class Authority:
                 "action_kind": request.kind.value,
                 "operation": request.operation,
                 "command": request.command,
-                "metadata": request.metadata,
+                "metadata": meta,
                 "execution_mode": self.execution_mode,
                 # Unified environment awareness at decision time (may be None on fresh DBs).
                 "env_snapshot": env_snapshot,
                 "env_delta": env_delta,
+                "run_id": meta.get("run_id") or os.getenv("BGL_RUN_ID") or "",
+                "scenario_id": meta.get("scenario_id") or os.getenv("BGL_SCENARIO_ID") or "",
+                "scenario_name": meta.get("scenario_name") or os.getenv("BGL_SCENARIO_NAME") or "",
+                "goal_id": meta.get("goal_id") or os.getenv("BGL_GOAL_ID") or "",
+                "goal_name": meta.get("goal_name") or os.getenv("BGL_GOAL_NAME") or "",
             },
         }
 
@@ -622,22 +850,37 @@ class Authority:
             except Exception:
                 fallback_rule = None
         if write_action and fallback_rule and str(fallback_rule.get("action") or "").lower() == "block":
+            fallback_ctx = _compact_fallback_context(fallback_rule)
+            fallback_note = "fallback_rule:block"
+            if fallback_ctx:
+                fallback_note = f"{fallback_note} ctx={_safe_json(fallback_ctx)}"
             decision_payload = {
                 "decision": "block",
                 "risk_level": "high",
                 "requires_human": True,
-                "justification": ["fallback_rule:block", str(fallback_rule.get("reason") or "")],
+                "justification": [
+                    "fallback_rule:block",
+                    str(fallback_rule.get("reason") or ""),
+                    str(fallback_ctx.get("intent") or ""),
+                ],
                 "maturity": "stable",
             }
             gate_res = self._log_decision(request, decision_payload, source=source)
             gate_res.allowed = False
             gate_res.requires_human = True
             gate_res.message = "Blocked by fallback rule derived from prod operations."
+            try:
+                if request.metadata is None:
+                    request.metadata = {}
+                if isinstance(request.metadata, dict) and fallback_ctx:
+                    request.metadata["fallback_ctx"] = fallback_ctx
+            except Exception:
+                pass
             self._log_prod_operation(request, gate_res, status="blocked_fallback", source=source)
             self.record_outcome(
                 gate_res.decision_id or 0,
                 "blocked",
-                "fallback_rule:block",
+                fallback_note,
             )
             return gate_res
 
@@ -660,14 +903,28 @@ class Authority:
         # For some internal sandbox writes, skip the LLM entirely (deterministic gate),
         # while still preserving approval requirements and audit logs.
         deterministic_gate = False
+        meta: Dict[str, Any] = {}
         try:
-            meta = request.metadata or {}
+            meta = dict(request.metadata or {})
             deterministic_gate = bool(meta.get("deterministic_gate", False))
             policy_key = str(meta.get("policy_key", "") or "")
             if request.kind == ActionKind.WRITE_SANDBOX and policy_key in {"reindex_full", "run_scenarios"}:
                 deterministic_gate = True
         except Exception:
+            meta = {}
             deterministic_gate = False
+
+        runtime_hint: Dict[str, Any] = {}
+        try:
+            runtime_hint = self._runtime_hint(request.scope, meta)
+            if runtime_hint:
+                meta["runtime_hint"] = runtime_hint
+        except Exception:
+            runtime_hint = {}
+        try:
+            request.metadata = meta
+        except Exception:
+            pass
 
         # For write actions, de-duplicate within a run to avoid repeated LLM calls and decision spam.
         cache_key = self._cache_key(request)
@@ -692,10 +949,17 @@ class Authority:
                 env_delta_payload = None
             try:
                 if deterministic_gate:
+                    requires_human = True
+                    try:
+                        policy_key = str(meta.get("policy_key", "") or "")
+                        if request.kind == ActionKind.WRITE_SANDBOX and policy_key in {"reindex_full", "run_scenarios"}:
+                            requires_human = False
+                    except Exception:
+                        requires_human = True
                     decision_payload = {
                         "decision": "observe",
                         "risk_level": "low",
-                        "requires_human": True,
+                        "requires_human": requires_human,
                         "justification": ["deterministic_gate: internal sandbox write"],
                         "maturity": "stable",
                     }
@@ -708,6 +972,7 @@ class Authority:
                             "scope": request.scope,
                             "metadata": request.metadata,
                             "action_kind": request.kind.value,
+                            "runtime_hint": runtime_hint,
                             # Give decision engine a canonical view of the environment.
                             "env_snapshot": env_snapshot_payload,
                             "env_delta": env_delta_payload,

@@ -1,4 +1,5 @@
 import sqlite3
+import os
 from pathlib import Path
 
 
@@ -13,6 +14,22 @@ def init_db(db_path: Path, schema_path: Path):
 
 def _connect(db_path: Path):
     return sqlite3.connect(str(db_path))
+
+
+def _ensure_outcome_columns(conn: sqlite3.Connection) -> None:
+    try:
+        cols = {r[1] for r in conn.execute("PRAGMA table_info(outcomes)").fetchall()}
+    except Exception:
+        cols = set()
+    try:
+        if "run_id" not in cols:
+            conn.execute("ALTER TABLE outcomes ADD COLUMN run_id TEXT")
+        if "scenario_id" not in cols:
+            conn.execute("ALTER TABLE outcomes ADD COLUMN scenario_id TEXT")
+        if "goal_id" not in cols:
+            conn.execute("ALTER TABLE outcomes ADD COLUMN goal_id TEXT")
+    except Exception:
+        pass
 
 
 def insert_intent(
@@ -63,6 +80,7 @@ def insert_outcome(
 ):
     conn = _connect(db_path)
     with conn:
+        _ensure_outcome_columns(conn)
         cur = conn.execute(
             """
             INSERT INTO outcomes (decision_id, result, notes, backup_path, timestamp)
@@ -70,4 +88,16 @@ def insert_outcome(
             """,
             (decision_id, result, notes, backup_path),
         )
-        return cur.lastrowid
+        outcome_id = cur.lastrowid
+        try:
+            run_id = os.getenv("BGL_RUN_ID") or ""
+            scenario_id = os.getenv("BGL_SCENARIO_ID") or ""
+            goal_id = os.getenv("BGL_GOAL_ID") or ""
+            if run_id or scenario_id or goal_id:
+                conn.execute(
+                    "UPDATE outcomes SET run_id=?, scenario_id=?, goal_id=? WHERE id=?",
+                    (run_id, scenario_id, goal_id, int(outcome_id or 0)),
+                )
+        except Exception:
+            pass
+        return outcome_id

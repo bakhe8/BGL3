@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "id": "417",
+  "description": "Investigate and fix the issue with _fallback_autonomous_steps() missing 'allow_upload' argument in run_scenarios.py",
+  "created_at": 1690385200,
+  "metadata": {
+    "proposal_context": {
+      "id": 417,
+      "name": "تحسين تلقائي من خبرة: outcome:run_scenarios:fail",
+      "description": "Outcome fail for run_scenarios (observe/low) x6. Last note: _fallback_autonomous_steps() missing 1 required positional argument: 'allow_upload'",
+      "action": "investigate",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 8016, \"exp_hash\": \"66aa99327e45124792cded6c4d0800faab0ea3c9\", \"scenario\": \"outcome:run_scenarios:fail\", \"summary\": \"Outcome fail for run_scenarios (observe/low) x6. Last note: _fallback_autonomous_steps() missing 1 required positional argument: 'allow_upload'\", \"confidence\": 0.85, \"evidence_count\": 6, \"related_files\": \"run_scenarios\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 417,
+    "generated_at": 1770592737.8545146
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/run_scenarios.py",
+      "mode": "append",
+      "content": "\n# Add missing 'allow_upload' argument to _fallback_autonomous_steps()\ndef _fallback_autonomous_steps(self, allow_upload=False):\n    # Your implementation here\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add missing 'allow_upload' argument to _fallback_autonomous_steps()\ndef _fallback_autonomous_steps(self, allow_upload=False):\n    # Your implementation here\n"
+      }
+    }
+  ]
+}

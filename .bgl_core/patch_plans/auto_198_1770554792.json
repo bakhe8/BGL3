@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "patch_plan_198",
+  "description": "Stabilize route http://localhost:8000/",
+  "created_at": 1770554739,
+  "metadata": {
+    "proposal_id": 198,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770554792.3063085
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for delete operations",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for delete operations"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for delete operations",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for delete operations"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for extend operations",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for extend operations"
+      }
+    }
+  ]
+}

@@ -1,0 +1,198 @@
+{
+  "version": 1,
+  "id": "246",
+  "description": "Route button.btn: 8 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1703529600,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 246,
+    "generated_at": 1770569240.317165
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_delete_bank_php\n    steps:\n      - action: delete\n        path: /api/delete/bank\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_delete_bank_php\n    steps:\n      - action: delete\n        path: /api/delete/bank\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_delete_supplier_php\n    steps:\n      - action: delete\n        path: /api/delete/supplier\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_delete_supplier_php\n    steps:\n      - action: delete\n        path: /api/delete/supplier\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_extend_php\n    steps:\n      - action: extend\n        path: /api/extend\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_extend_php\n    steps:\n      - action: extend\n        path: /api/extend\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_get_letter_preview_php\n    steps:\n      - action: get\n        path: /api/get/letter/preview\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_get_letter_preview_php\n    steps:\n      - action: get\n        path: /api/get/letter/preview\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_learning_action_php\n    steps:\n      - action: learning_action\n        path: /api/learning/action\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_learning_action_php\n    steps:\n      - action: learning_action\n        path: /api/learning/action\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_manual_entry_php\n    steps:\n      - action: manual_entry\n        path: /api/manual/entry\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_manual_entry_php\n    steps:\n      - action: manual_entry\n        path: /api/manual/entry\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_parse_paste_php\n    steps:\n      - action: parse_paste\n        path: /api/parse/paste\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_parse_paste_php\n    steps:\n      - action: parse_paste\n        path: /api/parse/paste\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_api_parse_paste_v2_php\n    steps:\n      - action: parse_paste_v2\n        path: /api/parse/paste/v2\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_api_parse_paste_v2_php\n    steps:\n      - action: parse_paste_v2\n        path: /api/parse/paste/v2\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_confidence_demo_php\n    steps:\n      - action: views_confidence_demo\n        path: /views/confidence/demo\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_confidence_demo_php\n    steps:\n      - action: views_confidence_demo\n        path: /views/confidence/demo\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_index_php\n    steps:\n      - action: views_index\n        path: /views/index\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_index_php\n    steps:\n      - action: views_index\n        path: /views/index\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_maintenance_php\n    steps:\n      - action: views_maintenance\n        path: /views/maintenance\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_maintenance_php\n    steps:\n      - action: views_maintenance\n        path: /views/maintenance\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_settings_php\n    steps:\n      - action: views_settings\n        path: /views/settings\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_settings_php\n    steps:\n      - action: views_settings\n        path: /views/settings\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_statistics_php\n    steps:\n      - action: views_statistics\n        path: /views/statistics\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_statistics_php\n    steps:\n      - action: views_statistics\n        path: /views/statistics\n"
+      }
+    }
+  ]
+}

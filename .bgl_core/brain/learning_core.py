@@ -505,6 +505,111 @@ def ingest_learning_confirmations(db_path: Path, limit: int = 200) -> int:
         return 0
 
 
+def _runtime_contract_confidence(row: sqlite3.Row) -> float:
+    try:
+        base = float(row["confidence"] or 0.5)
+    except Exception:
+        base = 0.5
+    try:
+        value_score = float(row["value_score"] or 0.0)
+    except Exception:
+        value_score = 0.0
+    summary = str(row["summary"] or "").lower()
+    boost = 0.0
+    if "error" in summary or "errors" in summary or "last_error" in summary:
+        boost += 0.1
+    if "latency" in summary:
+        boost += 0.05
+    if "suspect_deps" in summary or "dependency" in summary:
+        boost += 0.05
+    if value_score >= 0.7:
+        boost += 0.05
+    return max(0.4, min(0.95, base + boost))
+
+
+def ingest_runtime_contract_experiences(db_path: Path, limit: int = 120) -> int:
+    """
+    Promote runtime_contract experiences into learning_events so they affect
+    downstream scoring/signals without manual intervention.
+    """
+    if not db_path.exists():
+        return 0
+    try:
+        conn = _connect(db_path)
+        _ensure_tables(conn)
+        has_table = conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name='experiences'"
+        ).fetchone()
+        if not has_table:
+            conn.close()
+            return 0
+        try:
+            rows = conn.execute(
+                """
+                SELECT exp_hash, scenario, summary, related_files, confidence, evidence_count,
+                       value_score, source_type, updated_at, created_at
+                FROM experiences
+                WHERE source_type = 'runtime_contract' AND suppressed = 0
+                ORDER BY COALESCE(updated_at, created_at) DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+        except Exception:
+            rows = conn.execute(
+                """
+                SELECT exp_hash, scenario, summary, related_files, confidence, evidence_count,
+                       value_score, source_type, updated_at, created_at
+                FROM experiences
+                WHERE source_type = 'runtime_contract'
+                ORDER BY COALESCE(updated_at, created_at) DESC
+                LIMIT ?
+                """,
+                (int(limit),),
+            ).fetchall()
+        inserted = 0
+        for r in rows:
+            exp_hash = str(r["exp_hash"] or "")
+            scenario = str(r["scenario"] or "")
+            if not exp_hash and not scenario:
+                continue
+            created_at = float(r["updated_at"] or r["created_at"] or time.time())
+            fp = _fingerprint("runtime_contract", exp_hash or scenario)
+            detail = {
+                "scenario": scenario,
+                "summary": str(r["summary"] or "")[:400],
+                "related_files": str(r["related_files"] or ""),
+                "evidence_count": int(r["evidence_count"] or 0),
+                "source_type": "runtime_contract",
+            }
+            try:
+                conn.execute(
+                    """
+                    INSERT OR IGNORE INTO learning_events
+                    (fingerprint, created_at, source, event_type, item_key, status, confidence, detail_json)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        fp,
+                        created_at,
+                        "runtime_contracts",
+                        "runtime_contract",
+                        scenario or exp_hash,
+                        "observed",
+                        _runtime_contract_confidence(r),
+                        _safe_json(detail),
+                    ),
+                )
+                inserted += int(conn.total_changes > 0)
+            except Exception:
+                continue
+        conn.commit()
+        conn.close()
+        return inserted
+    except Exception:
+        return 0
+
+
 def list_learning_events(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
     if not db_path.exists():
         return []
@@ -920,14 +1025,14 @@ def update_fallback_rules_from_outcomes(
     for rule in fresh_rules:
         if not isinstance(rule, dict):
             continue
-          if str(rule.get("source") or "") == "outcomes":
-              failure_class = str(rule.get("failure_class") or "").lower()
-              if failure_class == "blocked":
-                  continue
-              op = str(rule.get("operation") or "")
-              op_prefix = op.replace("*", "")
-              if op_prefix in exclude_ops:
-                  continue
+        if str(rule.get("source") or "") == "outcomes":
+            failure_class = str(rule.get("failure_class") or "").lower()
+            if failure_class == "blocked":
+                continue
+            op = str(rule.get("operation") or "")
+            op_prefix = op.replace("*", "")
+            if op_prefix in exclude_ops:
+                continue
         cleaned_rules.append(rule)
     rules = cleaned_rules
 
@@ -1051,3 +1156,766 @@ def update_fallback_rules_from_outcomes(
         "updated": updated,
         "total_rules": len(rules),
     }
+
+
+def update_fallback_rules_from_runtime_contracts(
+    root_dir: Path,
+    db_path: Path,
+    *,
+    min_events: int = 5,
+    require_error_rate: float = 0.3,
+    block_error_rate: float = 0.5,
+    latency_ms_threshold: float = 2000,
+    expire_days: int = 7,
+) -> Dict[str, Any]:
+    """
+    Derive fallback rules from runtime contract evidence (code_contracts.json).
+    Uses runtime error rate/latency to require human or block risky writes.
+    """
+    if not db_path.exists():
+        return {"ok": False, "error": "db_missing"}
+    if load_self_policy is None or save_self_policy is None:
+        return {"ok": False, "error": "self_policy_unavailable"}
+
+    cfg = {}
+    if load_config is not None:
+        try:
+            cfg = load_config(root_dir) or {}
+        except Exception:
+            cfg = {}
+    enabled = _cfg_flag("BGL_FALLBACK_RUNTIME_ENABLED", cfg, "fallback_runtime_enabled", True)
+    if not enabled:
+        return {"ok": False, "error": "disabled"}
+
+    min_events = int(
+        _cfg_number("BGL_FALLBACK_RUNTIME_MIN_EVENTS", cfg, "fallback_runtime_min_events", min_events)
+    )
+    require_error_rate = float(
+        _cfg_number(
+            "BGL_FALLBACK_RUNTIME_REQUIRE_RATE",
+            cfg,
+            "fallback_runtime_require_rate",
+            require_error_rate,
+        )
+    )
+    block_error_rate = float(
+        _cfg_number(
+            "BGL_FALLBACK_RUNTIME_BLOCK_RATE",
+            cfg,
+            "fallback_runtime_block_rate",
+            block_error_rate,
+        )
+    )
+    latency_ms_threshold = float(
+        _cfg_number(
+            "BGL_FALLBACK_RUNTIME_LATENCY_MS",
+            cfg,
+            "fallback_runtime_latency_ms",
+            latency_ms_threshold,
+        )
+    )
+    expire_days = int(
+        _cfg_number(
+            "BGL_FALLBACK_RUNTIME_EXPIRE_DAYS",
+            cfg,
+            "fallback_runtime_expire_days",
+            expire_days,
+        )
+    )
+
+    contracts_path = root_dir / "analysis" / "code_contracts.json"
+    if not contracts_path.exists():
+        try:
+            from .code_contracts import build_code_contracts  # type: ignore
+        except Exception:
+            try:
+                from code_contracts import build_code_contracts  # type: ignore
+            except Exception:
+                build_code_contracts = None  # type: ignore
+        if build_code_contracts:
+            try:
+                build_code_contracts(root_dir)
+            except Exception:
+                pass
+    try:
+        data = json.loads(contracts_path.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    contracts = data.get("contracts") or []
+    if not isinstance(contracts, list):
+        contracts = []
+
+    policy = load_self_policy(root_dir)
+    rules = policy.get("fallback_rules") or []
+    if not isinstance(rules, list):
+        rules = []
+
+    now = time.time()
+    # purge expired runtime rules
+    fresh_rules: List[Dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        exp = rule.get("expires_at")
+        try:
+            if exp and float(exp) < now:
+                continue
+        except Exception:
+            pass
+        fresh_rules.append(rule)
+    rules = fresh_rules
+
+    created: List[Dict[str, Any]] = []
+    updated: List[Dict[str, Any]] = []
+    active_keys: set[str] = set()
+
+    def _normalize_path(path: str) -> str:
+        return str(path or "").replace("\\", "/").lstrip("./")
+
+    for c in contracts:
+        if not isinstance(c, dict):
+            continue
+        runtime = c.get("runtime") or {}
+        if not runtime:
+            continue
+        try:
+            event_count = int(runtime.get("event_count") or 0)
+        except Exception:
+            event_count = 0
+        if event_count < min_events:
+            continue
+        try:
+            error_rate = float(runtime.get("error_rate") or 0.0)
+        except Exception:
+            error_rate = 0.0
+        try:
+            avg_latency = float(runtime.get("avg_latency_ms") or 0.0)
+        except Exception:
+            avg_latency = 0.0
+        last_error = str(runtime.get("last_error") or "").strip()
+        file_path = _normalize_path(str(c.get("file") or ""))
+        if not file_path:
+            continue
+        if file_path.startswith(".bgl_core/"):
+            # don't block internal agent code based on runtime contract signals
+            continue
+
+        action = None
+        if error_rate >= block_error_rate or last_error:
+            action = "block"
+        elif error_rate >= require_error_rate or avg_latency >= latency_ms_threshold:
+            action = "require_human"
+        if not action:
+            continue
+
+        key = f"runtime_contract::{file_path}"
+        active_keys.add(key)
+
+        existing = None
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            if str(rule.get("key") or "") == key:
+                existing = rule
+                break
+
+        payload = {
+            "key": key,
+            "operation": "*",
+            "scope": file_path,
+            "action": action,
+            "event_count": event_count,
+            "error_rate": round(error_rate, 3),
+            "avg_latency_ms": round(avg_latency, 2),
+            "last_error": last_error[:220],
+            "source": "runtime_contracts",
+            "created_at": now if not existing else existing.get("created_at", now),
+            "updated_at": now,
+            "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
+        }
+        if existing:
+            existing.update(payload)
+            updated.append(existing)
+        else:
+            rules.append(payload)
+            created.append(payload)
+
+        try:
+            conn = _connect(db_path)
+            _ensure_tables(conn)
+            fp = _fingerprint("fallback_runtime_rule", key, str(int(payload["updated_at"])))
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO learning_events
+                (fingerprint, created_at, source, event_type, item_key, status, confidence, detail_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fp,
+                    float(payload["updated_at"]),
+                    "fallback_rules",
+                    "fallback_rule",
+                    key,
+                    action,
+                    None,
+                    _safe_json(payload),
+                ),
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    # remove inactive runtime rules
+    pruned: List[Dict[str, Any]] = []
+    removed: List[Dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        if str(rule.get("source") or "") == "runtime_contracts":
+            k = str(rule.get("key") or "")
+            if k and k not in active_keys:
+                removed.append(rule)
+                continue
+        pruned.append(rule)
+    rules = pruned
+
+    policy["fallback_rules"] = rules
+    policy["last_updated"] = time.time()
+    history = policy.get("history") or []
+    if not isinstance(history, list):
+        history = []
+    if created or updated or removed:
+        history.append(
+            {
+                "ts": time.time(),
+                "changes": [
+                    f"fallback_rules_runtime:+{len(created)}/~{len(updated)}/-{len(removed)}"
+                ],
+                "context": {"created": created, "updated": updated, "removed": removed},
+                "source": "fallback_rules_runtime",
+            }
+        )
+        policy["history"] = history[-30:]
+    save_self_policy(root_dir, policy)
+
+    return {
+        "ok": True,
+        "created": created,
+        "updated": updated,
+        "removed": removed,
+        "total_rules": len(rules),
+    }
+
+
+def update_fallback_rules_from_code_intent(
+    root_dir: Path,
+    db_path: Path,
+    *,
+    min_repeat: int = 5,
+    block_repeat: int = 20,
+    expire_days: int = 10,
+) -> Dict[str, Any]:
+    """
+    Derive fallback rules from code intent signals (variables/comments/tests/log hints).
+    Uses repeat signals + stale tests + log hints to require human for risky files.
+    """
+    if not db_path.exists():
+        return {"ok": False, "error": "db_missing"}
+    if load_self_policy is None or save_self_policy is None:
+        return {"ok": False, "error": "self_policy_unavailable"}
+
+    cfg = {}
+    if load_config is not None:
+        try:
+            cfg = load_config(root_dir) or {}
+        except Exception:
+            cfg = {}
+    enabled = _cfg_flag(
+        "BGL_FALLBACK_CODE_INTENT_ENABLED", cfg, "fallback_code_intent_enabled", True
+    )
+    if not enabled:
+        return {"ok": False, "error": "disabled"}
+
+    min_repeat = int(
+        _cfg_number(
+            "BGL_FALLBACK_CODE_INTENT_MIN_REPEAT",
+            cfg,
+            "fallback_code_intent_min_repeat",
+            min_repeat,
+        )
+    )
+    block_repeat = int(
+        _cfg_number(
+            "BGL_FALLBACK_CODE_INTENT_BLOCK_REPEAT",
+            cfg,
+            "fallback_code_intent_block_repeat",
+            block_repeat,
+        )
+    )
+    expire_days = int(
+        _cfg_number(
+            "BGL_FALLBACK_CODE_INTENT_EXPIRE_DAYS",
+            cfg,
+            "fallback_code_intent_expire_days",
+            expire_days,
+        )
+    )
+
+    contracts_path = root_dir / "analysis" / "code_contracts.json"
+    if not contracts_path.exists():
+        try:
+            from .code_contracts import build_code_contracts  # type: ignore
+        except Exception:
+            try:
+                from code_contracts import build_code_contracts  # type: ignore
+            except Exception:
+                build_code_contracts = None  # type: ignore
+        if build_code_contracts:
+            try:
+                build_code_contracts(root_dir)
+            except Exception:
+                pass
+    try:
+        data = json.loads(contracts_path.read_text(encoding="utf-8"))
+    except Exception:
+        data = {}
+    contracts = data.get("contracts") or []
+    if not isinstance(contracts, list):
+        contracts = []
+
+    policy = load_self_policy(root_dir)
+    rules = policy.get("fallback_rules") or []
+    if not isinstance(rules, list):
+        rules = []
+
+    now = time.time()
+    # purge expired code-intent rules
+    fresh_rules: List[Dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        exp = rule.get("expires_at")
+        try:
+            if exp and float(exp) < now:
+                continue
+        except Exception:
+            pass
+        fresh_rules.append(rule)
+    rules = fresh_rules
+
+    created: List[Dict[str, Any]] = []
+    updated: List[Dict[str, Any]] = []
+    active_keys: set[str] = set()
+
+    def _normalize_path(path: str) -> str:
+        return str(path or "").replace("\\", "/").lstrip("./")
+
+    for c in contracts:
+        if not isinstance(c, dict):
+            continue
+        file_path = _normalize_path(str(c.get("file") or ""))
+        if not file_path:
+            continue
+        if file_path.startswith(".bgl_core/"):
+            continue
+        risk = str(c.get("risk") or "low").lower()
+        intent_sig = c.get("intent_signals") or {}
+        intent_hint = intent_sig.get("intent_hint") or {}
+        suggested = str(intent_hint.get("suggested_intent") or "").lower()
+        if suggested not in ("stabilize", "unblock"):
+            continue
+        repeat_count = 0
+        try:
+            repeat_count = int((c.get("repeat_signals") or {}).get("count") or 0)
+        except Exception:
+            repeat_count = 0
+        tests_meta = c.get("tests_meta") or {}
+        stale = bool(tests_meta.get("stale")) if isinstance(tests_meta, dict) else False
+        log_hints = c.get("log_hints") or []
+        temporal = c.get("temporal_profile") or {}
+        temporal_risk = False
+        if isinstance(temporal, dict):
+            temporal_risk = bool(
+                temporal.get("stateful")
+                and (temporal.get("accumulates") or temporal.get("first_request_writes") or temporal.get("startup_exec"))
+            )
+        if repeat_count < min_repeat and not stale and not log_hints and not temporal_risk:
+            continue
+
+        action = "require_human"
+        if repeat_count >= block_repeat and risk == "high":
+            action = "block"
+        elif temporal_risk and risk in ("high", "medium"):
+            action = "require_human"
+
+        reason_parts = ["code_intent_signals"]
+        if suggested:
+            reason_parts.append(f"intent={suggested}")
+        if repeat_count:
+            reason_parts.append(f"repeat={repeat_count}")
+        if stale:
+            reason_parts.append("tests_stale=1")
+        if log_hints:
+            reason_parts.append("log_hints=1")
+        if temporal_risk:
+            reason_parts.append("temporal_risk=1")
+        reason = " | ".join(reason_parts)
+
+        key = f"code_intent::{file_path}"
+        active_keys.add(key)
+
+        existing = None
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            if str(rule.get("key") or "") == key:
+                existing = rule
+                break
+
+        payload = {
+            "key": key,
+            "operation": "*",
+            "scope": file_path,
+            "action": action,
+            "intent": suggested,
+            "risk": risk,
+            "repeat_count": repeat_count,
+            "tests_stale": stale,
+            "log_hints": (log_hints[:2] if isinstance(log_hints, list) else []),
+            "temporal_profile": temporal if isinstance(temporal, dict) else {},
+            "reason": reason,
+            "source": "code_intent_signals",
+            "created_at": now if not existing else existing.get("created_at", now),
+            "updated_at": now,
+            "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
+        }
+        if existing:
+            existing.update(payload)
+            updated.append(existing)
+        else:
+            rules.append(payload)
+            created.append(payload)
+
+        try:
+            conn = _connect(db_path)
+            _ensure_tables(conn)
+            fp = _fingerprint("fallback_code_intent", key, str(int(payload["updated_at"])))
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO learning_events
+                (fingerprint, created_at, source, event_type, item_key, status, confidence, detail_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fp,
+                    float(payload["updated_at"]),
+                    "fallback_rules",
+                    "fallback_rule",
+                    key,
+                    action,
+                    None,
+                    _safe_json(payload),
+                ),
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            pass
+
+    pruned: List[Dict[str, Any]] = []
+    removed: List[Dict[str, Any]] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        if str(rule.get("source") or "") == "code_intent_signals":
+            k = str(rule.get("key") or "")
+            if k and k not in active_keys:
+                removed.append(rule)
+                continue
+        pruned.append(rule)
+    rules = pruned
+
+    policy["fallback_rules"] = rules
+    policy["last_updated"] = time.time()
+    history = policy.get("history") or []
+    if not isinstance(history, list):
+        history = []
+    if created or updated or removed:
+        history.append(
+            {
+                "ts": time.time(),
+                "changes": [
+                    f"fallback_rules_code_intent:+{len(created)}/~{len(updated)}/-{len(removed)}"
+                ],
+                "context": {"created": created, "updated": updated, "removed": removed},
+                "source": "fallback_rules_code_intent",
+            }
+        )
+        policy["history"] = history[-30:]
+    save_self_policy(root_dir, policy)
+
+    return {
+        "ok": True,
+        "created": created,
+        "updated": updated,
+        "removed": removed,
+        "total_rules": len(rules),
+    }
+
+
+def auto_propose_outcome_failures(
+    root_dir: Path,
+    db_path: Path,
+    *,
+    lookback_hours: int = 24,
+    min_samples: int = 3,
+    fail_rate_threshold: float = 0.4,
+    max_create: int = 6,
+) -> Dict[str, Any]:
+    """
+    Convert repeated outcome failures into actionable proposals.
+    Uses outcomes -> decisions -> intents linkage to avoid manual triage.
+    """
+    if not db_path.exists():
+        return {"ok": False, "error": "db_missing"}
+    cfg = {}
+    if load_config is not None:
+        try:
+            cfg = load_config(root_dir) or {}
+        except Exception:
+            cfg = {}
+    enabled = _cfg_flag("BGL_OUTCOME_PROPOSE_ENABLED", cfg, "outcome_propose_enabled", True)
+    if not enabled:
+        return {"ok": False, "error": "disabled"}
+
+    lookback_hours = int(
+        _cfg_number("BGL_OUTCOME_PROPOSE_HOURS", cfg, "outcome_propose_hours", lookback_hours)
+    )
+    min_samples = int(
+        _cfg_number("BGL_OUTCOME_PROPOSE_MIN_SAMPLES", cfg, "outcome_propose_min_samples", min_samples)
+    )
+    fail_rate_threshold = float(
+        _cfg_number("BGL_OUTCOME_PROPOSE_FAIL_RATE", cfg, "outcome_propose_fail_rate", fail_rate_threshold)
+    )
+    max_create = int(
+        _cfg_number("BGL_OUTCOME_PROPOSE_LIMIT", cfg, "outcome_propose_limit", max_create)
+    )
+    ttl_hours = float(
+        _cfg_number("BGL_OUTCOME_PROPOSE_TTL_HOURS", cfg, "outcome_propose_ttl_hours", 12.0)
+    )
+
+    cutoff = 0.0
+    if lookback_hours > 0:
+        cutoff = time.time() - float(lookback_hours) * 3600.0
+
+    conn = _connect(db_path)
+    _ensure_tables(conn)
+    rows = []
+    try:
+        rows = conn.execute(
+            """
+            SELECT i.intent as operation, d.decision as decision, d.risk_level as risk,
+                   o.result as result, o.notes as notes, o.timestamp as ts
+            FROM outcomes o
+            JOIN decisions d ON d.id = o.decision_id
+            JOIN intents i ON i.id = d.intent_id
+            WHERE strftime('%s', o.timestamp) >= ?
+            ORDER BY o.timestamp DESC
+            """,
+            (int(cutoff),),
+        ).fetchall()
+    except Exception:
+        rows = []
+
+    def _is_fail(res: str) -> bool:
+        res = str(res or "").lower()
+        if res in ("success", "success_sandbox", "success_direct", "success_with_override"):
+            return False
+        if res in ("false_positive", "proposed"):
+            return False
+        return True
+
+    def _failure_class(note: str) -> str:
+        if not note:
+            return "unknown"
+        try:
+            from .failure_classifier import extract_failure_class  # type: ignore
+        except Exception:
+            try:
+                from failure_classifier import extract_failure_class  # type: ignore
+            except Exception:
+                extract_failure_class = None  # type: ignore
+        if extract_failure_class:
+            try:
+                fc = extract_failure_class(note)
+                if fc:
+                    return fc
+            except Exception:
+                pass
+        m = re.search(r"failure_class=([A-Za-z0-9_-]+)", str(note))
+        return m.group(1) if m else "unknown"
+
+    total_by_op: Dict[str, int] = {}
+    grouped: Dict[Tuple[str, str], Dict[str, Any]] = {}
+    for r in rows:
+        op = str(r["operation"] or "").strip()
+        if not op:
+            continue
+        total_by_op[op] = total_by_op.get(op, 0) + 1
+        if not _is_fail(r["result"]):
+            continue
+        fc = _failure_class(str(r["notes"] or ""))
+        key = (op, fc)
+        bucket = grouped.setdefault(
+            key,
+            {
+                "operation": op,
+                "failure_class": fc,
+                "count": 0,
+                "decision": str(r["decision"] or ""),
+                "risk": str(r["risk"] or ""),
+                "last_note": "",
+                "last_ts": 0.0,
+            },
+        )
+        bucket["count"] += 1
+        try:
+            ts = time.mktime(time.strptime(str(r["ts"]), "%Y-%m-%d %H:%M:%S"))
+        except Exception:
+            try:
+                ts = float(r["ts"] or 0)
+            except Exception:
+                ts = 0.0
+        if ts >= float(bucket["last_ts"] or 0):
+            bucket["last_ts"] = ts
+            bucket["last_note"] = str(r["notes"] or "")[:220]
+
+    created: List[Dict[str, Any]] = []
+    skipped = 0
+    now = time.time()
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS agent_proposals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT UNIQUE,
+                description TEXT,
+                action TEXT,
+                count INTEGER,
+                evidence TEXT,
+                impact TEXT,
+                solution TEXT,
+                expectation TEXT
+            )
+            """
+        )
+    except Exception:
+        pass
+    cur = conn.cursor()
+
+    for key, data in grouped.items():
+        if len(created) >= max_create:
+            break
+        op = data["operation"]
+        total = int(total_by_op.get(op, 0) or 0)
+        fail_count = int(data.get("count") or 0)
+        if total <= 0 or fail_count < min_samples:
+            continue
+        fail_rate = fail_count / max(1, total)
+        if fail_rate < fail_rate_threshold:
+            continue
+
+        fingerprint = _fingerprint("outcome_proposal", op, data.get("failure_class") or "")
+        try:
+            row = cur.execute(
+                "SELECT created_at FROM learning_events WHERE fingerprint = ?",
+                (fingerprint,),
+            ).fetchone()
+            if row:
+                last_ts = float(row[0] or 0)
+                if (now - last_ts) < ttl_hours * 3600.0:
+                    skipped += 1
+                    continue
+        except Exception:
+            pass
+
+        suffix = fingerprint[:8]
+        name = f"Stabilize {op} failures ({data.get('failure_class')}) #{suffix}"
+        description = (
+            f"Repeated failure outcomes detected for {op} ({data.get('failure_class')}). "
+            f"Fail rate {round(fail_rate * 100, 1)}% over {total} runs."
+        )
+        evidence_payload = {
+            "operation": op,
+            "failure_class": data.get("failure_class"),
+            "fail_rate": round(fail_rate, 3),
+            "fail_count": fail_count,
+            "total": total,
+            "last_note": data.get("last_note"),
+            "decision": data.get("decision"),
+            "risk": data.get("risk"),
+            "source": "outcomes",
+        }
+        try:
+            exists = cur.execute(
+                "SELECT id FROM agent_proposals WHERE name = ?",
+                (name,),
+            ).fetchone()
+            if exists:
+                skipped += 1
+                continue
+        except Exception:
+            pass
+        try:
+            cur.execute(
+                """
+                INSERT INTO agent_proposals
+                (name, description, action, count, evidence, impact, solution, expectation)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    name,
+                    description[:400],
+                    "stabilize",
+                    1,
+                    _safe_json(evidence_payload),
+                    "high" if fail_rate >= 0.7 else "medium",
+                    "",
+                    "",
+                ),
+            )
+            proposal_id = cur.lastrowid
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO learning_events
+                (fingerprint, created_at, source, event_type, item_key, status, confidence, detail_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    fingerprint,
+                    now,
+                    "outcome_proposals",
+                    "proposal",
+                    op,
+                    "created",
+                    None,
+                    _safe_json(evidence_payload),
+                ),
+            )
+            conn.commit()
+            created.append(
+                {
+                    "id": proposal_id,
+                    "source": "outcome_failures",
+                    "recommendation": "Stabilize repeated failure outcomes",
+                    "evidence": evidence_payload,
+                    "severity": "high" if fail_rate >= 0.7 else "medium",
+                }
+            )
+        except Exception:
+            skipped += 1
+            continue
+
+    conn.close()
+    return {"ok": True, "created": created, "skipped": skipped, "checked": len(grouped)}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_365",
+  "description": "Patch plan for stabilizing route http://localhost:8000/",
+  "created_at": 1704892800,
+  "metadata": {
+    "proposal_id": 365,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770590276.2916307
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"scenario\\\": \\\"http://localhost:8000/\\\", \\\"summary\\\": \\\"Route http://localhost:8000/: 35 events, 10 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).\\\", \\\"confidence\\\": 0.6, \\\"evidence_count\\\": 35, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_patch_errors\\\"}\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"scenario\\\": \\\"http://localhost:8000/\\\", \\\"summary\\\": \\\"Route http://localhost:8000/: 35 events, 10 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).\\\", \\\"confidence\\\": 0.6, \\\"evidence_count\\\": 35, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_patch_errors\\\"}\""
+      }
+    }
+  ]
+}

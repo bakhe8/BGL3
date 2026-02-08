@@ -108,6 +108,23 @@ async def master_assurance_diagnostic():
         print(f"[!] master_verify already running ({reason}); skipping.")
         return
 
+    # Optional fast mode (skip heavy/side-effect stages).
+    try:
+        fast_cfg = effective_cfg.get("fast_verify", 0)
+    except Exception:
+        fast_cfg = 0
+    fast_verify = os.getenv("BGL_FAST_VERIFY", "0") == "1" or str(fast_cfg).strip() in ("1", "true", "yes", "on")
+    if fast_verify:
+        print("[*] FAST VERIFY mode enabled (skipping heavy stages).")
+        os.environ["BGL_RUN_SCENARIOS"] = "0"
+        os.environ["BGL_AUTO_CONTEXT_DIGEST"] = "0"
+        os.environ["BGL_AUTO_APPLY"] = "0"
+        os.environ["BGL_AUTO_PLAN"] = "0"
+        os.environ["BGL_AUTO_VERIFY"] = "0"
+        os.environ["BGL_AUTO_PATCH_ON_ERRORS"] = "0"
+        os.environ["BGL_SKIP_DREAM"] = "1"
+        os.environ["BGL_MAX_AUTO_INSIGHTS"] = "0"
+
     # Master verify is an automated pipeline; leaving a browser open will hang until timeout.
     # Force keep-browser off unless explicitly overridden for debugging.
     if os.getenv("BGL_MASTER_KEEP_BROWSER", "0") != "1":
@@ -366,15 +383,52 @@ async def master_assurance_diagnostic():
             "auto_plan": diagnostic["findings"].get("auto_plan", {}),
             "failure_taxonomy": diagnostic["findings"].get("failure_taxonomy", {}),
             "gap_scenarios": diagnostic["findings"].get("gap_scenarios", []),
+            "gap_scenarios_existing": diagnostic["findings"].get("gap_scenarios_existing", []),
             "kpi_metrics": diagnostic["findings"].get("kpi_metrics", {}),
             "activity_summary": diagnostic["findings"].get("activity_summary", {}),
             "diagnostic_delta": diagnostic["findings"].get("diagnostic_delta", {}),
         }
+        # Fallback rule summary (intent/temporal linkage visibility)
+        try:
+            fallback_rules = []
+            sp = diagnostic["findings"].get("self_policy", {})
+            if isinstance(sp, dict):
+                fallback_rules = sp.get("fallback_rules") or []
+            if not isinstance(fallback_rules, list):
+                fallback_rules = []
+            by_source = {}
+            samples: List[Dict[str, Any]] = []
+            for rule in fallback_rules:
+                if not isinstance(rule, dict):
+                    continue
+                src = str(rule.get("source") or "unknown")
+                by_source[src] = by_source.get(src, 0) + 1
+                if src == "code_intent_signals" and len(samples) < 6:
+                    samples.append(
+                        {
+                            "key": rule.get("key"),
+                            "action": rule.get("action"),
+                            "intent": rule.get("intent"),
+                            "risk": rule.get("risk"),
+                            "reason": rule.get("reason"),
+                            "repeat_count": rule.get("repeat_count"),
+                            "tests_stale": rule.get("tests_stale"),
+                            "temporal_profile": rule.get("temporal_profile"),
+                        }
+                    )
+            data["fallback_rules_summary"] = {
+                "total": len(fallback_rules),
+                "by_source": by_source,
+                "code_intent_samples": samples,
+            }
+        except Exception:
+            data["fallback_rules_summary"] = {}
         try:
             auto_cfg = effective_cfg or cfg
         except Exception:
             auto_cfg = cfg
         data["automation"] = {
+            "fast_verify": os.getenv("BGL_FAST_VERIFY", "0") == "1",
             "approvals_enabled": auto_cfg.get("approvals_enabled", True),
             "auto_propose": auto_cfg.get("auto_propose", 0),
             "auto_propose_min_conf": auto_cfg.get("auto_propose_min_conf"),
@@ -444,6 +498,16 @@ if __name__ == "__main__":
         # Allow overriding headless and scenario run via env for visibility/CI
         ROOT = Path(__file__).parent.parent.parent
         cfg = load_config(ROOT)
+        fast_cfg = str(cfg.get("fast_verify", "0")).strip().lower() in ("1", "true", "yes", "on")
+        if os.getenv("BGL_FAST_VERIFY", "0") == "1" or fast_cfg:
+            os.environ["BGL_RUN_SCENARIOS"] = "0"
+            os.environ["BGL_AUTO_CONTEXT_DIGEST"] = "0"
+            os.environ["BGL_AUTO_APPLY"] = "0"
+            os.environ["BGL_AUTO_PLAN"] = "0"
+            os.environ["BGL_AUTO_VERIFY"] = "0"
+            os.environ["BGL_AUTO_PATCH_ON_ERRORS"] = "0"
+            os.environ["BGL_SKIP_DREAM"] = "1"
+            os.environ["BGL_MAX_AUTO_INSIGHTS"] = "0"
         os.environ.setdefault(
             "BGL_HEADLESS", os.environ.get("BGL_HEADLESS", str(cfg.get("headless", 1)))
         )

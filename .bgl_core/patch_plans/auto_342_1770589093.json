@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "342",
+  "description": "Patch Plan for Improving Auto-Fix Outcome Observation",
+  "created_at": 1689504000,
+  "metadata": {
+    "proposal_context_id": 342,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 342,
+    "generated_at": 1770589093.9550586
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/master_verify.py",
+      "mode": "append",
+      "content": "\n# Add logging for outcome observation failures\nimport logging\nlogging.basicConfig(level=logging.INFO)\ndef log_outcome_failure(experience_id, exp_hash):\n    logging.info(f'Outcome fail for observe (auto_fix/low) x21. Last note: auto-log from master_verify pipeline - experience_id: {experience_id}, exp_hash: {exp_hash}')\n\n# Call the function in relevant places\nlog_outcome_failure(8396, 'd78dde39eb167643a3e9c72bcf38be0d3c23c3da')",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add logging for outcome observation failures\nimport logging\nlogging.basicConfig(level=logging.INFO)\ndef log_outcome_failure(experience_id, exp_hash):\n    logging.info(f'Outcome fail for observe (auto_fix/low) x21. Last note: auto-log from master_verify pipeline - experience_id: {experience_id}, exp_hash: {exp_hash}')\n\n# Call the function in relevant places\nlog_outcome_failure(8396, 'd78dde39eb167643a3e9c72bcf38be0d3c23c3da')"
+      }
+    }
+  ]
+}

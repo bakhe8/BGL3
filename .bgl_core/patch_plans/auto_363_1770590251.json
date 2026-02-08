@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "363",
+  "description": "Outcome blocked for run_scenarios (block/high) x8. Last note: fallback_rule:block failure_class=blocked",
+  "created_at": 1770590099,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 363,
+    "generated_at": 1770590251.491904
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/run_scenarios.py",
+      "mode": "append",
+      "content": "\n# Stabilization for outcome:run_scenarios:blocked\nif 'outcome' in failure_class and failure_class['outcome'] == 'blocked':\n    handle_fallback_rule('block')",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for outcome:run_scenarios:blocked\nif 'outcome' in failure_class and failure_class['outcome'] == 'blocked':\n    handle_fallback_rule('block')"
+      }
+    }
+  ]
+}

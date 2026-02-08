@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "403",
+  "description": "Route http://localhost:8000/api/manual-entry.php: 21 events, 1 HTTP calls (1 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770592244,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 403,
+    "generated_at": 1770592275.9082608
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure manual entry route is stable\n  steps:\n    - assert:\n        type: http\n        url: /api/manual-entry.php\n        method: GET\n        expected_status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure manual entry route is stable\n  steps:\n    - assert:\n        type: http\n        url: /api/manual-entry.php\n        method: GET\n        expected_status_code: 200"
+      }
+    }
+  ]
+}

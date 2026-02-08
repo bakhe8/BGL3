@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "457",
+  "description": "Route http://localhost:8000/api/settings.php: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770594088,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 457,
+    "generated_at": 1770594143.9285576
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": null,
+      "content": "def index_routes():\n    routes = {\n        '/api/settings.php': 'app/Contracts/SignalFeederInterface.php'\n    }\n    return routes",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def index_routes():\n    routes = {\n        '/api/settings.php': 'app/Contracts/SignalFeederInterface.php'\n    }\n    return routes"
+      }
+    }
+  ]
+}

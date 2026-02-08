@@ -37,6 +37,9 @@ CREATE TABLE IF NOT EXISTS outcomes (
   result TEXT,          -- e.g., success | partial | fail | skipped | prevented_regression | false_positive | confirmed_issue
   notes TEXT,
   backup_path TEXT,     -- Path to .bak file for rollback
+  run_id TEXT,
+  scenario_id TEXT,
+  goal_id TEXT,
   timestamp TEXT NOT NULL
 );
 

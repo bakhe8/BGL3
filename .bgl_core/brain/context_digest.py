@@ -16,7 +16,7 @@ import json
 import subprocess
 import math
 from pathlib import Path
-from typing import List, Dict
+from typing import List, Dict, Any
 
 from embeddings import add_text
 
@@ -65,6 +65,196 @@ def _cfg_number(env_key: str, cfg_key: str, default):
         return type(default)(cfg_val)
     except Exception:
         return default
+
+
+def _bucket_count(val: int) -> str:
+    if val <= 0:
+        return "0"
+    if val <= 3:
+        return "1-3"
+    if val <= 9:
+        return "4-9"
+    if val <= 49:
+        return "10-49"
+    return "50+"
+
+
+def _bucket_rate(val: float) -> str:
+    if val <= 0:
+        return "0"
+    if val <= 0.1:
+        return "0-0.1"
+    if val <= 0.3:
+        return "0.1-0.3"
+    if val <= 0.6:
+        return "0.3-0.6"
+    return "0.6+"
+
+
+def _bucket_latency(val: float) -> str:
+    if val <= 0:
+        return "0"
+    if val < 500:
+        return "low"
+    if val < 1500:
+        return "medium"
+    if val < 3000:
+        return "high"
+    return "very_high"
+
+
+def _load_code_contracts(root: Path) -> Dict[str, Any]:
+    contracts_path = root / "analysis" / "code_contracts.json"
+    if not contracts_path.exists():
+        try:
+            from .code_contracts import build_code_contracts  # type: ignore
+        except Exception:
+            try:
+                from code_contracts import build_code_contracts  # type: ignore
+            except Exception:
+                build_code_contracts = None  # type: ignore
+        if build_code_contracts:
+            try:
+                build_code_contracts(root)
+            except Exception:
+                pass
+    try:
+        return json.loads(contracts_path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def summarize_runtime_contracts(root: Path, limit: int = 60) -> List[Dict[str, Any]]:
+    data = _load_code_contracts(root)
+    contracts = data.get("contracts") or []
+    if not isinstance(contracts, list):
+        return []
+
+    route_items: List[Dict[str, Any]] = []
+    file_items: List[Dict[str, Any]] = []
+    files_with_routes: set[str] = set()
+
+    for c in contracts:
+        if not isinstance(c, dict):
+            continue
+        kind = str(c.get("kind") or "")
+        runtime = c.get("runtime") or {}
+        if not runtime:
+            continue
+        try:
+            event_count = int(runtime.get("event_count") or 0)
+        except Exception:
+            event_count = 0
+        try:
+            error_count = int(runtime.get("error_count") or 0)
+        except Exception:
+            error_count = 0
+        try:
+            error_rate = float(runtime.get("error_rate") or 0.0)
+        except Exception:
+            error_rate = 0.0
+        try:
+            avg_latency = float(runtime.get("avg_latency_ms") or 0.0)
+        except Exception:
+            avg_latency = 0.0
+        last_error = str(runtime.get("last_error") or "").strip()
+
+        if event_count <= 0:
+            continue
+
+        causality = c.get("runtime_causality") or {}
+        if kind == "api":
+            route = str(c.get("route") or "")
+            file_path = str(c.get("file") or "")
+            if file_path:
+                files_with_routes.add(file_path.replace("\\", "/"))
+            route_items.append(
+                {
+                    "target": route or "unknown_route",
+                    "related": file_path or route,
+                    "event_count": event_count,
+                    "error_count": error_count,
+                    "error_rate": error_rate,
+                    "avg_latency": avg_latency,
+                    "last_error": last_error,
+                    "causality": causality,
+                    "suspects": (causality.get("suspects") or []) if isinstance(causality, dict) else [],
+                    "severity": "high" if (error_rate >= 0.2 or last_error) else "medium"
+                    if avg_latency >= 2000
+                    else "low",
+                }
+            )
+        elif kind == "php_module":
+            file_path = str(c.get("file") or "")
+            file_items.append(
+                {
+                    "target": file_path or "unknown_file",
+                    "related": file_path or "",
+                    "event_count": event_count,
+                    "error_count": error_count,
+                    "error_rate": error_rate,
+                    "avg_latency": avg_latency,
+                    "last_error": last_error,
+                    "causality": causality,
+                    "suspects": (causality.get("suspects") or []) if isinstance(causality, dict) else [],
+                    "severity": "high" if (error_rate >= 0.2 or last_error) else "medium"
+                    if avg_latency >= 2000
+                    else "low",
+                }
+            )
+
+    # Prioritize route items; then include file items not already covered by routes.
+    items: List[Dict[str, Any]] = []
+    items.extend(route_items)
+    for item in file_items:
+        rel = str(item.get("related") or "").replace("\\", "/")
+        if rel and rel in files_with_routes:
+            continue
+        items.append(item)
+
+    def _score(it: Dict[str, Any]) -> float:
+        return float(it.get("error_rate") or 0.0) * 10 + float(it.get("avg_latency") or 0.0) / 1000.0
+
+    items = sorted(items, key=_score, reverse=True)
+    summaries: List[Dict[str, Any]] = []
+    for item in items:
+        severity = item.get("severity") or "low"
+        if severity == "low":
+            continue
+        target = str(item.get("target") or "unknown")
+        scenario = f"runtime_contract:{target}"
+        event_bucket = _bucket_count(int(item.get("event_count") or 0))
+        error_bucket = _bucket_count(int(item.get("error_count") or 0))
+        rate_bucket = _bucket_rate(float(item.get("error_rate") or 0.0))
+        lat_bucket = _bucket_latency(float(item.get("avg_latency") or 0.0))
+        has_error = bool(item.get("last_error"))
+        summary = (
+            f"Runtime evidence for {target}: events {event_bucket}, errors {error_bucket} "
+            f"(rate {rate_bucket}), latency {lat_bucket}."
+            + (" last_error_present." if has_error else "")
+        )
+        try:
+            if "dependency_hotspot" in str(item.get("causality") or ""):
+                suspects = item.get("suspects") or []
+                if suspects:
+                    summary += f" suspect_deps={','.join([str(s) for s in suspects[:4]])}."
+        except Exception:
+            pass
+        confidence = 0.85 if severity == "high" else 0.7
+        summaries.append(
+            {
+                "scenario": scenario,
+                "summary": summary,
+                "related_files": str(item.get("related") or target),
+                "confidence": confidence,
+                "evidence_count": int(item.get("event_count") or 0),
+                "source_type": "runtime_contract",
+            }
+        )
+        if len(summaries) >= limit:
+            break
+
+    return summaries
 
 
 def fetch_events(conn: sqlite3.Connection, cutoff: float, limit: int):
@@ -138,6 +328,8 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
                 "network_errors": [],
                 "latencies": [],
                 "ui_events": 0,
+                "last_ts": 0.0,
+                "ctx": {},
             },
         )
         g["count"] += 1
@@ -157,6 +349,13 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
         elif etype in ("network_fail",):
             if e["error"]:
                 g["network_errors"].append(e["error"])
+        try:
+            ts = float(e["timestamp"] or 0)
+        except Exception:
+            ts = 0.0
+        if ts >= float(g.get("last_ts") or 0):
+            g["last_ts"] = ts
+            g["ctx"] = _row_context(e)
 
     for route, data in grouped.items():
         lat_avg = (
@@ -184,6 +383,10 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
                 "related_files": related,
                 "confidence": confidence,
                 "evidence_count": data["count"],
+                "run_id": (data.get("ctx") or {}).get("run_id"),
+                "scenario_id": (data.get("ctx") or {}).get("scenario_id"),
+                "goal_id": (data.get("ctx") or {}).get("goal_id"),
+                "source_type": "runtime_event",
             }
         )
     return summaries
@@ -200,11 +403,27 @@ def _safe_json(raw) -> Dict:
         return {"message": str(raw)}
 
 
+def _row_context(row: sqlite3.Row) -> Dict[str, str]:
+    ctx: Dict[str, str] = {}
+    try:
+        keys = row.keys()
+    except Exception:
+        keys = []
+    for key in ("run_id", "scenario_id", "goal_id"):
+        try:
+            if key in keys and row[key]:
+                ctx[key] = str(row[key])
+        except Exception:
+            continue
+    return ctx
+
+
 def summarize_log_highlights(events: List[sqlite3.Row]) -> List[Dict]:
     summaries: List[Dict] = []
     for e in events:
         if e["event_type"] != "log_highlight":
             continue
+        ctx = _row_context(e)
         payload = _safe_json(e["payload"])
         message = str(payload.get("message") or "").strip()
         source = str(payload.get("source") or "log")
@@ -219,6 +438,135 @@ def summarize_log_highlights(events: List[sqlite3.Row]) -> List[Dict]:
                 "related_files": related,
                 "confidence": 0.7,
                 "evidence_count": 1,
+                "run_id": ctx.get("run_id"),
+                "scenario_id": ctx.get("scenario_id"),
+                "goal_id": ctx.get("goal_id"),
+                "source_type": "log_highlight",
+            }
+        )
+    return summaries
+
+
+def _extract_failure_class(note: str) -> str:
+    if not note:
+        return ""
+    try:
+        import re
+
+        m = re.search(r"failure_class=([A-Za-z0-9_-]+)", note)
+        if m:
+            return m.group(1)
+    except Exception:
+        pass
+    return ""
+
+
+def _snapshot_context(snapshot_raw: str) -> Dict[str, str]:
+    try:
+        snap = json.loads(snapshot_raw or "{}")
+    except Exception:
+        snap = {}
+    meta = snap.get("metadata") or {}
+    return {
+        "run_id": str(meta.get("run_id") or snap.get("run_id") or ""),
+        "scenario_id": str(meta.get("scenario_id") or snap.get("scenario_id") or ""),
+        "goal_id": str(meta.get("goal_id") or snap.get("goal_id") or ""),
+    }
+
+
+def fetch_outcomes(conn: sqlite3.Connection, cutoff: float, limit: int):
+    conn.row_factory = sqlite3.Row
+    cols = {r[1] for r in conn.execute("PRAGMA table_info(outcomes)").fetchall()}
+    has_ctx_cols = {"run_id", "scenario_id", "goal_id"}.issubset(cols)
+    select_ctx = ", o.run_id, o.scenario_id, o.goal_id" if has_ctx_cols else ""
+    cur = conn.cursor()
+    return cur.execute(
+        f"""
+        SELECT o.id, o.result, o.notes, o.timestamp{select_ctx},
+               d.decision, d.risk_level, i.intent, i.context_snapshot
+        FROM outcomes o
+        JOIN decisions d ON o.decision_id = d.id
+        JOIN intents i ON d.intent_id = i.id
+        WHERE strftime('%s', o.timestamp) >= ?
+        ORDER BY o.id DESC
+        LIMIT ?
+        """,
+        (int(cutoff), int(limit)),
+    ).fetchall()
+
+
+def summarize_outcomes(outcomes: List[sqlite3.Row]) -> List[Dict]:
+    summaries: List[Dict] = []
+    grouped: Dict[str, Dict[str, Any]] = {}
+    for row in outcomes:
+        intent = str(row["intent"] or "unknown")
+        result = str(row["result"] or "").lower()
+        decision = str(row["decision"] or "")
+        risk = str(row["risk_level"] or "")
+        notes = str(row["notes"] or "")
+        fclass = _extract_failure_class(notes)
+        key = f"{intent}::{result}::{fclass}"
+        g = grouped.setdefault(
+            key,
+            {
+                "intent": intent,
+                "result": result,
+                "decision": decision,
+                "risk": risk,
+                "fclass": fclass,
+                "count": 0,
+                "last_note": "",
+                "last_ts": 0.0,
+                "ctx": {},
+            },
+        )
+        g["count"] += 1
+        try:
+            ts = float(row["timestamp"] or 0)
+        except Exception:
+            ts = 0.0
+        if ts >= float(g.get("last_ts") or 0):
+            g["last_ts"] = ts
+            g["last_note"] = notes[:220]
+            ctx = {}
+            try:
+                ctx = {
+                    "run_id": str(row["run_id"] or ""),
+                    "scenario_id": str(row["scenario_id"] or ""),
+                    "goal_id": str(row["goal_id"] or ""),
+                }
+            except Exception:
+                ctx = {}
+            if not any(ctx.values()):
+                try:
+                    ctx = _snapshot_context(str(row["context_snapshot"] or ""))
+                except Exception:
+                    ctx = _snapshot_context("")
+            g["ctx"] = ctx
+
+    for _, data in grouped.items():
+        count = int(data.get("count") or 0)
+        if count <= 0:
+            continue
+        result = data.get("result") or ""
+        fclass = data.get("fclass") or ""
+        label = fclass if fclass else result
+        summary = (
+            f"Outcome {result} for {data['intent']} ({data['decision']}/{data['risk']}) "
+            f"x{count}. Last note: {data.get('last_note') or 'n/a'}"
+        )
+        confidence = 0.85 if result not in ("success", "success_sandbox", "success_direct") else 0.6
+        summaries.append(
+            {
+                "scenario": f"outcome:{data['intent']}:{label}",
+                "summary": summary,
+                "related_files": data["intent"],
+                "confidence": confidence,
+                "evidence_count": count,
+                "run_id": (data.get("ctx") or {}).get("run_id"),
+                "scenario_id": (data.get("ctx") or {}).get("scenario_id"),
+                "goal_id": (data.get("ctx") or {}).get("goal_id"),
+                "source_type": "outcome",
             }
         )
     return summaries
@@ -246,6 +594,14 @@ def _ensure_experience_columns(conn: sqlite3.Connection) -> None:
             conn.execute(
                 "ALTER TABLE experiences ADD COLUMN suppressed INTEGER DEFAULT 0"
             )
+        if "run_id" not in cols:
+            conn.execute("ALTER TABLE experiences ADD COLUMN run_id TEXT")
+        if "scenario_id" not in cols:
+            conn.execute("ALTER TABLE experiences ADD COLUMN scenario_id TEXT")
+        if "goal_id" not in cols:
+            conn.execute("ALTER TABLE experiences ADD COLUMN goal_id TEXT")
+        if "source_type" not in cols:
+            conn.execute("ALTER TABLE experiences ADD COLUMN source_type TEXT")
         conn.commit()
     except Exception:
         return
@@ -346,6 +702,7 @@ def summarize_prod_ops(ops: List[sqlite3.Row]) -> List[Dict]:
                 "related_files": related,
                 "confidence": confidence,
                 "evidence_count": count,
+                "source_type": "prod_ops",
             }
         )
     return summaries
@@ -368,7 +725,11 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
             confidence REAL,
             evidence_count INTEGER DEFAULT 0,
             value_score REAL,
-            suppressed INTEGER DEFAULT 0
+            suppressed INTEGER DEFAULT 0,
+            run_id TEXT,
+            scenario_id TEXT,
+            goal_id TEXT,
+            source_type TEXT
         )
         """
     )
@@ -378,6 +739,10 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
     for exp in experiences:
         scenario = exp["scenario"]
         summary = exp["summary"]
+        exp_run_id = exp.get("run_id") or None
+        exp_scenario_id = exp.get("scenario_id") or None
+        exp_goal_id = exp.get("goal_id") or None
+        exp_source_type = exp.get("source_type") or None
         exp_hash = _exp_hash(scenario, summary)
         row = cur.execute(
             "SELECT id, seen_count, evidence_count, confidence, value_score FROM experiences WHERE exp_hash=?",
@@ -395,7 +760,11 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
             cur.execute(
                 """
                 UPDATE experiences
-                SET updated_at=?, last_seen=?, seen_count=?, evidence_count=?, confidence=?, value_score=?
+                SET updated_at=?, last_seen=?, seen_count=?, evidence_count=?, confidence=?, value_score=?,
+                    run_id=COALESCE(?, run_id),
+                    scenario_id=COALESCE(?, scenario_id),
+                    goal_id=COALESCE(?, goal_id),
+                    source_type=COALESCE(?, source_type)
                 WHERE id=?
                 """,
                 (
@@ -405,6 +774,10 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                     evidence_total,
                     new_conf,
                     value_score,
+                    exp_run_id,
+                    exp_scenario_id,
+                    exp_goal_id,
+                    exp_source_type,
                     row[0],
                 ),
             )
@@ -416,8 +789,8 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
             value_score = _value_score(conf, evidence_total)
             cur.execute(
                 """
-                INSERT INTO experiences (created_at, updated_at, scenario, summary, related_files, exp_hash, seen_count, last_seen, confidence, evidence_count, value_score, suppressed)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0)
+                INSERT INTO experiences (created_at, updated_at, scenario, summary, related_files, exp_hash, seen_count, last_seen, confidence, evidence_count, value_score, suppressed, run_id, scenario_id, goal_id, source_type)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?)
                 """,
                 (
                     now,
@@ -431,6 +804,10 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                     conf,
                     evidence_total,
                     value_score,
+                    exp_run_id,
+                    exp_scenario_id,
+                    exp_goal_id,
+                    exp_source_type,
                 ),
             )
             exp_id = cur.lastrowid
@@ -444,6 +821,10 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                 "confidence": exp["confidence"],
                 "evidence_count": exp["evidence_count"],
                 "exp_hash": exp_hash,
+                "run_id": exp_run_id,
+                "scenario_id": exp_scenario_id,
+                "goal_id": exp_goal_id,
+                "source_type": exp_source_type,
             }
         )
 
@@ -473,7 +854,13 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                 summary=str(exp.get("summary") or ""),
                 evidence_count=int(exp.get("evidence_count") or 0),
                 confidence=float(exp.get("confidence") or 0.5),
-                meta={"related_files": exp.get("related_files")},
+                meta={
+                    "related_files": exp.get("related_files"),
+                    "run_id": exp.get("run_id"),
+                    "scenario_id": exp.get("scenario_id"),
+                    "goal_id": exp.get("goal_id"),
+                    "source_type": exp.get("source_type"),
+                },
                 source_table="experiences",
                 source_id=None,
             )
@@ -736,6 +1123,10 @@ def main():
         event_summaries = summarize(events, route_map)
         log_summaries = summarize_log_highlights(events)
 
+    # Decision outcomes (intent/decision/outcome -> unified summaries)
+    outcomes = fetch_outcomes(conn, cutoff, args.limit)
+    outcome_summaries = summarize_outcomes(outcomes) if outcomes else []
+
     # Prod operations (central log)
     prod_ops_full = _cfg_flag("BGL_PROD_OPS_FULL", "prod_ops_full", False)
     prod_ops_hours = _cfg_number("BGL_PROD_OPS_HOURS", "prod_ops_hours", args.hours)
@@ -744,9 +1135,21 @@ def main():
     prod_ops = fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
     prod_summaries = summarize_prod_ops(prod_ops) if prod_ops else []
 
-    experiences = event_summaries + log_summaries + prod_summaries
+    runtime_contract_summaries: List[Dict[str, Any]] = []
+    if _cfg_flag(
+        "BGL_RUNTIME_CONTRACT_EXPERIENCES", "runtime_contract_experiences", True
+    ):
+        runtime_contract_summaries = summarize_runtime_contracts(ROOT_DIR, limit=120)
+
+    experiences = (
+        event_summaries
+        + log_summaries
+        + prod_summaries
+        + outcome_summaries
+        + runtime_contract_summaries
+    )
     if not experiences:
-        print("No events/prod operations found in window.")
+        print("No events/prod operations/outcomes found in window.")
         return
 
     inserted = upsert_experiences(conn, experiences)
@@ -785,7 +1188,7 @@ def main():
             pass
     print(
         f"Stored {len(experiences)} experience(s) from {len(events)} event(s) "
-        f"and {len(prod_ops)} prod op(s). "
+        f"+ {len(outcomes)} outcome(s) and {len(prod_ops)} prod op(s). "
         f"Auto proposals: {len(proposal_ids)}"
     )
 

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "217",
+  "description": "Route http://localhost:8000/: 39 events, 14 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1684500000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 217,
+    "generated_at": 1770562072.9962988
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/autonomous/auto_1770543148.yaml",
+      "mode": null,
+      "content": "version: 2\nscenarios:\n  - name: http://localhost:8000/\n    events: 39\n    http_calls: 14\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0.0 ms\n    max_latency: 0.0 ms",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 2\nscenarios:\n  - name: http://localhost:8000/\n    events: 39\n    http_calls: 14\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0.0 ms\n    max_latency: 0.0 ms"
+      }
+    }
+  ]
+}

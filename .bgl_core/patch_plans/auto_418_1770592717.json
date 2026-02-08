@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "418",
+  "description": "Patch Plan for improving /api/get-current-state.php",
+  "created_at": 1690275200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 418,
+    "generated_at": 1770592717.8306973
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_current_state_php.yaml",
+      "mode": null,
+      "content": "runtime_safety:\n  - name: Database\n  - name: GuaranteeRepository\n  - name: GuaranteeDecisionRepository\n  - name: SupplierLearningRepository",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "runtime_safety:\n  - name: Database\n  - name: GuaranteeRepository\n  - name: GuaranteeDecisionRepository\n  - name: SupplierLearningRepository"
+      }
+    }
+  ]
+}

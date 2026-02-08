@@ -1,0 +1,196 @@
+{
+  "version": 2,
+  "id": "patch_plan_397",
+  "description": "Stabilize route / by ensuring all related scenarios are up-to-date and functioning correctly.",
+  "created_at": 1684502400,
+  "metadata": {
+    "proposal_id": 397,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770592253.6760561
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is stable and does not contain any errors.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is stable and does not contain any errors."
+      }
+    }
+  ]
+}

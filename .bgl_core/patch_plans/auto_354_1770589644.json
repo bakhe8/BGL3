@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "354",
+  "description": "Route http://localhost:8000/index.php: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770589507,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 354,
+    "generated_at": 1770589644.0890563
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 8408, \\\"exp_hash\\\": \\\"ffd12d2c4efd4d010b07963f2ba59e3944532c75\\\", \\\"scenario\\\": \\\"http://localhost:8000/index.php\\\", \\\"summary\\\": \\\"Route http://localhost:8000/index.php: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 9, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 8408, \\\"exp_hash\\\": \\\"ffd12d2c4efd4d010b07963f2ba59e3944532c75\\\", \\\"scenario\\\": \\\"http://localhost:8000/index.php\\\", \\\"summary\\\": \\\"Route http://localhost:8000/index.php: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 9, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\""
+      }
+    }
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_428",
+  "description": "Stabilize route a[href=\"./index.php\"]",
+  "created_at": 1770593034,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 428,
+    "generated_at": 1770593073.0436127
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": null,
+      "content": "- name: Stabilize route a[href=\"./index.php\"]\n  action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 7800, \\\"exp_hash\\\": \\\"cba17b1eab90247cdb31679b54e9af5d501eb280\\\", \\\"scenario\\\": \\\"a[href=\\\\\\\"./index.php\\\\\\\"]\\\", \\\"summary\\\": \\\"Route a[href=\\\\\\\"./index.php\\\\\\\"]\\\": 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 4, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Stabilize route a[href=\"./index.php\"]\n  action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 7800, \\\"exp_hash\\\": \\\"cba17b1eab90247cdb31679b54e9af5d501eb280\\\", \\\"scenario\\\": \\\"a[href=\\\\\\\"./index.php\\\\\\\"]\\\", \\\"summary\\\": \\\"Route a[href=\\\\\\\"./index.php\\\\\\\"]\\\": 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 4, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\""
+      }
+    }
+  ]
+}

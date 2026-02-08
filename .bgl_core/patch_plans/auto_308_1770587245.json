@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "id": "308",
+  "description": "Route http://localhost:8000/: 26 events, 12 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770587127,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 308,
+    "generated_at": 1770587245.8869307
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": null,
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": null,
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    }
+  ]
+}

@@ -15,8 +15,10 @@ except Exception:  # pragma: no cover
 
 try:
     from .patch_plan import PatchPlan, PatchOperation, load_plan, PlanError  # type: ignore
+    from .test_gate import evaluate_files, require_tests_enabled  # type: ignore
 except Exception:
     from patch_plan import PatchPlan, PatchOperation, load_plan, PlanError
+    from test_gate import evaluate_files, require_tests_enabled
 
 
 @dataclass
@@ -202,6 +204,8 @@ class WriteEngine:
         max_lines = int(self.policy.get("max_lines_per_change", 500))
         max_bytes = int(self.policy.get("max_file_bytes", 400000))
         require_backup = bool(self.policy.get("require_backup", True))
+        require_tests = require_tests_enabled(self.root, bool(self.policy.get("require_tests", False)))
+        allow_scenarios = bool(int(os.getenv("BGL_ALLOW_SCENARIO_AS_TEST", "1")))
 
         changes: List[Dict[str, Any]] = []
         errors: List[str] = []
@@ -211,6 +215,34 @@ class WriteEngine:
         total_line_delta = 0
 
         backup_dir = self.root / ".bgl_core" / "backups" / plan.plan_id
+
+        if not dry_run and require_tests:
+            rels: set[str] = set()
+            for op in plan.operations:
+                try:
+                    rels.add(_safe_relpath(op.path))
+                except Exception:
+                    continue
+                if op.op in {"rename", "move"} and op.to:
+                    try:
+                        rels.add(_safe_relpath(op.to))
+                    except Exception:
+                        continue
+            gate = evaluate_files(
+                self.root,
+                list(rels),
+                require_tests=True,
+                allow_scenarios=allow_scenarios,
+            )
+            if not gate.get("ok", True):
+                return WriteResult(
+                    ok=False,
+                    message="Blocked: required tests missing for high-risk files.",
+                    plan_id=plan.plan_id,
+                    changes=[],
+                    errors=gate.get("errors") or [],
+                    backups=[],
+                )
 
         for op in plan.operations:
             rel = _safe_relpath(op.path)

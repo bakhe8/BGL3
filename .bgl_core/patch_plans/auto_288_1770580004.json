@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "288",
+  "description": "Route [data-bs-toggle='modal'], [data-toggle='modal']: 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770579887,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 288,
+    "generated_at": 1770580004.2757106
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilization for route [data-bs-toggle='modal'], [data-toggle='modal']\ndef stabilize_route():\n    pass\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for route [data-bs-toggle='modal'], [data-toggle='modal']\ndef stabilize_route():\n    pass\n"
+      }
+    }
+  ]
+}

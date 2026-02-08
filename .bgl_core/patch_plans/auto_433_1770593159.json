@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "433",
+  "description": "Patch Plan for improving stability of /api/update_bank.php",
+  "created_at": 1690728000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 433,
+    "generated_at": 1770593159.8445487
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_update_bank_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: api_update_bank\n    steps:\n      - action: update_bank\n        input:\n          bank_id: 12345\n          new_details: {\"name\": \"New Bank\", \"address\": \"New Address\"}\n        expected_output: success",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: api_update_bank\n    steps:\n      - action: update_bank\n        input:\n          bank_id: 12345\n          new_details: {\"name\": \"New Bank\", \"address\": \"New Address\"}\n        expected_output: success"
+      }
+    }
+  ]
+}

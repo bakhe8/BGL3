@@ -2,8 +2,8 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Manual Seed)
   version: '0.1'
-  x-bgl-last-refresh: '2026-02-08 13:54:07'
-  x-bgl-merged-at: '2026-02-08 13:54:07'
+  x-bgl-last-refresh: '2026-02-09 02:53:07'
+  x-bgl-merged-at: '2026-02-09 02:53:55'
 paths:
   /:
     get: {}

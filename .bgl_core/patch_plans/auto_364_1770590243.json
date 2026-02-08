@@ -1,0 +1,59 @@
+{
+  "version": 1,
+  "id": "patch_plan_364",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown #1770590099",
+  "created_at": 1770590099,
+  "metadata": {
+    "proposal_id": 364,
+    "name": "تحسين تلقائي من خبرة: outcome:reasoning.plan:unknown #1770590099",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770590243.5017004
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "insert_after",
+      "content": "\n    # Generate patch plan for unknown outcome\n    generate_unknown_outcome_patch_plan()\n",
+      "match": "\"outcome:reasoning.plan:unknown\"",
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "insert_after",
+        "match": "\"outcome:reasoning.plan:unknown\"",
+        "content": "\n    # Generate patch plan for unknown outcome\n    generate_unknown_outcome_patch_plan()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "insert_before",
+      "content": "\n# Handle unknown outcome signal\nif outcome == 'unknown':\n    handle_unknown_outcome_signal()\n",
+      "match": "\"outcome:reasoning.plan\"",
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "insert_before",
+        "match": "\"outcome:reasoning.plan\"",
+        "content": "\n# Handle unknown outcome signal\nif outcome == 'unknown':\n    handle_unknown_outcome_signal()\n"
+      }
+    }
+  ]
+}

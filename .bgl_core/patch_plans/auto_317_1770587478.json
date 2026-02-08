@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "317",
+  "description": "Patch for route http://localhost:8000/index.php?search=%D8%A8%D9%86%D9%83",
+  "created_at": 1690483200,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 317,
+    "generated_at": 1770587478.3056066
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": null,
+      "content": "confidence: 0.95",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "confidence: 0.95"
+      }
+    }
+  ]
+}

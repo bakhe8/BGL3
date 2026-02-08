@@ -65,8 +65,10 @@ def generate_from_proposed(project_root: Path):
         title = pid.replace("_", " ").title()
         goal = pat.get("recommendation", "تحسين تلقائي مقترح.")
         check = pat.get("check", "")
-        evidence = "; ".join(pat.get("evidence", [])[:3]) or "N/A"
-        scope = ", ".join(pat.get("scope", [])[:3]) or "global"
+        evidence_items = pat.get("evidence", []) or []
+        evidence = "; ".join(str(item) for item in evidence_items[:3]) or "N/A"
+        scope_items = pat.get("scope", []) or []
+        scope = ", ".join(str(item) for item in scope_items[:3]) or "global"
         content = TEMPLATE.format(
             id=pid,
             type="reliability",

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_279",
+  "description": "Stabilize route input[name=\"search\"] based on experience data.",
+  "created_at": 1683072000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 279,
+    "generated_at": 1770579793.2093413
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_search_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: input[name=\"search\"]\n    events: 72\n    http_calls: 0\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0 ms\n    max_latency: 0 ms",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: input[name=\"search\"]\n    events: 72\n    http_calls: 0\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0 ms\n    max_latency: 0 ms"
+      }
+    }
+  ]
+}

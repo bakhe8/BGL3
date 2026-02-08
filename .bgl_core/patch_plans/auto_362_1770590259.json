@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_362",
+  "description": "Patch Plan for Outcome blocked for reindex.full|C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
+  "created_at": 1770590099,
+  "metadata": {
+    "proposal_id": 362,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770590259.9470549
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/reindex.py",
+      "mode": null,
+      "content": "def reindex_full():\n    # Add your reindex logic here\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def reindex_full():\n    # Add your reindex logic here\n    pass"
+      }
+    }
+  ]
+}

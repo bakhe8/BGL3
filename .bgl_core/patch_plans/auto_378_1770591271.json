@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "378",
+  "description": "Route http://localhost:8000/index.php?search=supplier: 15 events, 4 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1690428000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 378,
+    "generated_at": 1770591271.7770822
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure supplier data is fetched correctly\n  task:\n    - debug:\n        msg: 'Fetching supplier data for letter preview'\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure supplier data is fetched correctly\n  task:\n    - debug:\n        msg: 'Fetching supplier data for letter preview'\n"
+      }
+    }
+  ]
+}

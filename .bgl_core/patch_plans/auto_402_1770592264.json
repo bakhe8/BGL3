@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_402",
+  "description": "Stabilize route input[name=\"search\"]",
+  "created_at": 1770592244,
+  "metadata": {
+    "experience_id": 8524,
+    "exp_hash": "3ca9e086f3b46b7a96ee3fea3d82523beb3f556c",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 402,
+    "generated_at": 1770592264.0591502
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_search_php.yaml",
+      "mode": null,
+      "content": "api:\n  search:\n    method: GET\n    path: /search\n    parameters:\n      - name: query\n        in: query\n        required: true\n        schema:\n          type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api:\n  search:\n    method: GET\n    path: /search\n    parameters:\n      - name: query\n        in: query\n        required: true\n        schema:\n          type: string"
+      }
+    }
+  ]
+}

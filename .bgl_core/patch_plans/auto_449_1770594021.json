@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_449",
+  "description": "Patch Plan for Route #bgl-confirm-no to stabilize medium impact issue.",
+  "created_at": 1770594003,
+  "metadata": {
+    "proposal_id": 449,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770594021.1106706
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add route #bgl-confirm-no to the indexer\nif 'bgl-confirm-no' not in routes:\n    routes.append('bgl-confirm-no')",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add route #bgl-confirm-no to the indexer\nif 'bgl-confirm-no' not in routes:\n    routes.append('bgl-confirm-no')"
+      }
+    }
+  ]
+}

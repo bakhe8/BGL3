@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "356",
+  "description": "Route http://localhost:8000/index.php?search=%D8%B6%D9%85%D8%A7%D9%86: 5 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770589507,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 356,
+    "generated_at": 1770589553.9556766
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "Ensure the scenario is stable and all dependencies are correctly configured.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the scenario is stable and all dependencies are correctly configured."
+      }
+    }
+  ]
+}

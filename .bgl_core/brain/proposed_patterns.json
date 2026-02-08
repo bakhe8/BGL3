@@ -1,32 +1,107 @@
 [
   {
-    "id": "PAT_PHASE3_INTEGRITY",
-    "check": "external_check",
-    "recommendation": "ensure ui_action_snapshots + ui_flow_transitions + gap scenario execution are present",
+    "id": "454",
+    "check": "flow_coverage_gap",
+    "recommendation": "تشغيل التدفقات غير المكتملة بشكل فعلي",
     "evidence": [
-      "ui_action_snapshots_7d=390",
-      "ui_flow_transitions_7d=714",
-      "gap_scenario_done_7d=0"
+      {
+        "flow": "Flow: إنشاء ضمان (create_guarantee)",
+        "file": "create_guarantee.md",
+        "status": "partial",
+        "evidence": {
+          "routes": [
+            "/api/create-guarantee.php"
+          ],
+          "events": []
+        },
+        "endpoints": [
+          "/api/create-guarantee.php"
+        ],
+        "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
+          "التحقق:",
+          "الإنشاء:",
+          "المخرجات:"
+        ],
+        "sequence_covered": true,
+        "sequence_session": "sim_session_1",
+        "gap_runs": 2
+      },
+      {
+        "flow": "Flow: تصدير الموردين (export_suppliers)",
+        "file": "export_suppliers.md",
+        "status": "partial",
+        "evidence": {
+          "routes": [
+            "/api/export_suppliers.php"
+          ],
+          "events": []
+        },
+        "endpoints": [
+          "/api/export_suppliers.php"
+        ],
+        "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
+        "sequence_covered": true,
+        "sequence_session": "run_1770593602_39376|gap_flow_flow_export_suppliers_",
+        "gap_runs": 2
+      },
+      {
+        "flow": "Flow: تمديد ضمان (extend_guarantee)",
+        "file": "extend_guarantee.md",
+        "status": "partial",
+        "evidence": {
+          "routes": [
+            "/api/extend.php"
+          ],
+          "events": []
+        },
+        "endpoints": [
+          "/api/extend.php"
+        ],
+        "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/extend.php` مع (guarantee_id, new_end_date, reason?).",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
+        "sequence_covered": true,
+        "sequence_session": "run_1770486170_12912|goal_flow_gap",
+        "gap_runs": 2
+      },
+      {
+        "flow": "Flow: استيراد الموردين (import_suppliers)",
+        "file": "import_suppliers.md",
+        "status": "partial",
+        "evidence": {
+          "routes": [
+            "/api/import_suppliers.php"
+          ],
+          "events": []
+        },
+        "endpoints": [
+          "/api/import_suppliers.php"
+        ],
+        "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/import_suppliers.php` برفع ملف.",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
+        "sequence_covered": true,
+        "sequence_session": "run_1770593602_39376|gap_flow_flow_import_suppliers_",
+        "gap_runs": 2
+      }
     ],
-    "scope": [
-      "ui",
-      "phase3"
-    ],
-    "confidence": 0.6
-  },
-  {
-    "id": "PAT_PHASE3_INTEGRITY",
-    "check": "external_check",
-    "recommendation": "ensure ui_action_snapshots + ui_flow_transitions + gap scenario execution are present",
-    "evidence": [
-      "ui_action_snapshots_7d=395",
-      "ui_flow_transitions_7d=743",
-      "gap_scenario_done_7d=0"
-    ],
-    "scope": [
-      "ui",
-      "phase3"
-    ],
+    "scope": [],
     "confidence": 0.6
   }
 ]

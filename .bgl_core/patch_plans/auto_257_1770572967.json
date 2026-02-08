@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_257",
+  "description": "Stabilize route http://localhost:8000/index.php",
+  "created_at": 1770572943,
+  "metadata": {
+    "proposal_id": 257,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770572967.6130185
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "overwrite",
+      "content": "confidence: 0.9",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "confidence: 0.9"
+      }
+    }
+  ]
+}

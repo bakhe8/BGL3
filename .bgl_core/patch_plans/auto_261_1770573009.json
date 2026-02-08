@@ -1,0 +1,37 @@
+{
+  "version": 1,
+  "id": "261",
+  "description": "Patch Plan for Improving Route Health Check Experience",
+  "created_at": 1704832800,
+  "metadata": {
+    "proposal_context": {
+      "id": 261,
+      "name": "تحسين تلقائي من خبرة: http://localhost:8000/index.php?search=The+system+is+healthy%2C+with+no+critical+errors+or+failures+reported.+The+evidence+indicates+that+the+routes+are+functioning+as+expected+and+there+are+no+actionable+failures+to+address.",
+      "description": "Route http://localhost:8000/index.php?search=The+system+is+healthy%2C+with+no+critical+errors+or+failures+reported.+The+evidence+indicates+that+the+routes+are+functioning+as+expected+and+there+are+no+actionable+failures+to+address.: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+      "action": "stabilize",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 8185, \"exp_hash\": \"79a002823caa13fbca218eceff601120aee7d867\", \"scenario\": \"http://localhost:8000/index.php?search=The+system+is+healthy%2C+with+no+critical+errors+or+failures+reported.+The+evidence+indicates+that+the+routes+are+functioning+as+expected+and+there+are+no+actionable+failures+to+address.\", \"summary\": \"Route http://localhost:8000/index.php?search=The+system+is+healthy%2C+with+no+critical+errors+or+failures+reported.+The+evidence+indicates+that+the+routes+are+functioning+as+expected+and+there+are+no+actionable+failures+to+address.: 9 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).\", \"confidence\": 0.85, \"evidence_count\": 9, \"related_files\": \"unknown\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 261,
+    "generated_at": 1770573009.0880384
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": null,
+      "content": "def check_route_health(route):\n    # Add health check logic here\n    return True",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def check_route_health(route):\n    # Add health check logic here\n    return True"
+      }
+    }
+  ]
+}

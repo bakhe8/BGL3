@@ -1,0 +1,58 @@
+{
+  "version": 2,
+  "id": "371",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown #1770590498",
+  "created_at": 1680590498,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 371,
+    "generated_at": 1770590591.997213
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "insert_after",
+      "content": "\n    if outcome == 'unknown':\n        return handle_unknown_outcome()\n",
+      "match": "def generate_patch_plan():",
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "insert_after",
+        "match": "def generate_patch_plan():",
+        "content": "\n    if outcome == 'unknown':\n        return handle_unknown_outcome()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "insert_before",
+      "content": "\n    if outcome == 'unknown':\n        signal_unknown_outcome()\n",
+      "match": "def process_outcome(outcome):",
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "insert_before",
+        "match": "def process_outcome(outcome):",
+        "content": "\n    if outcome == 'unknown':\n        signal_unknown_outcome()\n"
+      }
+    }
+  ]
+}

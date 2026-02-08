@@ -138,6 +138,75 @@ DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
 
 # Active run identifier to tag runtime_events for attribution.
 _CURRENT_RUN_ID = ""
+_CURRENT_SCENARIO_ID = ""
+_CURRENT_SCENARIO_NAME = ""
+_CURRENT_GOAL_ID = ""
+_CURRENT_GOAL_NAME = ""
+_CONTEXT_ENV_KEYS = (
+    "BGL_RUN_ID",
+    "BGL_SCENARIO_ID",
+    "BGL_SCENARIO_NAME",
+    "BGL_GOAL_ID",
+    "BGL_GOAL_NAME",
+)
+
+
+def _push_context(
+    *,
+    scenario_id: Optional[str] = None,
+    scenario_name: Optional[str] = None,
+    goal_id: Optional[str] = None,
+    goal_name: Optional[str] = None,
+) -> Dict[str, Any]:
+    global _CURRENT_SCENARIO_ID, _CURRENT_SCENARIO_NAME, _CURRENT_GOAL_ID, _CURRENT_GOAL_NAME
+    prev_env = {k: os.getenv(k) for k in _CONTEXT_ENV_KEYS}
+    prev_ctx = {
+        "scenario_id": _CURRENT_SCENARIO_ID,
+        "scenario_name": _CURRENT_SCENARIO_NAME,
+        "goal_id": _CURRENT_GOAL_ID,
+        "goal_name": _CURRENT_GOAL_NAME,
+        "env": prev_env,
+    }
+    if scenario_id is not None:
+        _CURRENT_SCENARIO_ID = str(scenario_id)
+        if _CURRENT_SCENARIO_ID:
+            os.environ["BGL_SCENARIO_ID"] = _CURRENT_SCENARIO_ID
+        else:
+            os.environ.pop("BGL_SCENARIO_ID", None)
+    if scenario_name is not None:
+        _CURRENT_SCENARIO_NAME = str(scenario_name)
+        if _CURRENT_SCENARIO_NAME:
+            os.environ["BGL_SCENARIO_NAME"] = _CURRENT_SCENARIO_NAME
+        else:
+            os.environ.pop("BGL_SCENARIO_NAME", None)
+    if goal_id is not None:
+        _CURRENT_GOAL_ID = str(goal_id)
+        if _CURRENT_GOAL_ID:
+            os.environ["BGL_GOAL_ID"] = _CURRENT_GOAL_ID
+        else:
+            os.environ.pop("BGL_GOAL_ID", None)
+    if goal_name is not None:
+        _CURRENT_GOAL_NAME = str(goal_name)
+        if _CURRENT_GOAL_NAME:
+            os.environ["BGL_GOAL_NAME"] = _CURRENT_GOAL_NAME
+        else:
+            os.environ.pop("BGL_GOAL_NAME", None)
+    return prev_ctx
+
+
+def _pop_context(prev: Dict[str, Any]) -> None:
+    global _CURRENT_SCENARIO_ID, _CURRENT_SCENARIO_NAME, _CURRENT_GOAL_ID, _CURRENT_GOAL_NAME
+    _CURRENT_SCENARIO_ID = str(prev.get("scenario_id") or "")
+    _CURRENT_SCENARIO_NAME = str(prev.get("scenario_name") or "")
+    _CURRENT_GOAL_ID = str(prev.get("goal_id") or "")
+    _CURRENT_GOAL_NAME = str(prev.get("goal_name") or "")
+    prev_env = prev.get("env") or {}
+    for key in _CONTEXT_ENV_KEYS:
+        val = prev_env.get(key)
+        if val is None:
+            os.environ.pop(key, None)
+        else:
+            os.environ[key] = str(val)
 
 def _trace(msg: str) -> None:
     if os.getenv("BGL_TRACE_SCENARIO", "0") != "1":
@@ -1424,6 +1493,8 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
             timestamp REAL NOT NULL,
             session TEXT,
             run_id TEXT,
+            scenario_id TEXT,
+            goal_id TEXT,
             source TEXT,
             event_type TEXT NOT NULL,
             route TEXT,
@@ -1449,6 +1520,10 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
         cols = {r[1] for r in db.execute("PRAGMA table_info(runtime_events)").fetchall()}
         if "run_id" not in cols:
             db.execute("ALTER TABLE runtime_events ADD COLUMN run_id TEXT")
+        if "scenario_id" not in cols:
+            db.execute("ALTER TABLE runtime_events ADD COLUMN scenario_id TEXT")
+        if "goal_id" not in cols:
+            db.execute("ALTER TABLE runtime_events ADD COLUMN goal_id TEXT")
         if "source" not in cols:
             db.execute("ALTER TABLE runtime_events ADD COLUMN source TEXT")
         if "step_id" not in cols:
@@ -1466,13 +1541,15 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     try:
         db.execute(
             """
-        INSERT INTO runtime_events (timestamp, session, run_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO runtime_events (timestamp, session, run_id, scenario_id, goal_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
             (
                 event.get("timestamp", time.time()),
                 _decorate_session(session),
                 str(event.get("run_id") or _CURRENT_RUN_ID or ""),
+                str(event.get("scenario_id") or _CURRENT_SCENARIO_ID or os.getenv("BGL_SCENARIO_ID") or ""),
+                str(event.get("goal_id") or _CURRENT_GOAL_ID or os.getenv("BGL_GOAL_ID") or ""),
                 str(event.get("source") or "agent"),
                 event.get("event_type"),
                 event.get("route"),
@@ -1509,10 +1586,26 @@ def _ensure_outcomes_tables(db: sqlite3.Connection) -> None:
             value TEXT,
             route TEXT,
             payload_json TEXT,
-            session TEXT
+            session TEXT,
+            run_id TEXT,
+            scenario_id TEXT,
+            goal_id TEXT
         )
         """
     )
+    try:
+        cols = {
+            r[1]
+            for r in db.execute("PRAGMA table_info(exploration_outcomes)").fetchall()
+        }
+        if "run_id" not in cols:
+            db.execute("ALTER TABLE exploration_outcomes ADD COLUMN run_id TEXT")
+        if "scenario_id" not in cols:
+            db.execute("ALTER TABLE exploration_outcomes ADD COLUMN scenario_id TEXT")
+        if "goal_id" not in cols:
+            db.execute("ALTER TABLE exploration_outcomes ADD COLUMN goal_id TEXT")
+    except Exception:
+        pass
     db.execute(
         """
         CREATE TABLE IF NOT EXISTS exploration_outcome_relations (
@@ -1561,18 +1654,42 @@ def _log_outcome(
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
-        cur = db.execute(
-            "INSERT INTO exploration_outcomes (timestamp, source, kind, value, route, payload_json, session) VALUES (?, ?, ?, ?, ?, ?, ?)",
-            (
-                ts or time.time(),
-                source,
-                kind,
-                value,
-                route,
-                payload_json,
-                _decorate_session(session),
-            ),
-        )
+        cols = {
+            r[1]
+            for r in db.execute("PRAGMA table_info(exploration_outcomes)").fetchall()
+        }
+        run_id = str(_CURRENT_RUN_ID or os.getenv("BGL_RUN_ID") or "")
+        scenario_id = str(_CURRENT_SCENARIO_ID or os.getenv("BGL_SCENARIO_ID") or "")
+        goal_id = str(_CURRENT_GOAL_ID or os.getenv("BGL_GOAL_ID") or "")
+        if {"run_id", "scenario_id", "goal_id"}.issubset(cols):
+            cur = db.execute(
+                "INSERT INTO exploration_outcomes (timestamp, source, kind, value, route, payload_json, session, run_id, scenario_id, goal_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (
+                    ts or time.time(),
+                    source,
+                    kind,
+                    value,
+                    route,
+                    payload_json,
+                    _decorate_session(session),
+                    run_id,
+                    scenario_id,
+                    goal_id,
+                ),
+            )
+        else:
+            cur = db.execute(
+                "INSERT INTO exploration_outcomes (timestamp, source, kind, value, route, payload_json, session) VALUES (?, ?, ?, ?, ?, ?, ?)",
+                (
+                    ts or time.time(),
+                    source,
+                    kind,
+                    value,
+                    route,
+                    payload_json,
+                    _decorate_session(session),
+                ),
+            )
         oid = cur.lastrowid
         db.commit()
         db.close()
@@ -1584,7 +1701,14 @@ def _log_outcome(
                 summary=f"{kind} {value} on {route or 'unknown'}",
                 evidence_count=1,
                 confidence=0.65 if str(value).lower() in ("success", "changed") else 0.5,
-                meta={"source": source, "payload": payload or {}, "session": session},
+                meta={
+                    "source": source,
+                    "payload": payload or {},
+                    "session": session,
+                    "run_id": run_id,
+                    "scenario_id": scenario_id,
+                    "goal_id": goal_id,
+                },
                 source_table="exploration_outcomes",
                 source_id=int(oid),
             )
@@ -3767,12 +3891,12 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
         _ensure_autonomy_goals_table(db)
         _cleanup_autonomy_goals(db)
         rows = db.execute(
-            "SELECT goal, payload, source, created_at, expires_at FROM autonomy_goals ORDER BY created_at DESC LIMIT ?",
+            "SELECT id, goal, payload, source, created_at, expires_at FROM autonomy_goals ORDER BY created_at DESC LIMIT ?",
             (int(limit),),
         ).fetchall()
         db.close()
         out = []
-        for goal, payload, source, created_at, expires_at in rows:
+        for goal_id, goal, payload, source, created_at, expires_at in rows:
             try:
                 payload_obj = json.loads(payload) if payload else {}
             except Exception:
@@ -3785,6 +3909,7 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
                 continue
             out.append(
                 {
+                    "id": goal_id,
                     "goal": goal,
                     "payload": payload_obj,
                     "source": source,
@@ -3797,6 +3922,74 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
         return []
 
 
+_FLOW_PRIORITY_CACHE: Dict[str, Any] = {"ts": 0.0, "map": {}}
+
+
+def _load_flow_priority_map(max_age_s: int = 300) -> Dict[str, float]:
+    """
+    Load UI flow model and compute per-route priority.
+    Lower observed counts => higher priority (0..1).
+    """
+    now = time.time()
+    cached = _FLOW_PRIORITY_CACHE
+    try:
+        if cached.get("map") and (now - float(cached.get("ts") or 0.0)) < max_age_s:
+            return cached.get("map") or {}
+    except Exception:
+        pass
+    priorities: Dict[str, float] = {}
+    try:
+        flow_path = ROOT_DIR / "analysis" / "ui_flow_model.json"
+        if flow_path.exists():
+            model = json.loads(flow_path.read_text(encoding="utf-8"))
+            nodes = model.get("nodes") or {}
+            counts = []
+            for route, node in nodes.items():
+                try:
+                    cnt = float(node.get("out") or 0) + float(node.get("in") or 0)
+                except Exception:
+                    cnt = 0.0
+                counts.append(cnt)
+            max_count = max(counts) if counts else 0.0
+            for route, node in nodes.items():
+                try:
+                    cnt = float(node.get("out") or 0) + float(node.get("in") or 0)
+                except Exception:
+                    cnt = 0.0
+                norm_route = _normalize_route_path(str(route or ""))
+                if not norm_route:
+                    continue
+                if max_count <= 0:
+                    priorities[norm_route] = 0.0
+                else:
+                    # 1.0 => least seen, 0.0 => most seen
+                    priorities[norm_route] = max(0.0, min(1.0, 1.0 - (cnt / max_count)))
+    except Exception:
+        priorities = {}
+    _FLOW_PRIORITY_CACHE["ts"] = now
+    _FLOW_PRIORITY_CACHE["map"] = priorities
+    return priorities
+
+
+def _goal_flow_priority(goal: Dict[str, Any], flow_map: Dict[str, float]) -> float:
+    payload = goal.get("payload") or {}
+    target = (
+        payload.get("href")
+        or payload.get("uri")
+        or payload.get("url")
+        or payload.get("route")
+    )
+    if not target:
+        return 0.0
+    norm = _normalize_route_path(str(target))
+    if not norm:
+        return 0.0
+    try:
+        return float(flow_map.get(norm) or 0.0)
+    except Exception:
+        return 0.0
+
+
 def _prioritize_autonomy_goals(goals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     """
     Prefer high-impact exploration goals first (UI gaps, coverage gaps),
@@ -3804,6 +3997,7 @@ def _prioritize_autonomy_goals(goals: List[Dict[str, Any]]) -> List[Dict[str, An
     """
     if not goals:
         return goals
+    flow_map = _load_flow_priority_map()
     # Lower number = higher priority
     order = {
         "ui_action_gap": 0,
@@ -3837,7 +4031,8 @@ def _prioritize_autonomy_goals(goals: List[Dict[str, Any]]) -> List[Dict[str, An
         risk = str(payload.get("risk") or "").strip().lower()
         if risk in ("danger", "write"):
             priority += 5.0
-        return (base, -priority, -created)
+        flow_priority = _goal_flow_priority(item, flow_map)
+        return (base, -priority, -flow_priority, -created)
 
     try:
         return sorted(goals, key=_score)
@@ -4578,6 +4773,17 @@ def _http_check(url: str, timeout_s: float = 4.0) -> bool:
         return False
 
 
+def _derive_goal_context(goal: Dict[str, Any]) -> Dict[str, str]:
+    goal_name = (goal.get("goal") or "unknown").lower()
+    created_at = goal.get("created_at") or time.time()
+    goal_id = str(goal.get("id") or goal.get("goal_id") or f"{goal_name}_{int(created_at)}")
+    return {
+        "goal_id": goal_id,
+        "goal_name": goal_name,
+        "scenario_id": f"goal:{goal_id}",
+    }
+
+
 async def run_goal_scenario(
     manager: BrowserManager,
     page,
@@ -4585,13 +4791,45 @@ async def run_goal_scenario(
     db_path: Path,
     goal: Dict[str, Any],
 ):
+    goal_ctx = _derive_goal_context(goal)
+    ctx_token = _push_context(
+        goal_id=goal_ctx.get("goal_id"),
+        goal_name=goal_ctx.get("goal_name"),
+        scenario_id=goal_ctx.get("scenario_id"),
+        scenario_name=f"goal_{goal_ctx.get('goal_name') or 'unknown'}",
+    )
+    try:
+        return await _run_goal_scenario_impl(
+            manager,
+            page,
+            base_url,
+            db_path,
+            goal,
+            goal_ctx=goal_ctx,
+        )
+    finally:
+        _pop_context(ctx_token)
+
+
+async def _run_goal_scenario_impl(
+    manager: BrowserManager,
+    page,
+    base_url: str,
+    db_path: Path,
+    goal: Dict[str, Any],
+    *,
+    goal_ctx: Optional[Dict[str, str]] = None,
+):
     _trace(f"goal: start {goal.get('goal')} payload={list((goal.get('payload') or {}).keys())}")
     scenario = _goal_to_scenario(goal, base_url)
     _trace(f"goal: scenario={'yes' if scenario else 'no'}")
     payload = goal.get("payload") or {}
     uri = payload.get("uri") or payload.get("href") or ""
     route_kind = _goal_route_kind(uri)
-    goal_name = (goal.get("goal") or "unknown").lower()
+    goal_ctx = goal_ctx or _derive_goal_context(goal)
+    goal_id = goal_ctx.get("goal_id") or ""
+    goal_name = goal_ctx.get("goal_name") or (goal.get("goal") or "unknown").lower()
+    goal_scenario_id = goal_ctx.get("scenario_id") or f"goal:{goal_id}"
 
     default_strategy = "api" if route_kind == "api" else "ui"
     strategy = _pick_goal_strategy(db_path, goal_name, route_kind, default_strategy)
@@ -4665,6 +4903,7 @@ async def run_goal_scenario(
                 "method": "AUTO",
                 "payload": json.dumps(goal, ensure_ascii=False),
                 "status": 200,
+                "goal_id": goal_id,
             },
         )
         try:
@@ -4677,6 +4916,9 @@ async def run_goal_scenario(
                 keep_open=False,
                 db_path=db_path,
                 is_last=False,
+                scenario_id=goal_scenario_id,
+                goal_id=goal_id,
+                goal_name=goal_name,
             )
             _trace("goal: ui run_scenario done")
             return True
@@ -4728,6 +4970,7 @@ async def run_goal_scenario(
                         ensure_ascii=False,
                     ),
                     "status": 200 if ok else 500,
+                    "goal_id": goal_id,
                 },
             )
         else:
@@ -4748,6 +4991,7 @@ async def run_goal_scenario(
                         ensure_ascii=False,
                     ),
                     "status": 200,
+                    "goal_id": goal_id,
                 },
             )
     except Exception:
@@ -5445,6 +5689,55 @@ async def run_scenario(
     keep_open: bool,
     db_path: Path,
     is_last: bool = False,
+    scenario_id: Optional[str] = None,
+    goal_id: Optional[str] = None,
+    goal_name: Optional[str] = None,
+):
+    scenario_name = scenario_path.stem
+    scenario_id_local = ""
+    try:
+        with open(scenario_path, "r", encoding="utf-8") as f:
+            data = yaml.safe_load(f) or {}
+        scenario_name = data.get("name", scenario_path.stem)
+        scenario_id_local = str(scenario_id or data.get("id") or "")
+    except Exception:
+        data = None
+    if not scenario_id_local:
+        scenario_id_local = str(scenario_id or f"{scenario_name}:{int(time.time())}")
+    ctx_token = _push_context(
+        scenario_id=scenario_id_local,
+        scenario_name=str(scenario_name),
+        goal_id=goal_id,
+        goal_name=goal_name,
+    )
+    try:
+        return await _run_scenario_impl(
+            manager,
+            page,
+            base_url,
+            scenario_path,
+            keep_open,
+            db_path,
+            is_last=is_last,
+            scenario_id=scenario_id_local,
+            goal_id=goal_id,
+            goal_name=goal_name,
+        )
+    finally:
+        _pop_context(ctx_token)
+
+
+async def _run_scenario_impl(
+    manager: BrowserManager,
+    page,
+    base_url: str,
+    scenario_path: Path,
+    keep_open: bool,
+    db_path: Path,
+    is_last: bool = False,
+    scenario_id: Optional[str] = None,
+    goal_id: Optional[str] = None,
+    goal_name: Optional[str] = None,
 ):
     _trace(f"scenario: load {scenario_path}")
     with open(scenario_path, "r", encoding="utf-8") as f:
@@ -6036,6 +6329,30 @@ async def run_api_scenario(
     data = yaml.safe_load(scenario_path.read_text(encoding="utf-8")) or {}
     steps: List[Dict[str, Any]] = data.get("steps", [])
     name = data.get("name", scenario_path.stem)
+    meta = data.get("meta") or {}
+    origin = str(meta.get("origin") or "")
+    is_gap = (
+        str(name).startswith("gap_")
+        or "gap" in origin.lower()
+        or str(data.get("generated") or "").lower() in ("1", "true", "yes")
+        or "/generated/" in str(scenario_path).replace("\\", "/").lower()
+    )
+    scenario_changed = False
+    if is_gap:
+        try:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "gap_scenario_start",
+                    "route": data.get("kind") or "api",
+                    "method": "GAP",
+                    "payload": {"origin": origin or "gap", "meta": meta},
+                    "status": None,
+                },
+            )
+        except Exception:
+            pass
     print(f"[*] API Scenario '{name}' start")
     authority = Authority(ROOT_DIR)
 
@@ -6155,6 +6472,7 @@ async def run_api_scenario(
                 },
             )
         else:
+            scenario_changed = True
             log_event(
                 db_path,
                 name,
@@ -6168,6 +6486,25 @@ async def run_api_scenario(
             )
 
     print(f"[+] API Scenario '{name}' done")
+    if is_gap:
+        try:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "gap_scenario_done",
+                    "route": data.get("kind") or "api",
+                    "method": "GAP",
+                    "payload": {
+                        "origin": origin or "gap",
+                        "meta": meta,
+                        "changed": bool(scenario_changed),
+                    },
+                    "status": 200 if scenario_changed else None,
+                },
+            )
+        except Exception:
+            pass
 
 
 async def main(
@@ -6183,6 +6520,7 @@ async def main(
     _trace("main: start")
     global _CURRENT_RUN_ID
     _CURRENT_RUN_ID = f"run_{int(run_started)}_{os.getpid()}"
+    os.environ["BGL_RUN_ID"] = _CURRENT_RUN_ID
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
     _trace("main: dev mode ok")
@@ -6244,14 +6582,35 @@ async def main(
             if "autonomous" not in {part.lower() for part in p.parts}
         ]
         _trace(f"main: exclude autonomous => {len(scenario_files)}")
-    # Skip API-only scenarios by default unless explicitly included
+    # Skip API-only scenarios by default unless explicitly included.
+    # Allow generated gap scenarios (safe GET) even when API is disabled.
     include_api_flag = os.getenv("BGL_INCLUDE_API")
     if include_api_flag is None:
         include_api_flag = str(cfg.get("scenario_include_api", "0"))
     include_api = str(include_api_flag) == "1"
     if not include_api:
-        scenario_files = [p for p in scenario_files if "api" not in p.stem]
-        _trace(f"main: exclude api => {len(scenario_files)}")
+        filtered_api = []
+        for p in scenario_files:
+            if "api" not in p.stem:
+                filtered_api.append(p)
+                continue
+            try:
+                data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+                name = str(data.get("name") or p.stem)
+                meta = data.get("meta") or {}
+                origin = str(meta.get("origin") or "")
+                is_gap = (
+                    name.startswith("gap_")
+                    or "gap" in origin.lower()
+                    or str(data.get("generated") or "").lower() in ("1", "true", "yes")
+                    or "/generated/" in str(p).replace("\\", "/").lower()
+                )
+                if is_gap:
+                    filtered_api.append(p)
+            except Exception:
+                continue
+        scenario_files = filtered_api
+        _trace(f"main: exclude api (except gap) => {len(scenario_files)}")
 
     # Skip agent dashboard scenarios (الوكيل الصناعي يعمل كموظف على index.php)
     filtered = []
@@ -6268,6 +6627,33 @@ async def main(
         filtered.append(path)
     scenario_files = filtered
     _trace(f"main: filtered => {len(scenario_files)}")
+
+    # Cap scenario batch size to keep diagnostics bounded.
+    try:
+        scenario_batch_limit = int(
+            os.getenv(
+                "BGL_SCENARIO_BATCH_LIMIT",
+                str(cfg.get("scenario_batch_limit", "40")),
+            )
+            or 40
+        )
+    except Exception:
+        scenario_batch_limit = 40
+    if scenario_batch_limit > 0 and len(scenario_files) > scenario_batch_limit:
+        gap_first = []
+        rest = []
+        for p in scenario_files:
+            try:
+                p_norm = str(p).replace("\\", "/").lower()
+                if "/generated/" in p_norm or p.stem.startswith("gap_"):
+                    gap_first.append(p)
+                else:
+                    rest.append(p)
+            except Exception:
+                rest.append(p)
+        scenario_files = gap_first + rest
+        scenario_files = scenario_files[:scenario_batch_limit]
+        _trace(f"main: scenario_batch_limit={scenario_batch_limit} => {len(scenario_files)}")
 
     auto_only_flag = os.getenv("BGL_AUTONOMOUS_ONLY")
     if auto_only_flag is None:

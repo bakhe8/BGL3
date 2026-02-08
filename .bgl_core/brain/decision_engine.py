@@ -6,7 +6,6 @@ try:
 except Exception:
     from llm_client import LLMClient
 
-
 def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, Any]:
     """
     Smart Decision Engine.
@@ -17,12 +16,18 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     intent = intent_payload.get("intent", "observe")
     confidence = float(intent_payload.get("confidence", 0))
     semantic_hint = _semantic_decision_hint(intent_payload)
+    runtime_hint = _runtime_decision_hint(intent_payload)
+    code_intent_hint = _code_intent_decision_hint(intent_payload)
+    code_temporal_hint = _code_temporal_decision_hint(intent_payload)
 
     prompt = f"""
     Evaluate the risk of this proposed autonomous action.
     Intent: {json.dumps(intent_payload, indent=2)}
     Policy Context: {json.dumps(policy, indent=2)}
     UI Semantic Hint: {json.dumps(semantic_hint, indent=2)}
+    Runtime Evidence Hint: {json.dumps(runtime_hint, indent=2)}
+    Code Intent Hint: {json.dumps(code_intent_hint, indent=2)}
+    Code Temporal Hint: {json.dumps(code_temporal_hint, indent=2)}
     
     Output JSON:
     {{
@@ -39,15 +44,25 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
         client = LLMClient()
         payload = client.chat_json(prompt, temperature=0.0)
         payload = _apply_semantic_override(payload, intent_payload)
+        payload = _apply_runtime_override(payload, runtime_hint)
+        payload = _apply_code_intent_override(payload, code_intent_hint)
+        payload = _apply_code_temporal_override(payload, code_temporal_hint)
         payload = _apply_policy_overrides(payload, intent_payload, policy)
-        return _attach_explanation(payload, intent_payload, policy)
+        return _attach_explanation(
+            payload, intent_payload, policy, runtime_hint, code_intent_hint, code_temporal_hint
+        )
     except (TimeoutError, Exception) as e:
         print(
             f"[!] SmartDecisionEngine: LLM unavailable ({type(e).__name__}). Using deterministic fallback."
         )
         payload = _deterministic_decision(intent, confidence, intent_payload)
+        payload = _apply_runtime_override(payload, runtime_hint)
+        payload = _apply_code_intent_override(payload, code_intent_hint)
+        payload = _apply_code_temporal_override(payload, code_temporal_hint)
         payload = _apply_policy_overrides(payload, intent_payload, policy)
-        return _attach_explanation(payload, intent_payload, policy)
+        return _attach_explanation(
+            payload, intent_payload, policy, runtime_hint, code_intent_hint, code_temporal_hint
+        )
 
 
 def _deterministic_decision(intent: str, confidence: float, payload: Dict) -> Dict:
@@ -144,6 +159,204 @@ def _semantic_decision_hint(intent_payload: Dict[str, Any]) -> Dict[str, Any]:
         "propose_fix_change": propose_thr,
         "auto_fix_change": auto_thr,
     }
+
+
+def _runtime_decision_hint(intent_payload: Dict[str, Any]) -> Dict[str, Any]:
+    hint = intent_payload.get("runtime_hint")
+    if isinstance(hint, dict) and hint:
+        return hint
+    try:
+        meta = intent_payload.get("metadata") or {}
+        hint = meta.get("runtime_hint")
+        if isinstance(hint, dict) and hint:
+            return hint
+    except Exception:
+        pass
+    return {"has_evidence": False, "event_count": 0, "error_count": 0}
+
+
+def _code_intent_decision_hint(intent_payload: Dict[str, Any]) -> Dict[str, Any]:
+    sig = intent_payload.get("code_intent_signals") or {}
+    if not isinstance(sig, dict) or not sig:
+        return {}
+    suggested = str(sig.get("suggested_intent") or "").lower()
+    total = 0
+    try:
+        total = int(sig.get("total") or 0)
+    except Exception:
+        total = 0
+    counts = sig.get("intent_counts") or {}
+    try:
+        count = int(counts.get(suggested) or 0)
+    except Exception:
+        count = 0
+    if not suggested:
+        return {}
+    ratio = (count / max(1, total)) if total else 0.0
+    confidence = min(0.8, 0.45 + min(0.35, ratio))
+    return {
+        "intent": suggested,
+        "count": count,
+        "total": total,
+        "confidence": round(confidence, 3),
+        "top_tokens": (sig.get("top_tokens") or [])[:8],
+    }
+
+
+def _code_temporal_decision_hint(intent_payload: Dict[str, Any]) -> Dict[str, Any]:
+    sig = intent_payload.get("code_temporal_signals") or {}
+    if not isinstance(sig, dict) or not sig:
+        return {}
+    counts = sig.get("counts") or {}
+    try:
+        total = int(sig.get("total") or 0)
+    except Exception:
+        total = 0
+    try:
+        stateful = int(counts.get("stateful") or 0)
+    except Exception:
+        stateful = 0
+    try:
+        startup_exec = int(counts.get("startup_exec") or 0)
+    except Exception:
+        startup_exec = 0
+    try:
+        accum = int(counts.get("accumulates") or 0)
+    except Exception:
+        accum = 0
+    ratio = (stateful / max(1, total)) if total else 0.0
+    return {
+        "stateful_ratio": round(ratio, 3),
+        "stateful": stateful,
+        "startup_exec": startup_exec,
+        "accumulates": accum,
+        "top_markers": (sig.get("top_markers") or [])[:8],
+    }
+
+
+def _apply_code_intent_override(
+    payload: Dict[str, Any], code_hint: Dict[str, Any]
+) -> Dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(code_hint, dict) or not code_hint:
+        return payload
+    decision = str(payload.get("decision", "observe") or "observe").lower()
+    risk_level = str(payload.get("risk_level", "low") or "low").lower()
+    requires_human = bool(payload.get("requires_human", False))
+    intent = str(code_hint.get("intent") or "").lower()
+    confidence = float(code_hint.get("confidence") or 0.0)
+    just = _ensure_justification(payload)
+
+    if intent in ("stabilize", "unblock") and decision == "observe" and confidence >= 0.5:
+        decision = "propose_fix"
+        requires_human = True
+        if risk_level == "low":
+            risk_level = "medium"
+        just.append(f"code_intent_hint:{intent} (conf={confidence})")
+    elif intent in ("evolve",) and decision == "observe" and confidence >= 0.6:
+        just.append(f"code_intent_hint:{intent} (conf={confidence})")
+
+    payload["decision"] = decision
+    payload["risk_level"] = risk_level
+    payload["requires_human"] = requires_human
+    payload["justification"] = just
+    payload["code_intent_hint"] = code_hint
+    return payload
+
+
+def _apply_code_temporal_override(
+    payload: Dict[str, Any], temporal_hint: Dict[str, Any]
+) -> Dict[str, Any]:
+    if not isinstance(payload, dict) or not isinstance(temporal_hint, dict) or not temporal_hint:
+        return payload
+    decision = str(payload.get("decision", "observe") or "observe").lower()
+    risk_level = str(payload.get("risk_level", "low") or "low").lower()
+    requires_human = bool(payload.get("requires_human", False))
+    just = _ensure_justification(payload)
+
+    ratio = float(temporal_hint.get("stateful_ratio") or 0.0)
+    startup_exec = int(temporal_hint.get("startup_exec") or 0)
+    accum = int(temporal_hint.get("accumulates") or 0)
+    if decision == "auto_fix" and (ratio >= 0.25 or accum > 0 or startup_exec > 0):
+        decision = "propose_fix"
+        requires_human = True
+        if risk_level == "low":
+            risk_level = "medium"
+        just.append(
+            f"code_temporal_hint: stateful_ratio={ratio}, startup_exec={startup_exec}, accum={accum}"
+        )
+    elif decision == "propose_fix" and (ratio >= 0.4 or startup_exec > 3):
+        if risk_level == "low":
+            risk_level = "medium"
+        just.append(
+            f"code_temporal_hint: elevated statefulness (ratio={ratio})"
+        )
+
+    payload["decision"] = decision
+    payload["risk_level"] = risk_level
+    payload["requires_human"] = requires_human
+    payload["justification"] = just
+    payload["code_temporal_hint"] = temporal_hint
+    return payload
+
+
+def _apply_runtime_override(payload: Dict[str, Any], runtime_hint: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+    if not isinstance(runtime_hint, dict):
+        return payload
+    has_evidence = bool(runtime_hint.get("has_evidence"))
+    if not has_evidence:
+        just = _ensure_justification(payload)
+        just.append("runtime_hint: no evidence for scope/route")
+        payload["justification"] = just
+        return payload
+
+    try:
+        error_rate = float(runtime_hint.get("error_rate") or 0.0)
+    except Exception:
+        error_rate = 0.0
+    last_error = str(runtime_hint.get("last_error") or "").strip()
+    try:
+        event_count = int(runtime_hint.get("event_count") or 0)
+    except Exception:
+        event_count = 0
+    try:
+        avg_latency = float(runtime_hint.get("avg_latency_ms") or 0.0)
+    except Exception:
+        avg_latency = 0.0
+
+    risk_level = str(payload.get("risk_level", "low") or "low").lower()
+    decision = str(payload.get("decision", "observe") or "observe").lower()
+    requires_human = bool(payload.get("requires_human", False))
+    just = _ensure_justification(payload)
+
+    suspects = []
+    try:
+        suspects = runtime_hint.get("suspects") or []
+    except Exception:
+        suspects = []
+    if event_count >= 3 and (error_rate >= 0.3 or last_error or suspects):
+        # Escalate: unstable runtime evidence.
+        if decision == "auto_fix":
+            decision = "propose_fix"
+            requires_human = True
+        risk_level = "high"
+        just.append(
+            f"runtime_hint: elevated errors (rate={error_rate}, last_error={last_error[:120]})"
+        )
+        if suspects:
+            just.append(f"runtime_hint: suspect_deps={','.join([str(s) for s in suspects[:4]])}")
+    elif event_count >= 5 and avg_latency >= 2000:
+        if risk_level == "low":
+            risk_level = "medium"
+        just.append(f"runtime_hint: high latency avg={avg_latency}ms")
+
+    payload["decision"] = decision
+    payload["risk_level"] = risk_level
+    payload["requires_human"] = requires_human
+    payload["justification"] = just
+    payload["runtime_hint"] = runtime_hint
+    return payload
 
 
 def _apply_semantic_override(payload: Dict[str, Any], intent_payload: Dict[str, Any]) -> Dict[str, Any]:
@@ -389,7 +602,12 @@ def _apply_policy_overrides(
 
 
 def _attach_explanation(
-    payload: Dict[str, Any], intent_payload: Dict[str, Any], policy: Dict[str, Any]
+    payload: Dict[str, Any],
+    intent_payload: Dict[str, Any],
+    policy: Dict[str, Any],
+    runtime_hint: Dict[str, Any],
+    code_intent_hint: Dict[str, Any],
+    code_temporal_hint: Dict[str, Any],
 ) -> Dict[str, Any]:
     if not isinstance(payload, dict):
         return payload
@@ -466,6 +684,9 @@ def _attach_explanation(
             "auto_fix_min_confidence": min_conf,
             "auto_fix_max_risk": max_risk,
             "domain_rules": _extract_domain_rule_info(intent_payload),
+            "runtime_hint": runtime_hint,
+            "code_intent_hint": code_intent_hint,
+            "code_temporal_hint": code_temporal_hint,
         },
     }
 

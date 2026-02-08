@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "343",
+  "description": "Patch Plan for improving auto-log from master_verify pipeline for outcome:unblock:fail",
+  "created_at": 1689427200,
+  "metadata": {
+    "proposal_id": 343,
+    "name": "تحسين تلقائي من خبرة: outcome:unblock:fail",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770589077.715037
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/master_verify.py",
+      "mode": "append",
+      "content": "\n# Log outcome:unblock:fail for propose_fix/low\nif 'outcome:unblock:fail' in experience and experience['outcome'] == 'propose_fix/low':\n    log_experience(experience)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Log outcome:unblock:fail for propose_fix/low\nif 'outcome:unblock:fail' in experience and experience['outcome'] == 'propose_fix/low':\n    log_experience(experience)\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "version": 2,
+  "id": "334",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown",
+  "created_at": 1689571200,
+  "metadata": {
+    "proposal_context": {
+      "id": 334,
+      "name": "تحسين تلقائي من خبرة: outcome:reasoning.plan:unknown",
+      "description": "Outcome proposed for reasoning.plan (propose_fix/low) x10. Last note: reasoning_plan_logged failure_class=unknown",
+      "action": "investigate",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 8377, \"exp_hash\": \"8e8341cbaa087e5263bc04309ba112dca89677c1\", \"scenario\": \"outcome:reasoning.plan:unknown\", \"summary\": \"Outcome proposed for reasoning.plan (propose_fix/low) x10. Last note: reasoning_plan_logged failure_class=unknown\", \"confidence\": 0.85, \"evidence_count\": 10, \"related_files\": \"reasoning.plan\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 334,
+    "generated_at": 1770588789.0311468
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Add new failure classification for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in failure_classes:\n    classify_failure(failure_classes['outcome:reasoning.plan:unknown'])\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add new failure classification for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in failure_classes:\n    classify_failure(failure_classes['outcome:reasoning.plan:unknown'])\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "append",
+      "content": "\n# Add new patch plan for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in scenarios:\n    generate_patch_plan(scenarios['outcome:reasoning.plan:unknown'])\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add new patch plan for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in scenarios:\n    generate_patch_plan(scenarios['outcome:reasoning.plan:unknown'])\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Add new outcome signal for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in signals:\n    send_signal(signals['outcome:reasoning.plan:unknown'])\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add new outcome signal for outcome:reasoning.plan:unknown\nif 'outcome:reasoning.plan:unknown' in signals:\n    send_signal(signals['outcome:reasoning.plan:unknown'])\n"
+      }
+    }
+  ]
+}

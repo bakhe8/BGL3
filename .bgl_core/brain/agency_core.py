@@ -25,11 +25,17 @@ try:
     from .learning_core import (
         ingest_learned_events,
         ingest_learning_confirmations,
+        ingest_runtime_contract_experiences,
         list_learning_events,
         update_fallback_rules_from_prod_ops,
         update_fallback_rules_from_outcomes,
         apply_external_dependency_fallback,
+        auto_propose_outcome_failures,
+        update_fallback_rules_from_runtime_contracts,
+        update_fallback_rules_from_code_intent,
     )  # type: ignore
+    from .code_intel import build_code_intel  # type: ignore
+    from .code_contracts import build_code_contracts  # type: ignore
     from .failure_classifier import summarize_failure_taxonomy  # type: ignore
     from .hypothesis import derive_hypotheses_from_diagnostic, list_hypotheses  # type: ignore
     from .observations import (
@@ -71,11 +77,17 @@ except (ImportError, ValueError):
     from learning_core import (
         ingest_learned_events,
         ingest_learning_confirmations,
+        ingest_runtime_contract_experiences,
         list_learning_events,
         update_fallback_rules_from_prod_ops,
         update_fallback_rules_from_outcomes,
         apply_external_dependency_fallback,
+        auto_propose_outcome_failures,
+        update_fallback_rules_from_runtime_contracts,
+        update_fallback_rules_from_code_intent,
     )
+    from code_intel import build_code_intel
+    from code_contracts import build_code_contracts
     from failure_classifier import summarize_failure_taxonomy
     from hypothesis import derive_hypotheses_from_diagnostic, list_hypotheses
     from observations import (
@@ -154,6 +166,106 @@ class AgencyCore:
 
         self._initialized = True
         print(f"[*] AgencyCore: Intelligence engine initialized at {self.root_dir}")
+
+    def _summarize_code_intent_signals(self) -> Dict[str, Any]:
+        path = self.root_dir / "analysis" / "code_contracts.json"
+        if not path.exists():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        counts = {"stabilize": 0, "unblock": 0, "evolve": 0, "observe": 0}
+        token_freq: Dict[str, int] = {}
+        total = 0
+
+        def _ingest(item: Dict[str, Any]) -> None:
+            nonlocal total
+            sig = item.get("intent_signals") or {}
+            hint = sig.get("intent_hint") or {}
+            suggested = str(hint.get("suggested_intent") or "").lower()
+            if suggested in counts:
+                counts[suggested] += 1
+            for t in sig.get("tokens") or []:
+                token = str(t).lower()
+                if len(token) < 2:
+                    continue
+                token_freq[token] = token_freq.get(token, 0) + 1
+            total += 1
+
+        for c in data.get("contracts") or []:
+            if isinstance(c, dict) and c.get("intent_signals"):
+                _ingest(c)
+        for c in data.get("function_contracts") or []:
+            if isinstance(c, dict) and c.get("intent_signals"):
+                _ingest(c)
+
+        if total == 0:
+            return {}
+        top_tokens = sorted(token_freq.items(), key=lambda kv: kv[1], reverse=True)[:12]
+        top_intents = sorted(
+            [{"intent": k, "count": v} for k, v in counts.items() if v > 0],
+            key=lambda item: item["count"],
+            reverse=True,
+        )
+        suggested = top_intents[0]["intent"] if top_intents else ""
+        return {
+            "intent_counts": counts,
+            "top_intents": top_intents,
+            "suggested_intent": suggested,
+            "top_tokens": [t for t, _ in top_tokens],
+            "total": total,
+        }
+
+    def _summarize_code_temporal_signals(self) -> Dict[str, Any]:
+        path = self.root_dir / "analysis" / "code_contracts.json"
+        if not path.exists():
+            return {}
+        try:
+            data = json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+        total = 0
+        counts = {"stateful": 0, "startup_exec": 0, "accumulates": 0, "first_request_writes": 0}
+        markers: Dict[str, int] = {}
+
+        def _ingest(item: Dict[str, Any]) -> None:
+            nonlocal total
+            prof = item.get("temporal_profile") or {}
+            if not isinstance(prof, dict):
+                return
+            total += 1
+            if prof.get("stateful"):
+                counts["stateful"] += 1
+            if prof.get("startup_exec"):
+                counts["startup_exec"] += 1
+            if prof.get("accumulates"):
+                counts["accumulates"] += 1
+            if prof.get("first_request_writes"):
+                counts["first_request_writes"] += 1
+            for m in prof.get("markers") or []:
+                mk = str(m).lower()
+                if not mk:
+                    continue
+                markers[mk] = markers.get(mk, 0) + 1
+
+        for c in data.get("contracts") or []:
+            if isinstance(c, dict) and c.get("temporal_profile"):
+                _ingest(c)
+        for c in data.get("function_contracts") or []:
+            if isinstance(c, dict) and c.get("temporal_profile"):
+                _ingest(c)
+
+        if total == 0:
+            return {}
+        top_markers = sorted(markers.items(), key=lambda kv: kv[1], reverse=True)[:10]
+        return {
+            "counts": counts,
+            "total": total,
+            "stateful_ratio": round(counts["stateful"] / max(1, total), 3),
+            "startup_ratio": round(counts["startup_exec"] / max(1, total), 3),
+            "top_markers": [m for m, _ in top_markers],
+        }
 
     def _auto_patch_error_experiences(self, experiences: List[Dict[str, Any]]) -> None:
         if not experiences:
@@ -1075,6 +1187,8 @@ class AgencyCore:
             "scenario_coverage": health_report.get("scenario_coverage", {}),
             "flow_coverage": health_report.get("flow_coverage", {}),
             "ui_action_coverage": health_report.get("ui_action_coverage", {}),
+            "gap_scenarios": health_report.get("gap_scenarios") or [],
+            "gap_scenarios_existing": health_report.get("gap_scenarios_existing") or [],
             "scenario_run_stats": health_report.get("scenario_run_stats", {}),
             "coverage_reliability": health_report.get("coverage_reliability", {}),
             "gap_tests": [],
@@ -1091,6 +1205,30 @@ class AgencyCore:
             findings["activity_summary"] = summarize_agent_activity(self.db_path)
         except Exception:
             findings.setdefault("activity_summary", {})
+        # Code understanding snapshot (PHP + Python + JS) for safer edits
+        try:
+            if str(os.getenv("BGL_CODE_INTEL", "1")) == "1":
+                findings["code_intel"] = build_code_intel(self.root_dir, self.db_path)
+        except Exception:
+            findings.setdefault("code_intel", {})
+        # Code contracts + test linkage (trust for safe edits)
+        try:
+            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+                findings["code_contracts"] = build_code_contracts(self.root_dir)
+        except Exception:
+            findings.setdefault("code_contracts", {})
+        # Code intent signals (variable/comment/test-driven intent hints)
+        try:
+            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+                findings["code_intent_signals"] = self._summarize_code_intent_signals()
+        except Exception:
+            findings.setdefault("code_intent_signals", {})
+        # Code temporal signals (startup/first-request/state accumulation)
+        try:
+            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+                findings["code_temporal_signals"] = self._summarize_code_temporal_signals()
+        except Exception:
+            findings.setdefault("code_temporal_signals", {})
         # Diagnostic delta snapshot (recent change context)
         try:
             delta_snap = latest_env_snapshot(self.db_path, kind="diagnostic_delta")
@@ -1274,6 +1412,33 @@ class AgencyCore:
             findings["fallback_rules_outcomes"] = fb_outcomes
         except Exception:
             findings.setdefault("fallback_rules_outcomes", {})
+        # Fallback rules from runtime contract evidence (route/file stability)
+        try:
+            fb_runtime = update_fallback_rules_from_runtime_contracts(
+                self.root_dir,
+                self.db_path,
+            )
+            findings["fallback_rules_runtime"] = fb_runtime
+        except Exception:
+            findings.setdefault("fallback_rules_runtime", {})
+        # Fallback rules from code intent signals (variables/comments/tests/logs)
+        try:
+            fb_code_intent = update_fallback_rules_from_code_intent(
+                self.root_dir,
+                self.db_path,
+            )
+            findings["fallback_rules_code_intent"] = fb_code_intent
+        except Exception:
+            findings.setdefault("fallback_rules_code_intent", {})
+        # Auto-propose from repeated outcome failures (bridges outcomes -> proposals).
+        try:
+            outcome_props = auto_propose_outcome_failures(self.root_dir, self.db_path)
+            findings["outcome_proposals"] = outcome_props
+            created = (outcome_props or {}).get("created") or []
+            if created:
+                findings["proposals"].extend(created)
+        except Exception:
+            findings.setdefault("outcome_proposals", {})
         # Failure taxonomy (classified failures -> signals for rollback/fallback)
         try:
             if summarize_failure_taxonomy:
@@ -1301,6 +1466,13 @@ class AgencyCore:
             findings["context_digest"] = self._auto_context_digest()
         except Exception:
             findings.setdefault("context_digest", {})
+        # Promote runtime contract experiences into learning events (scoring signal).
+        try:
+            findings["runtime_contract_learning"] = ingest_runtime_contract_experiences(
+                self.db_path, limit=160
+            )
+        except Exception:
+            findings.setdefault("runtime_contract_learning", 0)
         try:
             findings["auto_plan"] = self._auto_generate_patch_plans()
         except Exception:
@@ -1491,6 +1663,10 @@ class AgencyCore:
                 intent_payload["domain_rule_violations"] = findings.get("domain_rule_violations")
             if findings.get("domain_rule_summary"):
                 intent_payload["domain_rule_summary"] = findings.get("domain_rule_summary")
+            if findings.get("code_intent_signals"):
+                intent_payload["code_intent_signals"] = findings.get("code_intent_signals")
+            if findings.get("code_temporal_signals"):
+                intent_payload["code_temporal_signals"] = findings.get("code_temporal_signals")
         except Exception:
             pass
         diagnostic_map["findings"]["intent"] = intent_payload

@@ -1,0 +1,185 @@
+{
+  "version": 1,
+  "id": "287",
+  "description": "Route [data-bs-toggle='offcanvas'], [data-toggle='offcanvas']: 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770579887,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 287,
+    "generated_at": 1770579995.2568011
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "- name: Delete Bank\n  path: /api/delete/bank\n  method: DELETE\n  parameters:\n    - name: bank_id\n      in: query\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Delete Bank\n  path: /api/delete/bank\n  method: DELETE\n  parameters:\n    - name: bank_id\n      in: query\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": null,
+      "content": "- name: Delete Supplier\n  path: /api/delete/supplier\n  method: DELETE\n  parameters:\n    - name: supplier_id\n      in: query\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Delete Supplier\n  path: /api/delete/supplier\n  method: DELETE\n  parameters:\n    - name: supplier_id\n      in: query\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": null,
+      "content": "- name: Extend Resource\n  path: /api/extend\n  method: POST\n  parameters:\n    - name: resource_id\n      in: query\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Extend Resource\n  path: /api/extend\n  method: POST\n  parameters:\n    - name: resource_id\n      in: query\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": null,
+      "content": "- name: Get Letter Preview\n  path: /api/get-letter-preview\n  method: GET\n  parameters:\n    - name: letter_id\n      in: query\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Get Letter Preview\n  path: /api/get-letter-preview\n  method: GET\n  parameters:\n    - name: letter_id\n      in: query\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": null,
+      "content": "- name: Perform Learning Action\n  path: /api/learning-action\n  method: POST\n  parameters:\n    - name: action_id\n      in: query\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Perform Learning Action\n  path: /api/learning-action\n  method: POST\n  parameters:\n    - name: action_id\n      in: query\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": null,
+      "content": "- name: Manual Entry\n  path: /api/manual-entry\n  method: POST\n  parameters:\n    - name: entry_data\n      in: body\n      required: true\n      type: object",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Manual Entry\n  path: /api/manual-entry\n  method: POST\n  parameters:\n    - name: entry_data\n      in: body\n      required: true\n      type: object"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": null,
+      "content": "- name: Parse Paste\n  path: /api/parse-paste\n  method: POST\n  parameters:\n    - name: paste_data\n      in: body\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Parse Paste\n  path: /api/parse-paste\n  method: POST\n  parameters:\n    - name: paste_data\n      in: body\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": null,
+      "content": "- name: Parse Paste V2\n  path: /api/parse-paste-v2\n  method: POST\n  parameters:\n    - name: paste_data\n      in: body\n      required: true\n      type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Parse Paste V2\n  path: /api/parse-paste-v2\n  method: POST\n  parameters:\n    - name: paste_data\n      in: body\n      required: true\n      type: string"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": null,
+      "content": "- name: Confidence Demo View\n  path: /views/confidence-demo\n  method: GET",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Confidence Demo View\n  path: /views/confidence-demo\n  method: GET"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": null,
+      "content": "- name: Index View\n  path: /views/index\n  method: GET",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Index View\n  path: /views/index\n  method: GET"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": null,
+      "content": "- name: Maintenance View\n  path: /views/maintenance\n  method: GET",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Maintenance View\n  path: /views/maintenance\n  method: GET"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": null,
+      "content": "- name: Settings View\n  path: /views/settings\n  method: GET",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Settings View\n  path: /views/settings\n  method: GET"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": null,
+      "content": "- name: Statistics View\n  path: /views/statistics\n  method: GET",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- name: Statistics View\n  path: /views/statistics\n  method: GET"
+      }
+    }
+  ]
+}

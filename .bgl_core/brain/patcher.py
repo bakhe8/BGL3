@@ -11,9 +11,11 @@ from config_loader import load_config
 try:
     from .authority import Authority  # type: ignore
     from .brain_types import ActionRequest, ActionKind  # type: ignore
+    from .test_gate import evaluate_files, require_tests_enabled  # type: ignore
 except Exception:
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
+    from test_gate import evaluate_files, require_tests_enabled
 
 
 class BGLPatcher:
@@ -126,6 +128,30 @@ class BGLPatcher:
                     "requires_human": gate_res.requires_human,
                 },
             }
+
+        # Enforce required tests for high-risk files before any patch execution.
+        if not dry_run:
+            require_tests = require_tests_enabled(
+                self.project_root, bool(self.config.get("require_tests", False))
+            )
+            allow_scenarios = bool(int(os.getenv("BGL_ALLOW_SCENARIO_AS_TEST", "1")))
+            gate = evaluate_files(
+                self.project_root,
+                [rel],
+                require_tests=require_tests,
+                allow_scenarios=allow_scenarios,
+            )
+            if not gate.get("ok", True):
+                msg = "Required tests missing for high-risk file."
+                try:
+                    msg = "; ".join(gate.get("errors") or []) or msg
+                except Exception:
+                    pass
+                try:
+                    self.authority.record_outcome(decision_id, "blocked", msg)
+                except Exception:
+                    pass
+                return {"status": "blocked", "message": msg}
 
         # Execution mode enforcement / telemetry
         if effective_mode == "direct":

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "320",
+  "description": "Route http://localhost:8000/: 26 events, 12 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1689456789,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 320,
+    "generated_at": 1770587501.5862234
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /api/v1/data\n  method: GET\n  handler: handleDataRequest",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /api/v1/data\n  method: GET\n  handler: handleDataRequest"
+      }
+    }
+  ]
+}

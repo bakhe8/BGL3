@@ -19,6 +19,7 @@ try:
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
     from .canary_release import register_canary_release, evaluate_canary_releases, rollback_release  # type: ignore
     from .agent_verify import run_all_checks  # type: ignore
+    from .test_gate import require_tests_enabled, collect_tests_for_files  # type: ignore
     from .config_loader import load_config  # type: ignore
 except Exception:
     from authority import Authority
@@ -29,6 +30,7 @@ except Exception:
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
     from canary_release import register_canary_release, evaluate_canary_releases, rollback_release
     from agent_verify import run_all_checks
+    from test_gate import require_tests_enabled, collect_tests_for_files
     try:
         from config_loader import load_config  # type: ignore
     except Exception:
@@ -116,11 +118,41 @@ def _lint_files(root: Path, files: List[str], max_files: int = 4) -> Dict[str, A
     return {"ok": True, "linted": linted}
 
 
+def _run_phpunit_tests(root: Path, tests: List[str], max_files: int = 6) -> Dict[str, Any]:
+    phpunit_bin = root / "vendor" / "bin" / "phpunit"
+    if not phpunit_bin.exists():
+        return {"ok": False, "error": "phpunit_missing"}
+    if not tests:
+        return {"ok": False, "error": "tests_missing"}
+    args = ["php", str(phpunit_bin)]
+    for t in tests[:max_files]:
+        args.append(str(t))
+    try:
+        result = subprocess.run(args, capture_output=True, text=True, timeout=180)
+        return {
+            "ok": result.returncode == 0,
+            "output": (result.stdout + result.stderr).strip(),
+            "tests": tests[:max_files],
+        }
+    except subprocess.TimeoutExpired:
+        return {"ok": False, "error": "phpunit_timeout", "tests": tests[:max_files]}
+    except Exception as e:
+        return {"ok": False, "error": f"phpunit_error:{e}"}
+
+
 def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_files: int) -> Dict[str, Any]:
     mode = (mode or "checks").lower().strip()
     if mode in ("none", "off", "skip"):
         return {"ok": True, "mode": mode, "skipped": True}
     results: Dict[str, Any] = {"mode": mode}
+    require_tests = require_tests_enabled(root, False)
+    if require_tests:
+        test_paths = collect_tests_for_files(root, changed_files)
+        phpunit = _run_phpunit_tests(root, test_paths, max_files=max_files)
+        results["phpunit"] = phpunit
+        if not phpunit.get("ok", False):
+            results["ok"] = False
+            return results
     # Lint-only mode
     if mode in ("lint", "php_lint"):
         lint = _lint_files(root, changed_files, max_files=max_files)

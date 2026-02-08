@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "305",
+  "description": "Route input[name=\"jump_to_index\"]: 8 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770583411,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 305,
+    "generated_at": 1770583547.964185
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilization for input[name=\"jump_to_index\"]\ndef stabilize_jump_to_index(request):\n    # Add stabilization logic here\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for input[name=\"jump_to_index\"]\ndef stabilize_jump_to_index(request):\n    # Add stabilization logic here\n    pass"
+      }
+    }
+  ]
+}

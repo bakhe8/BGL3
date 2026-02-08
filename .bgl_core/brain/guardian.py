@@ -117,6 +117,37 @@ class BGLGuardian:
             except Exception as e:
                 tool_evidence["run_checks"] = {"status": "ERROR", "message": str(e)}
 
+        # Initialize report early to avoid UnboundLocalError on unexpected early failures.
+        # We'll update it later once routes + scan metrics are ready.
+        report: Dict[str, Any] = {
+            "timestamp": time.time(),
+            "total_routes": 0,
+            "healthy_routes": 0,
+            "failing_routes": [],
+            "skipped_routes": [],
+            "log_anomalies": [],
+            "business_conflicts": [],
+            "domain_rule_violations": [],
+            "domain_rule_summary": {},
+            "suggestions": [],
+            "recent_experiences": [],
+            "route_scan_limit": 0,
+            "route_scan_mode": str(self.config.get("route_scan_mode", "auto")).lower(),
+            "permission_issues": [],
+            "agent_mode": self.agent_mode,
+            "tool_evidence": tool_evidence,
+            "external_checks": external_checks,
+            "scenario_deps": scenario_deps,
+            "readiness": readiness,
+            "api_contract": api_contract.get("summary", {}),
+            "api_contract_missing": [],
+            "api_contract_gaps": [],
+            "expected_failures": [],
+            "policy_candidates": [],
+            "policy_auto_promoted": [],
+            "api_scan": {"mode": "safe", "checked": 0, "skipped": 0, "errors": 0},
+        }
+
         # Autonomous re-indexing (closing the gap)
         indexer = EntityIndexer(self.root_dir, self.db_path)
         indexer.index_project()
@@ -165,6 +196,12 @@ class BGLGuardian:
                     )
                 )
             )
+            # Avoid blocking automated diagnostics: keep_browser should not pause runs.
+            try:
+                if str(self.agent_mode).lower() in {"auto", "autonomous"}:
+                    keep_open = False
+            except Exception:
+                pass
             # Apply scenario config hints
             include_api = str(self.config.get("scenario_include_api", "0"))
             os.environ.setdefault("BGL_INCLUDE_API", include_api)
@@ -179,8 +216,17 @@ class BGLGuardian:
                 "BGL_EXPLORATION",
                 str(self.config.get("scenario_exploration", os.getenv("BGL_EXPLORATION", "1"))),
             )
+            # Ensure predefined scenarios (including gaps) are runnable during audits.
+            os.environ["BGL_AUTONOMOUS_ONLY"] = "0"
             scenario_max_pages = int(self.config.get("max_pages", 3))
             scenario_idle_timeout = int(self.config.get("page_idle_timeout", 120))
+            scenario_timeout_sec = int(
+                os.getenv(
+                    "BGL_SCENARIO_BATCH_TIMEOUT_SEC",
+                    str(self.config.get("scenario_batch_timeout_sec", 300)),
+                )
+                or 300
+            )
             scenario_include = self.config.get("scenario_include", None)
             if isinstance(scenario_include, str) and not scenario_include.strip():
                 scenario_include = None
@@ -223,14 +269,17 @@ class BGLGuardian:
                     scenario_run_stats["attempted"] = True
                     pre_events = self._count_runtime_events()
                     run_started = time.time()
-                    await scenario_runner_main(
-                        base_url,
-                        headless,
-                        keep_open,
-                        max_pages=scenario_max_pages,
-                        idle_timeout=scenario_idle_timeout,
-                        include=scenario_include,
-                        shadow_mode=False,
+                    await asyncio.wait_for(
+                        scenario_runner_main(
+                            base_url,
+                            headless,
+                            keep_open,
+                            max_pages=scenario_max_pages,
+                            idle_timeout=scenario_idle_timeout,
+                            include=scenario_include,
+                            shadow_mode=False,
+                        ),
+                        timeout=scenario_timeout_sec,
                     )
                     run_duration = time.time() - run_started
                     post_events = self._count_runtime_events()
@@ -502,34 +551,36 @@ class BGLGuardian:
             ),
         )
 
-        report: Dict[str, Any] = {
-            "timestamp": time.time(),
-            "total_routes": len(routes),
-            "healthy_routes": 0,
-            "failing_routes": [],
-            "skipped_routes": [],
-            "log_anomalies": [],
-            "business_conflicts": [],
-            "domain_rule_violations": [],
-            "domain_rule_summary": {},
-            "suggestions": [],
-            "recent_experiences": [],
-            "route_scan_limit": len(routes),
-            "route_scan_mode": mode_cfg,
-            "permission_issues": [],
-            "agent_mode": self.agent_mode,
-            "tool_evidence": tool_evidence,
-            "external_checks": external_checks,
-            "scenario_deps": scenario_deps,
-            "readiness": readiness,
-            "api_contract": api_contract.get("summary", {}),
-            "api_contract_missing": [],
-            "api_contract_gaps": [],
-            "expected_failures": [],
-            "policy_candidates": [],
-            "policy_auto_promoted": [],
-            "api_scan": api_summary,
-        }
+        report.update(
+            {
+                "timestamp": time.time(),
+                "total_routes": len(routes),
+                "healthy_routes": 0,
+                "failing_routes": [],
+                "skipped_routes": [],
+                "log_anomalies": [],
+                "business_conflicts": [],
+                "domain_rule_violations": [],
+                "domain_rule_summary": {},
+                "suggestions": [],
+                "recent_experiences": [],
+                "route_scan_limit": len(routes),
+                "route_scan_mode": mode_cfg,
+                "permission_issues": [],
+                "agent_mode": self.agent_mode,
+                "tool_evidence": tool_evidence,
+                "external_checks": external_checks,
+                "scenario_deps": scenario_deps,
+                "readiness": readiness,
+                "api_contract": api_contract.get("summary", {}),
+                "api_contract_missing": [],
+                "api_contract_gaps": [],
+                "expected_failures": [],
+                "policy_candidates": [],
+                "policy_auto_promoted": [],
+                "api_scan": api_summary,
+            }
+        )
         report["scenario_run_stats"] = scenario_run_stats
         try:
             domain_violations = self._check_domain_rule_violations()
@@ -855,6 +906,14 @@ class BGLGuardian:
         # Generate gap scenarios (optional, non-blocking)
         try:
             gen_limit = int(os.getenv("BGL_COVERAGE_SCENARIO_LIMIT", "6") or "6")
+            existing_generated: List[str] = []
+            try:
+                gen_dir = self.root_dir / ".bgl_core" / "brain" / "scenarios" / "generated"
+                if gen_dir.exists():
+                    existing_generated = [p.name for p in gen_dir.glob("*.yaml")]
+                    existing_generated = sorted(existing_generated)[: max(6, gen_limit * 2)]
+            except Exception:
+                existing_generated = []
             reliable = True
             try:
                 reliable = (
@@ -874,6 +933,9 @@ class BGLGuardian:
             if generated:
                 coverage_payload["generated_scenarios"] = generated
                 report["gap_scenarios"] = generated
+            if existing_generated:
+                coverage_payload["existing_generated_scenarios"] = existing_generated
+                report["gap_scenarios_existing"] = existing_generated
         except Exception:
             pass
 
@@ -1626,6 +1688,10 @@ class BGLGuardian:
         action_route_seen: set[str] = set()
         events_seen: set[str] = set()
         session_routes: Dict[str, List[str]] = {}
+        flow_gap_hits: Dict[str, int] = {}
+        flow_gap_total = 0
+        flow_gap_changed = 0
+        flow_gap_last_ts = 0.0
         event_count = 0
         try:
             conn = sqlite3.connect(str(self.db_path))
@@ -1665,12 +1731,44 @@ class BGLGuardian:
                     events_seen.add(ev)
                 if norm and str(r["event_type"] or "") in action_event_types:
                     action_route_seen.add(norm)
+            # Flow gap scenario evidence (explicit link between flow gaps and coverage)
+            try:
+                rows_gap = cur.execute(
+                    "SELECT timestamp, payload FROM runtime_events WHERE event_type='gap_scenario_done' AND timestamp >= ?",
+                    (cutoff,),
+                ).fetchall()
+                for ts, payload in rows_gap:
+                    try:
+                        obj = json.loads(payload) if isinstance(payload, str) else (payload or {})
+                    except Exception:
+                        obj = {"raw": str(payload)}
+                    origin = str(obj.get("origin") or (obj.get("meta") or {}).get("origin") or "")
+                    if origin != "flow_gap":
+                        continue
+                    flow_name = str(obj.get("flow") or (obj.get("meta") or {}).get("flow") or "")
+                    if flow_name:
+                        flow_gap_hits[flow_name] = flow_gap_hits.get(flow_name, 0) + 1
+                    flow_gap_total += 1
+                    if bool(obj.get("changed")):
+                        flow_gap_changed += 1
+                    try:
+                        flow_gap_last_ts = max(flow_gap_last_ts, float(ts or 0))
+                    except Exception:
+                        pass
+            except Exception:
+                flow_gap_hits = {}
+                flow_gap_total = 0
+                flow_gap_changed = 0
+                flow_gap_last_ts = 0.0
             conn.close()
         except Exception:
             route_seen = set()
             action_route_seen = set()
             events_seen = set()
             session_routes = {}
+            flow_gap_hits = {}
+            flow_gap_total = 0
+            flow_gap_last_ts = 0.0
 
         covered = 0
         seq_covered = 0
@@ -1693,6 +1791,9 @@ class BGLGuardian:
                     status = "covered"
             if status == "covered":
                 covered += 1
+            gap_runs = int(flow_gap_hits.get(flow.get("title") or "", 0) or 0)
+            if gap_runs and status == "uncovered":
+                status = "partial"
             missing_steps = [e for e in endpoints if e not in action_route_seen]
             sequence_covered = False
             sequence_session = ""
@@ -1718,6 +1819,7 @@ class BGLGuardian:
                     "steps_sample": (flow.get("steps") or [])[:5],
                     "sequence_covered": sequence_covered,
                     "sequence_session": sequence_session,
+                    "gap_runs": gap_runs,
                 }
             )
 
@@ -1734,7 +1836,7 @@ class BGLGuardian:
             )
         except Exception:
             min_events = 10
-        reliable = event_count >= min_events
+        reliable = event_count >= min_events or flow_gap_total > 0
         reason = "" if reliable else "low_runtime_events"
         return {
             "window_days": days,
@@ -1746,6 +1848,9 @@ class BGLGuardian:
             "uncovered_sample": uncovered[:limit],
             "details": results,
             "events_total": event_count,
+            "gap_runs": flow_gap_total,
+            "gap_changed": flow_gap_changed,
+            "gap_last_ts": flow_gap_last_ts,
             "reliable": reliable,
             "reliability_reason": reason,
         }
@@ -1829,15 +1934,26 @@ class BGLGuardian:
 
             # Gap scenario execution stats (explicit link between gaps and coverage).
             try:
-                row_gap = cur.execute(
-                    "SELECT COUNT(*), MAX(timestamp) FROM runtime_events WHERE event_type='gap_scenario_done' AND timestamp >= ?",
+                gap_rows = cur.execute(
+                    "SELECT timestamp, payload FROM runtime_events WHERE event_type='gap_scenario_done' AND timestamp >= ?",
                     (cutoff,),
-                ).fetchone()
-                if row_gap:
-                    gap_runs = int(row_gap[0] or 0)
-                    gap_last_ts = float(row_gap[1] or 0)
+                ).fetchall()
+                gap_runs = len(gap_rows)
+                gap_changed = 0
+                for ts, payload in gap_rows:
+                    try:
+                        obj = json.loads(payload) if isinstance(payload, str) else (payload or {})
+                    except Exception:
+                        obj = {}
+                    if bool(obj.get("changed")):
+                        gap_changed += 1
+                    try:
+                        gap_last_ts = max(gap_last_ts, float(ts or 0))
+                    except Exception:
+                        pass
             except Exception:
                 gap_runs = 0
+                gap_changed = 0
                 gap_last_ts = 0.0
 
             # Sample uncovered routes for scenario generation
@@ -1892,6 +2008,7 @@ class BGLGuardian:
             "ui_snapshot_count": ui_snapshot_count,
             "semantic_change_count": semantic_change_count,
             "gap_runs": gap_runs,
+            "gap_changed": gap_changed,
             "gap_last_ts": gap_last_ts,
             "reliable": reliable,
             "reliability_reason": reason,
@@ -3065,7 +3182,25 @@ class BGLGuardian:
                 (limit,),
             ).fetchall()
             conn.close()
-            return [dict(r) for r in rows]
+            results: List[Dict[str, Any]] = []
+            for r in rows:
+                row = dict(r)
+                note = str(row.get("outcome_notes") or "")
+                fallback_ctx = None
+                if "ctx=" in note:
+                    try:
+                        ctx_part = note.split("ctx=", 1)[1]
+                        if " failure_class=" in ctx_part:
+                            ctx_part = ctx_part.split(" failure_class=", 1)[0]
+                        ctx_part = ctx_part.strip()
+                        if ctx_part.startswith("{") and ctx_part.endswith("}"):
+                            fallback_ctx = json.loads(ctx_part)
+                    except Exception:
+                        fallback_ctx = None
+                if fallback_ctx:
+                    row["fallback_ctx"] = fallback_ctx
+                results.append(row)
+            return results
         except Exception:
             return []
 

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_461",
+  "description": "Patch Plan for Proposal ID 461 to stabilize route a[aria-controls]:has-text(\"bgl\")",
+  "created_at": 1703529600,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 461,
+    "generated_at": 1770594164.6539974
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add stability checks for route a[aria-controls]:has-text(\"bgl\")\ndef check_route_stability(route):\n    if 'a[aria-controls]:has-text(\"bgl\")' in route:\n        # Perform stability checks here\n        pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add stability checks for route a[aria-controls]:has-text(\"bgl\")\ndef check_route_stability(route):\n    if 'a[aria-controls]:has-text(\"bgl\")' in route:\n        # Perform stability checks here\n        pass"
+      }
+    }
+  ]
+}

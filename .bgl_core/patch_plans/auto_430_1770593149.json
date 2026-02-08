@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "id": "430",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown #1770593034",
+  "created_at": 1689504000,
+  "metadata": {
+    "proposal_context": {
+      "id": 430,
+      "name": "تحسين تلقائي من خبرة: outcome:reasoning.plan:unknown #1770593034",
+      "description": "Outcome proposed for reasoning.plan (propose_fix/low) x17. Last note: reasoning_plan_logged failure_class=unknown",
+      "action": "investigate",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 8559, \"exp_hash\": \"1b6330eefe2330f6d56fc6cc4a730562e1f247d3\", \"scenario\": \"outcome:reasoning.plan:unknown\", \"summary\": \"Outcome proposed for reasoning.plan (propose_fix/low) x17. Last note: reasoning_plan_logged failure_class=unknown\", \"confidence\": 0.85, \"evidence_count\": 17, \"related_files\": \"reasoning.plan\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 430,
+    "generated_at": 1770593149.7371209
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Handle unknown reasoning plan outcome\nif outcome == 'unknown':\n    handle_unknown_reasoning_plan()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown reasoning plan outcome\nif outcome == 'unknown':\n    handle_unknown_reasoning_plan()\n"
+      }
+    }
+  ]
+}

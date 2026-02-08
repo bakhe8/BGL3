@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "274",
+  "description": "Route http://localhost:8000/index.php?search=audit: 8 events, 3 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770576267,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 274,
+    "generated_at": 1770576349.8794396
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n- audit_trail\n- PAT_DB_INDEX_MISSING",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- audit_trail\n- PAT_DB_INDEX_MISSING"
+      }
+    }
+  ]
+}

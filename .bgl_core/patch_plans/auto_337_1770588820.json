@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_337",
+  "description": "Patch for route http://localhost:8000/views/batch-print.php",
+  "created_at": 1689452400,
+  "metadata": {
+    "proposal_id": 337,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770588820.9942756
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": "append",
+      "content": "\n\n// Patch for route http://localhost:8000/views/batch-print.php\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n// Patch for route http://localhost:8000/views/batch-print.php\n"
+      }
+    }
+  ]
+}

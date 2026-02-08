@@ -70,6 +70,107 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
         return default
 
 
+def _root_from_db(db_path: Path) -> Path:
+    try:
+        return db_path.parent.parent.parent
+    except Exception:
+        return Path(".").resolve()
+
+
+def _load_code_contracts(root_dir: Path) -> Dict[str, Any]:
+    path = root_dir / "analysis" / "code_contracts.json"
+    if not path.exists():
+        try:
+            from .code_contracts import build_code_contracts  # type: ignore
+        except Exception:
+            try:
+                from code_contracts import build_code_contracts  # type: ignore
+            except Exception:
+                build_code_contracts = None  # type: ignore
+        if build_code_contracts:
+            try:
+                build_code_contracts(root_dir)
+            except Exception:
+                pass
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _normalize_path(path: str) -> str:
+    return str(path or "").replace("\\", "/").lstrip("./")
+
+
+def _matches_scope(file_path: str, scope: List[str]) -> bool:
+    if not scope:
+        return True
+    file_norm = _normalize_path(file_path)
+    for s in scope:
+        if not s:
+            continue
+        s_norm = _normalize_path(str(s))
+        if not s_norm:
+            continue
+        if file_norm.endswith(s_norm) or s_norm.endswith(file_norm) or file_norm == s_norm:
+            return True
+    return False
+
+
+def _collect_runtime_contract_hotspots(
+    root_dir: Path,
+    *,
+    change_scope: Optional[List[str]] = None,
+    min_events: int = 5,
+    error_rate_threshold: float = 0.3,
+    latency_ms_threshold: float = 2000,
+) -> Dict[str, Any]:
+    data = _load_code_contracts(root_dir)
+    contracts = data.get("contracts") or []
+    if not isinstance(contracts, list):
+        return {"hotspots": 0, "worst": []}
+    scope = change_scope or []
+    hotspots = []
+    for c in contracts:
+        if not isinstance(c, dict):
+            continue
+        runtime = c.get("runtime") or {}
+        if not runtime:
+            continue
+        try:
+            event_count = int(runtime.get("event_count") or 0)
+        except Exception:
+            event_count = 0
+        if event_count < min_events:
+            continue
+        try:
+            error_rate = float(runtime.get("error_rate") or 0.0)
+        except Exception:
+            error_rate = 0.0
+        try:
+            avg_latency = float(runtime.get("avg_latency_ms") or 0.0)
+        except Exception:
+            avg_latency = 0.0
+        last_error = str(runtime.get("last_error") or "").strip()
+        file_path = _normalize_path(str(c.get("file") or ""))
+        if scope and file_path and not _matches_scope(file_path, scope):
+            continue
+        if error_rate >= error_rate_threshold or avg_latency >= latency_ms_threshold or last_error:
+            target = str(c.get("route") or c.get("file") or "")
+            hotspots.append(
+                {
+                    "target": target,
+                    "file": file_path,
+                    "error_rate": round(error_rate, 3),
+                    "avg_latency_ms": round(avg_latency, 2),
+                    "last_error": last_error[:120],
+                    "event_count": event_count,
+                }
+            )
+    hotspots = sorted(hotspots, key=lambda x: (x["error_rate"], x["avg_latency_ms"]), reverse=True)
+    return {"hotspots": len(hotspots), "worst": hotspots[:6]}
+
+
 def _collect_route_health(conn: sqlite3.Connection, days: int = 7) -> Dict[str, Any]:
     try:
         cutoff = time.time() - (days * 86400)
@@ -242,6 +343,16 @@ def _should_rollback(
                 return True, reason
     except Exception:
         pass
+    # Runtime contract hotspots: fail fast if changed scope shows high error/latency.
+    try:
+        if failure_signal:
+            rc = failure_signal.get("runtime_contracts") or {}
+            hotspots = int(rc.get("hotspots") or 0)
+            threshold = int(failure_signal.get("runtime_contracts_threshold") or 2)
+            if hotspots >= max(1, threshold):
+                return True, "runtime_contract_hotspots"
+    except Exception:
+        pass
     # External dependency guardrail: DB/network outages should block promotion/trigger rollback.
     try:
         ext = (failure_signal or {}).get("external_dependency") or {}
@@ -329,6 +440,18 @@ def evaluate_canary_releases(
     evaluated = 0
     rollbacks = 0
     promoted = 0
+    root_from_db = _root_from_db(db_path)
+    runtime_contract_enabled = True
+    try:
+        flag = os.getenv("BGL_CANARY_RUNTIME_CONTRACTS")
+        if flag is not None:
+            runtime_contract_enabled = str(flag).strip() in ("1", "true", "yes", "on")
+    except Exception:
+        runtime_contract_enabled = True
+    try:
+        runtime_contract_hotspots_thr = int(os.getenv("BGL_CANARY_RUNTIME_HOTSPOTS", "2") or "2")
+    except Exception:
+        runtime_contract_hotspots_thr = 2
     for row in rows:
         created_at = _safe_float(row["created_at"], now)
         # Respect minimum age for first evaluation
@@ -345,6 +468,27 @@ def evaluate_canary_releases(
         except Exception:
             baseline = {}
         current = _collect_metrics(db_path)
+        change_scope = []
+        try:
+            change_scope = json.loads(row["change_scope_json"] or "[]")
+            if not isinstance(change_scope, list):
+                change_scope = []
+        except Exception:
+            change_scope = []
+        runtime_contracts = {}
+        if runtime_contract_enabled:
+            try:
+                runtime_contracts = _collect_runtime_contract_hotspots(
+                    root_from_db,
+                    change_scope=change_scope,
+                    min_events=5,
+                    error_rate_threshold=0.3,
+                    latency_ms_threshold=2000,
+                )
+            except Exception:
+                runtime_contracts = {}
+            if runtime_contracts:
+                current["runtime_contracts"] = runtime_contracts
         failure_signal = {}
         try:
             from .failure_classifier import summarize_failure_taxonomy  # type: ignore
@@ -370,6 +514,14 @@ def evaluate_canary_releases(
                 if isinstance(failure_signal, dict):
                     failure_signal = dict(failure_signal)
                     failure_signal["external_dependency"] = external_dependency
+            except Exception:
+                pass
+        if runtime_contracts:
+            try:
+                if isinstance(failure_signal, dict):
+                    failure_signal = dict(failure_signal)
+                    failure_signal["runtime_contracts"] = runtime_contracts
+                    failure_signal["runtime_contracts_threshold"] = runtime_contract_hotspots_thr
             except Exception:
                 pass
         should_rb, reason = _should_rollback(baseline, current, failure_signal)

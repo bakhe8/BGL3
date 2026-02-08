@@ -32,6 +32,7 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     purpose_hint = None
     signals_hint = None
     ui_semantic_hint = None
+    code_intent_hint = None
     try:
         reasoning_hint = (diagnostic.get("findings") or {}).get("reasoning_hint")
         if not isinstance(reasoning_hint, dict) or not reasoning_hint.get("intent"):
@@ -137,6 +138,40 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
                 }
     except Exception:
         hypothesis_hint = None
+    try:
+        code_intent = (diagnostic.get("findings") or {}).get("code_intent_signals") or {}
+        suggested = str(code_intent.get("suggested_intent") or "").strip().lower()
+        intent_counts = code_intent.get("intent_counts") or {}
+        top_intents = code_intent.get("top_intents") or []
+        top_tokens = code_intent.get("top_tokens") or []
+        if suggested:
+            try:
+                count = int(intent_counts.get(suggested, 0) or 0)
+            except Exception:
+                count = 0
+            confidence = min(0.75, 0.5 + min(0.25, count * 0.02))
+            code_intent_hint = {
+                "intent": suggested,
+                "confidence": confidence,
+                "reason": f"code_intent:{suggested}:{count}",
+                "scope": [str(t) for t in top_tokens[:8]],
+            }
+        elif top_intents and isinstance(top_intents, list):
+            top = top_intents[0] if top_intents else None
+            if isinstance(top, dict) and top.get("intent"):
+                try:
+                    count = int(top.get("count") or 0)
+                except Exception:
+                    count = 0
+                confidence = min(0.7, 0.5 + min(0.2, count * 0.02))
+                code_intent_hint = {
+                    "intent": str(top.get("intent") or "").strip().lower(),
+                    "confidence": confidence,
+                    "reason": f"code_intent:top:{count}",
+                    "scope": [str(t) for t in top_tokens[:8]],
+                }
+    except Exception:
+        code_intent_hint = None
     # Weighted selection when LLM is not available
     try:
         self_policy = (diagnostic.get("findings") or {}).get("self_policy") or {}
@@ -169,6 +204,8 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         sh = dict(signals_hint); sh["_hint_key"] = "signals"; candidates.append(sh)
     if ui_semantic_hint:
         uh = dict(ui_semantic_hint); uh["_hint_key"] = "ui_semantic"; candidates.append(uh)
+    if code_intent_hint:
+        ch = dict(code_intent_hint); ch["_hint_key"] = "code_intent"; candidates.append(ch)
 
     if candidates:
         candidates.sort(key=_score, reverse=True)

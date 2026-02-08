@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_414",
+  "description": "Stabilize route http://localhost:8000/api/settings.php",
+  "created_at": 1770592645,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 414,
+    "generated_at": 1770592665.2071638
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": null,
+      "content": "def index_routes(app):\n    app.add_url_rule('/api/settings', 'settings_api', settings_api)\n\n@app.route('/api/settings', methods=['GET'])\ndef settings_api():\n    return {'message': 'Settings API endpoint'}",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def index_routes(app):\n    app.add_url_rule('/api/settings', 'settings_api', settings_api)\n\n@app.route('/api/settings', methods=['GET'])\ndef settings_api():\n    return {'message': 'Settings API endpoint'}"
+      }
+    }
+  ]
+}

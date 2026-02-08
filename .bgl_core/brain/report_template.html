@@ -226,6 +226,14 @@
     {% else %}
       <p class="ok">No gap scenarios generated.</p>
     {% endif %}
+    {% if gap_scenarios_existing %}
+      <p>Existing generated scenarios: {{ gap_scenarios_existing|length }}</p>
+      <ul>
+        {% for s in gap_scenarios_existing %}
+          <li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
   </div>
 
   <div class="section">
@@ -389,7 +397,7 @@
     <h2>Recent Outcomes</h2>
     {% if recent_outcomes %}
       <table>
-        <tr><th>Outcome</th><th>Result</th><th>Intent</th><th>Decision</th><th>Notes</th></tr>
+        <tr><th>Outcome</th><th>Result</th><th>Intent</th><th>Decision</th><th>Notes</th><th>Fallback Context</th></tr>
         {% for o in recent_outcomes %}
           <tr>
             <td>{{ o.outcome_id }}</td>
@@ -397,6 +405,7 @@
             <td><code>{{ o.intent_value }}</code></td>
             <td>{{ o.decision_value }}{% if o.risk_level %} ({{ o.risk_level }}){% endif %}</td>
             <td>{{ o.outcome_notes }}</td>
+            <td>{% if o.fallback_ctx %}{{ o.fallback_ctx | tojson }}{% endif %}</td>
           </tr>
         {% endfor %}
       </table>
@@ -460,6 +469,9 @@
       <p>Window: {{ scenario_coverage.window_days|default(0) }} days</p>
       <p>Routes covered: {{ scenario_coverage.covered_routes|default(0) }} / {{ scenario_coverage.total_routes|default(0) }} ({{ scenario_coverage.coverage_ratio|default(0) }}%)</p>
       <p>UI snapshot paths: {{ scenario_coverage.ui_snapshot_paths|default(0) }} ({{ scenario_coverage.ui_coverage_ratio|default(0) }}%)</p>
+      {% if scenario_coverage.gap_runs is not none %}
+        <p>Gap scenarios run: {{ scenario_coverage.gap_runs|default(0) }}{% if scenario_coverage.gap_changed is not none %} (changed {{ scenario_coverage.gap_changed|default(0) }}){% endif %}</p>
+      {% endif %}
       {% if scenario_coverage.uncovered_sample %}
         <p class="warn">Uncovered sample:</p>
         <ul>
@@ -504,6 +516,9 @@
       <p>Window: {{ flow_coverage.window_days|default(0) }} days</p>
       <p>Flows covered: {{ flow_coverage.covered_flows|default(0) }} / {{ flow_coverage.total_flows|default(0) }} ({{ flow_coverage.coverage_ratio|default(0) }}%)</p>
       <p>Flow sequences covered: {{ flow_coverage.sequence_covered_flows|default(0) }} ({{ flow_coverage.sequence_coverage_ratio|default(0) }}%)</p>
+      {% if flow_coverage.gap_runs is not none %}
+        <p>Flow gap runs: {{ flow_coverage.gap_runs|default(0) }}{% if flow_coverage.gap_changed is not none %} (changed {{ flow_coverage.gap_changed|default(0) }}){% endif %}</p>
+      {% endif %}
       {% if flow_coverage.uncovered_sample %}
         <p class="warn">Uncovered flows:</p>
         <ul>
@@ -602,6 +617,24 @@
       {% endif %}
     {% else %}
       <p class="warn">No self policy recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Fallback Rules (Signals)</h2>
+    {% if fallback_rules_summary %}
+      {% if fallback_rules_summary.total is not none %}
+        <p><strong>Total rules:</strong> {{ fallback_rules_summary.total }}</p>
+      {% endif %}
+      {% if fallback_rules_summary.by_source %}
+        <p><strong>By source:</strong> {{ fallback_rules_summary.by_source | tojson }}</p>
+      {% endif %}
+      {% if fallback_rules_summary.code_intent_samples %}
+        <p><strong>Code intent samples:</strong></p>
+        <pre>{{ fallback_rules_summary.code_intent_samples | tojson(indent=2) }}</pre>
+      {% endif %}
+    {% else %}
+      <p class="warn">No fallback rule summary available.</p>
     {% endif %}
   </div>
 

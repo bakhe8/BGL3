@@ -1,0 +1,61 @@
+{
+  "version": 1,
+  "id": "patch_plan_184",
+  "description": "Stabilize route http://localhost:8000/",
+  "created_at": 1770554635,
+  "metadata": {
+    "experience_id": 7900,
+    "exp_hash": "d57c0ba11f6f233f965fd5e5aff596cf72892403",
+    "scenario": "http://localhost:8000/",
+    "confidence": 0.85,
+    "evidence_count": 43,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 184,
+    "generated_at": 1770554652.5007906
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for bank deletion API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for bank deletion API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for supplier deletion API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for supplier deletion API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for extend API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for extend API"
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "216",
+  "description": "Route http://localhost:8000/index.php?search=batch: 5 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1704832800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 216,
+    "generated_at": 1770562031.2818053
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: gap_route_views_index_php\n    steps:\n      - action: render_template\n        template: views/batch-detail.php\n        context:\n          batch_id: '{{ request.query.search }}'\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: gap_route_views_index_php\n    steps:\n      - action: render_template\n        template: views/batch-detail.php\n        context:\n          batch_id: '{{ request.query.search }}'\n"
+      }
+    }
+  ]
+}

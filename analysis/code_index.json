@@ -1,0 +1,5106 @@
+{
+  "meta": {
+    "started_at": 1770594799.1922903,
+    "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
+    "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
+    "ok": true
+  },
+  "routes": [
+    {
+      "uri": "/",
+      "http_method": "GET",
+      "controller": "Learning\\AuthorityFactory",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\index.php"
+    },
+    {
+      "uri": "/api/batches.php",
+      "http_method": "ANY",
+      "controller": "BatchService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\batches.php"
+    },
+    {
+      "uri": "/api/convert-to-real.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php"
+    },
+    {
+      "uri": "/api/create-bank.php",
+      "http_method": "ANY",
+      "controller": "BankManagementService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-bank.php"
+    },
+    {
+      "uri": "/api/create-guarantee.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-guarantee.php"
+    },
+    {
+      "uri": "/api/create-supplier.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-supplier.php"
+    },
+    {
+      "uri": "/api/delete_bank.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_bank.php"
+    },
+    {
+      "uri": "/api/delete_supplier.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_supplier.php"
+    },
+    {
+      "uri": "/api/export_banks.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_banks.php"
+    },
+    {
+      "uri": "/api/export_suppliers.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_suppliers.php"
+    },
+    {
+      "uri": "/api/extend.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeDecisionRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\extend.php"
+    },
+    {
+      "uri": "/api/get-current-state.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-current-state.php"
+    },
+    {
+      "uri": "/api/get-history-snapshot.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-history-snapshot.php"
+    },
+    {
+      "uri": "/api/get-letter-preview.php",
+      "http_method": "ANY",
+      "controller": "LetterBuilder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-letter-preview.php"
+    },
+    {
+      "uri": "/api/get-record.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-record.php"
+    },
+    {
+      "uri": "/api/get-timeline.php",
+      "http_method": "ANY",
+      "controller": "TimelineRecorder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-timeline.php"
+    },
+    {
+      "uri": "/api/get_banks.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_banks.php"
+    },
+    {
+      "uri": "/api/get_suppliers.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_suppliers.php"
+    },
+    {
+      "uri": "/api/history.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeHistoryRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\history.php"
+    },
+    {
+      "uri": "/api/import.php",
+      "http_method": "ANY",
+      "controller": "ImportService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import.php"
+    },
+    {
+      "uri": "/api/import_banks.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_banks.php"
+    },
+    {
+      "uri": "/api/import_suppliers.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_suppliers.php"
+    },
+    {
+      "uri": "/api/learning-action.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-action.php"
+    },
+    {
+      "uri": "/api/learning-data.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-data.php"
+    },
+    {
+      "uri": "/api/manual-entry.php",
+      "http_method": "ANY",
+      "controller": "ImportService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\manual-entry.php"
+    },
+    {
+      "uri": "/api/parse-paste-v2.php",
+      "http_method": "ANY",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste-v2.php"
+    },
+    {
+      "uri": "/api/parse-paste.php",
+      "http_method": "ANY",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste.php"
+    },
+    {
+      "uri": "/api/reduce.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeDecisionRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\reduce.php"
+    },
+    {
+      "uri": "/api/release.php",
+      "http_method": "ANY",
+      "controller": "LetterBuilder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\release.php"
+    },
+    {
+      "uri": "/api/save-and-next.php",
+      "http_method": "ANY",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-and-next.php"
+    },
+    {
+      "uri": "/api/save-note.php",
+      "http_method": "ANY",
+      "controller": "NoteRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-note.php"
+    },
+    {
+      "uri": "/api/settings.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\settings.php"
+    },
+    {
+      "uri": "/api/smart-paste-confidence.php",
+      "http_method": "ANY",
+      "controller": "SmartPaste\\ConfidenceCalculator",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\smart-paste-confidence.php"
+    },
+    {
+      "uri": "/api/suggestions-learning.php",
+      "http_method": "ANY",
+      "controller": "Learning\\AuthorityFactory",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\suggestions-learning.php"
+    },
+    {
+      "uri": "/api/update_bank.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_bank.php"
+    },
+    {
+      "uri": "/api/update_supplier.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_supplier.php"
+    },
+    {
+      "uri": "/api/upload-attachment.php",
+      "http_method": "ANY",
+      "controller": "AttachmentRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\upload-attachment.php"
+    },
+    {
+      "uri": "/api/agent-event.php",
+      "http_method": "ANY",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\agent-event.php"
+    },
+    {
+      "uri": "/api/agent-event.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\agent-event.php"
+    },
+    {
+      "uri": "/api/batches.php",
+      "http_method": "GET",
+      "controller": "BatchService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\batches.php"
+    },
+    {
+      "uri": "/api/convert-to-real.php",
+      "http_method": "GET",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php"
+    },
+    {
+      "uri": "/api/create-bank.php",
+      "http_method": "POST",
+      "controller": "BankManagementService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-bank.php"
+    },
+    {
+      "uri": "/api/create-guarantee.php",
+      "http_method": "POST",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-guarantee.php"
+    },
+    {
+      "uri": "/api/create-supplier.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\create-supplier.php"
+    },
+    {
+      "uri": "/api/delete_bank.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_bank.php"
+    },
+    {
+      "uri": "/api/delete_supplier.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\delete_supplier.php"
+    },
+    {
+      "uri": "/api/export_banks.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_banks.php"
+    },
+    {
+      "uri": "/api/export_suppliers.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_suppliers.php"
+    },
+    {
+      "uri": "/api/extend.php",
+      "http_method": "POST",
+      "controller": "GuaranteeDecisionRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\extend.php"
+    },
+    {
+      "uri": "/api/get-current-state.php",
+      "http_method": "GET",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-current-state.php"
+    },
+    {
+      "uri": "/api/get-history-snapshot.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-history-snapshot.php"
+    },
+    {
+      "uri": "/api/get-letter-preview.php",
+      "http_method": "GET",
+      "controller": "LetterBuilder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-letter-preview.php"
+    },
+    {
+      "uri": "/api/get-record.php",
+      "http_method": "GET",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-record.php"
+    },
+    {
+      "uri": "/api/get-timeline.php",
+      "http_method": "GET",
+      "controller": "TimelineRecorder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-timeline.php"
+    },
+    {
+      "uri": "/api/get_banks.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_banks.php"
+    },
+    {
+      "uri": "/api/get_suppliers.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get_suppliers.php"
+    },
+    {
+      "uri": "/api/history.php",
+      "http_method": "GET",
+      "controller": "GuaranteeHistoryRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\history.php"
+    },
+    {
+      "uri": "/api/import.php",
+      "http_method": "POST",
+      "controller": "ImportService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import.php"
+    },
+    {
+      "uri": "/api/import_banks.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_banks.php"
+    },
+    {
+      "uri": "/api/import_suppliers.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\import_suppliers.php"
+    },
+    {
+      "uri": "/api/learning-action.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-action.php"
+    },
+    {
+      "uri": "/api/learning-data.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-data.php"
+    },
+    {
+      "uri": "/api/manual-entry.php",
+      "http_method": "GET",
+      "controller": "ImportService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\manual-entry.php"
+    },
+    {
+      "uri": "/api/parse-paste-v2.php",
+      "http_method": "GET",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste-v2.php"
+    },
+    {
+      "uri": "/api/parse-paste.php",
+      "http_method": "GET",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste.php"
+    },
+    {
+      "uri": "/api/reduce.php",
+      "http_method": "POST",
+      "controller": "GuaranteeDecisionRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\reduce.php"
+    },
+    {
+      "uri": "/api/release.php",
+      "http_method": "POST",
+      "controller": "LetterBuilder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\release.php"
+    },
+    {
+      "uri": "/api/save-and-next.php",
+      "http_method": "POST",
+      "controller": "DecisionService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-and-next.php"
+    },
+    {
+      "uri": "/api/save-note.php",
+      "http_method": "POST",
+      "controller": "NoteRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\save-note.php"
+    },
+    {
+      "uri": "/api/settings.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\settings.php"
+    },
+    {
+      "uri": "/api/smart-paste-confidence.php",
+      "http_method": "GET",
+      "controller": "SmartPaste\\ConfidenceCalculator",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\smart-paste-confidence.php"
+    },
+    {
+      "uri": "/api/suggestions-learning.php",
+      "http_method": "GET",
+      "controller": "Learning\\AuthorityFactory",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\suggestions-learning.php"
+    },
+    {
+      "uri": "/api/update_bank.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_bank.php"
+    },
+    {
+      "uri": "/api/update_supplier.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\update_supplier.php"
+    },
+    {
+      "uri": "/api/upload-attachment.php",
+      "http_method": "POST",
+      "controller": "AttachmentRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\upload-attachment.php"
+    },
+    {
+      "uri": "/api/agent-event.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\agent-event.php"
+    },
+    {
+      "uri": "/api/batches.php",
+      "http_method": "POST",
+      "controller": "BatchService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\batches.php"
+    },
+    {
+      "uri": "/api/convert-to-real.php",
+      "http_method": "POST",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\convert-to-real.php"
+    },
+    {
+      "uri": "/api/export_banks.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_banks.php"
+    },
+    {
+      "uri": "/api/export_suppliers.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\export_suppliers.php"
+    },
+    {
+      "uri": "/api/get-current-state.php",
+      "http_method": "POST",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\get-current-state.php"
+    },
+    {
+      "uri": "/api/history.php",
+      "http_method": "POST",
+      "controller": "GuaranteeHistoryRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\history.php"
+    },
+    {
+      "uri": "/api/learning-action.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-action.php"
+    },
+    {
+      "uri": "/api/learning-data.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\learning-data.php"
+    },
+    {
+      "uri": "/api/manual-entry.php",
+      "http_method": "POST",
+      "controller": "ImportService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\manual-entry.php"
+    },
+    {
+      "uri": "/api/parse-paste-v2.php",
+      "http_method": "POST",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste-v2.php"
+    },
+    {
+      "uri": "/api/parse-paste.php",
+      "http_method": "POST",
+      "controller": "ParseCoordinatorService",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\parse-paste.php"
+    },
+    {
+      "uri": "/api/settings.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\settings.php"
+    },
+    {
+      "uri": "/api/smart-paste-confidence.php",
+      "http_method": "POST",
+      "controller": "SmartPaste\\ConfidenceCalculator",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\api\\smart-paste-confidence.php"
+    },
+    {
+      "uri": "/views/batch-detail.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batch-detail.php"
+    },
+    {
+      "uri": "/views/batch-print.php",
+      "http_method": "GET",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batch-print.php"
+    },
+    {
+      "uri": "/views/batches.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\batches.php"
+    },
+    {
+      "uri": "/views/confidence-demo.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\confidence-demo.php"
+    },
+    {
+      "uri": "/views/index.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\index.php"
+    },
+    {
+      "uri": "/views/maintenance.php",
+      "http_method": "GET",
+      "controller": "GuaranteeRepository",
+      "action": "query",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\maintenance.php"
+    },
+    {
+      "uri": "/views/settings.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\settings.php"
+    },
+    {
+      "uri": "/views/statistics.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\statistics.php"
+    }
+  ],
+  "php": {
+    "agent-dashboard.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agent.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\bootstrap.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\layout.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\activity.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\agent_autonomy_state.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\agent_controls.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\autonomy_goals.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\blockers.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\canary_status.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\chat_helper.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\chat_live.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\command_center.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\copilot_chat.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\decision_impact.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\decisions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\domain_map.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\effective_config.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\events.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\experiences.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\external_checks.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\extra_widget.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\flows.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\gap_tests.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\hallucination_metrics.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\health.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\intents.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\js_inventory.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\knowledge_curation.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\kpis.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\learning_feedback.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\log_highlights.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\long_term_goals.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\monitoring_widgets.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\operator_goals.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\permission_queue.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\permissions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\plan_library.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\prod_operations.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\proposals_simple.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\proposed_playbooks_simple.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\quick_actions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\report_viewer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\route_updates.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\rules.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\simple_mode.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\snapshot_delta.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\summary.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\test_console.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\tool_evidence.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\topbar.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\vector_db_status.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "agentfrontend\\partials\\worst_routes.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\agent-event.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\batches.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\convert-to-real.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\create-bank.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\create-guarantee.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\create-supplier.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\delete_bank.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\delete_supplier.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\export_banks.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\export_suppliers.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\extend.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get-current-state.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get-history-snapshot.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get-letter-preview.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get-record.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get-timeline.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get_banks.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\get_suppliers.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\history.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\import.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\import_banks.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\import_suppliers.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\learning-action.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\learning-data.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\manual-entry.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\parse-paste-v2.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\parse-paste.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\reduce.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\release.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\save-and-next.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\save-note.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\settings.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\smart-paste-confidence.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\suggestions-learning.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\update_bank.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\update_supplier.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "api\\upload-attachment.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Contracts\\SignalFeederInterface.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\DTO\\SignalDTO.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\DTO\\SuggestionDTO.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Http\\Requests\\BaseApiRequest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Http\\Requests\\CreateBankRequest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Http\\Requests\\CreateSupplierRequest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\AuditLog.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\Bank.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\Guarantee.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\GuaranteeDecision.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\ImportSession.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\ImportedRecord.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\LearningLog.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\Supplier.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\SupplierAlternativeName.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Models\\TrustDecision.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\AttachmentRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\BankRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\BatchMetadataRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\GuaranteeDecisionRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\GuaranteeHistoryRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\GuaranteeRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\ImportedRecordRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\LearningRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\NoteRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\SupplierAlternativeNameRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\SupplierLearningRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\SupplierOverrideRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Repositories\\SupplierRepository.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\AuthManagerAgentService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\AutoAcceptService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\BankManagementService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\BatchService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\ConflictDetector.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\DecisionService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\ExcelColumnDetector.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\FieldExtractionService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\GuaranteeDataService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\ImportService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\AuthorityFactory.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\ConfidenceCalculatorV2.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\Feeders\\AliasSignalFeeder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\Feeders\\AnchorSignalFeeder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\Feeders\\FuzzySignalFeeder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\Feeders\\HistoricalSignalFeeder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\Feeders\\LearningSignalFeeder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\SuggestionFormatter.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Learning\\UnifiedLearningAuthority.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\LetterBuilder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\MatchEngine.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\NavigationService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\ParseCoordinatorService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\PreviewFormatter.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\RecordHydratorService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\SafetyTestService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\SmartPaste\\ConfidenceCalculator.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\SmartProcessingService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\StatsService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\StatusEvaluator.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Suggestions\\ArabicEntityAnchorExtractor.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Suggestions\\ArabicEntityExtractor.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Suggestions\\ArabicLevelBSuggestions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Suggestions\\ConfidenceCalculator.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\Suggestions\\LearningSuggestionService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\SupplierCandidateService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\SupplierManagementService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\TableDetectionService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\TimelineDisplayService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\TimelineRecorder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Services\\ValidationService.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Alert.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\ArabicNormalizer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\BankNormalizer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Config.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Database.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\DateTime.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Input.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Logger.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Normalizer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\QuickTrace.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\RateLimiter.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\ScoringConfig.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Settings.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\SimilarityCalculator.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\SimpleXlsxReader.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\TracedPDO.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\TracedStatement.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\TypeNormalizer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\Validation.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\autoload.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\Support\\mb_levenshtein.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "app\\TestViolation.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "debug_kpi.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "index.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\confirm-modal.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\excel-import-modal.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\historical-banner.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\letter-renderer.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\manual-entry-modal.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\paste-modal.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\preview-placeholder.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\record-form.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\suggestions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\supplier-suggestions.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\timeline-section.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "partials\\unified-header.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "server.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "templates\\letter-template.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Flows\\GuaranteeCreateFlowTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\AlertsTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\AuditTrailTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\BackupExportTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\CachingTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\CriticalFlowTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\DataValidationTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\GuaranteeFlowValidationTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\ImportFlowSmokeTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\ImportSafetyTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\JsSmokeTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\ModelIntegrityTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\RateLimitTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Gap\\SettingsUxTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Unit\\AuthManagerTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Unit\\RenameAliasTraitTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Unit\\RenamePipelinePlaybookTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Unit\\SafetyTestServiceTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\Unit\\ScoringConfigTest.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tests\\verify_trace.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "tmp_runner.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\batch-detail.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\batch-print.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\batches.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\confidence-demo.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\index.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\maintenance.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\settings.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    },
+    "views\\statistics.php": {
+      "classes": {},
+      "functions": [
+        "main"
+      ]
+    }
+  },
+  "python": {
+    ".bgl_core\\brain\\agency_core.py": {
+      "functions": [],
+      "classes": {
+        "AgencyCore": [
+          "__init__",
+          "__new__",
+          "_auto_context_digest",
+          "_auto_generate_patch_plans",
+          "_auto_patch_error_experiences",
+          "_auto_propose_coverage_gaps",
+          "_auto_propose_ui_action_gaps",
+          "_auto_run_checks",
+          "_execution_stats",
+          "_summarize_code_intent_signals",
+          "_summarize_code_temporal_signals",
+          "_sync_playbooks_from_proposals",
+          "_write_autonomy_goal",
+          "commit_proposed_rule",
+          "get_active_blockers",
+          "is_permission_granted",
+          "log_activity",
+          "log_trace",
+          "request_permission",
+          "run_full_diagnostic",
+          "solve_blocker"
+        ]
+      },
+      "imports": [
+        "agent_verify",
+        "authority",
+        "autonomous_policy",
+        "brain_types",
+        "browser_sensor",
+        "canary_release",
+        "code_contracts",
+        "code_intel",
+        "config_loader",
+        "decision_db",
+        "decision_engine",
+        "failure_classifier",
+        "fault_locator",
+        "fingerprint",
+        "generate_playbooks",
+        "guardian",
+        "hashlib",
+        "hypothesis",
+        "inference",
+        "intent_resolver",
+        "interpretation",
+        "json",
+        "knowledge_curation",
+        "learning_core",
+        "learning_feedback",
+        "long_term_goals",
+        "metrics_enrichment",
+        "observations",
+        "os",
+        "outcome_signals",
+        "pathlib",
+        "playbook_loader",
+        "re",
+        "safety",
+        "schema_check",
+        "self_policy",
+        "self_rules",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
+        "typing",
+        "volition",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\agent_tasks.py": {
+      "functions": [
+        "simulate_agent_task"
+      ],
+      "classes": {},
+      "imports": [
+        "authority",
+        "brain_types",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "sys",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\agent_verify.py": {
+      "functions": [
+        "run_all_checks"
+      ],
+      "classes": {},
+      "imports": [
+        "importlib",
+        "json",
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\apply_db_fixes.py": {
+      "functions": [
+        "main",
+        "run_sqlite"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "authority",
+        "brain_types",
+        "pathlib",
+        "sqlite3"
+      ]
+    },
+    ".bgl_core\\brain\\apply_proposal.py": {
+      "functions": [
+        "_candidate_plan_from_payload",
+        "_cfg_flag",
+        "_cfg_number",
+        "_cfg_str",
+        "_ensure_learning_events",
+        "_ensure_proposal_links",
+        "_extract_plan_from_text",
+        "_git_status_lines",
+        "_link_proposal_outcome",
+        "_lint_files",
+        "_load_cfg",
+        "_log_change_summary",
+        "_log_learning_event",
+        "_parse_status",
+        "_post_apply_evaluate",
+        "_resolve_plan_from_proposal",
+        "_run_phpunit_tests",
+        "_try_parse_json",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "agent_verify",
+        "argparse",
+        "authority",
+        "brain_types",
+        "canary_release",
+        "config_loader",
+        "hashlib",
+        "json",
+        "os",
+        "patch_plan",
+        "pathlib",
+        "plan_generator",
+        "sandbox",
+        "shutil",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "test_gate",
+        "time",
+        "typing",
+        "write_engine"
+      ]
+    },
+    ".bgl_core\\brain\\approve_playbook.py": {
+      "functions": [
+        "append_rule",
+        "approve"
+      ],
+      "classes": {},
+      "imports": [
+        "authority",
+        "brain_types",
+        "datetime",
+        "pathlib",
+        "shutil",
+        "sys",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\authority.py": {
+      "functions": [
+        "_compact_fallback_context",
+        "_ensure_agent_permissions_table",
+        "_normalize_scope",
+        "_safe_json"
+      ],
+      "classes": {
+        "Authority": [
+          "__init__",
+          "_approvals_enabled",
+          "_autonomous_enabled",
+          "_cache_get",
+          "_cache_key",
+          "_cache_set",
+          "_eligible_for_direct",
+          "_fallback_guard",
+          "_load_runtime_contracts",
+          "_log_decision",
+          "_log_prod_operation",
+          "_normalize_path",
+          "_normalize_route",
+          "_runtime_hint",
+          "_scope_requires_human",
+          "dedupe_permissions",
+          "effective_execution_mode",
+          "gate",
+          "has_permission",
+          "is_permission_granted",
+          "permission_status",
+          "record_outcome",
+          "request_permission",
+          "validate_gating_matrix"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "brain_types",
+        "code_contracts",
+        "config_loader",
+        "decision_db",
+        "decision_engine",
+        "failure_classifier",
+        "json",
+        "observations",
+        "os",
+        "pathlib",
+        "self_policy",
+        "sqlite3",
+        "time",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\autonomous_policy.py": {
+      "functions": [
+        "_apply_patch",
+        "_candidate_to_rule",
+        "_fallback_patch",
+        "_infer_status_from_error",
+        "_load_rules",
+        "_rule_key",
+        "_save_rules",
+        "apply_autonomous_policy_edit"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "config_loader",
+        "json",
+        "llm_client",
+        "os",
+        "pathlib",
+        "re",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\auto_insights.py": {
+      "functions": [
+        "_extract_meta",
+        "_hash_file",
+        "audit_auto_insights",
+        "should_include_insight",
+        "write_auto_insights_status"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\behavior_learning.py": {
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "get_behavior_hints",
+        "mark_hint_result",
+        "record_behavior_hint"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "memory_index",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\brain_rules.py": {
+      "functions": [],
+      "classes": {
+        "RuleRegistry": [
+          "get_core_rules",
+          "get_rules",
+          "overridable_rule_names",
+          "protected_rule_names"
+        ],
+        "RuleEngine": [
+          "__init__",
+          "_apply_action",
+          "_check_is_arabic",
+          "evaluate"
+        ]
+      },
+      "imports": [
+        "brain_types",
+        "pathlib",
+        "re",
+        "self_rules",
+        "sys",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\brain_types.py": {
+      "functions": [],
+      "classes": {
+        "Intent": [],
+        "HealthScore": [],
+        "Context": [],
+        "OperationalMode": [],
+        "CognitiveState": [],
+        "Rule": [],
+        "ActionKind": [],
+        "ActionRequest": [],
+        "GateResult": []
+      },
+      "imports": [
+        "dataclasses",
+        "enum",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\browser_core.py": {
+      "functions": [],
+      "classes": {
+        "BrowserCore": [
+          "navigate"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "browser_sensor",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\browser_manager.py": {
+      "functions": [],
+      "classes": {
+        "BrowserManager": [
+          "__init__",
+          "_cleanup_idle_pages",
+          "_ensure_browser",
+          "_install_filechooser_guard",
+          "close",
+          "get_page",
+          "new_page",
+          "status"
+        ]
+      },
+      "imports": [
+        "asyncio",
+        "os",
+        "pathlib",
+        "playwright.async_api",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\browser_sensor.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {
+        "BrowserSensor": [
+          "__init__",
+          "_ensure_browser",
+          "_should_store_semantic",
+          "_write_status",
+          "close",
+          "scan_url"
+        ]
+      },
+      "imports": [
+        "asyncio",
+        "json",
+        "observations",
+        "os",
+        "pathlib",
+        "perception",
+        "playwright.async_api",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\callgraph_builder.py": {
+      "functions": [
+        "_get_dependencies",
+        "_get_entity_method_id",
+        "_guess_layer",
+        "build_callgraph"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\canary_release.py": {
+      "functions": [
+        "_collect_metrics",
+        "_collect_outcomes",
+        "_collect_route_health",
+        "_collect_runtime_contract_hotspots",
+        "_collect_runtime_errors",
+        "_connect",
+        "_ensure_tables",
+        "_load_code_contracts",
+        "_matches_scope",
+        "_normalize_path",
+        "_root_from_db",
+        "_safe_float",
+        "_safe_json",
+        "_should_rollback",
+        "evaluate_canary_releases",
+        "register_canary_release",
+        "rollback_release",
+        "summarize_canary_status"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "code_contracts",
+        "failure_classifier",
+        "json",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\check_mouse_layer.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "re",
+        "sys"
+      ]
+    },
+    ".bgl_core\\brain\\code_contracts.py": {
+      "functions": [
+        "_confidence_score",
+        "_derive_issue_questions",
+        "_extract_comment_hints",
+        "_extract_comment_tags",
+        "_extract_js_function_contracts",
+        "_extract_php_inputs",
+        "_extract_php_outputs",
+        "_extract_python_function_contracts",
+        "_extract_test_refs",
+        "_index_scenarios",
+        "_index_tests",
+        "_infer_intent_keywords",
+        "_load_callgraph",
+        "_load_experience_stats",
+        "_load_json",
+        "_load_log_hints",
+        "_load_runtime_stats",
+        "_load_yaml",
+        "_match_scenarios_for_route",
+        "_match_tests_for_file",
+        "_match_tests_for_module",
+        "_match_tests_for_route",
+        "_normalize_route",
+        "_read_log_tail",
+        "_read_php_file",
+        "_resolve_route_file",
+        "_risk_tier",
+        "_split_identifier",
+        "_temporal_profile_python_module",
+        "_temporal_profile_text",
+        "_test_token_candidates",
+        "_tests_for_intent",
+        "_tests_meta",
+        "_tests_signals",
+        "_token_overlap",
+        "_tokenize_route",
+        "_tokens_from_identifiers",
+        "build_code_contracts"
+      ],
+      "classes": {
+        "FuncVisitor": [
+          "__init__",
+          "_record",
+          "visit_AsyncFunctionDef",
+          "visit_ClassDef",
+          "visit_FunctionDef"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "ast",
+        "callgraph_builder",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "time",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\code_intel.py": {
+      "functions": [
+        "_attach_parents",
+        "_collect_routes",
+        "_list_files",
+        "_risk_tier",
+        "_scan_js",
+        "_scan_js_file",
+        "_scan_php_from_db",
+        "_scan_python",
+        "_scan_python_tree",
+        "build_code_intel"
+      ],
+      "classes": {},
+      "imports": [
+        "ast",
+        "indexer",
+        "json",
+        "memory_index",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\commit_rule.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "agency_core",
+        "pathlib",
+        "sqlite3",
+        "sys"
+      ]
+    },
+    ".bgl_core\\brain\\config_loader.py": {
+      "functions": [
+        "_deep_merge",
+        "_flatten_config",
+        "_get_path",
+        "_has_path",
+        "load_config",
+        "load_effective_config"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "os",
+        "pathlib",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\context_digest.py": {
+      "functions": [
+        "_bucket_count",
+        "_bucket_latency",
+        "_bucket_rate",
+        "_cfg_flag",
+        "_cfg_number",
+        "_ensure_experience_actions",
+        "_ensure_experience_columns",
+        "_ensure_experience_links",
+        "_exp_hash",
+        "_extract_failure_class",
+        "_load_code_contracts",
+        "_log_runtime_event",
+        "_normalize_scope",
+        "_row_context",
+        "_safe_json",
+        "_snapshot_context",
+        "_value_score",
+        "auto_apply_proposals",
+        "auto_promote_experiences",
+        "fetch_events",
+        "fetch_outcomes",
+        "fetch_prod_ops",
+        "load_route_map",
+        "main",
+        "summarize",
+        "summarize_log_highlights",
+        "summarize_outcomes",
+        "summarize_prod_ops",
+        "summarize_runtime_contracts",
+        "upsert_experiences"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "code_contracts",
+        "config_loader",
+        "embeddings",
+        "hashlib",
+        "json",
+        "math",
+        "memory_index",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\context_extractor.py": {
+      "functions": [
+        "_read_snippet",
+        "extract"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "sys",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\contract_seeder.py": {
+      "functions": [
+        "_ensure_method",
+        "_example_is_placeholder",
+        "_extract_get_params",
+        "_extract_post_fields",
+        "_guess_value",
+        "_load_yaml",
+        "_param_example_is_placeholder",
+        "_post_only",
+        "seed_contract"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "os",
+        "pathlib",
+        "re",
+        "time",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\contract_tests.py": {
+      "functions": [
+        "run_contract_suite"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "subprocess",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\decision_db.py": {
+      "functions": [
+        "_connect",
+        "_ensure_outcome_columns",
+        "init_db",
+        "insert_decision",
+        "insert_intent",
+        "insert_outcome"
+      ],
+      "classes": {},
+      "imports": [
+        "os",
+        "pathlib",
+        "sqlite3"
+      ]
+    },
+    ".bgl_core\\brain\\decision_engine.py": {
+      "functions": [
+        "_apply_code_intent_override",
+        "_apply_code_temporal_override",
+        "_apply_policy_overrides",
+        "_apply_runtime_override",
+        "_apply_semantic_override",
+        "_attach_explanation",
+        "_code_intent_decision_hint",
+        "_code_temporal_decision_hint",
+        "_deterministic_decision",
+        "_ensure_justification",
+        "_extract_action_kind",
+        "_extract_domain_rule_info",
+        "_risk_rank",
+        "_runtime_decision_hint",
+        "_scope_requires_human",
+        "_semantic_decision_hint",
+        "decide"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "llm_client",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\embeddings.py": {
+      "functions": [
+        "_cosine",
+        "_ensure_table",
+        "_tokenize",
+        "_vectorize",
+        "add_text",
+        "search"
+      ],
+      "classes": {},
+      "imports": [
+        "collections",
+        "json",
+        "math",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "sys",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\encoding_utils.py": {
+      "functions": [
+        "read_text_utf8",
+        "write_text_utf8"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\execution_gate.py": {
+      "functions": [
+        "check"
+      ],
+      "classes": {},
+      "imports": [
+        "authority",
+        "config_loader",
+        "os",
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\experience_replay.py": {
+      "functions": [
+        "_ensure",
+        "fetch",
+        "save"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "sqlite3",
+        "sys",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\failure_classifier.py": {
+      "functions": [
+        "classify_failure",
+        "extract_failure_class",
+        "summarize_failure_taxonomy"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\fault_locator.py": {
+      "functions": [],
+      "classes": {
+        "FaultLocator": [
+          "__init__",
+          "_locate_url",
+          "diagnose_fault",
+          "get_context_from_log",
+          "locate_url"
+        ]
+      },
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "typing",
+        "urllib.parse"
+      ]
+    },
+    ".bgl_core\\brain\\fingerprint.py": {
+      "functions": [
+        "_stat_sig",
+        "_walk_globs",
+        "compute_fingerprint",
+        "fingerprint_equal",
+        "fingerprint_is_fresh",
+        "fingerprint_to_payload"
+      ],
+      "classes": {
+        "Fingerprint": []
+      },
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "json",
+        "os",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\generate_openapi.py": {
+      "functions": [
+        "generate"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\generate_patch_plan.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "json",
+        "patch_plan",
+        "pathlib",
+        "plan_generator",
+        "sqlite3",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\generate_playbooks.py": {
+      "functions": [
+        "generate_from_proposed"
+      ],
+      "classes": {},
+      "imports": [
+        "datetime",
+        "json",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\governor.py": {
+      "functions": [],
+      "classes": {
+        "BGLGovernor": [
+          "__init__",
+          "_check_content_rule",
+          "_check_naming_rule",
+          "_check_relationship_rule",
+          "_classify_entities",
+          "_get_entities_by_type",
+          "_load_rules",
+          "audit",
+          "audit_relationship_rules"
+        ]
+      },
+      "imports": [
+        "os",
+        "pathlib",
+        "sqlite3",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\guardian.py": {
+      "functions": [
+        "_preferred_python"
+      ],
+      "classes": {
+        "BGLGuardian": [
+          "__init__",
+          "_auto_promote_policy_candidates",
+          "_check_business_conflicts_real",
+          "_check_domain_rule_violations",
+          "_check_learning_confirmations",
+          "_check_permissions",
+          "_classify_expected_failure",
+          "_compute_adaptive_limit",
+          "_compute_flow_coverage",
+          "_compute_scenario_coverage",
+          "_compute_ui_action_coverage",
+          "_compute_ui_flow_model",
+          "_contract_missing_routes",
+          "_contract_quality_gaps",
+          "_count_runtime_events",
+          "_dedupe_permissions",
+          "_detect_log_anomalies",
+          "_ensure_routes_indexed",
+          "_gate_reindex",
+          "_generate_gap_scenarios",
+          "_generate_suggestions",
+          "_get_proxied_routes",
+          "_has_permission",
+          "_is_api_route",
+          "_load_api_contract",
+          "_load_recent_experiences",
+          "_load_route_stats",
+          "_maybe_record_policy_candidate",
+          "_normalize_route",
+          "_parse_flow_docs",
+          "_pending_approvals",
+          "_persist_route_stats",
+          "_preflight_services",
+          "_prune_logs",
+          "_recent_outcomes",
+          "_render_example",
+          "_request_permission",
+          "_scan_api_route",
+          "_sequence_matches",
+          "_target_duration",
+          "_update_route_health",
+          "_worst_routes",
+          "_write_autonomy_goal",
+          "auto_remediate",
+          "log_maintenance",
+          "perform_full_audit",
+          "run_daemon"
+        ]
+      },
+      "imports": [
+        "argparse",
+        "asyncio",
+        "authority",
+        "brain_types",
+        "config_loader",
+        "contract_seeder",
+        "decision_db",
+        "decision_engine",
+        "fault_locator",
+        "fingerprint",
+        "generate_openapi",
+        "governor",
+        "indexer",
+        "json",
+        "llm_tools",
+        "observations",
+        "os",
+        "patcher",
+        "pathlib",
+        "policy_verifier",
+        "psutil",
+        "re",
+        "readiness_gate",
+        "route_indexer",
+        "safety",
+        "scenario_deps",
+        "scenario_runner",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
+        "typing",
+        "urllib.error",
+        "urllib.parse",
+        "urllib.request",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\guardrails.py": {
+      "functions": [],
+      "classes": {
+        "BGLGuardrails": [
+          "__init__",
+          "filter_paths",
+          "is_path_allowed",
+          "validate_changes"
+        ]
+      },
+      "imports": [
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\hand_profile.py": {
+      "functions": [],
+      "classes": {
+        "HandProfile": [
+          "generate"
+        ]
+      },
+      "imports": [
+        "dataclasses",
+        "os",
+        "random"
+      ]
+    },
+    ".bgl_core\\brain\\hardware_sensor.py": {
+      "functions": [
+        "get_gpu_info",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "json",
+        "os",
+        "psutil",
+        "subprocess",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\hypothesis.py": {
+      "functions": [
+        "_confidence_delta",
+        "_connect",
+        "_ensure_tables",
+        "_fingerprint",
+        "_merge_evidence",
+        "_relation_from_outcome",
+        "_safe_json",
+        "derive_hypotheses_from_diagnostic",
+        "ingest_exploration_outcomes",
+        "list_hypotheses",
+        "refresh_hypothesis_status",
+        "upsert_hypothesis"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\indexer.py": {
+      "functions": [],
+      "classes": {
+        "EntityIndexer": [
+          "__init__",
+          "_index_file",
+          "_should_index",
+          "close",
+          "index_project",
+          "update_impacted"
+        ]
+      },
+      "imports": [
+        "json",
+        "memory",
+        "os",
+        "pathlib",
+        "subprocess"
+      ]
+    },
+    ".bgl_core\\brain\\inference.py": {
+      "functions": [],
+      "classes": {
+        "ReasoningEngine": [
+          "__init__",
+          "_analyze_backend_logic",
+          "_build_reasoning_prompt",
+          "_extract_json_from_text",
+          "_get_brain_state",
+          "_get_file_hash",
+          "_get_project_structure",
+          "_json_serializer",
+          "_parse_structured_plan",
+          "_query_llm",
+          "chat",
+          "reason"
+        ]
+      },
+      "imports": [
+        "auto_insights",
+        "brain_rules",
+        "brain_types",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "knowledge_curation",
+        "orchestrator",
+        "os",
+        "pathlib",
+        "re",
+        "sys",
+        "time",
+        "typing",
+        "urllib.error",
+        "urllib.request"
+      ]
+    },
+    ".bgl_core\\brain\\intent_resolver.py": {
+      "functions": [
+        "resolve_intent"
+      ],
+      "classes": {},
+      "imports": [
+        "brain_types",
+        "json",
+        "llm_client",
+        "os",
+        "typing",
+        "urllib.request"
+      ]
+    },
+    ".bgl_core\\brain\\interpretation.py": {
+      "functions": [
+        "interpret"
+      ],
+      "classes": {},
+      "imports": [
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\knowledge_curation.py": {
+      "error": "parse_failed"
+    },
+    ".bgl_core\\brain\\learning_core.py": {
+      "functions": [
+        "_cfg_flag",
+        "_cfg_number",
+        "_connect",
+        "_ensure_tables",
+        "_external_dependency_patterns",
+        "_fingerprint",
+        "_normalize_scope",
+        "_recent_external_dependency",
+        "_root_from_db",
+        "_runtime_contract_confidence",
+        "_safe_json",
+        "_scan_logs_for_external_dependency",
+        "apply_external_dependency_fallback",
+        "auto_propose_outcome_failures",
+        "ingest_learned_events",
+        "ingest_learning_confirmations",
+        "ingest_runtime_contract_experiences",
+        "list_learning_events",
+        "update_fallback_rules_from_code_intent",
+        "update_fallback_rules_from_outcomes",
+        "update_fallback_rules_from_prod_ops",
+        "update_fallback_rules_from_runtime_contracts"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "code_contracts",
+        "config_loader",
+        "failure_classifier",
+        "hashlib",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "self_policy",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\learning_feedback.py": {
+      "error": "parse_failed"
+    },
+    ".bgl_core\\brain\\llm_client.py": {
+      "functions": [
+        "_normalize_urls",
+        "_swap_localhost"
+      ],
+      "classes": {
+        "LLMClientConfig": [],
+        "LLMClient": [
+          "__init__",
+          "_auto_warm_in_background",
+          "_brain_state",
+          "_maybe_start_service",
+          "_warm",
+          "chat_json",
+          "ensure_hot",
+          "state"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "config_loader",
+        "dataclasses",
+        "json",
+        "os",
+        "pathlib",
+        "shutil",
+        "subprocess",
+        "threading",
+        "time",
+        "typing",
+        "urllib.error",
+        "urllib.request"
+      ]
+    },
+    ".bgl_core\\brain\\llm_status.py": {
+      "error": "parse_failed"
+    },
+    ".bgl_core\\brain\\llm_tools.py": {
+      "functions": [
+        "_method_exists",
+        "dispatch",
+        "tool_context_pack",
+        "tool_layout_map",
+        "tool_logic_bridge",
+        "tool_route_index",
+        "tool_run_checks",
+        "tool_schema",
+        "tool_score_response"
+      ],
+      "classes": {},
+      "imports": [
+        "agent_verify",
+        "embeddings",
+        "json",
+        "observations",
+        "pathlib",
+        "perception",
+        "playwright.sync_api",
+        "re",
+        "route_indexer",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
+        "typing",
+        "volition"
+      ]
+    },
+    ".bgl_core\\brain\\long_term_goals.py": {
+      "functions": [
+        "_clamp",
+        "_connect",
+        "_ensure_tables",
+        "_interval_hours",
+        "_outcome_stats",
+        "_safe_float",
+        "_safe_json",
+        "_upsert_goal",
+        "pick_long_term_goals",
+        "record_long_term_goal_result",
+        "refresh_long_term_goals",
+        "summarize_long_term_goals"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\master_verify.py": {
+      "functions": [
+        "_read_lock_status",
+        "_run_with_timeout",
+        "log_activity",
+        "master_assurance_diagnostic"
+      ],
+      "classes": {},
+      "imports": [
+        "agency_core",
+        "asyncio",
+        "auto_insights",
+        "callgraph_builder",
+        "config_loader",
+        "contract_tests",
+        "generate_openapi",
+        "generate_playbooks",
+        "json",
+        "os",
+        "pathlib",
+        "report_builder",
+        "run_ledger",
+        "run_lock",
+        "scenario_deps",
+        "schema_check",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "threading",
+        "time",
+        "traceback",
+        "urllib.request",
+        "utils"
+      ]
+    },
+    ".bgl_core\\brain\\memory.py": {
+      "functions": [],
+      "classes": {
+        "StructureMemory": [
+          "__init__",
+          "_connect",
+          "_init_schema_once",
+          "_store_calls",
+          "clear_file_data",
+          "close",
+          "get_file_info",
+          "register_file",
+          "store_nested_symbols"
+        ]
+      },
+      "imports": [
+        "os",
+        "pathlib",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\memory_index.py": {
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_hash_key",
+        "_merge_confidence",
+        "_value_score",
+        "auto_curate_memory",
+        "record_action",
+        "record_relation",
+        "suppress_memory_item",
+        "unsuppress_memory_item",
+        "upsert_memory_item"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "math",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\metrics_enrichment.py": {
+      "functions": [
+        "_calc_data_quality_score",
+        "_compare_target",
+        "_connect",
+        "_parse_target",
+        "_safe_float",
+        "compute_kpi_metrics",
+        "load_domain_kpis",
+        "summarize_agent_activity"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "time",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\metrics_guard.py": {
+      "functions": [
+        "load_summary",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "os",
+        "pathlib",
+        "sys"
+      ]
+    },
+    ".bgl_core\\brain\\metrics_summary.py": {
+      "functions": [
+        "summarize"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "statistics"
+      ]
+    },
+    ".bgl_core\\brain\\migrate_decision_to_knowledge.py": {
+      "functions": [
+        "ensure_schema",
+        "migrate"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3"
+      ]
+    },
+    ".bgl_core\\brain\\motor.py": {
+      "functions": [],
+      "classes": {
+        "MouseState": [],
+        "Motor": [
+          "__init__",
+          "move_to"
+        ]
+      },
+      "imports": [
+        "hand_profile",
+        "math",
+        "random",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\observations.py": {
+      "functions": [
+        "_count_internal_writes",
+        "_count_runtime_events",
+        "_diff_scalar",
+        "_ensure_tables",
+        "_ensure_ui_action_tables",
+        "_ensure_ui_flow_tables",
+        "_ensure_ui_semantic_tables",
+        "_previous_env_snapshot",
+        "_safe_get",
+        "compute_change_attribution",
+        "compute_diagnostic_delta",
+        "compute_skip_recommendation",
+        "compute_ui_semantic_delta",
+        "diagnostic_to_snapshot",
+        "latest_env_snapshot",
+        "latest_ui_semantic_snapshot",
+        "previous_ui_semantic_snapshot",
+        "record_ui_flow_transition",
+        "store_env_snapshot",
+        "store_latest_diagnostic_delta",
+        "store_ui_action_snapshot",
+        "store_ui_semantic_snapshot"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\orchestrator.py": {
+      "functions": [],
+      "classes": {
+        "ExecutionReport": [],
+        "BGLOrchestrator": [
+          "__init__",
+          "execute_task"
+        ]
+      },
+      "imports": [
+        "authority",
+        "brain_types",
+        "guardian",
+        "guardrails",
+        "json",
+        "os",
+        "patch_plan",
+        "patcher",
+        "pathlib",
+        "safety",
+        "sandbox",
+        "subprocess",
+        "time",
+        "typing",
+        "write_engine"
+      ]
+    },
+    ".bgl_core\\brain\\outcome_signals.py": {
+      "functions": [
+        "_as_list",
+        "_candidate_conf_by_uri",
+        "_looks_like_scan_artifact",
+        "_top",
+        "compute_outcome_signals"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "brain_types",
+        "re",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\patcher.py": {
+      "functions": [],
+      "classes": {
+        "BGLPatcher": [
+          "__init__",
+          "_derive_impacted_files",
+          "_derive_impacted_tests",
+          "_discover_composer",
+          "_post_patch_index",
+          "_post_patch_index_all",
+          "_refresh_autoload",
+          "_run_action",
+          "_update_references",
+          "add_method",
+          "rename_class"
+        ]
+      },
+      "imports": [
+        "authority",
+        "brain_types",
+        "config_loader",
+        "indexer",
+        "json",
+        "os",
+        "pathlib",
+        "safety",
+        "shutil",
+        "sqlite3",
+        "subprocess",
+        "test_gate",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\patch_plan.py": {
+      "functions": [
+        "load_plan"
+      ],
+      "classes": {
+        "PlanError": [],
+        "PatchOperation": [
+          "from_dict"
+        ],
+        "PatchPlan": [
+          "from_dict"
+        ]
+      },
+      "imports": [
+        "dataclasses",
+        "json",
+        "pathlib",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\perception.py": {
+      "functions": [
+        "_extract_keywords",
+        "capture_local_context",
+        "capture_semantic_map",
+        "capture_ui_map",
+        "project_interactive_elements",
+        "summarize_semantic_map"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "re",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\plan_generator.py": {
+      "functions": [
+        "_build_prompt",
+        "_collect_candidate_files",
+        "_load_write_caps",
+        "_tokenize",
+        "generate_plan_from_proposal"
+      ],
+      "classes": {
+        "PlanGenerationError": []
+      },
+      "imports": [
+        "__future__",
+        "json",
+        "llm_client",
+        "patch_plan",
+        "pathlib",
+        "re",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\playbook_loader.py": {
+      "functions": [
+        "load_playbooks_meta"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "re",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\policy.py": {
+      "functions": [],
+      "classes": {
+        "Policy": [
+          "__init__",
+          "_find_alternative",
+          "_start_dom_watch",
+          "_wait_dom_change",
+          "perform_click",
+          "perform_goto"
+        ]
+      },
+      "imports": [
+        "motor",
+        "perception",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\policy_verifier.py": {
+      "functions": [
+        "_find_app_db",
+        "_foreign_keys_for",
+        "_method_guard",
+        "_read_file",
+        "_required_fields",
+        "verify_failure"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\readiness_gate.py": {
+      "functions": [
+        "_http_check",
+        "_ollama_tags",
+        "_ollama_warm",
+        "_port_check",
+        "_swap_localhost",
+        "run_readiness"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "socket",
+        "time",
+        "typing",
+        "urllib.error",
+        "urllib.request"
+      ]
+    },
+    ".bgl_core\\brain\\report_builder.py": {
+      "functions": [
+        "build_report",
+        "load_latest_health"
+      ],
+      "classes": {},
+      "imports": [
+        "encoding_utils",
+        "jinja2",
+        "json",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\route_indexer.py": {
+      "functions": [],
+      "classes": {
+        "LaravelRouteIndexer": [
+          "__init__",
+          "_analyze_file",
+          "_infer_method",
+          "index_project",
+          "run"
+        ]
+      },
+      "imports": [
+        "memory",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\run_ledger.py": {
+      "functions": [
+        "_count_by_time",
+        "_count_runtime_events",
+        "_ensure_table",
+        "_has_column",
+        "_load_attribution",
+        "finish_run",
+        "start_run"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\run_lock.py": {
+      "functions": [
+        "_pid_alive",
+        "acquire_lock",
+        "release_lock"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "os",
+        "pathlib",
+        "subprocess",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\run_scenarios.py": {
+      "functions": [
+        "_ensure_env",
+        "_log_activity",
+        "_run_real_scenarios",
+        "main",
+        "simulate_traffic"
+      ],
+      "classes": {},
+      "imports": [
+        "asyncio",
+        "config_loader",
+        "os",
+        "pathlib",
+        "random",
+        "run_lock",
+        "scenario_deps",
+        "scenario_runner",
+        "sqlite3",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\safety.py": {
+      "functions": [],
+      "classes": {
+        "SafetyNet": [
+          "__init__",
+          "_async_browser_check",
+          "_browser_audit_async",
+          "_check_architectural_rules",
+          "_check_browser_audit",
+          "_check_lint",
+          "_check_phpunit",
+          "_gather_unified_logs",
+          "_read_backend_logs",
+          "_safe_float",
+          "_tests_from_experiences",
+          "clear_backup",
+          "create_backup",
+          "preflight",
+          "rollback",
+          "validate",
+          "validate_async"
+        ]
+      },
+      "imports": [
+        "asyncio",
+        "browser_sensor",
+        "config_loader",
+        "datetime",
+        "fault_locator",
+        "governor",
+        "os",
+        "pathlib",
+        "shutil",
+        "sqlite3",
+        "subprocess",
+        "test_gate",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\sandbox.py": {
+      "functions": [],
+      "classes": {
+        "BGLSandbox": [
+          "__init__",
+          "_copy_all_with_excludes",
+          "_copy_untracked",
+          "_prepare_decision_db",
+          "_prepare_sandbox_db",
+          "apply_to_main",
+          "cleanup",
+          "setup"
+        ]
+      },
+      "imports": [
+        "gc",
+        "os",
+        "pathlib",
+        "shutil",
+        "sqlite3",
+        "stat",
+        "subprocess",
+        "tempfile",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\scenario_deps.py": {
+      "functions": [
+        "_module_present",
+        "_playwright_version",
+        "check_scenario_deps",
+        "check_scenario_deps_async"
+      ],
+      "classes": {
+        "ScenarioDepsReport": [
+          "to_dict"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "dataclasses",
+        "importlib.metadata",
+        "importlib.util",
+        "os",
+        "pathlib",
+        "playwright.async_api",
+        "playwright.sync_api",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\scenario_runner.py": {
+      "functions": [
+        "_acquire_scenario_lock",
+        "_apply_exploration_reward",
+        "_attempt_form_submit",
+        "_attempt_search_submit",
+        "_attempt_self_heal",
+        "_auto_reindex_routes",
+        "_autonomous_enabled",
+        "_autonomous_plan_hash",
+        "_build_reveal_selectors",
+        "_build_search_terms",
+        "_build_selector_candidates",
+        "_cfg_value",
+        "_cleanup_autonomy_goals",
+        "_collect_dream_targets",
+        "_collect_reveal_context",
+        "_decorate_session",
+        "_derive_goal_context",
+        "_derive_outcomes_from_learning",
+        "_derive_outcomes_from_runtime",
+        "_dom_state_hash",
+        "_ensure_autonomy_goals_table",
+        "_ensure_exploration_novelty_table",
+        "_ensure_exploration_table",
+        "_ensure_goal_strategy_table",
+        "_ensure_outcomes_tables",
+        "_ensure_semantic_steps",
+        "_escape_has_text",
+        "_external_dependency_patterns",
+        "_extract_goal_targets",
+        "_fallback_autonomous_steps",
+        "_generate_autonomous_plan",
+        "_goal_flow_priority",
+        "_goal_route_kind",
+        "_goal_to_scenario",
+        "_handle_ui_states",
+        "_href_basename",
+        "_http_check",
+        "_ingest_insights_to_goals",
+        "_is_api_scenario",
+        "_is_api_url",
+        "_is_recent_autonomous_plan",
+        "_is_safe_novel_href",
+        "_is_search_input",
+        "_is_simple_token",
+        "_last_selector_from_payload",
+        "_list_upload_fixtures",
+        "_load_explored_selectors",
+        "_load_flow_priority_map",
+        "_load_insight_basenames",
+        "_load_seen_novel",
+        "_load_ui_flow_bias",
+        "_log_outcome",
+        "_log_relation",
+        "_maybe_reindex_after_exploration",
+        "_maybe_store_action_snapshot",
+        "_maybe_store_semantic_snapshot",
+        "_normalize_route_path",
+        "_novelty_score",
+        "_pick_goal_strategy",
+        "_pop_context",
+        "_prioritize_autonomy_goals",
+        "_prioritize_candidates",
+        "_probe_element_state",
+        "_push_context",
+        "_rank_exploration_candidate",
+        "_read_autonomy_goals",
+        "_read_latest_delta",
+        "_read_log_highlights",
+        "_read_recent_routes_from_db",
+        "_recent_error_routes",
+        "_recent_external_dependency",
+        "_recent_routes_within_days",
+        "_recent_runtime_routes",
+        "_record_autonomous_plan",
+        "_record_exploration_outcome",
+        "_record_explored_selector",
+        "_record_goal_strategy_result",
+        "_resolve_route_to_file",
+        "_reward_exploration_from_outcomes",
+        "_route_source_files",
+        "_routes_for_file",
+        "_routes_last_index_ts",
+        "_routes_need_reindex",
+        "_routes_table_count",
+        "_run_goal_scenario_impl",
+        "_run_scenario_impl",
+        "_sanitize_steps",
+        "_score_outcomes",
+        "_seed_goals_from_outcome_scores",
+        "_seed_goals_from_semantic",
+        "_seed_goals_from_system_signals",
+        "_selector_from_element",
+        "_semantic_action_selectors",
+        "_semantic_is_write_action",
+        "_semantic_preferred_selectors",
+        "_semantic_search_selectors",
+        "_should_trigger_dream",
+        "_text_hints_from_context",
+        "_text_reveal_selectors",
+        "_trace",
+        "_trigger_dream_from_exploration",
+        "_try_click_search_button",
+        "_unique_order",
+        "_unknown_routes_from_runtime",
+        "_write_autonomy_goal",
+        "ensure_cursor",
+        "ensure_dev_mode",
+        "exploratory_action",
+        "log_event",
+        "main",
+        "run_api_scenario",
+        "run_autonomous_scenario",
+        "run_goal_scenario",
+        "run_novel_probe",
+        "run_scenario",
+        "run_step"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "asyncio",
+        "atexit",
+        "authority",
+        "behavior_learning",
+        "brain_types",
+        "browser_manager",
+        "config_loader",
+        "hand_profile",
+        "hashlib",
+        "hypothesis",
+        "json",
+        "llm_client",
+        "long_term_goals",
+        "memory_index",
+        "motor",
+        "observations",
+        "os",
+        "pathlib",
+        "perception",
+        "policy",
+        "python_ghost_cursor.playwright_async",
+        "random",
+        "re",
+        "route_indexer",
+        "run_ledger",
+        "run_lock",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
+        "typing",
+        "urllib.error",
+        "urllib.request",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\schema_check.py": {
+      "functions": [
+        "_table_columns",
+        "check_schema"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "pathlib",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\self_policy.py": {
+      "functions": [
+        "_clamp",
+        "_coerce_int",
+        "load_self_policy",
+        "save_self_policy",
+        "update_self_policy"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\self_rules.py": {
+      "functions": [
+        "load_self_rules",
+        "safe_rules_from_data",
+        "save_self_rules",
+        "update_self_rules"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "brain_types",
+        "json",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\test_gate.py": {
+      "functions": [
+        "_contract_map",
+        "_load_write_scope",
+        "_normalize",
+        "_risk_tier",
+        "collect_tests_for_files",
+        "evaluate_files",
+        "load_code_contracts",
+        "require_tests_enabled"
+      ],
+      "classes": {},
+      "imports": [
+        "code_contracts",
+        "json",
+        "os",
+        "pathlib",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\ui_interaction_tests.py": {
+      "functions": [
+        "test_ui_interaction_smoke"
+      ],
+      "classes": {
+        "CancelButton": [
+          "click"
+        ],
+        "InputField": [
+          "clear"
+        ]
+      },
+      "imports": [
+        "__future__",
+        "app.ui_components",
+        "sys",
+        "types",
+        "unittest.mock"
+      ]
+    },
+    ".bgl_core\\brain\\utils.py": {
+      "functions": [
+        "load_route_usage"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\verify_phase_8_simulation.py": {
+      "functions": [
+        "simulate_recurring_blockers"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\volition.py": {
+      "functions": [
+        "_ensure_table",
+        "derive_volition",
+        "latest_volition",
+        "store_volition"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "llm_client",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\write_engine.py": {
+      "functions": [
+        "_backup_file",
+        "_load_scope",
+        "_match_any",
+        "_posix_path",
+        "_read_text",
+        "_safe_relpath",
+        "_write_text",
+        "main"
+      ],
+      "classes": {
+        "WriteResult": [],
+        "WriteEngine": [
+          "__init__",
+          "_allow_auto_create",
+          "_allowed_op",
+          "_apply_modify",
+          "_count_lines_delta",
+          "_resolve_scope",
+          "_write_manifest",
+          "apply"
+        ]
+      },
+      "imports": [
+        "argparse",
+        "dataclasses",
+        "fnmatch",
+        "json",
+        "os",
+        "patch_plan",
+        "pathlib",
+        "re",
+        "shutil",
+        "test_gate",
+        "time",
+        "typing",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_confidence.py": {
+      "functions": [],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_failure_modes.py": {
+      "functions": [
+        "test_atomic_rollback",
+        "test_guardrail_barrier",
+        "test_sandbox_isolation"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "orchestrator",
+        "os",
+        "pathlib",
+        "shutil",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_final_agent.py": {
+      "functions": [
+        "test_specialized_programming"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "orchestrator",
+        "os",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_intelligence.py": {
+      "functions": [
+        "benchmark_intelligence"
+      ],
+      "classes": {
+        "AgentBenchmark": [
+          "__init__",
+          "run_case",
+          "save_report"
+        ]
+      },
+      "imports": [
+        "json",
+        "orchestrator",
+        "os",
+        "pathlib",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_patch.py": {
+      "functions": [],
+      "classes": {},
+      "imports": [
+        "json",
+        "patcher",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_phase_1.py": {
+      "functions": [
+        "test_browser_sensor_integration"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "safety",
+        "sys"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_phase_2.py": {
+      "functions": [
+        "test_unified_perception"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "orchestrator",
+        "pathlib",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_phase_3.py": {
+      "functions": [
+        "test_fault_localization"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "safety",
+        "time"
+      ]
+    },
+    ".bgl_core\\brain\\archive\\verify_phase_5.py": {
+      "functions": [
+        "verify_phase_5"
+      ],
+      "classes": {},
+      "imports": [
+        "asyncio",
+        "guardian",
+        "json",
+        "pathlib",
+        "sqlite3"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\authority_drift.py": {
+      "functions": [
+        "_read_text",
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\css_bloat.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\db_fk_missing.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\db_index_missing.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\hypothesis_meta_separation.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "config_loader",
+        "os",
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\js_bloat.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_alerts_aggregator.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_audit_trail.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_caching_reports.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_import_safety.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_rate_limit_middleware.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "os",
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\missing_validation_guards.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\phase3_integrity.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\self_regulation_runtime_link.py": {
+      "functions": [
+        "run"
+      ],
+      "classes": {},
+      "imports": [
+        "config_loader",
+        "os",
+        "pathlib",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\checks\\__init__.py": {
+      "functions": [],
+      "classes": {},
+      "imports": []
+    },
+    "scripts\\ask_ai.py": {
+      "functions": [
+        "ask_llm",
+        "build_snapshot",
+        "build_system_messages",
+        "compute_dynamic_params",
+        "log_chat_intent",
+        "main",
+        "run_ab"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "context_extractor",
+        "decision_db",
+        "decision_engine",
+        "embeddings",
+        "experience_replay",
+        "intent_resolver",
+        "json",
+        "llm_tools",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "sys",
+        "typing",
+        "urllib.request"
+      ]
+    },
+    "scripts\\cli_brain_adapter.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "asyncio",
+        "bgl_core.brain.brain_types",
+        "bgl_core.brain.inference",
+        "brain_types",
+        "contextlib",
+        "inference",
+        "io",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "scripts\\debug_inference.py": {
+      "functions": [
+        "debug"
+      ],
+      "classes": {},
+      "imports": [
+        "bgl_core.brain.inference",
+        "inference",
+        "json",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "scripts\\dev_runner.py": {
+      "functions": [
+        "get_file_mtimes",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "os",
+        "pathlib",
+        "subprocess",
+        "sys",
+        "time"
+      ]
+    },
+    "scripts\\dream_mode.py": {
+      "functions": [
+        "discover_files",
+        "dream_cycle",
+        "purge_orphans"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "asyncio",
+        "atexit",
+        "bgl_core.brain.brain_types",
+        "bgl_core.brain.embeddings",
+        "bgl_core.brain.inference",
+        "brain_types",
+        "embeddings",
+        "hashlib",
+        "inference",
+        "json",
+        "os",
+        "pathlib",
+        "psutil",
+        "random",
+        "re",
+        "sys",
+        "time"
+      ]
+    },
+    "scripts\\index_codebase.py": {
+      "functions": [
+        "index_codebase"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "re",
+        "sys"
+      ]
+    },
+    "scripts\\populate_semantic_memory.py": {
+      "functions": [
+        "index_all_insights"
+      ],
+      "classes": {},
+      "imports": [
+        "embeddings",
+        "json",
+        "pathlib",
+        "sqlite3",
+        "sys"
+      ]
+    },
+    "scripts\\run_verification_cycle.py": {
+      "functions": [
+        "_preferred_python",
+        "main",
+        "run_command",
+        "run_shadow_phase"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "run_lock",
+        "shutil",
+        "subprocess",
+        "sys"
+      ]
+    },
+    "scripts\\seed_blockers.py": {
+      "functions": [
+        "seed"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "sqlite3",
+        "time"
+      ]
+    },
+    "scripts\\smart_nav.py": {
+      "functions": [
+        "get_interactive_elements",
+        "run_smart_agent",
+        "think"
+      ],
+      "classes": {},
+      "imports": [
+        "asyncio",
+        "bgl_core.brain.inference",
+        "bgl_core.brain.perception",
+        "inference",
+        "json",
+        "os",
+        "pathlib",
+        "perception",
+        "playwright.async_api",
+        "sys"
+      ]
+    },
+    "scripts\\stress_test.py": {
+      "functions": [
+        "make_request",
+        "worker"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "random",
+        "threading",
+        "time",
+        "urllib.error",
+        "urllib.parse",
+        "urllib.request"
+      ]
+    },
+    "scripts\\test_grounding.py": {
+      "functions": [
+        "test_grounding"
+      ],
+      "classes": {},
+      "imports": [
+        "asyncio",
+        "browser_sensor",
+        "inference",
+        "json",
+        "os",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "scripts\\tool_gateway.py": {
+      "functions": [
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "llm_tools",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "scripts\\tool_server.py": {
+      "functions": [
+        "_preferred_python",
+        "main"
+      ],
+      "classes": {
+        "Handler": [
+          "_compose_context_summary",
+          "_context_snapshot",
+          "_describe_runtime",
+          "_direct_llm_chat",
+          "_execute_actions",
+          "_handle_chat",
+          "_handle_tool",
+          "_is_light_chat",
+          "_list_files",
+          "_log_tail",
+          "_master_verify",
+          "_phpunit_run",
+          "_read_file",
+          "_resolve_intent",
+          "_route_show",
+          "_scenario_run",
+          "_search_code",
+          "_set_headers",
+          "do_GET",
+          "do_OPTIONS",
+          "do_POST",
+          "log_message"
+        ]
+      },
+      "imports": [
+        "agency_core",
+        "argparse",
+        "asyncio",
+        "http.server",
+        "intent_resolver",
+        "json",
+        "llm_tools",
+        "os",
+        "pathlib",
+        "shlex",
+        "subprocess",
+        "sys",
+        "urllib.error",
+        "urllib.request"
+      ]
+    },
+    "scripts\\tool_watchdog.py": {
+      "functions": [
+        "_kill_hung_tool_server",
+        "_ping",
+        "_preferred_python",
+        "_spawn_tool_server",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "argparse",
+        "json",
+        "os",
+        "pathlib",
+        "subprocess",
+        "sys",
+        "time",
+        "urllib.error",
+        "urllib.request"
+      ]
+    },
+    "tests\\agent_audit.py": {
+      "functions": [
+        "_hash",
+        "_norm",
+        "_similarity",
+        "build_test_suite",
+        "call_agent_via_cli",
+        "call_agent_via_http",
+        "detect_citations_or_refs",
+        "detect_confidence_language",
+        "detect_language_mismatch",
+        "detect_over_reasoning",
+        "detect_policy_violations",
+        "main",
+        "run_audit"
+      ],
+      "classes": {
+        "CaseResult": []
+      },
+      "imports": [
+        "argparse",
+        "dataclasses",
+        "hashlib",
+        "json",
+        "re",
+        "statistics",
+        "subprocess",
+        "time",
+        "typing",
+        "urllib.request"
+      ]
+    },
+    "tests\\autonomous_discovery_demo.py": {
+      "functions": [
+        "autonomous_discovery_demo"
+      ],
+      "classes": {},
+      "imports": [
+        "embeddings",
+        "json",
+        "pathlib",
+        "sys",
+        "urllib.request"
+      ]
+    },
+    "tests\\final_discovery_demo.py": {
+      "functions": [
+        "autonomous_discovery_demo"
+      ],
+      "classes": {},
+      "imports": [
+        "embeddings",
+        "json",
+        "llm_client",
+        "pathlib",
+        "sys",
+        "time",
+        "urllib.request"
+      ]
+    },
+    "tests\\test_business_logic.py": {
+      "functions": [
+        "ask_business_logic"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "sys",
+        "urllib.request"
+      ]
+    },
+    "tests\\test_hybrid_intelligence_flow.py": {
+      "functions": [
+        "setup_test_db",
+        "test_hybrid_flow"
+      ],
+      "classes": {},
+      "imports": [
+        "inference",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "sys",
+        "unittest.mock"
+      ]
+    },
+    "tests\\test_llm_tools.py": {
+      "functions": [
+        "test_context_pack",
+        "test_score_response_records",
+        "test_tool_schema",
+        "test_unknown_tool"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "llm_tools",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "tests\\test_local_inference.py": {
+      "functions": [
+        "test_local_llm"
+      ],
+      "classes": {},
+      "imports": [
+        "inference",
+        "os",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "tests\\test_logic_bridge_contract.py": {
+      "functions": [
+        "run_bridge",
+        "test_contract_bad_json",
+        "test_contract_missing_keys",
+        "test_contract_success"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "pathlib",
+        "subprocess"
+      ]
+    },
+    "tests\\test_performance.py": {
+      "functions": [
+        "test_optimized_call"
+      ],
+      "classes": {},
+      "imports": [
+        "json",
+        "os",
+        "pathlib",
+        "sys",
+        "time",
+        "urllib.request"
+      ]
+    },
+    "tests\\verify_architecture_gap_closure.py": {
+      "functions": [
+        "test_audit_rollback_system",
+        "test_guardian_daemon_mode",
+        "test_hybrid_intelligence",
+        "test_smart_indexing_logic"
+      ],
+      "classes": {},
+      "imports": [
+        "guardian",
+        "inference",
+        "memory",
+        "os",
+        "pathlib",
+        "safety",
+        "sys"
+      ]
+    },
+    "tests\\verify_understanding.py": {
+      "functions": [
+        "autonomous_discovery_demo",
+        "verify_understanding"
+      ],
+      "classes": {},
+      "imports": [
+        "llm_client",
+        "pathlib",
+        "re",
+        "sys",
+        "time"
+      ]
+    },
+    "tests\\agent\\test_domain_rules.py": {
+      "functions": [
+        "_iter_product_files",
+        "_load_content_rules",
+        "test_controllers_do_not_reference_models_or_repos_directly",
+        "test_prohibited_domain_concepts_not_in_product_code"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "re",
+        "yaml"
+      ]
+    },
+    "tests\\brain\\test_authority_logic.py": {
+      "functions": [
+        "_make_temp_root",
+        "test_gate_allows_non_write",
+        "test_gate_blocks_write_prod_in_sandbox_mode",
+        "test_scope_requires_human_logic"
+      ],
+      "classes": {},
+      "imports": [
+        "authority",
+        "brain_types",
+        "pathlib",
+        "shutil",
+        "sys"
+      ]
+    },
+    "tests\\brain\\test_auto_insights.py": {
+      "functions": [
+        "_hash_file",
+        "test_auto_insight_ttl_expired"
+      ],
+      "classes": {},
+      "imports": [
+        "auto_insights",
+        "hashlib",
+        "os",
+        "pathlib",
+        "sys",
+        "time"
+      ]
+    },
+    "tests\\brain\\test_decision_engine.py": {
+      "functions": [
+        "test_decision_explanation_attached",
+        "test_deterministic_decision_changes_propose_fix",
+        "test_deterministic_decision_low_confidence_observe",
+        "test_domain_rules_force_human",
+        "test_policy_override_blocks_auto_fix_in_assisted_mode",
+        "test_policy_override_risk_threshold",
+        "test_semantic_override_promotes_observe_to_propose"
+      ],
+      "classes": {},
+      "imports": [
+        "decision_engine",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "tests\\brain\\test_flow_docs.py": {
+      "functions": [
+        "test_parse_flow_docs"
+      ],
+      "classes": {},
+      "imports": [
+        "guardian",
+        "pathlib",
+        "sys"
+      ]
+    },
+    "tests\\brain\\test_flow_sequence.py": {
+      "error": "parse_failed"
+    },
+    "tests\\brain\\test_run_ledger.py": {
+      "functions": [
+        "test_run_ledger_counts_runtime_events"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "run_ledger",
+        "sqlite3",
+        "sys",
+        "time"
+      ]
+    },
+    "tests\\brain\\test_schema_check.py": {
+      "functions": [
+        "test_schema_check_missing_columns",
+        "test_schema_check_missing_tables"
+      ],
+      "classes": {},
+      "imports": [
+        "pathlib",
+        "schema_check",
+        "sqlite3",
+        "sys"
+      ]
+    }
+  },
+  "js": {
+    "public\\js\\confidence-ui.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\convert-to-real.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\input-modals.controller.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\main.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\pilot-auto-load.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\preview-formatter.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\records.controller.js": {
+      "error": "parse_failed"
+    },
+    "public\\js\\timeline.controller.js": {
+      "error": "parse_failed"
+    },
+    "agentfrontend\\src\\main.jsx": {
+      "error": "parse_failed"
+    }
+  },
+  "risk_summary": {
+    "high": 153,
+    "medium": 172,
+    "low": 61
+  }
+}

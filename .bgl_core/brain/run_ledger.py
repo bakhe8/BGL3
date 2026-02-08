@@ -29,6 +29,14 @@ def _ensure_table(conn: sqlite3.Connection) -> None:
     conn.commit()
 
 
+def _has_column(conn: sqlite3.Connection, table: str, column: str) -> bool:
+    try:
+        cols = {r[1] for r in conn.execute(f"PRAGMA table_info({table})").fetchall()}
+        return column in cols
+    except Exception:
+        return False
+
+
 def start_run(
     db_path: Path, *, run_id: str, mode: str, started_at: Optional[float] = None, notes: str = ""
 ) -> None:
@@ -50,6 +58,14 @@ def start_run(
 
 def _count_runtime_events(conn: sqlite3.Connection, run_id: str, start_ts: float, end_ts: float) -> int:
     try:
+        if _has_column(conn, "runtime_events", "run_id"):
+            row = conn.execute(
+                "SELECT COUNT(*) FROM runtime_events WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            count = int(row[0] or 0) if row else 0
+            if count > 0:
+                return count
         row = conn.execute(
             "SELECT COUNT(*) FROM runtime_events WHERE session LIKE ?",
             (f"{run_id}%",),

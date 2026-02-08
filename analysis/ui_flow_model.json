@@ -1,102 +1,124 @@
 {
   "window_days": 7,
-  "node_count": 6,
+  "node_count": 8,
   "transition_count": 30,
   "nodes": {
     "/": {
-      "out": 160,
-      "in": 195
+      "out": 251,
+      "in": 280
     },
     "/index.php": {
-      "out": 141,
-      "in": 163
+      "out": 157,
+      "in": 161
     },
     "/about:blank": {
-      "out": 41,
+      "out": 43,
       "in": 0
     },
     "/views/batches.php": {
-      "out": 24,
+      "out": 18,
       "in": 0
+    },
+    "/api/settings.php": {
+      "out": 24,
+      "in": 36
     },
     "/api/release.php": {
       "out": 0,
       "in": 8
     },
+    "/views/statistics.php": {
+      "out": 0,
+      "in": 8
+    },
     "/api/parse-paste.php": {
-      "out": 45,
-      "in": 45
+      "out": 40,
+      "in": 40
     }
   },
   "transitions": [
     {
       "from": "/",
       "to": "/",
-      "action": "click",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 51
+      "action": "goto",
+      "selector": "",
+      "count": 86
     },
     {
       "from": "/",
       "to": "/",
-      "action": "goto",
-      "selector": "",
-      "count": 39
+      "action": "click",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 64
     },
     {
       "from": "/index.php",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 38
+      "count": 42
     },
     {
       "from": "/about:blank",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 31
+      "count": 32
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "goto",
       "selector": "",
-      "count": 27
+      "count": 28
     },
     {
       "from": "/",
       "to": "/index.php",
       "action": "type",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 17
+      "count": 22
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 19
+    },
+    {
+      "from": "/",
+      "to": "/",
+      "action": "hover",
+      "selector": "a[href=\"./views/batches.php\"]",
+      "count": 18
     },
     {
       "from": "/views/batches.php",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 16
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 14
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "type",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 12
+      "count": 18
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "click",
       "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "count": 15
+    },
+    {
+      "from": "/",
+      "to": "/index.php",
+      "action": "type",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 14
+    },
+    {
+      "from": "/",
+      "to": "/api/settings.php",
+      "action": "goto",
+      "selector": "",
       "count": 12
     },
     {
@@ -104,6 +126,20 @@
       "to": "/index.php",
       "action": "press",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 12
+    },
+    {
+      "from": "/about:blank",
+      "to": "/index.php",
+      "action": "goto",
+      "selector": "",
+      "count": 11
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "input[name=\"search\"]",
       "count": 11
     },
     {
@@ -112,13 +148,6 @@
       "action": "goto",
       "selector": "",
       "count": 11
-    },
-    {
-      "from": "/about:blank",
-      "to": "/index.php",
-      "action": "goto",
-      "selector": "",
-      "count": 10
     },
     {
       "from": "/",
@@ -132,6 +161,13 @@
       "to": "/index.php",
       "action": "click",
       "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']",
+      "count": 10
+    },
+    {
+      "from": "/",
+      "to": "/index.php",
+      "action": "goto",
+      "selector": "",
       "count": 9
     },
     {
@@ -150,9 +186,9 @@
     },
     {
       "from": "/",
-      "to": "/index.php",
-      "action": "goto",
-      "selector": "",
+      "to": "/views/statistics.php",
+      "action": "click",
+      "selector": "a[href*='statistics.php']",
       "count": 8
     },
     {
@@ -191,53 +227,25 @@
       "count": 8
     },
     {
-      "from": "/views/batches.php",
-      "to": "/index.php",
-      "action": "goto",
-      "selector": "",
+      "from": "/api/settings.php",
+      "to": "/api/settings.php",
+      "action": "click",
+      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
       "count": 8
     },
     {
-      "from": "/",
-      "to": "/index.php",
-      "action": "type",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 5
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "type",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 5
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "type",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 5
-    },
-    {
-      "from": "/api/parse-paste.php",
-      "to": "/api/parse-paste.php",
-      "action": "goto",
-      "selector": "",
-      "count": 5
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
+      "from": "/api/settings.php",
+      "to": "/api/settings.php",
       "action": "click",
       "selector": "[data-bs-toggle='dropdown'], [data-toggle='dropdown']",
-      "count": 5
+      "count": 8
     },
     {
-      "from": "/index.php",
-      "to": "/index.php",
+      "from": "/api/settings.php",
+      "to": "/api/settings.php",
       "action": "click",
       "selector": "[data-bs-toggle='modal'], [data-toggle='modal']",
-      "count": 5
+      "count": 8
     }
   ]
 }
