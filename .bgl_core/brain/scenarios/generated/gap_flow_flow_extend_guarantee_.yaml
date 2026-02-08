@@ -1,0 +1,12 @@
+name: gap_flow_flow_extend_guarantee_
+kind: api
+generated: true
+meta:
+  origin: flow_gap
+  flow: 'Flow: تمديد ضمان (extend_guarantee)'
+  endpoints:
+  - /api/extend.php
+steps:
+- action: request
+  url: /api/extend.php
+  method: GET

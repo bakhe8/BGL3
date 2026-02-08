@@ -8,6 +8,7 @@ import urllib.error
 from pathlib import Path
 from typing import List, Dict, Any, cast
 import re
+import yaml  # type: ignore
 
 try:
     from .safety import SafetyNet  # type: ignore
@@ -373,6 +374,8 @@ class BGLGuardian:
             "skipped_routes": [],
             "log_anomalies": [],
             "business_conflicts": [],
+            "domain_rule_violations": [],
+            "domain_rule_summary": {},
             "suggestions": [],
             "recent_experiences": [],
             "route_scan_limit": len(routes),
@@ -390,6 +393,367 @@ class BGLGuardian:
             "policy_auto_promoted": [],
             "api_scan": api_summary,
         }
+        try:
+            domain_violations = self._check_domain_rule_violations()
+            report["domain_rule_violations"] = domain_violations
+            rule_ids = []
+            critical = 0
+            for v in domain_violations:
+                rid = v.get("rule_id")
+                if rid:
+                    rule_ids.append(str(rid))
+                sev = str(v.get("severity", "")).lower()
+                if sev == "critical":
+                    critical += 1
+            report["domain_rule_summary"] = {
+                "count": len(domain_violations),
+                "critical_count": critical,
+                "rule_ids": sorted(list(set(rule_ids))),
+            }
+        except Exception:
+            report["domain_rule_violations"] = []
+            report["domain_rule_summary"] = {}
+
+        coverage_payload: Dict[str, Any] = {"generated_at": time.time()}
+        scenario_gaps: List[Dict[str, Any]] = []
+        flow_gaps: List[Dict[str, Any]] = []
+
+        def _score_gap(route: str, method: str, status_score: Any) -> float:
+            try:
+                score = float(status_score or 0)
+            except Exception:
+                score = 0.0
+            try:
+                if route.startswith("/api/"):
+                    score += 10
+            except Exception:
+                pass
+            try:
+                if str(method or "").upper() in ("POST", "PUT", "PATCH", "DELETE"):
+                    score += 20
+            except Exception:
+                pass
+            return round(min(100.0, max(0.0, score)), 2)
+
+        # Scenario coverage (routes + UI snapshots) and gap goals
+        try:
+            cov_days = int(os.getenv("BGL_COVERAGE_WINDOW_DAYS", "7") or "7")
+            cov_limit = int(os.getenv("BGL_COVERAGE_SAMPLE_LIMIT", "12") or "12")
+            coverage = self._compute_scenario_coverage(days=cov_days, limit=cov_limit)
+            report["scenario_coverage"] = coverage
+            for item in (coverage.get("uncovered_sample") or []):
+                score = _score_gap(
+                    str(item.get("route") or ""),
+                    str(item.get("method") or ""),
+                    item.get("status_score"),
+                )
+                scenario_gaps.append(
+                    {
+                        "route": item.get("route"),
+                        "status": "uncovered",
+                        "evidence": {
+                            "method": item.get("method"),
+                            "status_score": item.get("status_score"),
+                        },
+                        "priority_score": score,
+                    }
+                )
+            coverage_payload["scenario"] = {
+                "summary": coverage,
+                "gaps": scenario_gaps,
+            }
+
+            # Seed coverage gap goals to bias autonomous exploration
+            try:
+                min_ratio = float(os.getenv("BGL_COVERAGE_MIN_RATIO", "35") or "35")
+                ratio = float(coverage.get("coverage_ratio") or 0.0)
+                gap_limit = int(os.getenv("BGL_COVERAGE_GOAL_LIMIT", "4") or "4")
+                min_score = float(os.getenv("BGL_COVERAGE_GOAL_MIN_SCORE", "40") or "40")
+                if ratio < min_ratio:
+                    prioritized = sorted(
+                        scenario_gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
+                    )
+                    coverage_payload["scenario"]["prioritized_gaps"] = prioritized[:gap_limit]
+                    seeded = 0
+                    for item in prioritized:
+                        if seeded >= gap_limit:
+                            break
+                        if float(item.get("priority_score") or 0) < min_score:
+                            continue
+                        uri = item.get("route")
+                        if not uri:
+                            continue
+                        self._write_autonomy_goal(
+                            "coverage_gap",
+                            {
+                                "uri": uri,
+                                "coverage_ratio": ratio,
+                                "window_days": cov_days,
+                                "reason": "scenario_coverage_gap",
+                                "priority_score": item.get("priority_score"),
+                            },
+                            "coverage",
+                            ttl_days=2,
+                        )
+                        seeded += 1
+            except Exception:
+                pass
+        except Exception:
+            report["scenario_coverage"] = {}
+
+        # UI action coverage (interactive elements vs exploration history)
+        try:
+            ui_days = int(
+                os.getenv(
+                    "BGL_UI_ACTION_WINDOW_DAYS",
+                    str(self.config.get("ui_action_window_days", "7")),
+                )
+                or "7"
+            )
+            ui_limit = int(
+                os.getenv(
+                    "BGL_UI_ACTION_SAMPLE_LIMIT",
+                    str(self.config.get("ui_action_sample_limit", "12")),
+                )
+                or "12"
+            )
+            ui_cov = self._compute_ui_action_coverage(days=ui_days, limit=ui_limit)
+            report["ui_action_coverage"] = ui_cov
+            ui_gaps = ui_cov.get("gaps") or []
+            if ui_cov:
+                coverage_payload["ui_actions"] = {
+                    "summary": ui_cov,
+                    "gaps": ui_gaps,
+                }
+            # Seed UI action gap goals to bias exploration
+            try:
+                min_ratio = float(
+                    os.getenv(
+                        "BGL_MIN_UI_ACTION_COVERAGE",
+                        str(self.config.get("min_ui_action_coverage", "30")),
+                    )
+                    or "30"
+                )
+                ratio = float(ui_cov.get("coverage_ratio") or 0.0)
+                gap_limit = int(
+                    os.getenv(
+                        "BGL_UI_ACTION_GOAL_LIMIT",
+                        str(self.config.get("ui_action_goal_limit", "4")),
+                    )
+                    or "4"
+                )
+                min_score = float(
+                    os.getenv(
+                        "BGL_UI_ACTION_GOAL_MIN_SCORE",
+                        str(self.config.get("ui_action_goal_min_score", "45")),
+                    )
+                    or "45"
+                )
+                if ratio < min_ratio:
+                    prioritized = sorted(
+                        ui_gaps,
+                        key=lambda g: float(g.get("priority_score") or 0),
+                        reverse=True,
+                    )
+                    coverage_payload["ui_actions"][
+                        "prioritized_gaps"
+                    ] = prioritized[:gap_limit]
+                    seeded = 0
+                    for item in prioritized:
+                        if seeded >= gap_limit:
+                            break
+                        if float(item.get("priority_score") or 0) < min_score:
+                            continue
+                        uri = item.get("route") or ""
+                        selector = item.get("selector") or ""
+                        if not uri and not selector:
+                            continue
+                        self._write_autonomy_goal(
+                            "ui_action_gap",
+                            {
+                                "uri": uri,
+                                "selector": selector,
+                                "text": item.get("text"),
+                                "href": item.get("href"),
+                                "tag": item.get("tag"),
+                                "risk": item.get("risk"),
+                                "coverage_ratio": ratio,
+                                "window_days": ui_days,
+                                "priority_score": item.get("priority_score"),
+                            },
+                            "ui_action_coverage",
+                            ttl_days=2,
+                        )
+                        seeded += 1
+            except Exception:
+                pass
+        except Exception:
+            report["ui_action_coverage"] = {}
+
+        # Flow coverage (docs/flows) and flow gap goals
+        try:
+            flow_days = int(os.getenv("BGL_FLOW_COVERAGE_DAYS", "14") or "14")
+            flow_limit = int(os.getenv("BGL_FLOW_COVERAGE_SAMPLE", "8") or "8")
+            flow_cov = self._compute_flow_coverage(days=flow_days, limit=flow_limit)
+            report["flow_coverage"] = flow_cov
+            for item in (flow_cov.get("uncovered_sample") or []):
+                flow_score = 60.0 + 10.0 * len(item.get("missing_steps") or [])
+                flow_gaps.append(
+                    {
+                        "flow": item.get("flow"),
+                        "status": item.get("status"),
+                        "endpoints": item.get("endpoints") or [],
+                        "priority_score": round(flow_score, 2),
+                    }
+                )
+            coverage_payload["flow"] = {
+                "summary": flow_cov,
+                "details": flow_cov.get("details", []),
+                "gaps": flow_gaps,
+            }
+
+            # Seed flow gap goals for uncovered/partial flows
+            try:
+                gap_limit = int(os.getenv("BGL_FLOW_GOAL_LIMIT", "3") or "3")
+                prioritized = sorted(
+                    flow_gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
+                )
+                coverage_payload["flow"]["prioritized_gaps"] = prioritized[:gap_limit]
+                seeded = 0
+                for item in prioritized:
+                    if seeded >= gap_limit:
+                        break
+                    flow_name = item.get("flow") or ""
+                    endpoints = item.get("endpoints") or []
+                    if not endpoints and not flow_name:
+                        continue
+                    if endpoints:
+                        for ep in endpoints[:2]:
+                            self._write_autonomy_goal(
+                                "flow_gap",
+                                {
+                                    "uri": ep,
+                                    "flow": flow_name,
+                                    "coverage_ratio": flow_cov.get("coverage_ratio"),
+                                    "window_days": flow_days,
+                                    "priority_score": item.get("priority_score"),
+                                },
+                                "flow_coverage",
+                                ttl_days=3,
+                            )
+                            seeded += 1
+                            if seeded >= gap_limit:
+                                break
+                    else:
+                        self._write_autonomy_goal(
+                            "flow_gap",
+                            {
+                                "flow": flow_name,
+                                "coverage_ratio": flow_cov.get("coverage_ratio"),
+                                "window_days": flow_days,
+                                "priority_score": item.get("priority_score"),
+                            },
+                            "flow_coverage",
+                            ttl_days=3,
+                        )
+                        seeded += 1
+            except Exception:
+                pass
+        except Exception:
+            report["flow_coverage"] = {}
+
+        # Coverage gates (phase 3 acceptance metrics)
+        try:
+            coverage_gate = {}
+            flow_gate = {}
+            scenario_cov = report.get("scenario_coverage") or {}
+            ui_action_cov = report.get("ui_action_coverage") or {}
+            flow_cov = report.get("flow_coverage") or {}
+            min_route = float(os.getenv("BGL_MIN_ROUTE_COVERAGE", "40") or "40")
+            min_ui = float(os.getenv("BGL_MIN_UI_SEMANTIC_COVERAGE", "25") or "25")
+            if scenario_cov:
+                route_ratio = float(scenario_cov.get("coverage_ratio") or 0.0)
+                ui_ratio = float(scenario_cov.get("ui_coverage_ratio") or 0.0)
+                ui_action_ratio = float(ui_action_cov.get("coverage_ratio") or 0.0)
+                min_ui_action = float(
+                    os.getenv(
+                        "BGL_MIN_UI_ACTION_COVERAGE",
+                        str(self.config.get("min_ui_action_coverage", "30")),
+                    )
+                    or "30"
+                )
+                coverage_gate = {
+                    "min_route_ratio": min_route,
+                    "min_ui_ratio": min_ui,
+                    "min_ui_action_ratio": min_ui_action,
+                    "route_ratio": route_ratio,
+                    "ui_ratio": ui_ratio,
+                    "ui_action_ratio": ui_action_ratio,
+                    "ok": bool(
+                        route_ratio >= min_route
+                        and ui_ratio >= min_ui
+                        and (not ui_action_cov or ui_action_ratio >= min_ui_action)
+                    ),
+                }
+            min_flow = float(os.getenv("BGL_MIN_FLOW_COVERAGE", "35") or "35")
+            min_seq = float(os.getenv("BGL_MIN_FLOW_SEQUENCE", "15") or "15")
+            if flow_cov:
+                flow_ratio = float(flow_cov.get("coverage_ratio") or 0.0)
+                seq_ratio = float(flow_cov.get("sequence_coverage_ratio") or 0.0)
+                flow_gate = {
+                    "min_flow_ratio": min_flow,
+                    "min_sequence_ratio": min_seq,
+                    "flow_ratio": flow_ratio,
+                    "sequence_ratio": seq_ratio,
+                    "ok": bool(flow_ratio >= min_flow and seq_ratio >= min_seq),
+                }
+            report["coverage_gate"] = coverage_gate
+            report["flow_gate"] = flow_gate
+        except Exception:
+            report["coverage_gate"] = {}
+            report["flow_gate"] = {}
+
+        # Generate gap scenarios (optional, non-blocking)
+        try:
+            gen_limit = int(os.getenv("BGL_COVERAGE_SCENARIO_LIMIT", "6") or "6")
+            generated = self._generate_gap_scenarios(coverage_payload, limit=gen_limit)
+            if generated:
+                coverage_payload["generated_scenarios"] = generated
+        except Exception:
+            pass
+
+        # UI flow model (phase 3: flow understanding)
+        try:
+            flow_days = int(os.getenv("BGL_UI_FLOW_DAYS", "7") or "7")
+            flow_limit = int(os.getenv("BGL_UI_FLOW_LIMIT", "30") or "30")
+            ui_flow_model = self._compute_ui_flow_model(days=flow_days, limit=flow_limit)
+            if ui_flow_model:
+                report["ui_flow_model"] = ui_flow_model
+                analysis_dir = self.root_dir / "analysis"
+                analysis_dir.mkdir(parents=True, exist_ok=True)
+                (analysis_dir / "ui_flow_model.json").write_text(
+                    json.dumps(ui_flow_model, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+        except Exception:
+            report["ui_flow_model"] = {}
+
+        # Write unified coverage artifact
+        try:
+            if (
+                "scenario" in coverage_payload
+                or "flow" in coverage_payload
+                or "ui_actions" in coverage_payload
+            ):
+                analysis_dir = self.root_dir / "analysis"
+                analysis_dir.mkdir(parents=True, exist_ok=True)
+                coverage_path = analysis_dir / "coverage.json"
+                coverage_path.write_text(
+                    json.dumps(coverage_payload, ensure_ascii=False, indent=2),
+                    encoding="utf-8",
+                )
+        except Exception:
+            pass
         report["api_contract_missing"] = self._contract_missing_routes(
             routes, api_contract.get("paths", {})
         )
@@ -773,6 +1137,781 @@ class BGLGuardian:
 
         probe_path = self.root_dir / ".bgl_core" / "brain" / "business_conflicts_probe.php"
         if not probe_path.exists():
+            return []
+
+    def _normalize_route(self, route: str) -> str:
+        """Normalize route/URL to a path for coverage comparison."""
+        if not route:
+            return ""
+        try:
+            if "://" in route:
+                parsed = urllib.parse.urlparse(route)
+                path = parsed.path or ""
+                return path if path.startswith("/") else f"/{path}"
+        except Exception:
+            pass
+        path = route.split("?")[0]
+        if path.startswith(self.base_url):
+            try:
+                parsed = urllib.parse.urlparse(path)
+                path = parsed.path or ""
+            except Exception:
+                path = path.replace(self.base_url, "")
+        if not path.startswith("/"):
+            path = f"/{path}"
+        return path
+
+    def _parse_flow_docs(self) -> List[Dict[str, Any]]:
+        """Parse docs/flows/*.md into structured flow metadata."""
+        flows_dir = self.root_dir / "docs" / "flows"
+        if not flows_dir.exists():
+            return []
+        flows: List[Dict[str, Any]] = []
+        for md in flows_dir.glob("*.md"):
+            try:
+                text = md.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                continue
+            title = ""
+            for line in text.splitlines():
+                line = line.strip()
+                if line.startswith("#"):
+                    title = line.lstrip("#").strip()
+                    break
+            endpoints = []
+            for m in re.findall(r"/api/[A-Za-z0-9_\-./]+", text):
+                norm = self._normalize_route(m)
+                if norm and norm not in endpoints:
+                    endpoints.append(norm)
+            # Capture event types from runtime_events `event_type`
+            events = []
+            for m in re.findall(r"runtime_events\\s*`([^`]+)`", text):
+                if m:
+                    events.append(m.strip())
+            events = sorted(list({e for e in events if e}))
+            flows.append(
+                {
+                    "file": md.name,
+                    "title": title or md.stem,
+                    "endpoints": endpoints,
+                    "events": events,
+                }
+            )
+        return flows
+
+    def _sequence_matches(self, route_list: List[str], endpoints: List[str]) -> bool:
+        """Check if endpoints appear in order within a route list (not necessarily contiguous)."""
+        if not endpoints:
+            return False
+        idx = 0
+        for r in route_list:
+            if r == endpoints[idx]:
+                idx += 1
+                if idx >= len(endpoints):
+                    return True
+        return False
+
+    def _generate_gap_scenarios(
+        self, coverage_payload: Dict[str, Any], limit: int = 6
+    ) -> List[str]:
+        """Generate lightweight gap scenarios from coverage gaps."""
+        generated: List[str] = []
+        out_dir = self.root_dir / ".bgl_core" / "brain" / "scenarios" / "generated"
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        def _slug(text: str) -> str:
+            return re.sub(r"[^a-zA-Z0-9_]+", "_", (text or "").strip("/").lower())[:60]
+
+        # Scenario gaps (route coverage)
+        scenario_gaps = (
+            (coverage_payload.get("scenario") or {}).get("gaps") or []
+        )
+        for item in scenario_gaps[:limit]:
+            route = str(item.get("route") or "")
+            if not route:
+                continue
+            name = f"gap_route_{_slug(route) or 'unknown'}"
+            path = out_dir / f"{name}.yaml"
+            if path.exists():
+                continue
+            kind = "api" if route.startswith("/api/") else "ui"
+            steps = []
+            if kind == "api":
+                steps = [{"action": "request", "url": route, "method": "GET"}]
+            else:
+                steps = [
+                    {"action": "goto", "url": route},
+                    {"action": "wait", "ms": 400},
+                ]
+            payload = {
+                "name": name,
+                "kind": kind,
+                "generated": True,
+                "meta": {"origin": "coverage_gap", "route": route},
+                "steps": steps,
+            }
+            try:
+                path.write_text(
+                    yaml.safe_dump(payload, sort_keys=False, allow_unicode=True),
+                    encoding="utf-8",
+                )
+                generated.append(path.name)
+            except Exception:
+                continue
+
+        # Flow gaps (flow coverage)
+        flow_gaps = (coverage_payload.get("flow") or {}).get("gaps") or []
+        for item in flow_gaps[:limit]:
+            endpoints = item.get("endpoints") or []
+            if not endpoints:
+                continue
+            flow_name = str(item.get("flow") or "flow")
+            name = f"gap_flow_{_slug(flow_name)}"
+            path = out_dir / f"{name}.yaml"
+            if path.exists():
+                continue
+            steps = []
+            for ep in endpoints[:3]:
+                steps.append({"action": "request", "url": ep, "method": "GET"})
+            payload = {
+                "name": name,
+                "kind": "api",
+                "generated": True,
+                "meta": {"origin": "flow_gap", "flow": flow_name, "endpoints": endpoints[:5]},
+                "steps": steps,
+            }
+            try:
+                path.write_text(
+                    yaml.safe_dump(payload, sort_keys=False, allow_unicode=True),
+                    encoding="utf-8",
+                )
+                generated.append(path.name)
+            except Exception:
+                continue
+
+        # UI action gaps (interactive elements)
+        ui_action_gaps = (coverage_payload.get("ui_actions") or {}).get("gaps") or []
+        for item in ui_action_gaps[:limit]:
+            route = str(item.get("route") or "")
+            selector = str(item.get("selector") or "")
+            label = selector or str(item.get("href") or "") or str(item.get("text") or "")
+            if not (route or selector):
+                continue
+            name = f"gap_ui_action_{_slug(route or label) or 'unknown'}"
+            path = out_dir / f"{name}.yaml"
+            if path.exists():
+                continue
+            steps = []
+            if route:
+                steps.extend(
+                    [
+                        {"action": "goto", "url": route},
+                        {"action": "wait", "ms": 400},
+                    ]
+                )
+            if selector:
+                danger = str(item.get("risk") or "") in ("danger", "write")
+                click_step = {"action": "click", "selector": selector}
+                if danger:
+                    click_step["danger"] = True
+                steps.append(click_step)
+                steps.append({"action": "wait", "ms": 400})
+            payload = {
+                "name": name,
+                "kind": "ui",
+                "generated": True,
+                "meta": {
+                    "origin": "ui_action_gap",
+                    "route": route,
+                    "selector": selector,
+                    "risk": item.get("risk"),
+                },
+                "steps": steps,
+            }
+            try:
+                path.write_text(
+                    yaml.safe_dump(payload, sort_keys=False, allow_unicode=True),
+                    encoding="utf-8",
+                )
+                generated.append(path.name)
+            except Exception:
+                continue
+        return generated
+
+    def _compute_ui_flow_model(self, days: int = 7, limit: int = 30) -> Dict[str, Any]:
+        if not self.db_path.exists():
+            return {}
+        cutoff = time.time() - (days * 86400)
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            rows = cur.execute(
+                """
+                SELECT from_url, to_url, action, selector, COUNT(*) as c
+                FROM ui_flow_transitions
+                WHERE created_at >= ?
+                GROUP BY from_url, to_url, action, selector
+                ORDER BY c DESC
+                LIMIT ?
+                """,
+                (cutoff, int(limit)),
+            ).fetchall()
+            conn.close()
+        except Exception:
+            return {}
+        transitions: List[Dict[str, Any]] = []
+        nodes: Dict[str, Dict[str, Any]] = {}
+        for r in rows:
+            from_url = self._normalize_route(r["from_url"] or "")
+            to_url = self._normalize_route(r["to_url"] or "")
+            if not (from_url or to_url):
+                continue
+            transitions.append(
+                {
+                    "from": from_url,
+                    "to": to_url,
+                    "action": r["action"],
+                    "selector": r["selector"],
+                    "count": int(r["c"] or 0),
+                }
+            )
+            if from_url:
+                nodes.setdefault(from_url, {"out": 0, "in": 0})
+                nodes[from_url]["out"] += int(r["c"] or 0)
+            if to_url:
+                nodes.setdefault(to_url, {"out": 0, "in": 0})
+                nodes[to_url]["in"] += int(r["c"] or 0)
+        return {
+            "window_days": days,
+            "node_count": len(nodes),
+            "transition_count": len(transitions),
+            "nodes": nodes,
+            "transitions": transitions,
+        }
+
+    def _compute_flow_coverage(self, days: int = 14, limit: int = 10) -> Dict[str, Any]:
+        """
+        Compute flow coverage based on docs/flows vs runtime_events.
+        Returns summary with uncovered flow sample.
+        """
+        flows = self._parse_flow_docs()
+        if not flows or not self.db_path.exists():
+            return {}
+        cutoff = time.time() - (days * 86400)
+        route_seen: set[str] = set()
+        events_seen: set[str] = set()
+        session_routes: Dict[str, List[str]] = {}
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            rows = cur.execute(
+                """
+                SELECT session, route, event_type, timestamp
+                FROM runtime_events
+                WHERE timestamp >= ? AND (route IS NOT NULL OR event_type IS NOT NULL)
+                ORDER BY timestamp ASC
+                """,
+                (cutoff,),
+            ).fetchall()
+            for r in rows:
+                route = r["route"] or ""
+                norm = self._normalize_route(route)
+                if norm:
+                    route_seen.add(norm)
+                    sess = r["session"] or ""
+                    session_routes.setdefault(str(sess), []).append(norm)
+                ev = r["event_type"] or ""
+                if ev:
+                    events_seen.add(str(ev))
+            conn.close()
+        except Exception:
+            route_seen = set()
+            events_seen = set()
+            session_routes = {}
+
+        covered = 0
+        seq_covered = 0
+        results = []
+        for flow in flows:
+            endpoints = flow.get("endpoints") or []
+            events = flow.get("events") or []
+            hit_endpoints = [e for e in endpoints if e in route_seen]
+            hit_events = [e for e in events if e in events_seen]
+            status = "uncovered"
+            if hit_endpoints or hit_events:
+                if endpoints and events and (not hit_endpoints or not hit_events):
+                    status = "partial"
+                else:
+                    status = "covered"
+            if status == "covered":
+                covered += 1
+            missing_steps = [e for e in endpoints if e not in route_seen]
+            sequence_covered = False
+            sequence_session = ""
+            if endpoints and session_routes:
+                for sess, routes in session_routes.items():
+                    if self._sequence_matches(routes, endpoints):
+                        sequence_covered = True
+                        sequence_session = sess
+                        break
+            if sequence_covered:
+                seq_covered += 1
+            results.append(
+                {
+                    "flow": flow.get("title"),
+                    "file": flow.get("file"),
+                    "status": status,
+                    "evidence": {
+                        "routes": hit_endpoints[:5],
+                        "events": hit_events[:5],
+                    },
+                    "endpoints": endpoints[:5],
+                    "missing_steps": missing_steps[:5],
+                    "sequence_covered": sequence_covered,
+                    "sequence_session": sequence_session,
+                }
+            )
+
+        ratio = round((covered / max(1, len(flows))) * 100, 2)
+        seq_ratio = round((seq_covered / max(1, len(flows))) * 100, 2)
+        uncovered = [r for r in results if r.get("status") != "covered"]
+        return {
+            "window_days": days,
+            "total_flows": len(flows),
+            "covered_flows": covered,
+            "coverage_ratio": ratio,
+            "sequence_covered_flows": seq_covered,
+            "sequence_coverage_ratio": seq_ratio,
+            "uncovered_sample": uncovered[:limit],
+            "details": results,
+        }
+
+    def _compute_scenario_coverage(self, days: int = 7, limit: int = 12) -> Dict[str, Any]:
+        """
+        Compute lightweight scenario coverage based on runtime_events vs routes.
+        Returns summary with missing route sample for scenario generation.
+        """
+        if not self.db_path.exists():
+            return {}
+        cutoff = time.time() - (days * 86400)
+        total_routes = 0
+        covered_routes: set[str] = set()
+        known_routes: set[str] = set()
+        uncovered_sample: List[Dict[str, Any]] = []
+        ui_paths: set[str] = set()
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            # Build normalized route set (avoid double-counting / query noise)
+            rows_known = cur.execute("SELECT uri FROM routes").fetchall()
+            for row in rows_known:
+                norm = self._normalize_route(row["uri"] or "")
+                if norm:
+                    known_routes.add(norm)
+            total_routes = len(known_routes)
+            rows = cur.execute(
+                "SELECT DISTINCT route FROM runtime_events WHERE timestamp >= ? AND route IS NOT NULL",
+                (cutoff,),
+            ).fetchall()
+            for r in rows:
+                norm = self._normalize_route(r["route"] or "")
+                if norm:
+                    covered_routes.add(norm)
+            if known_routes:
+                covered_routes = covered_routes.intersection(known_routes)
+            # UI semantic snapshots coverage (paths)
+            try:
+                rows2 = cur.execute(
+                    "SELECT DISTINCT url FROM ui_semantic_snapshots WHERE created_at >= ?",
+                    (cutoff,),
+                ).fetchall()
+                for r in rows2:
+                    norm = self._normalize_route(r["url"] or "")
+                    if norm:
+                        ui_paths.add(norm)
+            except Exception:
+                ui_paths = set()
+
+            # Sample uncovered routes for scenario generation
+            if total_routes > 0:
+                rows3 = cur.execute(
+                    "SELECT uri, http_method, status_score, last_validated FROM routes ORDER BY last_validated DESC"
+                ).fetchall()
+                for row in rows3:
+                    uri = row["uri"]
+                    norm = self._normalize_route(uri or "")
+                    if norm and norm not in covered_routes:
+                        uncovered_sample.append(
+                            {
+                                "route": norm,
+                                "method": row["http_method"],
+                                "status_score": row["status_score"],
+                            }
+                        )
+                    if len(uncovered_sample) >= limit:
+                        break
+            conn.close()
+        except Exception:
+            return {}
+
+        covered_count = len(covered_routes)
+        ratio = round((covered_count / max(1, total_routes)) * 100, 2)
+        ui_ratio = round((len(ui_paths) / max(1, total_routes)) * 100, 2) if total_routes else 0.0
+        return {
+            "window_days": days,
+            "total_routes": total_routes,
+            "covered_routes": covered_count,
+            "coverage_ratio": ratio,
+            "ui_snapshot_paths": len(ui_paths),
+            "ui_coverage_ratio": ui_ratio,
+            "uncovered_sample": uncovered_sample,
+        }
+
+    def _compute_ui_action_coverage(self, days: int = 7, limit: int = 12) -> Dict[str, Any]:
+        """
+        Compute UI action coverage using stored UI action snapshots vs exploration history.
+        Returns summary + gaps for scenario generation.
+        """
+        if not self.db_path.exists():
+            return {}
+        cutoff = time.time() - (days * 86400)
+        uncovered_sample: List[Dict[str, Any]] = []
+        gaps: List[Dict[str, Any]] = []
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            tables = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            if "ui_action_snapshots" not in tables:
+                conn.close()
+                return {}
+            rows = conn.execute(
+                """
+                SELECT url, created_at, candidates_json
+                FROM ui_action_snapshots
+                WHERE created_at >= ?
+                ORDER BY created_at DESC
+                LIMIT ?
+                """,
+                (cutoff, int(limit)),
+            ).fetchall()
+            if not rows:
+                conn.close()
+                return {}
+
+            explored_selectors: Dict[str, set[str]] = {}
+            explored_hrefs: Dict[str, set[str]] = {}
+            global_selectors: set[str] = set()
+            global_hrefs: set[str] = set()
+            try:
+                exp_rows = conn.execute(
+                    """
+                    SELECT selector, href_base, route, last_seen
+                    FROM exploration_novelty
+                    WHERE last_seen >= ?
+                    """,
+                    (cutoff,),
+                ).fetchall()
+                for r in exp_rows:
+                    sel = str(r["selector"] or "")
+                    href_base = str(r["href_base"] or "")
+                    route = self._normalize_route(str(r["route"] or ""))
+                    if route:
+                        if sel:
+                            explored_selectors.setdefault(route, set()).add(sel)
+                        if href_base:
+                            explored_hrefs.setdefault(route, set()).add(href_base)
+                    else:
+                        if sel:
+                            global_selectors.add(sel)
+                        if href_base:
+                            global_hrefs.add(href_base)
+            except Exception:
+                pass
+            conn.close()
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return {}
+
+        action_keywords = [
+            "save",
+            "submit",
+            "create",
+            "add",
+            "new",
+            "import",
+            "export",
+            "delete",
+            "update",
+            "edit",
+            "search",
+            "filter",
+            "apply",
+            "login",
+            "logout",
+            "approve",
+            "confirm",
+            "cancel",
+            "حفظ",
+            "إرسال",
+            "انشاء",
+            "إنشاء",
+            "اضافة",
+            "إضافة",
+            "جديد",
+            "استيراد",
+            "تصدير",
+            "حذف",
+            "تحديث",
+            "تعديل",
+            "بحث",
+            "تصفية",
+            "تطبيق",
+            "تسجيل",
+            "دخول",
+            "خروج",
+            "اعتماد",
+            "تأكيد",
+            "إلغاء",
+        ]
+        danger_keywords = [
+            "delete",
+            "remove",
+            "drop",
+            "revoke",
+            "terminate",
+            "disable",
+            "reject",
+            "deny",
+            "cancel",
+            "حذف",
+            "إلغاء",
+            "رفض",
+            "تعطيل",
+            "إبطال",
+            "ايقاف",
+            "إيقاف",
+        ]
+        write_keywords = [
+            "save",
+            "submit",
+            "create",
+            "add",
+            "update",
+            "edit",
+            "import",
+            "export",
+            "approve",
+            "confirm",
+            "حفظ",
+            "إرسال",
+            "انشاء",
+            "إنشاء",
+            "اضافة",
+            "إضافة",
+            "تحديث",
+            "تعديل",
+            "استيراد",
+            "تصدير",
+            "اعتماد",
+            "تأكيد",
+        ]
+
+        def _norm(text: str) -> str:
+            return str(text or "").strip().lower()
+
+        def _href_base(href: str) -> str:
+            if not href:
+                return ""
+            try:
+                if "://" in href:
+                    parsed = urllib.parse.urlparse(href)
+                    href = parsed.path or ""
+            except Exception:
+                pass
+            return Path(href).name.lower()
+
+        def _risk(text: str, href: str) -> str:
+            content = f"{_norm(text)} {_norm(href)}"
+            if any(k in content for k in danger_keywords):
+                return "danger"
+            if any(k in content for k in write_keywords):
+                return "write"
+            return "safe"
+
+        def _priority(text: str, tag: str, role: str, href: str, risk: str) -> float:
+            score = 50.0
+            t = _norm(text)
+            if tag in ("button", "input") or "button" in _norm(role):
+                score += 10.0
+            if t:
+                score += 8.0
+            if href:
+                score += 5.0
+            if any(k in t for k in action_keywords):
+                score += 12.0
+            if risk == "danger":
+                score += 6.0
+            elif risk == "write":
+                score += 4.0
+            return round(score, 2)
+
+        seen_keys: set[str] = set()
+        covered_keys: set[str] = set()
+        route_stats: Dict[str, Dict[str, int]] = {}
+
+        for row in rows:
+            url = str(row["url"] or "")
+            route = self._normalize_route(url)
+            try:
+                candidates = json.loads(row["candidates_json"] or "[]")
+            except Exception:
+                candidates = []
+            if not isinstance(candidates, list):
+                candidates = []
+            for c in candidates:
+                if not isinstance(c, dict):
+                    continue
+                selector = str(c.get("selector") or "")
+                href = str(c.get("href") or "")
+                text = str(c.get("text") or "")
+                tag = str(c.get("tag") or "")
+                role = str(c.get("role") or "")
+                href_base = _href_base(href)
+                key = f"{route}|{selector or href_base or text[:40]}"
+                if key in seen_keys:
+                    continue
+                seen_keys.add(key)
+                route_stats.setdefault(route, {"total": 0, "covered": 0})
+                route_stats[route]["total"] += 1
+
+                covered = False
+                if selector and selector in explored_selectors.get(route, set()):
+                    covered = True
+                elif href_base and href_base in explored_hrefs.get(route, set()):
+                    covered = True
+                elif selector and selector in global_selectors:
+                    covered = True
+                elif href_base and href_base in global_hrefs:
+                    covered = True
+
+                if covered:
+                    covered_keys.add(key)
+                    route_stats[route]["covered"] += 1
+                else:
+                    risk = _risk(text, href)
+                    score = _priority(text, tag, role, href, risk)
+                    gap = {
+                        "route": route or url,
+                        "selector": selector,
+                        "text": text,
+                        "href": href,
+                        "tag": tag,
+                        "risk": risk,
+                        "priority_score": score,
+                    }
+                    gaps.append(gap)
+                    if len(uncovered_sample) < max(8, int(limit)):
+                        uncovered_sample.append(gap)
+
+        total_actions = len(seen_keys)
+        covered_actions = len(covered_keys)
+        ratio = (covered_actions / total_actions * 100.0) if total_actions else 0.0
+        routes_total = len(route_stats)
+        routes_covered = len(
+            [r for r in route_stats.values() if r.get("covered", 0) > 0]
+        )
+        gaps = sorted(
+            gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
+        )
+        max_gap_store = max(12, int(limit) * 2)
+        gaps = gaps[:max_gap_store]
+
+        return {
+            "window_days": days,
+            "snapshot_count": len(rows),
+            "total_actions": total_actions,
+            "covered_actions": covered_actions,
+            "coverage_ratio": round(ratio, 2),
+            "routes_with_actions": routes_total,
+            "routes_with_coverage": routes_covered,
+            "uncovered_sample": uncovered_sample,
+            "gaps": gaps,
+        }
+
+    def _write_autonomy_goal(
+        self, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 3
+    ) -> None:
+        try:
+            if not self.db_path.exists():
+                return
+            db = sqlite3.connect(str(self.db_path), timeout=30.0)
+            db.execute("PRAGMA journal_mode=WAL;")
+            db.execute(
+                "CREATE TABLE IF NOT EXISTS autonomy_goals (id INTEGER PRIMARY KEY AUTOINCREMENT, goal TEXT, payload TEXT, source TEXT, created_at REAL, expires_at REAL)"
+            )
+            # cleanup expired
+            try:
+                db.execute(
+                    "DELETE FROM autonomy_goals WHERE expires_at IS NOT NULL AND expires_at < ?",
+                    (time.time(),),
+                )
+            except Exception:
+                pass
+            payload_json = json.dumps(payload or {}, ensure_ascii=False)
+            # dedupe recent
+            try:
+                rows = db.execute(
+                    "SELECT payload FROM autonomy_goals ORDER BY created_at DESC LIMIT 60"
+                ).fetchall()
+                for (p,) in rows:
+                    if p == payload_json:
+                        db.close()
+                        return
+            except Exception:
+                pass
+            expires_at = None
+            try:
+                expires_at = time.time() + float(ttl_days) * 86400.0
+            except Exception:
+                expires_at = None
+            db.execute(
+                "INSERT INTO autonomy_goals (goal, payload, source, created_at, expires_at) VALUES (?, ?, ?, ?, ?)",
+                (goal, payload_json, source, time.time(), expires_at),
+            )
+            db.commit()
+            db.close()
+        except Exception:
+            return
+    def _check_domain_rule_violations(self) -> List[Dict[str, Any]]:
+        """
+        Lightweight domain rule audit (relationship rules only).
+        Focus on critical architecture rules (e.g., R001/R002).
+        """
+        rules_path = self.root_dir / ".bgl_core" / "brain" / "domain_rules.yml"
+        if not rules_path.exists():
+            return []
+        try:
+            from .governor import BGLGovernor  # type: ignore
+        except Exception:
+            from governor import BGLGovernor  # type: ignore
+
+        # Restrict to the most critical relationship rules by default.
+        rule_ids = {"R001", "R002"}
+        try:
+            gov = BGLGovernor(self.db_path, rules_path)
+            return gov.audit_relationship_rules(rule_ids=rule_ids)
+        except Exception:
             return []
 
         limit = int(os.getenv("BGL_BUSINESS_CONFLICT_SAMPLE", "8") or "8")
@@ -1394,7 +2533,7 @@ class BGLGuardian:
         suggestions = []
 
         # Rule 1: Failing Routes
-        for fail in report["failing_routes"]:
+        for fail in (report.get("failing_routes") or []):
             suspect = fail.get("suspect_code")
             file_name = "unknown file"
             if suspect and isinstance(suspect, dict):
@@ -1405,7 +2544,7 @@ class BGLGuardian:
             )
 
         # Rule 2: log anomalies
-        for anomaly in report["log_anomalies"]:
+        for anomaly in (report.get("log_anomalies") or []):
             suggestions.append(
                 f"Investigate recurring backend error: {anomaly['message']}"
             )
@@ -1415,7 +2554,7 @@ class BGLGuardian:
             suggestions.append(f"Permission check: {perm}")
 
         # Rule 3: Business Conflicts
-        for conflict in report.get("business_conflicts", []):
+        for conflict in (report.get("business_conflicts") or []):
             suggestions.append(f"Business Logic Alert: {conflict}")
 
         # Rule 4: Recent experiential errors

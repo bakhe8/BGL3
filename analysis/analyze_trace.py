@@ -5,8 +5,24 @@ from pathlib import Path
 from collections import defaultdict
 
 DB_PATH = Path(".bgl_core/brain/knowledge.db")
-OUTPUT_SUMMARY = Path("analysis/metrics_summary_enhanced.json")
+OUTPUT_SUMMARY = Path("analysis/metrics_summary.json")
+LEGACY_SUMMARY = Path("analysis/metrics_summary_enhanced.json")
 OUTPUT_SUGGESTIONS = Path("analysis/suggestions.json")
+
+
+def compute_stats(values):
+    if not values:
+        return {}
+    return {
+        "count": len(values),
+        "min": min(values),
+        "max": max(values),
+        "avg": round(sum(values) / len(values), 2),
+        "p50": statistics.median(values),
+        "p90": round(statistics.quantiles(values, n=10)[8], 2)
+        if len(values) >= 10
+        else None,
+    }
 
 
 def analyze_traces():
@@ -25,6 +41,8 @@ def analyze_traces():
 
     last_target = "Unknown"
     interaction_stats = defaultdict(lambda: {"move": [], "dom": []})
+    move_all = []
+    dom_all = []
 
     for event_type, target, payload, timestamp in cursor:
         if event_type == "ui_click":
@@ -39,6 +57,7 @@ def analyze_traces():
                 try:
                     val = int(parts["move_to_click_ms"])
                     interaction_stats[last_target]["move"].append(val)
+                    move_all.append(val)
                 except ValueError:
                     pass
 
@@ -47,6 +66,7 @@ def analyze_traces():
                 try:
                     val = int(parts["dom_change_ms"])
                     interaction_stats[last_target]["dom"].append(val)
+                    dom_all.append(val)
                 except ValueError:
                     pass
 
@@ -92,9 +112,24 @@ def analyze_traces():
     OUTPUT_SUMMARY.parent.mkdir(exist_ok=True, parents=True)
 
     with open(OUTPUT_SUMMARY, "w", encoding="utf-8") as f:
-        json.dump(final_report, f, indent=2)
+        json.dump(
+            {
+                "overall": {
+                    "move_to_click_ms": compute_stats(move_all),
+                    "click_to_dom_ms": compute_stats(dom_all),
+                },
+                "per_target": final_report,
+            },
+            f,
+            indent=2,
+        )
 
     print(f"Summary saved to {OUTPUT_SUMMARY}")
+    if LEGACY_SUMMARY.exists():
+        try:
+            LEGACY_SUMMARY.unlink()
+        except Exception:
+            pass
 
     # Analyze Backend Traces
     analyze_backend_traces(suggestions)

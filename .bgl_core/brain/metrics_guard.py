@@ -12,7 +12,7 @@ import os
 import sys
 from pathlib import Path
 
-SUMMARY_FILE = Path(".bgl_core/brain/metrics_summary.json")
+SUMMARY_FILE = Path("analysis/metrics_summary.json")
 
 
 def load_summary():
@@ -30,8 +30,9 @@ def main():
         sys.exit(0)
 
     summary = load_summary()
-    move = summary.get("move_to_click_ms", {})
-    dom = summary.get("click_to_dom_ms", {})
+    overall = summary.get("overall", summary)
+    move = overall.get("move_to_click_ms", {})
+    dom = overall.get("click_to_dom_ms", {})
 
     min_ok = float(os.getenv("BGL_TARGET_MOVE_MIN_MS", "2000"))
     max_ok = float(os.getenv("BGL_TARGET_MOVE_MAX_MS", "6000"))

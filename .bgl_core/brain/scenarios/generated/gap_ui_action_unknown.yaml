@@ -1,0 +1,18 @@
+name: gap_ui_action_unknown
+kind: ui
+generated: true
+meta:
+  origin: ui_action_gap
+  route: /
+  selector: '#bgl-confirm-no'
+  risk: danger
+steps:
+- action: goto
+  url: /
+- action: wait
+  ms: 400
+- action: click
+  selector: '#bgl-confirm-no'
+  danger: true
+- action: wait
+  ms: 400

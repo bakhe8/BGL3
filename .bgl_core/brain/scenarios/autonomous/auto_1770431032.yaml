@@ -1,0 +1,9 @@
+name: autonomous_1770431032
+kind: ui
+steps:
+- action: goto
+  url: /api/reduce.php
+- action: click
+  selector: input[name="relatedTo"]
+- action: wait
+  ms: 600

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_11",
+  "description": "Stabilize route http://localhost:8000/api/release.php",
+  "created_at": 1770488734,
+  "metadata": {
+    "proposal_id": 11,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770488743.1771564
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_release_php.yaml",
+      "mode": null,
+      "content": "Ensure the route http://localhost:8000/api/release.php is correctly handled and all HTTP calls are successful.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the route http://localhost:8000/api/release.php is correctly handled and all HTTP calls are successful."
+      }
+    }
+  ]
+}

@@ -103,5 +103,5 @@
 - السيناريوهات التشغيلية: basic_pages، index_search، index_filters، dashboard_actions، dom_change؛ أوامر موحدة في run_ui.ps1 و run_ci.ps1.
 - قياسات الحركة: move→click متوفرة، click→DOM تعمل الآن عبر MutationObserver مزروع قبل النقر (عند حدوث تغيير).
 - ضبط السرعة/الجِتر/overshoot/hesitation يتم عبر متغيرات البيئة (`BGL_BASE_SPEED_MIN/MAX`, `BGL_JITTER_MIN/MAX`, `BGL_OVERSHOOT_MIN/MAX`, `BGL_HESITATION_MIN/MAX_MS`) بدون تعديل كود.
-- حارس القياسات `metrics_guard.py` يقرأ `metrics_summary.json` ويتحقق من نطاق move→click (افتراضي 2000–6000ms) ويمكن إلزام وجود عينات DOM عبر `BGL_REQUIRE_DOM_CHANGE=1`.
+- حارس القياسات `metrics_guard.py` يقرأ `analysis/metrics_summary.json` ويتحقق من نطاق move→click (افتراضي 2000–6000ms) ويمكن إلزام وجود عينات DOM عبر `BGL_REQUIRE_DOM_CHANGE=1`.
 - تحسينات إضافية (hand_profile أدق، سيناريوهات DOM أخرى، ضبط نطاقات الحارس) مسموحة لأي مطور طالما تبقى حركة الماوس عبر Motor والحارس مفعّلين.

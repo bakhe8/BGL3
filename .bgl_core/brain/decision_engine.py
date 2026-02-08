@@ -1,4 +1,4 @@
-from typing import Dict, Any
+from typing import Dict, Any, List
 import json
 
 try:
@@ -38,12 +38,16 @@ def decide(intent_payload: Dict[str, Any], policy: Dict[str, Any]) -> Dict[str, 
     try:
         client = LLMClient()
         payload = client.chat_json(prompt, temperature=0.0)
-        return _apply_semantic_override(payload, intent_payload)
+        payload = _apply_semantic_override(payload, intent_payload)
+        payload = _apply_policy_overrides(payload, intent_payload, policy)
+        return _attach_explanation(payload, intent_payload, policy)
     except (TimeoutError, Exception) as e:
         print(
             f"[!] SmartDecisionEngine: LLM unavailable ({type(e).__name__}). Using deterministic fallback."
         )
-        return _deterministic_decision(intent, confidence, intent_payload)
+        payload = _deterministic_decision(intent, confidence, intent_payload)
+        payload = _apply_policy_overrides(payload, intent_payload, policy)
+        return _attach_explanation(payload, intent_payload, policy)
 
 
 def _deterministic_decision(intent: str, confidence: float, payload: Dict) -> Dict:
@@ -168,4 +172,301 @@ def _apply_semantic_override(payload: Dict[str, Any], intent_payload: Dict[str, 
             payload["justification"] = justification
     except Exception:
         pass
+    return payload
+
+
+def _ensure_justification(payload: Dict[str, Any]) -> List[str]:
+    just = payload.get("justification") or []
+    if isinstance(just, list):
+        return [str(j) for j in just if j is not None]
+    return [str(just)]
+
+
+def _risk_rank(level: str) -> int:
+    order = {"low": 0, "medium": 1, "high": 2}
+    return order.get(str(level or "").lower(), 1)
+
+
+def _extract_action_kind(intent_payload: Dict[str, Any]) -> str:
+    kind = intent_payload.get("action_kind")
+    if kind:
+        return str(kind).lower()
+    meta = intent_payload.get("metadata") or {}
+    try:
+        kind = meta.get("action_kind") or meta.get("kind")
+    except Exception:
+        kind = None
+    return str(kind or "").lower()
+
+
+def _scope_requires_human(scope: Any) -> bool:
+    if not scope:
+        return False
+    protected_prefixes = (
+        "app/",
+        "api/",
+        "templates/",
+        "views/",
+        "partials/",
+        "public/",
+        "storage/database/",
+    )
+    try:
+        items = scope if isinstance(scope, list) else [scope]
+    except Exception:
+        items = []
+    for item in items:
+        try:
+            raw = str(item)
+        except Exception:
+            return True
+        path = raw.replace("\\", "/").lstrip("./")
+        if "://" in path or path.startswith("http"):
+            return True
+        if path.startswith(protected_prefixes):
+            return True
+    return False
+
+
+def _extract_domain_rule_info(intent_payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Extract domain-rule violations from intent payload or env snapshot.
+    Returns a small summary for deterministic gating.
+    """
+    violations = []
+    summary = {}
+    try:
+        violations = intent_payload.get("domain_rule_violations") or []
+    except Exception:
+        violations = []
+    try:
+        summary = intent_payload.get("domain_rule_summary") or {}
+    except Exception:
+        summary = {}
+    # Fall back to env snapshot summary if present
+    try:
+        env_snapshot = intent_payload.get("env_snapshot") or {}
+        env_rules = env_snapshot.get("domain_rules") or {}
+        if not summary and isinstance(env_rules, dict):
+            summary = env_rules.get("summary") or {}
+        if not violations and isinstance(env_rules, dict):
+            # Only a count may be available from env snapshot
+            count = int(env_rules.get("violations_count") or 0)
+            if count > 0:
+                violations = [{"rule_id": "domain_rules", "severity": "critical"}] * count
+    except Exception:
+        pass
+
+    # Compute counts
+    count = len(violations) if isinstance(violations, list) else 0
+    critical = 0
+    rule_ids: List[str] = []
+    if isinstance(violations, list):
+        for v in violations:
+            if not isinstance(v, dict):
+                continue
+            rid = v.get("rule_id")
+            if rid:
+                rule_ids.append(str(rid))
+            sev = str(v.get("severity", "")).lower()
+            if sev == "critical":
+                critical += 1
+    # Merge with summary when available
+    if isinstance(summary, dict):
+        try:
+            critical = max(critical, int(summary.get("critical_count") or 0))
+        except Exception:
+            pass
+    return {
+        "count": count,
+        "critical_count": critical,
+        "rule_ids": sorted(list(set(rule_ids)))[:10],
+    }
+
+
+def _apply_policy_overrides(
+    payload: Dict[str, Any], intent_payload: Dict[str, Any], policy: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Deterministic policy layer that constrains high-risk decisions
+    regardless of LLM output.
+    """
+    if not isinstance(payload, dict):
+        payload = {}
+    policy = policy or {}
+
+    decision = str(payload.get("decision", "observe") or "observe").lower()
+    risk_level = str(payload.get("risk_level", "low") or "low").lower()
+    requires_human = bool(payload.get("requires_human", False))
+
+    try:
+        confidence = float(intent_payload.get("confidence", 0.0) or 0.0)
+    except Exception:
+        confidence = 0.0
+
+    policy_notes: List[str] = []
+
+    mode = str(policy.get("mode", "assisted") or "assisted").lower()
+    if decision == "auto_fix" and mode not in ("auto", "autonomous"):
+        decision = "propose_fix"
+        requires_human = True
+        policy_notes.append(f"policy:decision_mode={mode}")
+
+    auto_cfg = policy.get("auto_fix") or {}
+    try:
+        min_conf = float(auto_cfg.get("min_confidence", 0.7) or 0.7)
+    except Exception:
+        min_conf = 0.7
+    max_risk = str(auto_cfg.get("max_risk", "medium") or "medium").lower()
+
+    if decision == "auto_fix" and confidence < min_conf:
+        decision = "propose_fix"
+        requires_human = True
+        policy_notes.append(f"policy:auto_fix_min_conf={min_conf}")
+
+    if decision == "auto_fix" and _risk_rank(risk_level) > _risk_rank(max_risk):
+        decision = "propose_fix"
+        requires_human = True
+        policy_notes.append(f"policy:auto_fix_max_risk={max_risk}")
+
+    # Action-kind and scope hard constraints
+    action_kind = _extract_action_kind(intent_payload)
+    scope = intent_payload.get("scope") or []
+    if decision == "auto_fix" and action_kind == "write_prod":
+        decision = "propose_fix"
+        requires_human = True
+        policy_notes.append("policy:write_prod_requires_review")
+    if decision == "auto_fix" and _scope_requires_human(scope):
+        decision = "propose_fix"
+        requires_human = True
+        policy_notes.append("policy:scope_requires_review")
+
+    # Domain rule gating (deterministic) - skip for explicit deterministic_gate tasks.
+    try:
+        meta = intent_payload.get("metadata") or {}
+        if bool(meta.get("deterministic_gate", False)):
+            meta = None
+    except Exception:
+        meta = None
+    domain_info = _extract_domain_rule_info(intent_payload)
+    if domain_info.get("critical_count", 0) > 0 and meta is not None:
+        # Escalate risk and require human for any execution-oriented path.
+        if decision == "auto_fix":
+            decision = "propose_fix"
+        requires_human = True
+        risk_level = "high"
+        policy_notes.append(
+            f"domain_rules:critical violations ({domain_info.get('critical_count')}), rules={domain_info.get('rule_ids', [])}"
+        )
+        payload["force_requires_human"] = True
+
+    # Per-policy override (metadata policy_key)
+    try:
+        meta = intent_payload.get("metadata") or {}
+        policy_key = meta.get("policy_key")
+    except Exception:
+        policy_key = None
+    if policy_key and isinstance(policy.get(str(policy_key)), dict):
+        block = policy.get(str(policy_key)) or {}
+        if "requires_human" in block:
+            requires_human = bool(block.get("requires_human", True))
+            policy_notes.append(
+                f"policy_key:{policy_key}:requires_human={requires_human}"
+            )
+
+    payload["decision"] = decision
+    payload["risk_level"] = risk_level
+    payload["requires_human"] = requires_human
+
+    if policy_notes:
+        just = _ensure_justification(payload)
+        for note in policy_notes:
+            just.append(note)
+        payload["justification"] = just
+        payload["policy_constraints"] = policy_notes
+
+    return payload
+
+
+def _attach_explanation(
+    payload: Dict[str, Any], intent_payload: Dict[str, Any], policy: Dict[str, Any]
+) -> Dict[str, Any]:
+    if not isinstance(payload, dict):
+        return payload
+
+    decision = str(payload.get("decision", "observe") or "observe").lower()
+    risk_level = str(payload.get("risk_level", "low") or "low").lower()
+    requires_human = bool(payload.get("requires_human", False))
+    reasons = _ensure_justification(payload)
+    policy = policy or {}
+
+    try:
+        confidence = float(intent_payload.get("confidence", 0.0) or 0.0)
+    except Exception:
+        confidence = 0.0
+
+    auto_cfg = policy.get("auto_fix") or {}
+    try:
+        min_conf = float(auto_cfg.get("min_confidence", 0.7) or 0.7)
+    except Exception:
+        min_conf = 0.7
+    max_risk = str(auto_cfg.get("max_risk", "medium") or "medium").lower()
+    mode = str(policy.get("mode", "assisted") or "assisted").lower()
+
+    alternatives: List[str] = []
+    expected: List[str] = []
+
+    if decision == "auto_fix":
+        alternatives = [
+            "propose_fix (human review before execution)",
+            "observe (defer change if signal confidence drops)",
+        ]
+        expected = [
+            "execute changes automatically within allowed scope",
+            "record outcome for audit and learning",
+        ]
+    elif decision == "propose_fix":
+        alternatives = [
+            f"auto_fix if confidence>={min_conf} and risk<={max_risk}",
+            "observe if no actionable signals remain",
+        ]
+        expected = [
+            "generate a patch plan or proposal for review",
+            "await approval before any write execution",
+        ]
+    elif decision == "block":
+        alternatives = [
+            "propose_fix with explicit approval",
+            "observe and gather more evidence",
+        ]
+        expected = [
+            "block execution for safety",
+            "log decision for traceability",
+        ]
+    else:  # observe
+        alternatives = [
+            "propose_fix if confidence increases or new signals appear",
+            "auto_fix if policy allows and risk is low",
+        ]
+        expected = [
+            "no changes executed",
+            "monitor and collect more signals",
+        ]
+
+    payload["explanation"] = {
+        "reasons": reasons,
+        "alternatives": alternatives,
+        "expected_outcomes": expected,
+        "context": {
+            "intent": intent_payload.get("intent"),
+            "confidence": round(confidence, 3),
+            "risk_level": risk_level,
+            "requires_human": requires_human,
+            "decision_mode": mode,
+            "auto_fix_min_confidence": min_conf,
+            "auto_fix_max_risk": max_risk,
+            "domain_rules": _extract_domain_rule_info(intent_payload),
+        },
+    }
+
     return payload

@@ -66,7 +66,7 @@ def main():
     run_command(cmd_analysis, "Analyzing Logic & Performance Traces")
 
     # 5. Check Metrics Guard
-    # Should read analysis/metrics_summary_enhanced.json if updated
+    # Should read analysis/metrics_summary.json if updated
     cmd_guard = [PYTHON_EXE, str(METRICS_GUARD)]
     run_command(cmd_guard, "Checking Performance Guardrails")
 

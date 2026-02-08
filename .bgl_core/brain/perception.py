@@ -45,9 +45,22 @@ UI_SEMANTIC_JS = r"""
   function norm(t) {
     return (t || '').replace(/\s+/g, ' ').trim().slice(0, 160);
   }
+  function lower(t) {
+    return (t || '').toLowerCase();
+  }
+  function matchAny(text, keywords) {
+    const t = lower(text);
+    return keywords.some(k => t.includes(k));
+  }
   function textOf(el) {
     if (!el) return '';
     return norm(el.innerText || el.textContent || '');
+  }
+  function collectText(selector, maxItems) {
+    return Array.from(document.querySelectorAll(selector))
+      .map(el => textOf(el))
+      .filter(Boolean)
+      .slice(0, maxItems || limit);
   }
 
   const title = norm(document.title || '');
@@ -117,6 +130,65 @@ UI_SEMANTIC_JS = r"""
     .filter(Boolean)
     .map(t => t.slice(0, 120));
 
+  const nav_items = Array.from(document.querySelectorAll('nav a, header a, [role="navigation"] a, [role="menuitem"]'))
+    .slice(0, Math.max(8, limit))
+    .map(a => ({
+      text: textOf(a),
+      href: a.getAttribute('href') || '',
+    }))
+    .filter(a => a.text || a.href);
+
+  const breadcrumbs = Array.from(document.querySelectorAll('[aria-label*="breadcrumb"], .breadcrumb, nav[aria-label*="breadcrumb"]'))
+    .slice(0, 4)
+    .map(el => textOf(el))
+    .filter(Boolean);
+
+  const action_keywords = [
+    'save','submit','create','add','new','import','export','delete','update','edit',
+    'search','filter','apply','login','logout','approve','confirm','cancel',
+    'حفظ','إرسال','انشاء','إنشاء','اضافة','إضافة','جديد','استيراد','تصدير','حذف','تحديث','تعديل',
+    'بحث','تصفية','تطبيق','تسجيل','دخول','خروج','اعتماد','تأكيد','إلغاء'
+  ];
+  const primary_actions = Array.from(document.querySelectorAll('button, [role="button"], input[type="submit"], input[type="button"], a'))
+    .filter(el => {
+      const cls = lower(el.className || '');
+      const txt = textOf(el);
+      return cls.includes('primary') || cls.includes('btn-primary') || matchAny(txt, action_keywords);
+    })
+    .slice(0, Math.max(6, limit))
+    .map(el => ({
+      text: textOf(el),
+      tag: (el.tagName || '').toLowerCase(),
+      type: el.getAttribute('type') || '',
+      href: el.getAttribute('href') || '',
+    }))
+    .filter(a => a.text || a.href);
+
+  const search_fields = Array.from(document.querySelectorAll("input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"))
+    .slice(0, 6)
+    .map(el => ({
+      name: el.getAttribute('name') || '',
+      placeholder: el.getAttribute('placeholder') || '',
+      id: el.getAttribute('id') || '',
+    }))
+    .filter(f => f.name || f.placeholder || f.id);
+
+  // UI states: errors/warnings/modals/loading/empty/disabled
+  const errors = collectText('[role="alert"], .alert-danger, .alert-error, .error, .validation-error, .field-error, [data-error]', Math.max(4, Math.floor(limit/2)));
+  const warnings = collectText('.alert-warning, .warning, [data-warning]', Math.max(3, Math.floor(limit/3)));
+  const toasts = collectText('.toast, .toast-error, .toast-warning, .toast-success, [role="status"]', Math.max(3, Math.floor(limit/3)));
+  const modals = collectText('[role="dialog"], .modal, .popup, .overlay, .dialog', Math.max(2, Math.floor(limit/4)));
+  const loading = collectText('[aria-busy="true"], .loading, .spinner, .progress, [role="progressbar"]', Math.max(3, Math.floor(limit/3)));
+  const empty_states = collectText('.empty, .no-results, [data-empty], .empty-state', Math.max(3, Math.floor(limit/3)));
+  const disabled_controls = Array.from(document.querySelectorAll('button:disabled, input:disabled, select:disabled, textarea:disabled'))
+    .slice(0, 6)
+    .map(el => ({
+      tag: (el.tagName || '').toLowerCase(),
+      text: textOf(el),
+      id: el.getAttribute('id') || '',
+      name: el.getAttribute('name') || '',
+    }));
+
   const container = document.querySelector('main') || document.body;
   let text_excerpt = '';
   try {
@@ -128,7 +200,18 @@ UI_SEMANTIC_JS = r"""
     .filter(t => t && t.length > 20)
     .slice(0, Math.max(6, limit * 3));
 
-  return { title, headings, landmarks, forms, tables, stats, text_blocks, text_excerpt };
+  let page_type = 'content';
+  if (forms.length > 0 && tables.length > 0) page_type = 'form_list';
+  else if (forms.length > 0) page_type = 'form';
+  else if (tables.length > 0) page_type = 'list';
+  else if (stats.length > 0) page_type = 'dashboard';
+  if (search_fields.length > 0) page_type = page_type === 'content' ? 'search' : page_type;
+
+  return {
+    title, headings, landmarks, forms, tables, stats, nav_items, breadcrumbs, primary_actions, search_fields,
+    text_blocks, text_excerpt, page_type,
+    ui_states: { errors, warnings, toasts, modals, loading, empty_states, disabled_controls }
+  };
 }
 """
 
@@ -176,10 +259,26 @@ def summarize_semantic_map(semantic: Dict[str, Any], max_items: int = 5) -> Dict
         "forms": _take(semantic.get("forms") or []),
         "tables": _take(semantic.get("tables") or []),
         "stats": _take(semantic.get("stats") or []),
+        "nav_items": _take(semantic.get("nav_items") or []),
+        "breadcrumbs": _take(semantic.get("breadcrumbs") or []),
+        "primary_actions": _take(semantic.get("primary_actions") or []),
+        "search_fields": _take(semantic.get("search_fields") or []),
+        "page_type": semantic.get("page_type") or "",
         "text_blocks": _take(text_blocks),
         "text_excerpt": semantic.get("text_excerpt") or "",
         "text_keywords": keywords,
     }
+    ui_states = semantic.get("ui_states") or {}
+    if isinstance(ui_states, dict):
+        summary["ui_states"] = {
+            "errors": _take(ui_states.get("errors") or []),
+            "warnings": _take(ui_states.get("warnings") or []),
+            "toasts": _take(ui_states.get("toasts") or []),
+            "modals": _take(ui_states.get("modals") or []),
+            "loading": _take(ui_states.get("loading") or []),
+            "empty_states": _take(ui_states.get("empty_states") or []),
+            "disabled_controls": _take(ui_states.get("disabled_controls") or []),
+        }
     return summary
 
 

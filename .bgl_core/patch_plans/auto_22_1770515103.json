@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "22",
+  "description": "Route http://localhost:8000/api/parse-paste.php: 8 events, 2 HTTP calls (2 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770515089,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 22,
+    "generated_at": 1770515103.1485274
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "overwrite",
+      "content": "api_version: v1\nroute_name: parse-paste\nendpoint: /api/parse-paste.php\ntags:\n  - api\n  - paste\nsummary: Parse pasted content\nparameters:\n  - name: content\n    in: body\n    required: true\n    schema:\n      type: string\ndefinitions: {}\nresponses:\n  '200':\n    description: Successful response\n    content:\n      application/json:\n        schema:\n          type: object\n          properties:\n            result:\n              type: string\n  '400':\n    description: Invalid input",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "api_version: v1\nroute_name: parse-paste\nendpoint: /api/parse-paste.php\ntags:\n  - api\n  - paste\nsummary: Parse pasted content\nparameters:\n  - name: content\n    in: body\n    required: true\n    schema:\n      type: string\ndefinitions: {}\nresponses:\n  '200':\n    description: Successful response\n    content:\n      application/json:\n        schema:\n          type: object\n          properties:\n            result:\n              type: string\n  '400':\n    description: Invalid input"
+      }
+    }
+  ]
+}

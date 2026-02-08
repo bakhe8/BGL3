@@ -86,6 +86,7 @@ class WriteEngine:
         self.scope = _load_scope(root)
         self.policy = self.scope.get("policy", {})
         self.forbid = self.scope.get("policy", {}).get("forbid_paths") or self.scope.get("forbid_paths") or []
+        self.auto_create_on_missing = self.policy.get("auto_create_on_missing", []) or []
         self.scopes = self.scope.get("scopes", [])
 
     def _resolve_scope(self, rel: str) -> Tuple[bool, Optional[Dict[str, Any]], str]:
@@ -113,6 +114,11 @@ class WriteEngine:
             return False, "Operation blocked by policy: delete/rename disabled."
         return True, ""
 
+    def _allow_auto_create(self, rel: str) -> bool:
+        if not self.auto_create_on_missing:
+            return False
+        return _match_any(rel, list(self.auto_create_on_missing))
+
     def _count_lines_delta(self, before: str, after: str) -> int:
         return abs(len(after.splitlines()) - len(before.splitlines()))
 
@@ -133,7 +139,21 @@ class WriteEngine:
             changed = content + before
         elif mode in {"replace", "insert_before", "insert_after"}:
             if not op.match:
-                return False, "modify requires 'match' for replace/insert", 0
+                # Fallback to deterministic behavior when match is missing.
+                # This avoids hard failure for auto-generated plans that forgot match.
+                if mode == "replace":
+                    changed = content
+                elif mode == "insert_before":
+                    changed = content + before
+                else:
+                    changed = before + content
+                if len(changed.encode("utf-8")) > max_bytes:
+                    return False, f"File too large after modify: {rel}", 0
+                if changed == before:
+                    return False, "No changes applied", 0
+                _write_text(path, changed)
+                delta = self._count_lines_delta(before, changed)
+                return True, "modified (fallback_no_match)", delta
             if op.regex:
                 pattern = re.compile(op.match, re.MULTILINE | re.DOTALL)
                 if mode == "replace":
@@ -225,6 +245,19 @@ class WriteEngine:
                 total_line_delta += len((op.content or "").splitlines())
                 changes.append({"op": "create", "path": rel, "status": "ok"})
             elif op.op == "modify":
+                if not abs_path.exists() and self._allow_auto_create(rel):
+                    if not (op.content or ""):
+                        errors.append(f"{rel}: missing file and no content to create")
+                    else:
+                        if len((op.content or "").encode("utf-8")) > max_bytes:
+                            errors.append(f"File too large: {rel}")
+                        else:
+                            _write_text(abs_path, op.content or "")
+                            total_line_delta += len((op.content or "").splitlines())
+                            changes.append(
+                                {"op": "create_from_modify", "path": rel, "status": "ok"}
+                            )
+                    continue
                 ok, msg, delta = self._apply_modify(rel, op, max_bytes)
                 if not ok:
                     errors.append(f"{rel}: {msg}")

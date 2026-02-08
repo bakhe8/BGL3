@@ -62,7 +62,47 @@ from motor import Motor  # type: ignore
 from policy import Policy  # type: ignore
 from authority import Authority  # type: ignore
 from brain_types import ActionRequest, ActionKind  # type: ignore
-from perception import capture_ui_map  # type: ignore
+from perception import capture_ui_map, capture_semantic_map, summarize_semantic_map  # type: ignore
+try:
+    from .observations import (
+        store_ui_semantic_snapshot,
+        store_ui_action_snapshot,
+        previous_ui_semantic_snapshot,
+        compute_ui_semantic_delta,
+        record_ui_flow_transition,
+    )  # type: ignore
+except Exception:
+    try:
+        from observations import (
+            store_ui_semantic_snapshot,
+            store_ui_action_snapshot,
+            previous_ui_semantic_snapshot,
+            compute_ui_semantic_delta,
+            record_ui_flow_transition,
+        )  # type: ignore
+    except Exception:
+        store_ui_semantic_snapshot = None  # type: ignore
+        store_ui_action_snapshot = None  # type: ignore
+        previous_ui_semantic_snapshot = None  # type: ignore
+        compute_ui_semantic_delta = None  # type: ignore
+        record_ui_flow_transition = None  # type: ignore
+try:
+    from .run_ledger import start_run, finish_run  # type: ignore
+except Exception:
+    try:
+        from run_ledger import start_run, finish_run  # type: ignore
+    except Exception:
+        start_run = None  # type: ignore
+        finish_run = None  # type: ignore
+
+try:
+    from .long_term_goals import pick_long_term_goals, record_long_term_goal_result  # type: ignore
+except Exception:
+    try:
+        from long_term_goals import pick_long_term_goals, record_long_term_goal_result  # type: ignore
+    except Exception:
+        pick_long_term_goals = None  # type: ignore
+        record_long_term_goal_result = None  # type: ignore
 
 try:
     from llm_client import LLMClient  # type: ignore
@@ -92,6 +132,115 @@ def _decorate_session(session: str) -> str:
     if raw.startswith(rid):
         return raw
     return f"{rid}|{raw}"
+
+
+async def _maybe_store_semantic_snapshot(
+    page,
+    db_path: Path,
+    *,
+    source: str,
+    session: str,
+) -> Optional[Dict[str, Any]]:
+    if os.getenv("BGL_STORE_UI_SEMANTIC", "1") != "1":
+        return None
+    if store_ui_semantic_snapshot is None or compute_ui_semantic_delta is None:
+        return None
+    if not db_path.exists():
+        return None
+    try:
+        limit = int(os.getenv("BGL_SEMANTIC_LIMIT", "12") or "12")
+    except Exception:
+        limit = 12
+    try:
+        semantic_map = await capture_semantic_map(page, limit=limit)
+    except Exception:
+        semantic_map = {}
+    if not semantic_map:
+        return None
+    summary = summarize_semantic_map(semantic_map)
+    try:
+        url = page.url if hasattr(page, "url") else ""
+    except Exception:
+        url = ""
+    created_at = time.time()
+    try:
+        store_ui_semantic_snapshot(
+            db_path,
+            url=url,
+            summary=summary,
+            payload=semantic_map,
+            source=source,
+            created_at=created_at,
+        )
+    except Exception:
+        pass
+
+    delta = {"changed": False, "reason": "no_prev"}
+    try:
+        if previous_ui_semantic_snapshot is not None:
+            prev = previous_ui_semantic_snapshot(db_path, url=url, before_ts=created_at)
+            if prev and prev.get("summary"):
+                delta = compute_ui_semantic_delta(prev.get("summary"), summary)
+    except Exception:
+        pass
+    return {"url": url, "summary": summary, "delta": delta, "session": session}
+
+
+async def _maybe_store_action_snapshot(
+    page,
+    db_path: Path,
+    *,
+    source: str,
+    session: str,
+) -> Optional[Dict[str, Any]]:
+    if os.getenv("BGL_STORE_UI_ACTIONS", "1") != "1":
+        return None
+    if store_ui_action_snapshot is None:
+        return None
+    if not db_path.exists():
+        return None
+    try:
+        limit = int(os.getenv("BGL_UI_ACTION_LIMIT", "80") or "80")
+    except Exception:
+        limit = 80
+    try:
+        ui_map = await capture_ui_map(page, limit=limit)
+    except Exception:
+        ui_map = []
+    if not ui_map:
+        return None
+    candidates = _build_selector_candidates(ui_map)
+    if not candidates:
+        return None
+    try:
+        url = page.url if hasattr(page, "url") else ""
+    except Exception:
+        url = ""
+    compact = []
+    for c in candidates:
+        if not isinstance(c, dict):
+            continue
+        compact.append(
+            {
+                "selector": c.get("selector") or "",
+                "href": c.get("href") or "",
+                "text": c.get("text") or "",
+                "tag": c.get("tag") or "",
+                "role": c.get("role") or "",
+                "type": c.get("type") or "",
+            }
+        )
+    try:
+        store_ui_action_snapshot(
+            db_path,
+            url=url,
+            candidates=compact,
+            source=source,
+            created_at=time.time(),
+        )
+    except Exception:
+        pass
+    return {"url": url, "count": len(compact), "session": session}
 
 
 async def ensure_cursor(page):
@@ -226,13 +375,14 @@ async def exploratory_action(
                     with open(learn_log, "a", encoding="utf-8") as f:
                         f.write(f"{time.time()}\t{session}\texplore\tsearch:{term}\n")
                     unchanged = bool(before_hash and after_hash and before_hash == after_hash)
-                    if unchanged:
+                    force_submit = bool(_cfg_value("auto_submit_search", True))
+                    if unchanged or force_submit:
                         auto_changed = await _attempt_search_submit(
                             page,
                             selector="input[type='search']",
                             db_path=db_path,
                             session=session,
-                            reason="search_no_change",
+                            reason="search_no_change" if unchanged else "auto_submit",
                         )
                         if auto_changed:
                             after_hash = await _dom_state_hash(page)
@@ -354,8 +504,10 @@ async def run_step(
         page_url = page.url if hasattr(page, "url") else ""
     except Exception:
         page_url = ""
+    prev_url = page_url
     used_hint_ids: List[int] = []
     extra_wait_ms = 0
+    did_submit = False
     if is_interactive and step.get("track_outcome", True):
         before_hash = await _dom_state_hash(page)
     if action == "goto":
@@ -646,9 +798,11 @@ async def run_step(
                         if hint == "press_enter":
                             await page.press(step["selector"], "Enter", timeout=3000)
                             used_hint_ids.append(int(h.get("id") or 0))
+                            did_submit = True
                         elif hint == "click_search_button":
                             if await _try_click_search_button(page):
                                 used_hint_ids.append(int(h.get("id") or 0))
+                                did_submit = True
             except Exception:
                 pass
         except Exception:
@@ -678,19 +832,23 @@ async def run_step(
             after_hash = await _dom_state_hash(page)
             unchanged = bool(before_hash and after_hash and before_hash == after_hash)
             # If typing into search and nothing changed, attempt auto-submit once.
-            if unchanged and action == "type":
+            if action == "type":
                 selector = str(step.get("selector", ""))
                 if await _is_search_input(page, selector):
-                    auto_changed = await _attempt_search_submit(
-                        page,
-                        selector=selector,
-                        db_path=db_path,
-                        session=step.get("session", ""),
-                        reason="dom_no_change",
+                    force_submit = bool(
+                        step.get("auto_submit", _cfg_value("auto_submit_search", True))
                     )
-                    if auto_changed:
-                        after_hash = await _dom_state_hash(page)
-                        unchanged = False
+                    if (unchanged or force_submit) and not did_submit:
+                        auto_changed = await _attempt_search_submit(
+                            page,
+                            selector=selector,
+                            db_path=db_path,
+                            session=step.get("session", ""),
+                            reason="dom_no_change" if unchanged else "auto_submit",
+                        )
+                        if auto_changed:
+                            after_hash = await _dom_state_hash(page)
+                            unchanged = False
             if unchanged:
                 log_event(
                     db_path,
@@ -747,6 +905,42 @@ async def run_step(
         except Exception:
             pass
 
+    # Persist UI semantic snapshot + flow transition (phase 3)
+    try:
+        if action in ("goto", "click", "type", "press", "upload"):
+            session_name = str(step.get("session") or scenario_name or "")
+            sem = await _maybe_store_semantic_snapshot(
+                page,
+                db_path,
+                source="scenario_runner",
+                session=session_name,
+            )
+            await _maybe_store_action_snapshot(
+                page,
+                db_path,
+                source="scenario_runner",
+                session=session_name,
+            )
+            if sem and record_ui_flow_transition is not None:
+                ui_states = {}
+                try:
+                    ui_states = (sem.get("summary") or {}).get("ui_states") or {}
+                except Exception:
+                    ui_states = {}
+                record_ui_flow_transition(
+                    db_path,
+                    session=session_name,
+                    from_url=prev_url,
+                    to_url=sem.get("url") or "",
+                    action=str(action),
+                    selector=str(step.get("selector", "")),
+                    semantic_delta=sem.get("delta") or {},
+                    ui_states=ui_states,
+                    created_at=time.time(),
+                )
+    except Exception:
+        pass
+
 
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     db = sqlite3.connect(str(db_path), timeout=30.0)
@@ -757,10 +951,13 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp REAL NOT NULL,
             session TEXT,
+            run_id TEXT,
+            source TEXT,
             event_type TEXT NOT NULL,
             route TEXT,
             method TEXT,
             target TEXT,
+            step_id TEXT,
             payload TEXT,
             status INTEGER,
             latency_ms REAL,
@@ -768,19 +965,40 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
         )
     """
     )
+    try:
+        cols = {r[1] for r in db.execute("PRAGMA table_info(runtime_events)").fetchall()}
+        if "run_id" not in cols:
+            db.execute("ALTER TABLE runtime_events ADD COLUMN run_id TEXT")
+        if "source" not in cols:
+            db.execute("ALTER TABLE runtime_events ADD COLUMN source TEXT")
+        if "step_id" not in cols:
+            db.execute("ALTER TABLE runtime_events ADD COLUMN step_id TEXT")
+    except Exception:
+        pass
+    payload = event.get("payload")
+    meta = event.get("meta")
+    if isinstance(payload, dict):
+        if isinstance(meta, dict) and meta:
+            payload = {**payload, **meta}
+        payload = json.dumps(payload, ensure_ascii=False)
+    elif isinstance(meta, dict) and meta:
+        payload = json.dumps({"payload": payload, "meta": meta}, ensure_ascii=False)
     db.execute(
         """
-        INSERT INTO runtime_events (timestamp, session, event_type, route, method, target, payload, status, latency_ms, error)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO runtime_events (timestamp, session, run_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
         (
             event.get("timestamp", time.time()),
             _decorate_session(session),
+            str(event.get("run_id") or _CURRENT_RUN_ID or ""),
+            str(event.get("source") or "agent"),
             event.get("event_type"),
             event.get("route"),
             event.get("method"),
             event.get("target"),
-            event.get("payload"),
+            event.get("step_id"),
+            payload,
             event.get("status"),
             event.get("latency_ms"),
             event.get("error"),
@@ -909,14 +1127,30 @@ def _derive_outcomes_from_runtime(
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
-            "SELECT timestamp, event_type, route, method, status, payload, session FROM runtime_events WHERE timestamp >= ? ORDER BY id DESC LIMIT ?",
+            """
+            SELECT timestamp, event_type, route, method, status, payload, session, source, run_id, step_id
+            FROM runtime_events
+            WHERE timestamp >= ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
             (since_ts, int(limit)),
         ).fetchall()
         db.close()
-        for ts, event_type, route, method, status, payload, session in rows:
+        current_run = str(_CURRENT_RUN_ID or "")
+        for ts, event_type, route, method, status, payload, session, source_tag, run_id, step_id in rows:
             kind = ""
             value = ""
             source = "runtime"
+            attribution = "agent"
+            if source_tag and str(source_tag).lower() not in ("agent", "scenario"):
+                source = f"runtime:{source_tag}"
+                attribution = str(source_tag)
+            if current_run:
+                if run_id and str(run_id) != current_run:
+                    attribution = "external"
+                elif (not run_id) and session and not str(session).startswith(current_run):
+                    attribution = "external"
             if event_type in ("http_error", "network_fail", "console_error"):
                 kind = "error"
                 value = event_type
@@ -948,6 +1182,10 @@ def _derive_outcomes_from_runtime(
                     "method": method,
                     "status": status,
                     "payload": payload,
+                    "event_source": source_tag,
+                    "run_id": run_id,
+                    "step_id": step_id,
+                    "attribution": attribution,
                 },
                 session=str(session or ""),
                 ts=float(ts or time.time()),
@@ -1736,6 +1974,8 @@ def _ingest_insights_to_goals(db_path: Path, since_ts: float) -> None:
 
 def _should_trigger_dream() -> bool:
     try:
+        if os.getenv("BGL_SKIP_DREAM", "0") == "1":
+            return False
         if str(_cfg_value("dream_mode_on_exploration", "1")) != "1":
             return False
     except Exception:
@@ -2513,7 +2753,49 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             {"action": "scroll", "dy": 600},
         ]
         name = "goal_gap_deepen"
-    elif g in ("purpose_focus", "decision_focus"):
+    elif g == "ui_action_gap":
+        uri = payload.get("uri") or payload.get("route") or ""
+        selector = payload.get("selector") or ""
+        risk = str(payload.get("risk") or "").lower()
+        danger = risk in ("danger", "write")
+        if uri:
+            if uri.startswith("http"):
+                steps = [{"action": "goto", "url": uri}]
+            else:
+                steps = [
+                    {
+                        "action": "goto",
+                        "url": base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri),
+                    }
+                ]
+        if selector:
+            click_step: Dict[str, Any] = {"action": "click", "selector": selector}
+            if danger:
+                click_step["danger"] = True
+            steps.append(click_step)
+            steps.append({"action": "wait", "ms": 600})
+        name = "goal_ui_action_gap"
+    elif g in ("coverage_gap", "flow_gap"):
+        uri = payload.get("uri") or ""
+        if not uri:
+            return None
+        basename = _href_basename(uri)
+        if basename and basename not in ("index.php", ""):
+            steps = [
+                {"action": "goto", "url": base_url.rstrip("/") + "/"},
+                {"action": "click", "selector": f"a[href*='{basename}']"},
+                {"action": "wait", "ms": 800},
+            ]
+        else:
+            if uri in ("/", "/index.php", "index.php", ""):
+                url = base_url.rstrip("/") + "/"
+            elif uri.startswith("http"):
+                url = uri
+            else:
+                url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
+            steps = [{"action": "goto", "url": url}, {"action": "wait", "ms": 800}]
+        name = f"goal_{g}"
+    elif g in ("purpose_focus", "decision_focus", "long_term_focus"):
         uri = payload.get("uri") or payload.get("href") or ""
         term = (
             payload.get("term")
@@ -2783,6 +3065,24 @@ async def run_goal_scenario(
     except Exception:
         pass
 
+    # Update long-term goal stats if this run was scheduled from the planner.
+    try:
+        lt_key = payload.get("long_term_key")
+        if lt_key and record_long_term_goal_result:
+            record_long_term_goal_result(
+                db_path,
+                str(lt_key),
+                ok=bool(ok),
+                details={
+                    "goal": goal.get("goal"),
+                    "source": goal.get("source"),
+                    "strategy": strategy,
+                    "route": uri,
+                },
+            )
+    except Exception:
+        pass
+
 
 def _autonomous_plan_hash(plan: Dict[str, Any]) -> str:
     try:
@@ -3035,6 +3335,12 @@ async def _generate_autonomous_plan(
         or 120
     )
     ui_map = await capture_ui_map(page, limit=ui_limit)
+    semantic_summary = {}
+    try:
+        semantic_map = await capture_semantic_map(page, limit=min(12, ui_limit))
+        semantic_summary = summarize_semantic_map(semantic_map) if semantic_map else {}
+    except Exception:
+        semantic_summary = {}
     candidates = _build_selector_candidates(ui_map)
     if not candidates:
         return None
@@ -3067,8 +3373,24 @@ async def _generate_autonomous_plan(
     random.shuffle(candidates)
     # Soft-bias candidates using goals (do not block open exploration)
     if goals:
+        goal_selectors = {
+            str((g.get("payload") or {}).get("selector") or "")
+            for g in goals
+            if (g.get("payload") or {}).get("selector")
+        }
         operator_hrefs = {str(t["target"]).lower() for t in operator_targets if t.get("target")}
         goal_hrefs = {str(t["target"]).lower() for t in all_targets if t.get("target")}
+
+        if goal_selectors:
+            pref, rest = [], []
+            for c in candidates:
+                sel = str(c.get("selector") or "")
+                if sel and sel in goal_selectors:
+                    pref.append(c)
+                else:
+                    rest.append(c)
+            if pref:
+                candidates = pref + rest
 
         def _split_by_hrefs(hrefs: set[str]) -> tuple[list, list]:
             pref, rest = [], []
@@ -3087,8 +3409,12 @@ async def _generate_autonomous_plan(
             pref, rest = _split_by_hrefs(goal_hrefs)
             candidates = pref + rest
 
-        # If goal asks for gap deepen, prioritize gap candidates.
-        if any(str(g.get("goal") or "") in ("gap_deepen", "gap") for g in goals) and gap_candidates:
+        # If goal asks for gap deepen / coverage gap, prioritize gap candidates.
+        if any(
+            str(g.get("goal") or "")
+            in ("gap_deepen", "gap", "coverage_gap", "flow_gap", "ui_action_gap")
+            for g in goals
+        ) and gap_candidates:
             preferred = []
             others = []
             gap_set = set(gap_candidates)
@@ -3141,7 +3467,7 @@ Rules:
  - Operator goals MUST be prioritized. If operator provides a URL, include a goto to it before other steps.
 
 Context JSON:
-{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates}, ensure_ascii=False)}
+{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates, "semantic_summary": semantic_summary}, ensure_ascii=False)}
 """
         try:
             client = LLMClient()
@@ -3456,20 +3782,35 @@ async def run_scenario(
     if not getattr(page, "_bgl_response_hook", False):
 
         async def handle_response(response):
-            if response.status >= 400:
-                log_event(
-                    db_path,
-                    name,
-                    {
-                        "event_type": "http_error",
-                        "route": response.url,
-                        "method": response.request.method,
-                        "status": response.status,
-                        "latency_ms": response.timing.get("responseStart", 0)
-                        if response.timing
-                        else None,
-                    },
-                )
+            try:
+                if response.status >= 400:
+                    latency_ms = None
+                    try:
+                        timing = None
+                        # Playwright versions differ; timing may be a method or attribute.
+                        if hasattr(response, "timing"):
+                            timing = response.timing
+                            if callable(timing):
+                                timing = timing()
+                        if isinstance(timing, dict):
+                            latency_ms = timing.get("responseStart")
+                        elif hasattr(timing, "get"):
+                            latency_ms = timing.get("responseStart")
+                    except Exception:
+                        latency_ms = None
+                    log_event(
+                        db_path,
+                        name,
+                        {
+                            "event_type": "http_error",
+                            "route": response.url,
+                            "method": response.request.method,
+                            "status": response.status,
+                            "latency_ms": latency_ms,
+                        },
+                    )
+            except Exception:
+                return
 
         page.on("response", handle_response)
         page._bgl_response_hook = True  # type: ignore
@@ -3505,10 +3846,19 @@ async def run_scenario(
         page.on("filechooser", handle_filechooser)
         page._bgl_filechooser_hook = True  # type: ignore
 
-    for step in steps:
+    # Step timeout guard (prevents silent stalls)
+    try:
+        default_step_timeout = float(
+            os.getenv("BGL_STEP_TIMEOUT_SEC", str(_cfg_value("step_timeout_sec", 45)))
+        )
+    except Exception:
+        default_step_timeout = 45.0
+
+    for idx, step in enumerate(steps):
         # prepend base_url for relative goto
         if step.get("action") == "goto" and step.get("url", "").startswith("/"):
             step = {**step, "url": base_url.rstrip("/") + step["url"]}
+        step_id = f"{name}:{idx}"
         attempt = 0
         while True:
             try:
@@ -3527,14 +3877,85 @@ async def run_scenario(
                         page, motor, explored, name, learn_log, db_path
                     )
                     steps_since_explore = 0
-                await run_step(
-                    page,
-                    step,
-                    policy,
-                    db_path,
-                    authority=authority,
-                    scenario_name=name,
-                )
+                # Log step start for attribution
+                try:
+                    log_event(
+                        db_path,
+                        name,
+                        {
+                            "event_type": "scenario_step_start",
+                            "route": step.get("url") or step.get("selector"),
+                            "method": str(step.get("action", "")).upper(),
+                            "step_id": step_id,
+                            "source": "scenario",
+                            "payload": {"step_index": idx, "step": step},
+                        },
+                    )
+                except Exception:
+                    pass
+
+                # Apply per-step timeout if configured (>0)
+                step_timeout = step.get("timeout_sec", default_step_timeout)
+                try:
+                    step_timeout = float(step_timeout)
+                except Exception:
+                    step_timeout = default_step_timeout
+
+                async def _run_step_guarded():
+                    await run_step(
+                        page,
+                        step,
+                        policy,
+                        db_path,
+                        authority=authority,
+                        scenario_name=name,
+                    )
+
+                if step_timeout and step_timeout > 0:
+                    try:
+                        await asyncio.wait_for(_run_step_guarded(), timeout=step_timeout)
+                    except asyncio.TimeoutError:
+                        log_event(
+                            db_path,
+                            name,
+                            {
+                                "event_type": "scenario_step_timeout",
+                                "route": step.get("url", "") or step.get("selector", ""),
+                                "method": str(step.get("action", "")).upper(),
+                                "status": None,
+                                "payload": json.dumps(
+                                    {
+                                        "step_index": idx,
+                                        "timeout_sec": step_timeout,
+                                        "step": step,
+                                    },
+                                    ensure_ascii=False,
+                                ),
+                            },
+                        )
+                        # If optional, skip; otherwise abort scenario early.
+                        if step.get("optional"):
+                            break
+                        return
+                else:
+                    await _run_step_guarded()
+
+                # Log step completion
+                try:
+                    log_event(
+                        db_path,
+                        name,
+                        {
+                            "event_type": "scenario_step_done",
+                            "route": step.get("url") or step.get("selector"),
+                            "method": str(step.get("action", "")).upper(),
+                            "step_id": step_id,
+                            "source": "scenario",
+                            "payload": {"step_index": idx},
+                        },
+                    )
+                except Exception:
+                    pass
                 steps_since_explore += 1
                 # بعد أي goto أو عند أول خطوة في صفحة جديدة، استكشاف سريع
                 if exploratory_enabled and step.get("action") == "goto":
@@ -3773,6 +4194,9 @@ async def main(
     # Apply config defaults for exploration/novelty if env not set
     os.environ.setdefault("BGL_EXPLORATION", str(cfg.get("scenario_exploration", "1")))
     os.environ.setdefault("BGL_NOVELTY_AUTO", str(cfg.get("novelty_auto", "1")))
+    os.environ.setdefault("BGL_STORE_UI_SEMANTIC", str(cfg.get("store_ui_semantic", "1")))
+    os.environ.setdefault("BGL_STORE_UI_ACTIONS", str(cfg.get("store_ui_actions", "1")))
+    os.environ.setdefault("BGL_UI_ACTION_LIMIT", str(cfg.get("ui_action_limit", "80")))
     # Auto refresh route map when source routes change (or missing)
     _auto_reindex_routes(
         ROOT_DIR,
@@ -3840,6 +4264,11 @@ async def main(
 
     db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
     try:
+        if start_run:
+            start_run(db_path, run_id=_CURRENT_RUN_ID, mode="scenario_runner", started_at=run_started)
+    except Exception:
+        pass
+    try:
         log_event(
             db_path,
             "agent_run",
@@ -3890,6 +4319,29 @@ async def main(
             # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
             shared_page = await manager.new_page()
             await ensure_cursor(shared_page)
+            # Seed long-term goals into short-term autonomy queue
+            try:
+                if pick_long_term_goals:
+                    lt_limit = int(_cfg_value("long_term_goal_limit", 3) or 3)
+                    min_pri = float(_cfg_value("long_term_min_priority", 0.25) or 0.25)
+                    lt_goals = pick_long_term_goals(
+                        db_path, limit=lt_limit, min_priority=min_pri
+                    )
+                    for g in lt_goals:
+                        payload = dict(g.get("payload") or {})
+                        if g.get("title") and not payload.get("term"):
+                            payload["term"] = g.get("title")
+                        payload["long_term_key"] = g.get("goal_key")
+                        payload["goal_type"] = g.get("goal")
+                        _write_autonomy_goal(
+                            db_path,
+                            goal="long_term_focus",
+                            payload=payload,
+                            source="long_term",
+                            ttl_days=7,
+                        )
+            except Exception:
+                pass
             # Run goal-driven scenarios first (if any)
             goals = _read_autonomy_goals(db_path, limit=6)
             seen_goal_keys = set()
@@ -3983,6 +4435,11 @@ async def main(
                 ),
             },
         )
+    except Exception:
+        pass
+    try:
+        if finish_run:
+            finish_run(db_path, run_id=_CURRENT_RUN_ID, ended_at=time.time())
     except Exception:
         pass
 

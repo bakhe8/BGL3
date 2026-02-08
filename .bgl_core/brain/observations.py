@@ -56,6 +56,24 @@ def _ensure_ui_semantic_tables(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_ui_action_tables(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ui_action_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          created_at REAL NOT NULL,
+          url TEXT NOT NULL,
+          source TEXT,
+          digest TEXT,
+          candidates_json TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ui_action_url_time ON ui_action_snapshots(url, created_at DESC)"
+    )
+
+
 def store_env_snapshot(
     db_path: Path,
     *,
@@ -135,6 +153,53 @@ def store_ui_semantic_snapshot(
         conn.commit()
     return {"created_at": created_at, "digest": digest}
 
+
+def store_ui_action_snapshot(
+    db_path: Path,
+    *,
+    url: str,
+    candidates: Any,
+    source: str = "scenario_runner",
+    created_at: Optional[float] = None,
+) -> Optional[Dict[str, Any]]:
+    if not url:
+        return None
+    created_at = float(created_at if created_at is not None else time.time())
+    try:
+        import hashlib
+
+        digest = hashlib.sha1(
+            json.dumps(candidates or [], ensure_ascii=False, sort_keys=True).encode("utf-8")
+        ).hexdigest()
+    except Exception:
+        digest = ""
+    with sqlite3.connect(str(db_path)) as conn:
+        conn.row_factory = sqlite3.Row
+        _ensure_ui_action_tables(conn)
+        try:
+            prev = conn.execute(
+                "SELECT digest FROM ui_action_snapshots WHERE url = ? ORDER BY created_at DESC LIMIT 1",
+                (url,),
+            ).fetchone()
+            if prev and prev.get("digest") == digest:
+                return None
+        except Exception:
+            pass
+        conn.execute(
+            """
+            INSERT INTO ui_action_snapshots (created_at, url, source, digest, candidates_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (
+                created_at,
+                url,
+                source,
+                digest,
+                json.dumps(candidates or [], ensure_ascii=False),
+            ),
+        )
+        conn.commit()
+    return {"created_at": created_at, "digest": digest}
 
 def latest_ui_semantic_snapshot(
     db_path: Path, *, url: Optional[str] = None
@@ -257,8 +322,13 @@ def compute_ui_semantic_delta(
         "forms": _diff(_list_set(prev_summary.get("forms")), _list_set(curr_summary.get("forms"))),
         "tables": _diff(_list_set(prev_summary.get("tables")), _list_set(curr_summary.get("tables"))),
         "stats": _diff(_list_set(prev_summary.get("stats")), _list_set(curr_summary.get("stats"))),
+        "nav_items": _diff(_list_set(prev_summary.get("nav_items")), _list_set(curr_summary.get("nav_items"))),
+        "breadcrumbs": _diff(_list_set(prev_summary.get("breadcrumbs")), _list_set(curr_summary.get("breadcrumbs"))),
+        "primary_actions": _diff(_list_set(prev_summary.get("primary_actions")), _list_set(curr_summary.get("primary_actions"))),
+        "search_fields": _diff(_list_set(prev_summary.get("search_fields")), _list_set(curr_summary.get("search_fields"))),
         "text_blocks": _diff(_list_set(prev_summary.get("text_blocks")), _list_set(curr_summary.get("text_blocks"))),
         "text_keywords": _diff(_list_set(prev_summary.get("text_keywords")), _list_set(curr_summary.get("text_keywords"))),
+        "page_type_changed": _norm(prev_summary.get("page_type")) != _norm(curr_summary.get("page_type")),
     }
 
     changed = (
@@ -271,10 +341,19 @@ def compute_ui_semantic_delta(
         or delta["tables"]["count_removed"]
         or delta["stats"]["count_added"]
         or delta["stats"]["count_removed"]
+        or delta["nav_items"]["count_added"]
+        or delta["nav_items"]["count_removed"]
+        or delta["breadcrumbs"]["count_added"]
+        or delta["breadcrumbs"]["count_removed"]
+        or delta["primary_actions"]["count_added"]
+        or delta["primary_actions"]["count_removed"]
+        or delta["search_fields"]["count_added"]
+        or delta["search_fields"]["count_removed"]
         or delta["text_blocks"]["count_added"]
         or delta["text_blocks"]["count_removed"]
         or delta["text_keywords"]["count_added"]
         or delta["text_keywords"]["count_removed"]
+        or delta["page_type_changed"]
     )
 
     change_count = 0
@@ -284,6 +363,10 @@ def compute_ui_semantic_delta(
             + int(delta["forms"]["count_added"]) + int(delta["forms"]["count_removed"])
             + int(delta["tables"]["count_added"]) + int(delta["tables"]["count_removed"])
             + int(delta["stats"]["count_added"]) + int(delta["stats"]["count_removed"])
+            + int(delta["nav_items"]["count_added"]) + int(delta["nav_items"]["count_removed"])
+            + int(delta["breadcrumbs"]["count_added"]) + int(delta["breadcrumbs"]["count_removed"])
+            + int(delta["primary_actions"]["count_added"]) + int(delta["primary_actions"]["count_removed"])
+            + int(delta["search_fields"]["count_added"]) + int(delta["search_fields"]["count_removed"])
             + int(delta["text_blocks"]["count_added"]) + int(delta["text_blocks"]["count_removed"])
             + int(delta["text_keywords"]["count_added"]) + int(delta["text_keywords"]["count_removed"])
         )
@@ -293,6 +376,66 @@ def compute_ui_semantic_delta(
     delta["changed"] = bool(changed)
     delta["change_count"] = change_count
     return delta
+
+
+def _ensure_ui_flow_tables(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS ui_flow_transitions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          created_at REAL NOT NULL,
+          session TEXT,
+          from_url TEXT,
+          to_url TEXT,
+          action TEXT,
+          selector TEXT,
+          semantic_delta_json TEXT,
+          ui_states_json TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ui_flow_from_to_time ON ui_flow_transitions(from_url, to_url, created_at DESC)"
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_ui_flow_session_time ON ui_flow_transitions(session, created_at DESC)"
+    )
+
+
+def record_ui_flow_transition(
+    db_path: Path,
+    *,
+    session: str,
+    from_url: str,
+    to_url: str,
+    action: str,
+    selector: str = "",
+    semantic_delta: Optional[Dict[str, Any]] = None,
+    ui_states: Optional[Dict[str, Any]] = None,
+    created_at: Optional[float] = None,
+) -> None:
+    if not (from_url or to_url):
+        return
+    created_at = float(created_at if created_at is not None else time.time())
+    with sqlite3.connect(str(db_path)) as conn:
+        _ensure_ui_flow_tables(conn)
+        conn.execute(
+            """
+            INSERT INTO ui_flow_transitions (created_at, session, from_url, to_url, action, selector, semantic_delta_json, ui_states_json)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                created_at,
+                session,
+                from_url,
+                to_url,
+                action,
+                selector,
+                json.dumps(semantic_delta or {}, ensure_ascii=False),
+                json.dumps(ui_states or {}, ensure_ascii=False),
+            ),
+        )
+        conn.commit()
 
 
 def latest_env_snapshot(
@@ -472,8 +615,8 @@ def _count_internal_writes(
                 FROM outcomes o
                 JOIN decisions d ON o.decision_id = d.id
                 JOIN intents i ON d.intent_id = i.id
-                WHERE (strftime('%s', o.timestamp) >= ? AND strftime('%s', o.timestamp) <= ?)
-                  AND o.result IN ('success_direct','mode_direct')
+                WHERE (CAST(strftime('%s', o.timestamp) AS INTEGER) >= ? AND CAST(strftime('%s', o.timestamp) AS INTEGER) <= ?)
+                  AND o.result IN ('success_direct','mode_direct','success_sandbox')
                 """,
                 (int(start_ts), int(end_ts)),
             ).fetchone()
@@ -601,6 +744,12 @@ def diagnostic_to_snapshot(diagnostic_map: Dict[str, Any]) -> Dict[str, Any]:
         "decision": findings.get("decision") or {},
         "scenario_deps": findings.get("scenario_deps") or {},
         "runtime_events_meta": findings.get("runtime_events_meta") or {},
+        "scenario_coverage": findings.get("scenario_coverage") or {},
+        "flow_coverage": findings.get("flow_coverage") or {},
+        "domain_rules": {
+            "summary": findings.get("domain_rule_summary") or {},
+            "violations_count": len(findings.get("domain_rule_violations") or []),
+        },
         "notes": {
             "llm_fallback_used": bool(
                 (findings.get("intent") or {}).get("source") == "fallback"

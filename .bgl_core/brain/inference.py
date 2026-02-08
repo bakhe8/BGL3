@@ -39,6 +39,15 @@ except Exception:
     except Exception:
         should_include_insight = None  # type: ignore
 
+try:
+    from .knowledge_curation import load_knowledge_status  # type: ignore
+except Exception:
+    try:
+        sys.path.append(str(Path(__file__).parent))
+        from knowledge_curation import load_knowledge_status  # type: ignore
+    except Exception:
+        load_knowledge_status = None  # type: ignore
+
 
 class ReasoningEngine:
     """
@@ -443,6 +452,13 @@ class ReasoningEngine:
         }
         auto_insights_loaded = 0
 
+        knowledge_filter = None
+        if load_knowledge_status is not None:
+            try:
+                knowledge_filter = load_knowledge_status(self.db_path)
+            except Exception:
+                knowledge_filter = None
+
         for root_path in search_paths:
             if root_path.exists():
                 file_cap = max_docs if root_path.name == "docs" else max_knowledge
@@ -478,6 +494,18 @@ class ReasoningEngine:
 
                             if file_cap and loaded_for_root >= file_cap:
                                 continue
+                            if knowledge_filter is not None:
+                                try:
+                                    rel_path = doc_file.resolve().relative_to(project_root.resolve()).as_posix()
+                                except Exception:
+                                    rel_path = doc_file.as_posix()
+                                status = None
+                                try:
+                                    status = (knowledge_filter.get(rel_path) or {}).get("status")
+                                except Exception:
+                                    status = None
+                                if status and status not in ("active", "legacy"):
+                                    continue
                             content = doc_file.read_text(encoding="utf-8")
                             # Truncate very large files to avoid blowing up context (limit to 10KB per file)
                             if len(content) > 15000:

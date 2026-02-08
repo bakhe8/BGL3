@@ -15,6 +15,7 @@ try:
     from .write_engine import WriteEngine  # type: ignore
     from .sandbox import BGLSandbox  # type: ignore
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
+    from .canary_release import register_canary_release  # type: ignore
 except Exception:
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
@@ -22,6 +23,7 @@ except Exception:
     from write_engine import WriteEngine
     from sandbox import BGLSandbox
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
+    from canary_release import register_canary_release
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
@@ -480,6 +482,26 @@ def main():
                 result="success_direct",
                 notes="Proposal patch plan applied to production",
             )
+            # Register canary release for safe monitoring/rollback
+            try:
+                change_scope = []
+                for ch in result.changes:
+                    if isinstance(ch, dict) and ch.get("path"):
+                        change_scope.append(str(ch.get("path")))
+                    elif isinstance(ch, dict) and ch.get("from"):
+                        change_scope.append(str(ch.get("from")))
+                backup_dir = ROOT / ".bgl_core" / "backups" / str(result.plan_id)
+                register_canary_release(
+                    ROOT,
+                    KNOWLEDGE_DB,
+                    plan_id=str(result.plan_id),
+                    change_scope=change_scope,
+                    source="apply_proposal",
+                    backup_dir=backup_dir if backup_dir.exists() else None,
+                    notes=f"proposal_id={target.get('id')}",
+                )
+            except Exception:
+                pass
             print(f"[+] Applied proposal {target.get('id')} to PRODUCTION.")
         else:
             # Capture sandbox diff for review
@@ -512,6 +534,26 @@ def main():
                 result="success_sandbox",
                 notes=f"Proposal patch plan applied in sandbox. diff={diff_path}" if diff_path else "Proposal patch plan applied in sandbox.",
             )
+            # Register canary release even for sandbox (shadow monitoring)
+            try:
+                change_scope = []
+                for ch in result.changes:
+                    if isinstance(ch, dict) and ch.get("path"):
+                        change_scope.append(str(ch.get("path")))
+                    elif isinstance(ch, dict) and ch.get("from"):
+                        change_scope.append(str(ch.get("from")))
+                backup_dir = ROOT / ".bgl_core" / "backups" / str(result.plan_id)
+                register_canary_release(
+                    ROOT,
+                    KNOWLEDGE_DB,
+                    plan_id=str(result.plan_id),
+                    change_scope=change_scope,
+                    source="apply_proposal_sandbox",
+                    backup_dir=backup_dir if backup_dir.exists() else None,
+                    notes=f"sandbox proposal_id={target.get('id')}",
+                )
+            except Exception:
+                pass
             print(f"[+] Applied proposal {target.get('id')} in SANDBOX.")
             if diff_path:
                 print(f"    Diff saved: {diff_path}")

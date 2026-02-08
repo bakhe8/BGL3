@@ -26,6 +26,7 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
 
     # Deterministic hints (ReasoningEngine + Hypothesis + Purpose + Outcome->Signals + UI Semantic)
     hint = None
+    selected_hint_key = None
     reasoning_hint = None
     hypothesis_hint = None
     purpose_hint = None
@@ -171,8 +172,36 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
 
     if candidates:
         candidates.sort(key=_score, reverse=True)
-        hint = dict(candidates[0])
+        best = dict(candidates[0])
+        selected_hint_key = str(best.get("_hint_key") or "")
+        hint = dict(best)
         hint.pop("_hint_key", None)
+
+    def _attach_context(payload: Dict[str, Any], source_key: str) -> Dict[str, Any]:
+        try:
+            ctx = payload.get("context_snapshot") if isinstance(payload, dict) else None
+        except Exception:
+            ctx = None
+        if not isinstance(ctx, dict):
+            ctx = {}
+        ctx.setdefault("hint_source", source_key)
+        try:
+            ctx.setdefault("hint_confidence", float(payload.get("confidence", 0.0)))
+        except Exception:
+            ctx.setdefault("hint_confidence", None)
+        try:
+            ctx.setdefault("hint_reason", payload.get("reason"))
+        except Exception:
+            ctx.setdefault("hint_reason", None)
+        try:
+            ctx.setdefault("hint_scope", payload.get("scope"))
+        except Exception:
+            ctx.setdefault("hint_scope", None)
+        if bias:
+            ctx.setdefault("intent_bias", bias)
+        payload["context_snapshot"] = ctx
+        payload["hint_source"] = source_key
+        return payload
 
     prompt = f"""
     Analyze this system diagnostic and determine the single most critical intent.
@@ -203,12 +232,14 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             hint.setdefault("confidence", 0.7)
             hint.setdefault("reason", "signals fallback (no AI configured)")
             hint.setdefault("scope", [])
-            return hint
-        return {
+            return _attach_context(hint, selected_hint_key or "signals")
+        fallback = {
             "intent": Intent.OBSERVE.value,
             "confidence": 0.5,
             "reason": "No AI configured for smart resolution.",
+            "scope": [],
         }
+        return _attach_context(fallback, "fallback")
 
     try:
         client = LLMClient()
@@ -223,7 +254,7 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         data.setdefault("confidence", 0.7)
         data.setdefault("reason", "local_llm")
         data.setdefault("scope", [])
-        return data
+        return _attach_context(data, "llm")
 
     except Exception as e:
         print(f"[*] SmartIntentResolver: Local AI failed ({e}). Using fallback.")
@@ -236,12 +267,14 @@ def resolve_intent(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             hint.setdefault("confidence", 0.75)
             hint.setdefault("reason", "signals fallback (LLM failed)")
             hint.setdefault("scope", [])
-            return hint
+            return _attach_context(hint, selected_hint_key or "signals")
         # Fallback to hardcoded logic if LLM fails
-        return {
+        fallback = {
             "intent": Intent.STABILIZE.value
             if diagnostic["findings"].get("failing_routes")
             else Intent.OBSERVE.value,
             "confidence": 0.7,
             "reason": "LLM resolution failed; using heuristic fallback.",
+            "scope": [],
         }
+        return _attach_context(fallback, "fallback")

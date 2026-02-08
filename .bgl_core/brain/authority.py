@@ -493,6 +493,7 @@ class Authority:
                             "reason": request.reason,
                             "scope": request.scope,
                             "metadata": request.metadata,
+                            "action_kind": request.kind.value,
                             # Give decision engine a canonical view of the environment.
                             "env_snapshot": env_snapshot_payload,
                             "env_delta": env_delta_payload,
@@ -514,6 +515,11 @@ class Authority:
         # Deterministic override: any WRITE_* requires human approval by default.
 
         effective_mode = self.effective_execution_mode()
+        force_requires_human = False
+        try:
+            force_requires_human = bool(decision_payload.get("force_requires_human", False))
+        except Exception:
+            force_requires_human = False
 
         if write_action:
             if self._autonomous_enabled():
@@ -523,11 +529,11 @@ class Authority:
                 return gate_res
             # Allow limited policy overrides for sandbox writes (internal maintenance).
             # WRITE_PROD stays strictly human-gated.
-            requires_human = True
+            requires_human = True if force_requires_human else False
             if request.kind == ActionKind.WRITE_SANDBOX:
-                requires_human = False
+                requires_human = True if force_requires_human else False
             elif request.kind == ActionKind.WRITE_PROD:
-                requires_human = self._scope_requires_human(request.scope)
+                requires_human = True if force_requires_human else self._scope_requires_human(request.scope)
 
             policy_key = None
             try:

@@ -97,6 +97,21 @@
   </div>
 
   <div class="section">
+    <h2>Domain Rules</h2>
+    {% if domain_rule_summary %}
+      <p>Violations: {{ domain_rule_summary.count|default(0) }}</p>
+      {% if domain_rule_summary.critical_count is defined %}
+        <p>Critical: {{ domain_rule_summary.critical_count }}</p>
+      {% endif %}
+      {% if domain_rule_summary.rule_ids %}
+        <p>Rules: {{ domain_rule_summary.rule_ids | join(', ') }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Domain rule summary not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Volition</h2>
     {% if volition and volition.volition %}
       <p><strong>Focus:</strong> {{ volition.volition }}</p>
@@ -252,6 +267,72 @@
   </div>
 
   <div class="section">
+    <h2>Scenario Coverage</h2>
+    {% if scenario_coverage %}
+      <p>Window: {{ scenario_coverage.window_days|default(0) }} days</p>
+      <p>Routes covered: {{ scenario_coverage.covered_routes|default(0) }} / {{ scenario_coverage.total_routes|default(0) }} ({{ scenario_coverage.coverage_ratio|default(0) }}%)</p>
+      <p>UI snapshot paths: {{ scenario_coverage.ui_snapshot_paths|default(0) }} ({{ scenario_coverage.ui_coverage_ratio|default(0) }}%)</p>
+      {% if scenario_coverage.uncovered_sample %}
+        <p class="warn">Uncovered sample:</p>
+        <ul>
+          {% for u in scenario_coverage.uncovered_sample %}
+            <li>{{ u.route }} ({{ u.method }})</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Coverage not recorded.</p>
+    {% endif %}
+    {% if coverage_gate and coverage_gate.route_ratio is not none %}
+      <p><strong>Coverage Gate:</strong> route {{ coverage_gate.route_ratio }}% / {{ coverage_gate.min_route_ratio }}%, UI {{ coverage_gate.ui_ratio }}% / {{ coverage_gate.min_ui_ratio }}% → {{ "OK" if coverage_gate.ok else "WARN" }}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>UI Action Coverage</h2>
+    {% if ui_action_coverage %}
+      <p>Window: {{ ui_action_coverage.window_days|default(0) }} days</p>
+      <p>Actions covered: {{ ui_action_coverage.covered_actions|default(0) }} / {{ ui_action_coverage.total_actions|default(0) }} ({{ ui_action_coverage.coverage_ratio|default(0) }}%)</p>
+      <p>Routes with actions: {{ ui_action_coverage.routes_with_actions|default(0) }} (covered {{ ui_action_coverage.routes_with_coverage|default(0) }})</p>
+      {% if ui_action_coverage.uncovered_sample %}
+        <p class="warn">Uncovered actions (sample):</p>
+        <ul>
+          {% for u in ui_action_coverage.uncovered_sample %}
+            <li>{{ u.route }} — {{ u.text or u.href or u.selector }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">UI action coverage not recorded.</p>
+    {% endif %}
+    {% if coverage_gate and coverage_gate.ui_action_ratio is not none %}
+      <p><strong>UI Action Gate:</strong> {{ coverage_gate.ui_action_ratio }}% / {{ coverage_gate.min_ui_action_ratio }}% → {{ "OK" if coverage_gate.ok else "WARN" }}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Flow Coverage</h2>
+    {% if flow_coverage %}
+      <p>Window: {{ flow_coverage.window_days|default(0) }} days</p>
+      <p>Flows covered: {{ flow_coverage.covered_flows|default(0) }} / {{ flow_coverage.total_flows|default(0) }} ({{ flow_coverage.coverage_ratio|default(0) }}%)</p>
+      <p>Flow sequences covered: {{ flow_coverage.sequence_covered_flows|default(0) }} ({{ flow_coverage.sequence_coverage_ratio|default(0) }}%)</p>
+      {% if flow_coverage.uncovered_sample %}
+        <p class="warn">Uncovered flows:</p>
+        <ul>
+          {% for f in flow_coverage.uncovered_sample %}
+            <li>{{ f.flow }} ({{ f.status }}){% if f.endpoints %} — {{ f.endpoints | join(', ') }}{% endif %}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Flow coverage not recorded.</p>
+    {% endif %}
+    {% if flow_gate and flow_gate.flow_ratio is not none %}
+      <p><strong>Flow Gate:</strong> flow {{ flow_gate.flow_ratio }}% / {{ flow_gate.min_flow_ratio }}%, sequence {{ flow_gate.sequence_ratio }}% / {{ flow_gate.min_sequence_ratio }}% → {{ "OK" if flow_gate.ok else "WARN" }}</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Auto Insights</h2>
     {% if auto_insights_status and auto_insights_status.total is defined %}
       <p>Loaded: {{ auto_insights_status.loaded|default(0) }} / {{ auto_insights_status.total|default(0) }}</p>
@@ -275,8 +356,17 @@
     {% if ui_semantic and ui_semantic.summary %}
       <p><strong>URL:</strong> {{ ui_semantic.url }}</p>
       <p><strong>Title:</strong> {{ ui_semantic.summary.title }}</p>
+      {% if ui_semantic.summary.page_type %}
+        <p><strong>Page Type:</strong> {{ ui_semantic.summary.page_type }}</p>
+      {% endif %}
       {% if ui_semantic.summary.headings %}
         <p><strong>Headings:</strong> {{ ui_semantic.summary.headings | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.nav_items %}
+        <p><strong>Nav Items:</strong> {{ ui_semantic.summary.nav_items | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.breadcrumbs %}
+        <p><strong>Breadcrumbs:</strong> {{ ui_semantic.summary.breadcrumbs | tojson }}</p>
       {% endif %}
       {% if ui_semantic.summary.tables %}
         <p><strong>Tables:</strong> {{ ui_semantic.summary.tables | tojson }}</p>
@@ -284,11 +374,20 @@
       {% if ui_semantic.summary.forms %}
         <p><strong>Forms:</strong> {{ ui_semantic.summary.forms | tojson }}</p>
       {% endif %}
+      {% if ui_semantic.summary.primary_actions %}
+        <p><strong>Primary Actions:</strong> {{ ui_semantic.summary.primary_actions | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.search_fields %}
+        <p><strong>Search Fields:</strong> {{ ui_semantic.summary.search_fields | tojson }}</p>
+      {% endif %}
       {% if ui_semantic.summary.text_keywords %}
         <p><strong>Keywords:</strong> {{ ui_semantic.summary.text_keywords | join(', ') }}</p>
       {% endif %}
       {% if ui_semantic.summary.text_blocks %}
         <p><strong>Text Blocks:</strong> {{ ui_semantic.summary.text_blocks | tojson }}</p>
+      {% endif %}
+      {% if ui_semantic.summary.ui_states %}
+        <p><strong>UI States:</strong> {{ ui_semantic.summary.ui_states | tojson }}</p>
       {% endif %}
       {% if ui_semantic_delta and ui_semantic_delta.changed %}
         <p class="warn"><strong>Delta:</strong> Changes detected</p>
@@ -484,6 +583,23 @@
       {% if decision.justification %}<p><strong>Justification:</strong> {{ decision.justification|join('; ') }}</p>{% endif %}
       {% if decision.maturity %}<p><strong>Decision Maturity:</strong> {{ decision.maturity.level|default('experimental') }}</p>{% endif %}
       {% if decision.conflicts_with %}<p><strong>Conflicts:</strong> {{ decision.conflicts_with|length }}</p>{% endif %}
+      {% if decision.explanation %}
+        <div style="margin-top:8px;">
+          <p><strong>Decision Explanation</strong></p>
+          {% if decision.explanation.reasons %}
+            <p><strong>Reasons:</strong> {{ decision.explanation.reasons | join('; ') }}</p>
+          {% endif %}
+          {% if decision.explanation.alternatives %}
+            <p><strong>Alternatives:</strong> {{ decision.explanation.alternatives | join('; ') }}</p>
+          {% endif %}
+          {% if decision.explanation.expected_outcomes %}
+            <p><strong>Expected Outcomes:</strong> {{ decision.explanation.expected_outcomes | join('; ') }}</p>
+          {% endif %}
+          {% if decision.explanation.context %}
+            <p><strong>Context:</strong> {{ decision.explanation.context | tojson }}</p>
+          {% endif %}
+        </div>
+      {% endif %}
     {% endif %}
   </div>
 

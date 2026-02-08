@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "6",
+  "description": "Stabilize route http://localhost:8000/api/release.php",
+  "created_at": 1702398400,
+  "metadata": {
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 6,
+    "generated_at": 1770519572.4335542
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_release_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: http://localhost:8000/api/release.php\n    events:\n      - type: HTTP_REQUEST\n        url: /api/release.php\n        method: GET\n        expected_status_code: 200\n        retries: 3\n        timeout: 5s",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: http://localhost:8000/api/release.php\n    events:\n      - type: HTTP_REQUEST\n        url: /api/release.php\n        method: GET\n        expected_status_code: 200\n        retries: 3\n        timeout: 5s"
+      }
+    }
+  ]
+}

@@ -154,6 +154,52 @@ def generate_plan_from_proposal(proposal: Dict[str, Any], root: Path, *, plan_id
         pid = plan_id or f"auto_{proposal.get('id','proposal')}_{int(time.time())}"
         payload["id"] = pid
 
+    # Auto-sanitize operations: convert missing-file modifies into creates (safe scopes),
+    # and ensure modify without match does not hard-fail later.
+    try:
+        ops = payload.get("operations") if isinstance(payload.get("operations"), list) else []
+        safe_create = set(
+            [
+                ".bgl_core/brain/scenarios/**/*.yaml",
+                ".bgl_core/brain/scenarios/**/*.yml",
+                ".bgl_core/patch_plans/**/*.json",
+                ".bgl_core/patch_plans/**/*.yml",
+                ".bgl_core/patch_plans/**/*.yaml",
+            ]
+        )
+        for op in ops:
+            if not isinstance(op, dict):
+                continue
+            op_path = str(op.get("path") or "")
+            if not op_path:
+                continue
+            abs_path = root / op_path
+            op_type = str(op.get("op") or "").lower()
+            mode = str(op.get("mode") or "").lower()
+            # Fix modify without match in replace/insert modes
+            if op_type == "modify" and mode in {"replace", "insert_before", "insert_after"} and not op.get("match"):
+                op["mode"] = "overwrite"
+            # Convert missing-file modify to create when in safe scopes
+            if op_type == "modify" and not abs_path.exists():
+                for pat in safe_create:
+                    try:
+                        if root.joinpath(op_path).as_posix().startswith("./"):
+                            rel = root.joinpath(op_path).as_posix()[2:]
+                        else:
+                            rel = Path(op_path).as_posix()
+                    except Exception:
+                        rel = op_path
+                    if Path(rel).match(pat):
+                        if op.get("content"):
+                            op["op"] = "create"
+                            op.pop("match", None)
+                            op.pop("regex", None)
+                            op.pop("count", None)
+                            op.pop("mode", None)
+                        break
+    except Exception:
+        pass
+
     # Attach metadata
     meta = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
     meta.update({

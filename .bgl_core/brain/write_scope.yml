@@ -8,6 +8,12 @@ policy:
   max_file_bytes: 400000
   allow_create: true
   allow_delete: true
+  auto_create_on_missing:
+    - ".bgl_core/brain/scenarios/**/*.yaml"
+    - ".bgl_core/brain/scenarios/**/*.yml"
+    - ".bgl_core/patch_plans/**/*.json"
+    - ".bgl_core/patch_plans/**/*.yml"
+    - ".bgl_core/patch_plans/**/*.yaml"
   forbid_paths:
     - ".git/**"
     - "vendor/**"
@@ -25,10 +31,15 @@ scopes:
   - id: brain_core
     description: "Agent core logic and diagnostics"
     paths:
+      - ".bgl_core/brain/*.py"
       - ".bgl_core/brain/**/*.py"
+      - ".bgl_core/brain/*.md"
       - ".bgl_core/brain/**/*.md"
+      - ".bgl_core/brain/*.json"
       - ".bgl_core/brain/**/*.json"
+      - ".bgl_core/brain/*.yml"
       - ".bgl_core/brain/**/*.yml"
+      - ".bgl_core/brain/*.yaml"
       - ".bgl_core/brain/**/*.yaml"
     operations:
       - modify
@@ -39,9 +50,13 @@ scopes:
   - id: knowledge_base
     description: "Knowledge artifacts and insights (non-db)"
     paths:
+      - ".bgl_core/knowledge/*.md"
       - ".bgl_core/knowledge/**/*.md"
+      - ".bgl_core/knowledge/*.json"
       - ".bgl_core/knowledge/**/*.json"
+      - ".bgl_core/knowledge/*.yml"
       - ".bgl_core/knowledge/**/*.yml"
+      - ".bgl_core/knowledge/*.yaml"
       - ".bgl_core/knowledge/**/*.yaml"
     operations:
       - modify
@@ -51,8 +66,11 @@ scopes:
   - id: scenarios
     description: "Scenario library"
     paths:
+      - ".bgl_core/brain/scenarios/*.yaml"
       - ".bgl_core/brain/scenarios/**/*.yaml"
+      - ".bgl_core/brain/scenarios/*.yml"
       - ".bgl_core/brain/scenarios/**/*.yml"
+      - ".bgl_core/brain/scenarios/*.md"
       - ".bgl_core/brain/scenarios/**/*.md"
     operations:
       - modify
@@ -123,6 +141,15 @@ scopes:
     description: "Automation scripts"
     paths:
       - "scripts/**/*"
+    operations:
+      - modify
+      - create
+      - delete
+      - rename
+  - id: public_assets
+    description: "Public-facing assets (requires human in Authority gate)"
+    paths:
+      - "public/**/*"
     operations:
       - modify
       - create

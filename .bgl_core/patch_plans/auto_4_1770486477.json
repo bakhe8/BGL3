@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_4",
+  "description": "Stabilize route http://localhost:8000/api/extend.php",
+  "created_at": 1690324800,
+  "metadata": {
+    "proposal_id": 4,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770486477.8180475
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "replace",
+      "content": "api:\n  - name: extend\n    path: /api/extend.php\n    method: POST\n    success:\n      - event: success\n        message: Route extended successfully\n    failure:\n      - event: failure\n        message: Failed to extend route",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "replace",
+        "content": "api:\n  - name: extend\n    path: /api/extend.php\n    method: POST\n    success:\n      - event: success\n        message: Route extended successfully\n    failure:\n      - event: failure\n        message: Failed to extend route"
+      }
+    }
+  ]
+}

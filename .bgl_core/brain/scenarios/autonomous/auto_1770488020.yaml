@@ -1,0 +1,9 @@
+name: autonomous_1770488020
+kind: ui
+steps:
+- action: goto
+  url: /api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35
+- action: click
+  selector: button.btn-print-overlay
+- action: wait
+  ms: 600

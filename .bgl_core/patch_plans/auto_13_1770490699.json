@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_13",
+  "description": "Stabilize route http://localhost:8000/api/release.php",
+  "created_at": 1770490682,
+  "metadata": {
+    "proposal_id": 13,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770490699.8154964
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_release_php.yaml",
+      "mode": null,
+      "content": "api_version: '2.0'\nroute_name: 'release'\nendpoint: '/api/release.php'\nmethods:\n  - GET\n  - POST\ntests:\n  - name: 'Test release endpoint with valid data'\n    request:\n      method: POST\n      url: '/api/release.php'\n      body: '{\"data\": \"valid_data\"}'\n    expected_status_code: 200\n    expected_response_body: '{\"status\": \"success\"}'\n  - name: 'Test release endpoint with invalid data'\n    request:\n      method: POST\n      url: '/api/release.php'\n      body: '{\"data\": \"invalid_data\"}'\n    expected_status_code: 400\n    expected_response_body: '{\"status\": \"error\", \"message\": \"Invalid data\"}'",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api_version: '2.0'\nroute_name: 'release'\nendpoint: '/api/release.php'\nmethods:\n  - GET\n  - POST\ntests:\n  - name: 'Test release endpoint with valid data'\n    request:\n      method: POST\n      url: '/api/release.php'\n      body: '{\"data\": \"valid_data\"}'\n    expected_status_code: 200\n    expected_response_body: '{\"status\": \"success\"}'\n  - name: 'Test release endpoint with invalid data'\n    request:\n      method: POST\n      url: '/api/release.php'\n      body: '{\"data\": \"invalid_data\"}'\n    expected_status_code: 400\n    expected_response_body: '{\"status\": \"error\", \"message\": \"Invalid data\"}'"
+      }
+    }
+  ]
+}

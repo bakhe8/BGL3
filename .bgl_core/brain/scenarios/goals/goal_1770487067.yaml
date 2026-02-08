@@ -1,0 +1,9 @@
+name: goal_decision_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href*='release.php']
+- action: wait
+  ms: 800

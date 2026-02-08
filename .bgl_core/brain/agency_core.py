@@ -40,6 +40,10 @@ try:
     from .autonomous_policy import apply_autonomous_policy_edit  # type: ignore
     from .self_policy import update_self_policy  # type: ignore
     from .self_rules import update_self_rules  # type: ignore
+    from .knowledge_curation import curate_knowledge  # type: ignore
+    from .learning_feedback import apply_learning_feedback  # type: ignore
+    from .long_term_goals import refresh_long_term_goals, summarize_long_term_goals  # type: ignore
+    from .canary_release import evaluate_canary_releases, summarize_canary_status  # type: ignore
     from .schema_check import check_schema  # type: ignore
 except (ImportError, ValueError):
     from safety import SafetyNet
@@ -75,6 +79,10 @@ except (ImportError, ValueError):
     from autonomous_policy import apply_autonomous_policy_edit
     from self_policy import update_self_policy
     from self_rules import update_self_rules
+    from knowledge_curation import curate_knowledge
+    from learning_feedback import apply_learning_feedback
+    from long_term_goals import refresh_long_term_goals, summarize_long_term_goals
+    from canary_release import evaluate_canary_releases, summarize_canary_status
     from schema_check import check_schema
 
 
@@ -130,6 +138,291 @@ class AgencyCore:
 
         self._initialized = True
         print(f"[*] AgencyCore: Intelligence engine initialized at {self.root_dir}")
+
+    def _auto_patch_error_experiences(self, experiences: List[Dict[str, Any]]) -> None:
+        if not experiences:
+            return
+        try:
+            enabled = os.getenv(
+                "BGL_AUTO_PATCH_ON_ERRORS",
+                str(self.config.get("auto_patch_on_errors", 0)),
+            )
+            if str(enabled) != "1":
+                return
+        except Exception:
+            return
+        try:
+            limit = int(
+                os.getenv(
+                    "BGL_AUTO_PATCH_LIMIT",
+                    str(self.config.get("auto_patch_limit", 2)),
+                )
+                or 2
+            )
+        except Exception:
+            limit = 2
+        try:
+            min_conf = float(
+                os.getenv(
+                    "BGL_AUTO_PATCH_MIN_CONF",
+                    str(self.config.get("auto_patch_min_conf", 0.6)),
+                )
+                or 0.6
+            )
+        except Exception:
+            min_conf = 0.6
+        try:
+            min_evidence = int(
+                os.getenv(
+                    "BGL_AUTO_PATCH_MIN_EVIDENCE",
+                    str(self.config.get("auto_patch_min_evidence", 3)),
+                )
+                or 3
+            )
+        except Exception:
+            min_evidence = 3
+
+        keywords = (
+            "failed",
+            "error",
+            "network error",
+            "http calls",
+            "500",
+            "400",
+            "exception",
+        )
+        exe = sys.executable or "python"
+        script = self.root_dir / ".bgl_core" / "brain" / "apply_proposal.py"
+        if not script.exists():
+            return
+
+        try:
+            import hashlib
+        except Exception:
+            hashlib = None  # type: ignore
+
+        created = 0
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_proposals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE,
+                    description TEXT,
+                    action TEXT,
+                    count INTEGER,
+                    evidence TEXT,
+                    impact TEXT,
+                    solution TEXT,
+                    expectation TEXT
+                )
+                """
+            )
+            cur = conn.cursor()
+            for exp in experiences:
+                if created >= limit:
+                    break
+                summary = str(exp.get("summary") or "")
+                scenario = str(exp.get("scenario") or "")
+                if not summary or not scenario:
+                    continue
+                text = summary.lower()
+                if not any(k in text for k in keywords):
+                    continue
+                try:
+                    conf = float(exp.get("confidence") or 0)
+                except Exception:
+                    conf = 0.0
+                try:
+                    evidence = int(exp.get("evidence_count") or 0)
+                except Exception:
+                    evidence = 0
+                if conf < min_conf or evidence < min_evidence:
+                    continue
+
+                base = f"{scenario}|{summary}"
+                if hashlib:
+                    exp_hash = hashlib.sha1(base.encode("utf-8")).hexdigest()[:10]
+                else:
+                    exp_hash = str(abs(hash(base)))[:10]
+                name = f"Auto patch {exp_hash}: {scenario}"
+                try:
+                    exists = cur.execute(
+                        "SELECT id FROM agent_proposals WHERE name = ?",
+                        (name,),
+                    ).fetchone()
+                    if exists:
+                        continue
+                except Exception:
+                    pass
+                evidence_payload = {
+                    "scenario": scenario,
+                    "summary": summary,
+                    "confidence": conf,
+                    "evidence_count": evidence,
+                    "related_files": exp.get("related_files"),
+                    "source": "auto_patch_errors",
+                }
+                try:
+                    cur.execute(
+                        """
+                        INSERT INTO agent_proposals
+                        (name, description, action, count, evidence, impact, solution, expectation)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            name,
+                            summary[:400],
+                            "stabilize",
+                            1,
+                            json.dumps(evidence_payload, ensure_ascii=False),
+                            "medium",
+                            "",
+                            "",
+                        ),
+                    )
+                    proposal_id = cur.lastrowid
+                    conn.commit()
+                except Exception:
+                    continue
+
+                try:
+                    subprocess.run(
+                        [exe, str(script), "--proposal", str(proposal_id)],
+                        cwd=str(self.root_dir),
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                except Exception:
+                    pass
+                created += 1
+        except Exception:
+            pass
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+    def _auto_propose_ui_action_gaps(
+        self, ui_action_cov: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        if not ui_action_cov:
+            return []
+        try:
+            ratio = float(ui_action_cov.get("coverage_ratio") or 0.0)
+        except Exception:
+            ratio = 0.0
+        try:
+            min_ratio = float(
+                os.getenv(
+                    "BGL_MIN_UI_ACTION_COVERAGE",
+                    str(self.config.get("min_ui_action_coverage", "30")),
+                )
+                or "30"
+            )
+        except Exception:
+            min_ratio = 30.0
+        if ratio >= min_ratio:
+            return []
+
+        gaps = ui_action_cov.get("gaps") or []
+        if not gaps:
+            return []
+
+        try:
+            import hashlib
+        except Exception:
+            hashlib = None  # type: ignore
+
+        proposals: List[Dict[str, Any]] = []
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_proposals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE,
+                    description TEXT,
+                    action TEXT,
+                    count INTEGER,
+                    evidence TEXT,
+                    impact TEXT,
+                    solution TEXT,
+                    expectation TEXT
+                )
+                """
+            )
+            cur = conn.cursor()
+
+            sample = gaps[:6]
+            sample_text = []
+            for g in sample:
+                label = g.get("text") or g.get("href") or g.get("selector")
+                if label:
+                    sample_text.append(str(label))
+            evidence_payload = {
+                "coverage_ratio": ratio,
+                "window_days": ui_action_cov.get("window_days"),
+                "sample_gaps": sample,
+                "source": "ui_action_coverage",
+            }
+            base = json.dumps(evidence_payload, ensure_ascii=False)
+            if hashlib:
+                suffix = hashlib.sha1(base.encode("utf-8")).hexdigest()[:8]
+            else:
+                suffix = str(abs(hash(base)))[:8]
+            name = f"تحسين تغطية تفاعل UI ({ratio:.1f}%) #{suffix}"
+            description = (
+                "تغطية تفاعل UI منخفضة. نحتاج توسيع الاستكشاف ليشمل عناصر لم يتم التفاعل معها.\n"
+                f"نماذج العناصر: {', '.join(sample_text[:6])}"
+            ).strip()
+            try:
+                exists = cur.execute(
+                    "SELECT id FROM agent_proposals WHERE name = ?",
+                    (name,),
+                ).fetchone()
+                if not exists:
+                    cur.execute(
+                        """
+                        INSERT INTO agent_proposals
+                        (name, description, action, count, evidence, impact, solution, expectation)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        """,
+                        (
+                            name,
+                            description[:400],
+                            "improve_exploration",
+                            1,
+                            json.dumps(evidence_payload, ensure_ascii=False),
+                            "medium",
+                            "",
+                            "",
+                        ),
+                    )
+                    proposal_id = cur.lastrowid
+                    conn.commit()
+                    proposals.append(
+                        {
+                            "id": proposal_id,
+                            "source": "ui_action_gap",
+                            "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
+                            "evidence": sample,
+                            "severity": "medium",
+                        }
+                    )
+            except Exception:
+                pass
+        except Exception:
+            return proposals
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return proposals
 
     def _write_autonomy_goal(
         self, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 3
@@ -217,9 +510,9 @@ class AgencyCore:
         vitals = {
             "infrastructure": integrity_check.get("valid", False),
             "business_logic": (
-                len(health_report.get("business_conflicts", [])) == 0
-                and len(health_report.get("permission_issues", [])) == 0
-                and len(health_report.get("failing_routes", [])) == 0
+                len(health_report.get("business_conflicts") or []) == 0
+                and len(health_report.get("permission_issues") or []) == 0
+                and len(health_report.get("failing_routes") or []) == 0
             ),
             "architecture": integrity_check.get("valid", True),
         }
@@ -228,19 +521,24 @@ class AgencyCore:
             "failing_routes": failing_routes_details,
             "blockers": self.get_active_blockers(),
             "proposals": [],  # Legacy, replaced by dynamic reasoning
-            "permission_issues": health_report.get("permission_issues", []),
-            "pending_approvals": health_report.get("pending_approvals", []),
-            "recent_outcomes": health_report.get("recent_outcomes", []),
-            "worst_routes": health_report.get("worst_routes", []),
-            "experiences": health_report.get("recent_experiences", []),
-            "learning_confirmations": health_report.get("learning_confirmations", []),
+            "permission_issues": health_report.get("permission_issues") or [],
+            "pending_approvals": health_report.get("pending_approvals") or [],
+            "recent_outcomes": health_report.get("recent_outcomes") or [],
+            "worst_routes": health_report.get("worst_routes") or [],
+            "experiences": health_report.get("recent_experiences") or [],
+            "learning_confirmations": health_report.get("learning_confirmations") or [],
             "scenario_deps": health_report.get("scenario_deps", {}),
             "api_scan": health_report.get("api_scan", {}),
-            "api_contract_missing": health_report.get("api_contract_missing", []),
-            "api_contract_gaps": health_report.get("api_contract_gaps", []),
-            "expected_failures": health_report.get("expected_failures", []),
-            "policy_candidates": health_report.get("policy_candidates", []),
-            "policy_auto_promoted": health_report.get("policy_auto_promoted", []),
+            "api_contract_missing": health_report.get("api_contract_missing") or [],
+            "api_contract_gaps": health_report.get("api_contract_gaps") or [],
+            "expected_failures": health_report.get("expected_failures") or [],
+            "policy_candidates": health_report.get("policy_candidates") or [],
+            "policy_auto_promoted": health_report.get("policy_auto_promoted") or [],
+            "domain_rule_violations": health_report.get("domain_rule_violations") or [],
+            "domain_rule_summary": health_report.get("domain_rule_summary", {}),
+            "scenario_coverage": health_report.get("scenario_coverage", {}),
+            "flow_coverage": health_report.get("flow_coverage", {}),
+            "ui_action_coverage": health_report.get("ui_action_coverage", {}),
             "gap_tests": [],
         }
         # Latest UI semantic snapshot (if available)
@@ -276,6 +574,14 @@ class AgencyCore:
                     "severity": check.get("severity", "medium"),
                 }
             )
+        try:
+            ui_action_proposals = self._auto_propose_ui_action_gaps(
+                findings.get("ui_action_coverage") or {}
+            )
+            if ui_action_proposals:
+                findings["proposals"].extend(ui_action_proposals)
+        except Exception:
+            pass
         findings["playbooks_meta"] = self.playbook_meta
 
         findings["interpretation"] = interpret(
@@ -345,6 +651,64 @@ class AgencyCore:
             findings["self_rules"] = self_rules
         except Exception:
             findings.setdefault("self_rules", {})
+
+        # Knowledge curation (conflict detection + weighting)
+        try:
+            knowledge_status = curate_knowledge(self.root_dir, self.db_path)
+            findings["knowledge_status"] = knowledge_status
+        except Exception:
+            findings.setdefault("knowledge_status", {})
+
+        # Learning feedback loop (intent bias updates based on outcomes)
+        try:
+            learning_feedback = apply_learning_feedback(self.root_dir, self.db_path)
+            findings["learning_feedback"] = learning_feedback
+            if isinstance(learning_feedback, dict) and learning_feedback.get("policy"):
+                findings["self_policy"] = learning_feedback.get("policy")
+        except Exception:
+            findings.setdefault("learning_feedback", {})
+
+        # Auto-patch confirmed error experiences (sandbox) before canary evaluation.
+        try:
+            self._auto_patch_error_experiences(findings.get("experiences") or [])
+        except Exception:
+            pass
+
+        # Long-term goals (schedule + priority policy)
+        try:
+            lt_status = refresh_long_term_goals(self.db_path)
+        except Exception:
+            lt_status = {"ok": False}
+        try:
+            lt_status["summary"] = summarize_long_term_goals(self.db_path, limit=6)
+        except Exception:
+            lt_status.setdefault("summary", {})
+        findings["long_term_goals"] = lt_status
+
+        # Canary release evaluation (safe production promotion / rollback)
+        try:
+            auto_rb = bool(int(os.getenv("BGL_CANARY_AUTO_ROLLBACK", "0") or "0"))
+        except Exception:
+            auto_rb = False
+        try:
+            cfg_min_age = self.config.get("canary_min_age_sec", 300)
+            min_age = int(os.getenv("BGL_CANARY_MIN_AGE_SEC", str(cfg_min_age) or "300") or "300")
+        except Exception:
+            min_age = 300
+        try:
+            canary_eval = evaluate_canary_releases(
+                self.root_dir,
+                self.db_path,
+                min_age_sec=min_age,
+                auto_rollback=auto_rb,
+            )
+        except Exception:
+            canary_eval = {"ok": False}
+        try:
+            canary_eval["summary"] = summarize_canary_status(self.db_path, limit=4)
+        except Exception:
+            canary_eval.setdefault("summary", {})
+        findings["canary_status"] = canary_eval
 
         # Optional Reasoning layer (connects ReasoningEngine into the main pipeline)
         reasoning_enabled = False
@@ -453,6 +817,10 @@ class AgencyCore:
                 intent_payload["ui_semantic_delta"] = findings.get("ui_semantic_delta")
             if findings.get("self_policy"):
                 intent_payload["self_policy"] = findings.get("self_policy")
+            if findings.get("domain_rule_violations"):
+                intent_payload["domain_rule_violations"] = findings.get("domain_rule_violations")
+            if findings.get("domain_rule_summary"):
+                intent_payload["domain_rule_summary"] = findings.get("domain_rule_summary")
         except Exception:
             pass
         diagnostic_map["findings"]["intent"] = intent_payload
@@ -533,7 +901,7 @@ class AgencyCore:
 
         # Persist a compact environment snapshot in knowledge.db (unifies observations across subsystems).
         try:
-            run_id = str(int(diagnostic_map.get("timestamp") or time.time()))
+            run_id = str(os.getenv("BGL_DIAGNOSTIC_RUN_ID") or int(diagnostic_map.get("timestamp") or time.time()))
             snapshot = diagnostic_to_snapshot(diagnostic_map)
             store_env_snapshot(
                 self.db_path,

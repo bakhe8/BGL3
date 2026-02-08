@@ -1383,7 +1383,7 @@ class PremiumDashboard
     {
         $this->projectPath = dirname(__DIR__);
         $this->agentDbPath = $this->projectPath . '/.bgl_core/brain/knowledge.db';
-        $this->decisionDbPath = $this->projectPath . '/.bgl_core/brain/decision.db';
+        $this->decisionDbPath = $this->projectPath . '/.bgl_core/brain/knowledge.db';
         try {
             $this->db = Database::connect();
         } catch (\Exception $e) {
@@ -2057,7 +2057,7 @@ $worstRoutes = $dash->getWorstRoutes();
 $recentIntents = $dash->getRecentIntents();
 $recentDecisions = $dash->getRecentDecisions();
 $recentOutcomes = [];
-$decisionDbPath = $projectRoot . '/.bgl_core/brain/decision.db';
+$decisionDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 if (file_exists($decisionDbPath)) {
     try {
         $dec = new PDO("sqlite:" . $decisionDbPath);
@@ -2194,6 +2194,8 @@ function bgl_build_live_payload(
     array $recentRoutes,
     array $logHighlights,
     array $autonomyGoals,
+    array $longTermGoals,
+    array $canaryStatus,
     string $systemStatusText,
     string $systemStatusTone,
     int $toolServerPort,
@@ -2284,6 +2286,8 @@ function bgl_build_live_payload(
         'recent_routes' => $routePayload,
         'log_highlights' => $logPayload,
         'autonomy_goals' => $goalPayload,
+        'long_term_goals' => $longTermGoals,
+        'canary_status' => $canaryStatus,
         'tool_server_online' => (bool)$liveToolServerOnline,
         'tool_server_port' => (int)$toolServerPort,
         'llm_state' => strtoupper((string)($liveLlmStatus['state'] ?? 'UNKNOWN')),
@@ -2317,6 +2321,10 @@ $reportJson = $projectRoot . '/.bgl_core/logs/latest_report.json';
 $latestReport = [];
 $volition = [];
 $autonomousPolicy = [];
+$knowledgeStatus = [];
+$learningFeedback = [];
+$longTermGoals = [];
+$canaryStatus = [];
 // Canonical routes source: knowledge.db (no report-as-input for routes).
 $routesDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 $routeHealth = bgl_route_health_from_db($routesDbPath, 7, 24);
@@ -2341,6 +2349,26 @@ if (file_exists($reportJson)) {
         }
         if (isset($jr['autonomous_policy']) && is_array($jr['autonomous_policy'])) {
             $autonomousPolicy = $jr['autonomous_policy'];
+        }
+        if (isset($jr['knowledge_status']) && is_array($jr['knowledge_status'])) {
+            $knowledgeStatus = $jr['knowledge_status'];
+        } elseif (isset($jr['findings']['knowledge_status']) && is_array($jr['findings']['knowledge_status'])) {
+            $knowledgeStatus = $jr['findings']['knowledge_status'];
+        }
+        if (isset($jr['learning_feedback']) && is_array($jr['learning_feedback'])) {
+            $learningFeedback = $jr['learning_feedback'];
+        } elseif (isset($jr['findings']['learning_feedback']) && is_array($jr['findings']['learning_feedback'])) {
+            $learningFeedback = $jr['findings']['learning_feedback'];
+        }
+        if (isset($jr['long_term_goals']) && is_array($jr['long_term_goals'])) {
+            $longTermGoals = $jr['long_term_goals'];
+        } elseif (isset($jr['findings']['long_term_goals']) && is_array($jr['findings']['long_term_goals'])) {
+            $longTermGoals = $jr['findings']['long_term_goals'];
+        }
+        if (isset($jr['canary_status']) && is_array($jr['canary_status'])) {
+            $canaryStatus = $jr['canary_status'];
+        } elseif (isset($jr['findings']['canary_status']) && is_array($jr['findings']['canary_status'])) {
+            $canaryStatus = $jr['findings']['canary_status'];
         }
     }
 }
@@ -2382,7 +2410,7 @@ $systemStatusTone = 'unknown'; // ok | warn | unknown
     }
 }
 // count direct attempts from decision outcomes if available
-$decisionDbPath = $projectRoot . '/.bgl_core/brain/decision.db';
+$decisionDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 if (file_exists($decisionDbPath)) {
     try {
         $lite = new PDO("sqlite:" . $decisionDbPath);
@@ -2515,6 +2543,8 @@ if (isset($_GET['live']) && $_GET['live'] === '1' && bgl_is_ajax()) {
         $recentRoutes ?? [],
         $logHighlights ?? [],
         $autonomyGoals ?? [],
+        $longTermGoals ?? [],
+        $canaryStatus ?? [],
         $systemStatusText ?? 'غير متوفر',
         $systemStatusTone ?? 'unknown',
         (int)$toolServerPort,
@@ -2555,6 +2585,8 @@ if (isset($_SERVER['HTTP_ACCEPT']) && stripos($_SERVER['HTTP_ACCEPT'], 'text/eve
             $recentRoutes ?? [],
             $logHighlights ?? [],
             $autonomyGoals ?? [],
+            $longTermGoals ?? [],
+            $canaryStatus ?? [],
             $systemStatusText ?? 'غير متوفر',
             $systemStatusTone ?? 'unknown',
             (int)$toolServerPort,

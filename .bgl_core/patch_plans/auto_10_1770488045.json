@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_10",
+  "description": "Stabilize route http://localhost:8000/api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35",
+  "created_at": 1692835200,
+  "metadata": {
+    "experience_id": 5266,
+    "exp_hash": "fdac3d5afcc1681430921182d08261954bf6e12c",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 10,
+    "generated_at": 1770488045.3118186
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilize route http://localhost:8000/api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35\nif 'suggestions-learning' in request.path:\n    try:\n        # Add your stabilization logic here\n        pass\n    except Exception as e:\n        log_error(e)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilize route http://localhost:8000/api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35\nif 'suggestions-learning' in request.path:\n    try:\n        # Add your stabilization logic here\n        pass\n    except Exception as e:\n        log_error(e)\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_8",
+  "description": "Stabilize route http://localhost:8000/api/release.php",
+  "created_at": 1770487431,
+  "metadata": {
+    "experience_id": 5146,
+    "exp_hash": "814d4988c187e5ebb1434e310433841e7cc4b1ca",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 8,
+    "generated_at": 1770487444.113877
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/critical/api_smoke.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure release route stability\n  steps:\n    - assert:\n        url: http://localhost:8000/api/release.php\n        method: GET\n        expected_status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure release route stability\n  steps:\n    - assert:\n        url: http://localhost:8000/api/release.php\n        method: GET\n        expected_status_code: 200"
+      }
+    }
+  ]
+}

@@ -69,6 +69,26 @@ class BGLGovernor:
 
         return violations
 
+    def audit_relationship_rules(
+        self, rule_ids: set[str] | None = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Lightweight audit: only relationship rules (no content scan).
+        Optionally filter by rule_id set.
+        """
+        if getattr(self, "_bypassed", False):
+            return []
+        violations: List[Dict[str, Any]] = []
+        classifications = self.rules.get("classifications", {})
+        rules = self.rules.get("rules", [])
+        entity_types = self._classify_entities(classifications)
+        for rule in rules:
+            if "from_type" in rule and "to_type" in rule:
+                if rule_ids and rule.get("id") not in rule_ids:
+                    continue
+                violations.extend(self._check_relationship_rule(rule, entity_types))
+        return violations
+
     def _check_content_rule(self, rule: Dict[str, Any]) -> List[Dict[str, Any]]:
         violations = []
         pattern = rule.get("pattern", "")

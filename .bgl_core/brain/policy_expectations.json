@@ -418,5 +418,536 @@
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"\\\\u0644\\\\u0645\\ \\\\u064a\\\\u062a\\\\u0645\\ \\\\u0625\\\\u062f\\\\u062e\\\\u06",
     "match_error_regex": "Bad Request"
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "method": "POST",
+    "expected_statuses": [
+      500
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"SQLSTATE\\[HY000\\]:\\ General\\ error:\\ 1\\ no\\ such\\ table:\\ main\\.",
+    "match_error_regex": "Internal Server Error"
+  },
+  {
+    "uri": "/api/get-record.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/get-timeline.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/import.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/learning-data.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/release.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/save-note.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/settings.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/smart-paste-confidence.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/suggestions-learning.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/batches.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/convert-to-real.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/learning-action.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/learning-data.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/manual-entry.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/parse-paste-v2.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/parse-paste.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/settings.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/smart-paste-confidence.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/history.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/reduce.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/save-and-next.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/update_bank.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/update_supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/upload-attachment.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/reduce.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/save-and-next.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/update_bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/update_supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/history.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/batches.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/create-bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/create-guarantee.php",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Bank must exist before creating guarantee; creation blocked when no valid bank mapping.",
+    "category": "policy_expected",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/create-supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/delete_bank.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/delete_supplier.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/extend.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/get-current-state.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/get-history-snapshot.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/get-letter-preview.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/import.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/release.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/convert-to-real.php",
+    "method": "GET",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/create-guarantee.php",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "Bank must exist before creating guarantee; creation blocked when no valid bank mapping.",
+    "category": "policy_expected",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/create-supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/delete_bank.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/delete_supplier.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/extend.php",
+    "method": "POST",
+    "expected_statuses": [
+      429
+    ],
+    "reason": "Auto-promoted from evidence",
+    "category": "policy_expected_auto",
+    "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   }
 ]

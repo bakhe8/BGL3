@@ -23,6 +23,7 @@ from generate_openapi import generate as generate_openapi  # noqa: E402
 from scenario_deps import check_scenario_deps_async  # noqa: E402
 from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
 from schema_check import check_schema  # noqa: E402
+from run_ledger import start_run, finish_run  # noqa: E402
 
 
 def log_activity(root_path: Path, message: str):
@@ -63,12 +64,26 @@ async def master_assurance_diagnostic():
     core = AgencyCore(ROOT)
 
     # Run Full Diagnostic with bounded timeout to avoid hanging browser runs
+    run_id = f"diag_{int(time.time())}"
+    os.environ["BGL_DIAGNOSTIC_RUN_ID"] = run_id
+    try:
+        start_run(ROOT / ".bgl_core" / "brain" / "knowledge.db", run_id=run_id, mode="master_verify")
+    except Exception:
+        pass
     try:
         diagnostic = await asyncio.wait_for(core.run_full_diagnostic(), timeout=timeout)
     except asyncio.TimeoutError:
         print(f"[CRITICAL] Diagnostic timed out after {timeout}s.")
         return
     finally:
+        try:
+            finish_run(ROOT / ".bgl_core" / "brain" / "knowledge.db", run_id=run_id)
+        except Exception:
+            pass
+        try:
+            os.environ.pop("BGL_DIAGNOSTIC_RUN_ID", None)
+        except Exception:
+            pass
         # Best-effort cleanup: Playwright on Windows can emit noisy asyncio subprocess warnings
         # if its driver is still attached when the event loop shuts down.
         try:
@@ -95,7 +110,6 @@ async def master_assurance_diagnostic():
     # Optional: lightweight perf probe (home page load)
     perf = {}
     if cfg.get("measure_perf", 0):
-        import time
         import urllib.request
 
         base = cfg.get("base_url", "http://localhost:8000").rstrip("/")
@@ -238,6 +252,11 @@ async def master_assurance_diagnostic():
             "runtime_events_meta": diagnostic["findings"].get(
                 "runtime_events_meta", {}
             ),
+            "scenario_coverage": diagnostic["findings"].get("scenario_coverage", {}),
+            "ui_action_coverage": diagnostic["findings"].get("ui_action_coverage", {}),
+            "flow_coverage": diagnostic["findings"].get("flow_coverage", {}),
+            "coverage_gate": diagnostic["findings"].get("coverage_gate", {}),
+            "flow_gate": diagnostic["findings"].get("flow_gate", {}),
             "auto_insights_status": diagnostic["findings"].get(
                 "auto_insights_status", {}
             ),
@@ -259,7 +278,12 @@ async def master_assurance_diagnostic():
             "ui_semantic_delta": diagnostic["findings"].get("ui_semantic_delta", {}),
             "self_policy": diagnostic["findings"].get("self_policy", {}),
             "self_rules": diagnostic["findings"].get("self_rules", {}),
+            "knowledge_status": diagnostic["findings"].get("knowledge_status", {}),
+            "learning_feedback": diagnostic["findings"].get("learning_feedback", {}),
+            "long_term_goals": diagnostic["findings"].get("long_term_goals", {}),
+            "canary_status": diagnostic["findings"].get("canary_status", {}),
             "diagnostic_attribution": diagnostic["findings"].get("diagnostic_attribution", {}),
+            "domain_rule_summary": diagnostic["findings"].get("domain_rule_summary", {}),
         }
         try:
             data["schema_drift"] = check_schema(ROOT / ".bgl_core" / "brain" / "knowledge.db")

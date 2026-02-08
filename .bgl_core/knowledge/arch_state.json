@@ -17,7 +17,7 @@
   "agentfrontend\\package-lock.json",
   "agentfrontend\\package.json",
   "analysis\\analyze_trace.py",
-  "analysis\\metrics_summary_enhanced.json",
+  "analysis\\metrics_summary.json",
   "analysis\\suggestions.json",
   "api\\agent-event.php",
   "api\\batches.php",

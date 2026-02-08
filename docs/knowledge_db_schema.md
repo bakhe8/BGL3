@@ -17,6 +17,7 @@
 - `exploration_outcome_scores`: درجة نتيجة الاستكشاف.
 - `exploration_history`: العناصر التي تم استكشافها.
 - `exploration_novelty`: قياس تكرار/حداثة العناصر.
+- `ui_action_snapshots`: لقطات لعناصر التفاعل المرئي (selectors/labels) لكل صفحة.
 
 ## 3) الأهداف الذاتية
 - `autonomy_goals`: أهداف تُولد من الإشارات/القرار/الاستكشاف.

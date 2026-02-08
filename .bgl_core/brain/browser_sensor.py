@@ -38,7 +38,7 @@ class BrowserSensor:
         self.capture_har = capture_har
         self.capture_failures = capture_failures
         self.status_file = self.reports_dir / "browser_status.json"
-        self.store_semantic = os.getenv("BGL_STORE_UI_SEMANTIC", "0") == "1"
+        self.store_semantic = os.getenv("BGL_STORE_UI_SEMANTIC", "1") == "1"
         try:
             self.semantic_limit = int(os.getenv("BGL_SEMANTIC_LIMIT", "12") or "12")
         except Exception:

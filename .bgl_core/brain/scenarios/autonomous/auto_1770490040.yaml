@@ -1,0 +1,9 @@
+name: autonomous_1770490040
+kind: ui
+steps:
+- action: goto
+  url: /api/release.php
+- action: click
+  selector: a[href="/?filter=pending"]
+- action: wait
+  ms: 600

@@ -40,12 +40,16 @@ def summarize(db_path: Path, write_json: bool = True):
     move_stats = stats(move_vals)
     dom_stats = stats(dom_vals)
     if write_json:
-        summary_path = Path(".bgl_core/brain/metrics_summary.json")
+        summary_path = Path("analysis/metrics_summary.json")
+        summary_path.parent.mkdir(parents=True, exist_ok=True)
         summary_path.write_text(
             __import__("json").dumps(
                 {
-                    "move_to_click_ms": move_stats,
-                    "click_to_dom_ms": dom_stats,
+                    "overall": {
+                        "move_to_click_ms": move_stats,
+                        "click_to_dom_ms": dom_stats,
+                    },
+                    "per_target": [],
                 },
                 ensure_ascii=False,
                 indent=2,

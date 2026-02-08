@@ -48,6 +48,19 @@
         <?php include __DIR__ . '/partials/decision_impact.php'; ?>
 
         <div class="span-6">
+            <?php include __DIR__ . '/partials/knowledge_curation.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/learning_feedback.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/long_term_goals.php'; ?>
+        </div>
+        <div class="span-6">
+            <?php include __DIR__ . '/partials/canary_status.php'; ?>
+        </div>
+
+        <div class="span-6">
             <?php include __DIR__ . '/partials/permission_queue.php'; ?>
         </div>
         <div class="span-6">

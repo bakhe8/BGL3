@@ -179,7 +179,7 @@
 - أوامر تشغيل موحّدة مضافة: `run_ui.ps1` (مراجعة بصرية headless=0) و `run_ci.ps1` (قياس headless=1 + metrics_summary + check_mouse_layer).
 - معايير القبول الحالية: عدم وجود قفز مرئي، تطابق مؤشر النقر مع الموضع، قرارات تتغير بعد تقييم عند الهدف، وتنوع مسارات الحركة (overshoot/hesitation) ضمن hand_profile.
 - ضبط hand_profile قابل عبر متغيرات البيئة (`BGL_BASE_SPEED_MIN/MAX`, `BGL_JITTER_MIN/MAX`, `BGL_OVERSHOOT_MIN/MAX`, `BGL_HESITATION_MIN/MAX_MS`) دون تعديل الكود.
-- `metrics_summary.py` يحفظ ملخصًا JSON إلى `.bgl_core/brain/metrics_summary.json`؛ حارس القياس `metrics_guard.py` يتحقق من نطاق move→click (افتراضي 2000–6000ms) ويستطيع إلزام عينات DOM (`BGL_REQUIRE_DOM_CHANGE=1`).
+- `metrics_summary.py` يحفظ ملخصًا JSON إلى `analysis/metrics_summary.json`؛ حارس القياس `metrics_guard.py` يتحقق من نطاق move→click (افتراضي 2000–6000ms) ويستطيع إلزام عينات DOM (`BGL_REQUIRE_DOM_CHANGE=1`).
 - المساهمات اللاحقة مسموحة لتحسين hand_profile أو سيناريوهات DOM إضافية؛ الحارس check_mouse_layer وقيود Motor تبقى إلزامية.
 
 هذه الوثيقة تعكس الحالة الراهنة في المستودع حتى 1 فبراير 2026 (مع إضافة طبقة وكيل الماوس). أي اختلافات مستقبلية تتطلب تحديثها. 

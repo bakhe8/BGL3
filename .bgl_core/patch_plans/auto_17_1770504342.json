@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_17",
+  "description": "Stabilize route http://localhost:8000/api/release.php",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 17,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770504342.3225276
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_release_php.yaml",
+      "mode": null,
+      "content": "\n- name: Stabilize release route\n  steps:\n    - action: retry\n      times: 3",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "\n- name: Stabilize release route\n  steps:\n    - action: retry\n      times: 3"
+      }
+    }
+  ]
+}

@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "auto_10_1770488045",
+  "description": "Patch plan for stabilizing route http://localhost:8000/api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35",
+  "created_at": 1770488045,
+  "metadata": {
+    "experience_id": 5266,
+    "exp_hash": "fdac3d5afcc1681430921182d08261954bf6e12c",
+    "scenario": "http://localhost:8000/api/suggestions-learning.php?raw=%D8%B4%D8%B1%D9%83%D8%A9%20%D8%A7%D8%AE%D8%AA%D8%A8%D8%A7%D8%B1&guarantee_id=35",
+    "confidence": 0.85,
+    "evidence_count": 4,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 10,
+    "generated_at": 1770519685.5749595
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add route handling for suggestions-learning.php\nif 'suggestions-learning.php' in request.path:\n    handle_suggestions_learning(request)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add route handling for suggestions-learning.php\nif 'suggestions-learning.php' in request.path:\n    handle_suggestions_learning(request)\n"
+      }
+    }
+  ]
+}

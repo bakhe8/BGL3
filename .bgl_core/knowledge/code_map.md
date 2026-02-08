@@ -2421,7 +2421,7 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
-### `.bgl_core\brain\metrics_summary.json`
+### `analysis\metrics_summary.json`
 
 - *Type*: Script / Data / Documentation
 
@@ -3003,7 +3003,7 @@ Generated on demand to ensure 100% visibility.
 
 - *Type*: Script / Data / Documentation
 
-### `analysis\metrics_summary_enhanced.json`
+### `analysis\metrics_summary.json`
 
 - *Type*: Script / Data / Documentation
 

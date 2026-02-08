@@ -1,0 +1,9 @@
+name: autonomous_1770433213
+kind: ui
+steps:
+- action: goto
+  url: /
+- action: click
+  selector: input[name="relatedTo"]
+- action: wait
+  ms: 600

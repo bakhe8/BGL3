@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "20",
+  "description": "Route http://localhost:8000/api/parse-paste.php: 4 events, 1 HTTP calls (1 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1697856000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 20,
+    "generated_at": 1770511419.6359446
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200"
+      }
+    }
+  ]
+}

@@ -44,6 +44,8 @@ async def _run_real_scenarios():
     keep_open = bool(int(os.getenv("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0)))))
     max_pages = int(cfg.get("max_pages", 3))
     idle_timeout = int(cfg.get("page_idle_timeout", 120))
+    shadow_mode = os.getenv("BGL_SHADOW_MODE", str(cfg.get("scenario_shadow_mode", 0)))
+    shadow_mode = bool(int(shadow_mode))
     include = cfg.get("scenario_include", None)
     if isinstance(include, str) and not include.strip():
         include = None
@@ -57,7 +59,7 @@ async def _run_real_scenarios():
         max_pages=max_pages,
         idle_timeout=idle_timeout,
         include=include,
-        shadow_mode=False,
+        shadow_mode=shadow_mode,
     )
 
 
@@ -103,17 +105,20 @@ def simulate_traffic():
         cursor.execute(
             """
             INSERT INTO runtime_events (
-                timestamp, session, event_type, route, method, target, payload, status, latency_ms, error
+                timestamp, session, run_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
             (
                 time.time(),
                 "run_sim_session_1",
+                "sim_run",
+                "simulation",
                 "import_banks" if "import" in route else "api_call",
                 route,
                 method,
                 "target_system",
+                "sim",
                 "{}",
                 status,
                 latency,

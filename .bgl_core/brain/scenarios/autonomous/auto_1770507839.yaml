@@ -1,0 +1,9 @@
+name: autonomous_1770507839
+kind: ui
+steps:
+- action: goto
+  url: /api/settings.php
+- action: click
+  selector: a[href="/?filter=released"]
+- action: wait
+  ms: 600

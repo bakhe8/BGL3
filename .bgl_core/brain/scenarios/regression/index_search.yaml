@@ -2,8 +2,9 @@ name: "index_search"
 steps:
   - action: goto
     url: "/index.php"
-    wait_until: "networkidle"
-    post_wait_ms: 1500
+    wait_until: "domcontentloaded"
+    post_wait_ms: 1000
+    timeout_sec: 20
   - action: wait
     ms: 800
   - action: click

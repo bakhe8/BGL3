@@ -40,6 +40,21 @@ CREATE TABLE IF NOT EXISTS outcomes (
   timestamp TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS agent_runs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  run_id TEXT UNIQUE,
+  mode TEXT,
+  started_at REAL,
+  ended_at REAL,
+  duration_s REAL,
+  runtime_events_count INTEGER,
+  decisions_count INTEGER,
+  outcomes_count INTEGER,
+  attribution_class TEXT,
+  attribution_conf REAL,
+  notes TEXT
+);
+
 CREATE TABLE IF NOT EXISTS proposal_outcome_links (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   proposal_id INTEGER,
@@ -216,3 +231,107 @@ CREATE TABLE IF NOT EXISTS agent_blockers (
   complexity_level TEXT,
   status TEXT DEFAULT 'PENDING'
 );
+
+-- Knowledge curation (conflict resolution + weighting)
+CREATE TABLE IF NOT EXISTS knowledge_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL,
+  source_path TEXT NOT NULL,
+  source_type TEXT,
+  status TEXT,
+  confidence REAL,
+  mtime REAL,
+  fingerprint TEXT UNIQUE,
+  notes TEXT,
+  created_at REAL,
+  updated_at REAL
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_key ON knowledge_items(key, status);
+CREATE INDEX IF NOT EXISTS idx_knowledge_items_path ON knowledge_items(source_path);
+
+CREATE TABLE IF NOT EXISTS knowledge_conflicts (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  key TEXT NOT NULL,
+  created_at REAL NOT NULL,
+  winner_path TEXT,
+  candidates_json TEXT,
+  reason TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_knowledge_conflicts_key ON knowledge_conflicts(key, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS learning_feedback (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at REAL NOT NULL,
+  source TEXT,
+  signal TEXT,
+  delta REAL,
+  confidence REAL,
+  details_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_learning_feedback_time ON learning_feedback(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS long_term_goals (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  goal_key TEXT UNIQUE,
+  title TEXT,
+  goal TEXT,
+  payload_json TEXT,
+  source TEXT,
+  status TEXT,
+  priority REAL,
+  created_at REAL,
+  updated_at REAL,
+  last_scheduled_at REAL,
+  next_due_at REAL,
+  success_count INTEGER DEFAULT 0,
+  fail_count INTEGER DEFAULT 0,
+  last_outcome TEXT,
+  last_outcome_at REAL,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_long_term_goals_status ON long_term_goals(status, priority DESC);
+CREATE INDEX IF NOT EXISTS idx_long_term_goals_due ON long_term_goals(next_due_at, priority DESC);
+
+CREATE TABLE IF NOT EXISTS long_term_goal_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  goal_key TEXT,
+  created_at REAL,
+  event_type TEXT,
+  delta REAL,
+  confidence REAL,
+  details_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_long_term_goal_events_time ON long_term_goal_events(created_at DESC);
+
+CREATE TABLE IF NOT EXISTS canary_releases (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  release_id TEXT UNIQUE,
+  plan_id TEXT,
+  source TEXT,
+  status TEXT,
+  created_at REAL,
+  updated_at REAL,
+  baseline_json TEXT,
+  current_json TEXT,
+  backup_dir TEXT,
+  change_scope_json TEXT,
+  notes TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_canary_releases_status ON canary_releases(status, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS canary_release_events (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  release_id TEXT,
+  created_at REAL,
+  event_type TEXT,
+  detail_json TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_canary_release_events_time ON canary_release_events(created_at DESC);
+

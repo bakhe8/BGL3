@@ -1,0 +1,9 @@
+name: autonomous_1770486461
+kind: ui
+steps:
+- action: goto
+  url: /api/extend.php
+- action: click
+  selector: button.note-cancel-btn
+- action: wait
+  ms: 600

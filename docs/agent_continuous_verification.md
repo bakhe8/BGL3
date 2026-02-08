@@ -11,7 +11,7 @@
 
 - **تشغيل سيناريوهات UI بصفحة واحدة ومؤشر مرئي**: الوكيل يشغّل سيناريوهات Playwright (YAML) بجلسة متصفح واحدة، مع استكشاف إجباري خفيف لكل صفحة، ومؤشر ماوس مرئي وسلوك حركة بشرية موحّد عبر Motor/hand_profile.
 - **حوكمة الحركة والحماية**: جميع أوامر الماوس تمر عبر Motor؛ حارس check_mouse_layer يمنع أي استخدام مباشر لـ page.mouse.*؛ حارس metrics_guard يتحقق من نطاق القياسات؛ رجوع (Back) مسموح فقط كتعافٍ محدود وبسجل أحداث.
-- **القياس والتلخيص**: تسجيل runtime_events/learned_events في knowledge.db؛ تلخيص Move→Click و Click→DOM في metrics_summary.json؛ سيناريو dom_change ينتج عينات DOM؛ سكربتات جاهزة (run_ui.ps1، run_ci.ps1) لتشغيل، تلخيص، وحراس.
+- **القياس والتلخيص**: تسجيل runtime_events/learned_events في knowledge.db؛ تلخيص Move→Click و Click→DOM في `analysis/metrics_summary.json`؛ سيناريو dom_change ينتج عينات DOM؛ سكربتات جاهزة (run_ui.ps1، run_ci.ps1) لتشغيل، تلخيص، وحراس.
 - **إدراك موضعي واتخاذ قرار قبل النقر**: Policy ينفّذ اقتراب→تقييم موضعي→نقر، يزرع MutationObserver قبل النقر لرصد أول تغيّر DOM، ويعيد ضبط mouse_state.
 - **اتساق فلترة بيانات الاختبار والإحصاءات**: Navigation وStats يحترمان Production Mode و exclude_test؛ حذف بيانات الاختبار داخل معاملة مع تنظيف علاقات.
 - **توثيق وخطة تشغيل**: mouse_agent_plan, logic_reference محدّثان، وأوامر التشغيل مذكورة في README.
@@ -44,7 +44,7 @@
 
 - إضافة سكربت تحليل دوري يقرأ knowledge.db ويُخرج:
   - `analysis/index_suggestions.json`: استعلامات بطيئة متكررة → اقتراح أعمدة مشتقة/فهارس.
-  - `analysis/coverage.json`: مسارات UI/API غير مغطاة مقارنةً بملفات السيناريو.
+  - `analysis/coverage.json`: سجل موحّد لتغطية السيناريوهات والتدفّقات + فجواتها.
   - مسودات سيناريوهات تولَّد إلى `scenarios/generated/` (لا تُشغَّل تلقائياً).
 - جدولة تشغيل التحليل (cron/CI) بدون تطبيق التغييرات تلقائياً.
 
@@ -115,11 +115,11 @@
 
 يعرف كيف يُنتَج كل مخرج آلي، وأين يُحفظ، وكيف يُراجع قبل التطبيق:
 
-- **الموقع والتسمية**: كل مخرج تحليلي في `analysis/`، كل ملخص قياس في `.bgl_core/brain/*.json`، والمسودات في `scenarios/generated/`. الأسماء واضحة (index_suggestions.json, coverage.json, metrics_summary.json, index_patch.sql).
+- **الموقع والتسمية**: كل مخرج تحليلي وملخص قياس في `analysis/`، والمسودات في `scenarios/generated/`. الأسماء واضحة (index_suggestions.json, coverage.json, metrics_summary.json, index_patch.sql).
 - **البنية الدنيا**:
   - `index_suggestions.json`: [{ "query": string, "suggested_index": string, "confidence": 0..1, "evidence": [...] }]
-  - `coverage.json`: [{ "route": string, "status": "uncovered|partial", "evidence": [...] }]
-  - `metrics_summary.json`: { move_to_click_ms: {...}, click_to_dom_ms: {...} }
+  - `coverage.json`: { scenario: { summary, gaps }, flow: { summary, details, gaps } }
+  - `metrics_summary.json`: { overall: { move_to_click_ms: {...}, click_to_dom_ms: {...} }, per_target: [...] }
   - `index_patch.sql`: أوامر CREATE/ALTER بدون تنفيذ تلقائي.
   - مسودات السيناريو: YAML بصفحة واحدة، meta حقل `generated: true`.
 - **التحقق**: كل ملف يمرر JSON lint/Schema بسيط (مفتاح موجود، أنواع صحيحة). أي خطأ يمنع دخوله في بوابة المراجعة.

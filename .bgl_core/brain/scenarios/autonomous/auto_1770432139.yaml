@@ -1,0 +1,9 @@
+name: autonomous_1770432139
+kind: ui
+steps:
+- action: goto
+  url: /api/batches.php
+- action: click
+  selector: input[name="relatedTo"]
+- action: wait
+  ms: 600
