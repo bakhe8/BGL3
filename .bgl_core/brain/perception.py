@@ -22,6 +22,13 @@ UI_MAP_JS = r"""
     const tag = (el.tagName || '').toLowerCase();
     const text = pickText(el).slice(0, 120);
     const href = (tag === 'a') ? (el.getAttribute('href') || '') : '';
+    let testAttr = '';
+    let testId = '';
+    const testAttrs = ['data-testid', 'data-test', 'data-qa', 'data-cy'];
+    for (const attr of testAttrs) {
+      const v = (el.getAttribute(attr) || '').trim();
+      if (v) { testId = v; testAttr = attr; break; }
+    }
 
     return {
       tag,
@@ -32,6 +39,8 @@ UI_MAP_JS = r"""
       type: el.type || (tag === 'a' ? 'link' : ''),
       href,
       name: el.getAttribute('name') || '',
+      testid: testId,
+      testattr: testAttr,
       x: rect.x, y: rect.y, w: rect.width, h: rect.height,
       z: getComputedStyle(el).zIndex || 'auto'
     };

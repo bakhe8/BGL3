@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_131",
+  "description": "Stabilize route http://localhost:8000/views/maintenance.php",
+  "created_at": 1770546287,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 131,
+    "generated_at": 1770546343.478078
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: gap_route_views_maintenance_php\nsteps:\n- action: ensure_page_loads\n  url: http://localhost:8000/views/maintenance.php\n  expected_elements:\n    - id: maintenance-header\n    - class: maintenance-content",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: gap_route_views_maintenance_php\nsteps:\n- action: ensure_page_loads\n  url: http://localhost:8000/views/maintenance.php\n  expected_elements:\n    - id: maintenance-header\n    - class: maintenance-content"
+      }
+    }
+  ]
+}

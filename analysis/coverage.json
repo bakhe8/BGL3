@@ -1,37 +1,17 @@
 {
-  "generated_at": 1770533126.3832972,
+  "generated_at": 1770548281.9897213,
   "scenario": {
     "summary": {
       "window_days": 7,
       "total_routes": 46,
-      "covered_routes": 40,
-      "coverage_ratio": 86.96,
-      "ui_snapshot_paths": 20,
-      "ui_coverage_ratio": 43.48,
+      "covered_routes": 42,
+      "coverage_ratio": 91.3,
+      "ui_snapshot_paths": 21,
+      "ui_coverage_ratio": 45.65,
       "uncovered_sample": [
-        {
-          "route": "/api/parse-paste-v2.php",
-          "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/api/manual-entry.php",
-          "method": "POST",
-          "status_score": 100
-        },
         {
           "route": "/api/learning-action.php",
           "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/api/parse-paste-v2.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/api/manual-entry.php",
-          "method": "GET",
           "status_score": 100
         },
         {
@@ -55,64 +35,40 @@
           "status_score": 100
         },
         {
-          "route": "/api/parse-paste-v2.php",
-          "method": "ANY",
-          "status_score": 100
-        },
-        {
-          "route": "/api/manual-entry.php",
-          "method": "ANY",
-          "status_score": 100
-        },
-        {
           "route": "/api/learning-action.php",
           "method": "ANY",
           "status_score": 100
+        },
+        {
+          "route": "/api/get-letter-preview.php",
+          "method": "ANY",
+          "status_score": 100
+        },
+        {
+          "route": "/api/delete_supplier.php",
+          "method": "ANY",
+          "status_score": 100
+        },
+        {
+          "route": "/api/delete_bank.php",
+          "method": "ANY",
+          "status_score": 100
         }
-      ]
+      ],
+      "events_total": 6708,
+      "ui_snapshot_count": 53,
+      "semantic_change_count": 4,
+      "gap_runs": 0,
+      "gap_last_ts": 0.0,
+      "reliable": true,
+      "reliability_reason": ""
     },
     "gaps": [
-      {
-        "route": "/api/parse-paste-v2.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "POST",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
-      {
-        "route": "/api/manual-entry.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "POST",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
       {
         "route": "/api/learning-action.php",
         "status": "uncovered",
         "evidence": {
           "method": "POST",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
-      {
-        "route": "/api/parse-paste-v2.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "GET",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
-      {
-        "route": "/api/manual-entry.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "GET",
           "status_score": 100
         },
         "priority_score": 100.0
@@ -154,25 +110,34 @@
         "priority_score": 100.0
       },
       {
-        "route": "/api/parse-paste-v2.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "ANY",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
-      {
-        "route": "/api/manual-entry.php",
-        "status": "uncovered",
-        "evidence": {
-          "method": "ANY",
-          "status_score": 100
-        },
-        "priority_score": 100.0
-      },
-      {
         "route": "/api/learning-action.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "ANY",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/api/get-letter-preview.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "ANY",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/api/delete_supplier.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "ANY",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/api/delete_bank.php",
         "status": "uncovered",
         "evidence": {
           "method": "ANY",
@@ -186,10 +151,10 @@
     "summary": {
       "window_days": 7,
       "snapshot_count": 12,
-      "total_actions": 197,
+      "total_actions": 142,
       "covered_actions": 1,
-      "coverage_ratio": 0.51,
-      "routes_with_actions": 6,
+      "coverage_ratio": 0.7,
+      "routes_with_actions": 3,
       "routes_with_coverage": 1,
       "uncovered_sample": [
         {
@@ -222,16 +187,16 @@
         {
           "route": "/index.php",
           "selector": "input[name=\"search\"]",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "text": "Stability review",
           "href": "",
           "tag": "input",
           "risk": "safe",
-          "priority_score": 80.0
+          "priority_score": 68.0
         },
         {
           "route": "/index.php",
           "selector": "a[href=\"./index.php\"]",
-          "text": "🏠 الرئيسية",
+          "text": "✕",
           "href": "./index.php",
           "tag": "a",
           "risk": "safe",
@@ -411,24 +376,6 @@
           "priority_score": 86.0
         },
         {
-          "route": "/views/maintenance.php",
-          "selector": "input[name=\"action\"]",
-          "text": "delete_all",
-          "href": "",
-          "tag": "input",
-          "risk": "danger",
-          "priority_score": 86.0
-        },
-        {
-          "route": "/views/maintenance.php",
-          "selector": "button.btn-danger",
-          "text": "حذف الكل",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0
-        },
-        {
           "route": "/index.php",
           "selector": "button.note-save-btn",
           "text": "حفظ",
@@ -474,15 +421,6 @@
           "priority_score": 84.0
         },
         {
-          "route": "/views/settings.php",
-          "selector": "button.btn",
-          "text": "💾 حفظ التغييرات",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0
-        },
-        {
           "route": "/",
           "selector": "button.note-save-btn",
           "text": "حفظ",
@@ -517,8 +455,37 @@
           "tag": "button",
           "risk": "write",
           "priority_score": 84.0
+        },
+        {
+          "route": "/",
+          "selector": "#excelTestNote",
+          "text": "مثل: اختبار استيراد Excel",
+          "href": "",
+          "tag": "input",
+          "risk": "write",
+          "priority_score": 84.0
+        },
+        {
+          "route": "/",
+          "selector": "input[name=\"search\"]",
+          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 80.0
+        },
+        {
+          "route": "/views/batches.php",
+          "selector": "input[name=\"search\"]",
+          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 80.0
         }
-      ]
+      ],
+      "reliable": true,
+      "reliability_reason": ""
     },
     "gaps": [
       {
@@ -624,24 +591,6 @@
         "route": "/",
         "selector": "#btnCancelExcel",
         "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/views/maintenance.php",
-        "selector": "input[name=\"action\"]",
-        "text": "delete_all",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/views/maintenance.php",
-        "selector": "button.btn-danger",
-        "text": "حذف الكل",
         "href": "",
         "tag": "button",
         "risk": "danger",
@@ -693,15 +642,6 @@
         "priority_score": 84.0
       },
       {
-        "route": "/views/settings.php",
-        "selector": "button.btn",
-        "text": "💾 حفظ التغييرات",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0
-      },
-      {
         "route": "/",
         "selector": "button.note-save-btn",
         "text": "حفظ",
@@ -736,6 +676,33 @@
         "tag": "button",
         "risk": "write",
         "priority_score": 84.0
+      },
+      {
+        "route": "/",
+        "selector": "#excelTestNote",
+        "text": "مثل: اختبار استيراد Excel",
+        "href": "",
+        "tag": "input",
+        "risk": "write",
+        "priority_score": 84.0
+      },
+      {
+        "route": "/",
+        "selector": "input[name=\"search\"]",
+        "text": "بحث برقم الضمان، المورد، أو البنك...",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 80.0
+      },
+      {
+        "route": "/views/batches.php",
+        "selector": "input[name=\"search\"]",
+        "text": "بحث برقم الضمان، المورد، أو البنك...",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 80.0
       }
     ],
     "prioritized_gaps": [
@@ -781,51 +748,15 @@
     "summary": {
       "window_days": 14,
       "total_flows": 5,
-      "covered_flows": 3,
-      "coverage_ratio": 60.0,
+      "covered_flows": 0,
+      "coverage_ratio": 0.0,
       "sequence_covered_flows": 3,
       "sequence_coverage_ratio": 60.0,
       "uncovered_sample": [
         {
-          "flow": "Flow: تصدير الموردين (export_suppliers)",
-          "file": "export_suppliers.md",
-          "status": "uncovered",
-          "evidence": {
-            "routes": [],
-            "events": []
-          },
-          "endpoints": [
-            "/api/export_suppliers.php"
-          ],
-          "missing_steps": [
-            "/api/export_suppliers.php"
-          ],
-          "sequence_covered": false,
-          "sequence_session": ""
-        },
-        {
-          "flow": "Flow: استيراد الموردين (import_suppliers)",
-          "file": "import_suppliers.md",
-          "status": "uncovered",
-          "evidence": {
-            "routes": [],
-            "events": []
-          },
-          "endpoints": [
-            "/api/import_suppliers.php"
-          ],
-          "missing_steps": [
-            "/api/import_suppliers.php"
-          ],
-          "sequence_covered": false,
-          "sequence_session": ""
-        }
-      ],
-      "details": [
-        {
           "flow": "Flow: إنشاء ضمان (create_guarantee)",
           "file": "create_guarantee.md",
-          "status": "covered",
+          "status": "partial",
           "evidence": {
             "routes": [
               "/api/create-guarantee.php"
@@ -836,6 +767,12 @@
             "/api/create-guarantee.php"
           ],
           "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
+            "التحقق:",
+            "الإنشاء:",
+            "المخرجات:"
+          ],
           "sequence_covered": true,
           "sequence_session": "sim_session_1"
         },
@@ -853,13 +790,19 @@
           "missing_steps": [
             "/api/export_suppliers.php"
           ],
+          "steps_sample": [
+            "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
           "sequence_covered": false,
           "sequence_session": ""
         },
         {
           "flow": "Flow: تمديد ضمان (extend_guarantee)",
           "file": "extend_guarantee.md",
-          "status": "covered",
+          "status": "partial",
           "evidence": {
             "routes": [
               "/api/extend.php"
@@ -870,6 +813,12 @@
             "/api/extend.php"
           ],
           "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/extend.php` مع (guarantee_id, new_end_date, reason?).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
           "sequence_covered": true,
           "sequence_session": "run_1770486170_12912|goal_flow_gap"
         },
@@ -887,13 +836,19 @@
           "missing_steps": [
             "/api/import_suppliers.php"
           ],
+          "steps_sample": [
+            "الطلب: `/api/import_suppliers.php` برفع ملف.",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
           "sequence_covered": false,
           "sequence_session": ""
         },
         {
           "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
           "file": "release_guarantee.md",
-          "status": "covered",
+          "status": "partial",
           "evidence": {
             "routes": [
               "/api/release.php"
@@ -904,16 +859,142 @@
             "/api/release.php"
           ],
           "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/release.php` مع (guarantee_id, reason?).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
           "sequence_covered": true,
           "sequence_session": "run_1770487186_9028|goal_purpose_focus"
         }
-      ]
+      ],
+      "details": [
+        {
+          "flow": "Flow: إنشاء ضمان (create_guarantee)",
+          "file": "create_guarantee.md",
+          "status": "partial",
+          "evidence": {
+            "routes": [
+              "/api/create-guarantee.php"
+            ],
+            "events": []
+          },
+          "endpoints": [
+            "/api/create-guarantee.php"
+          ],
+          "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
+            "التحقق:",
+            "الإنشاء:",
+            "المخرجات:"
+          ],
+          "sequence_covered": true,
+          "sequence_session": "sim_session_1"
+        },
+        {
+          "flow": "Flow: تصدير الموردين (export_suppliers)",
+          "file": "export_suppliers.md",
+          "status": "uncovered",
+          "evidence": {
+            "routes": [],
+            "events": []
+          },
+          "endpoints": [
+            "/api/export_suppliers.php"
+          ],
+          "missing_steps": [
+            "/api/export_suppliers.php"
+          ],
+          "steps_sample": [
+            "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
+          "sequence_covered": false,
+          "sequence_session": ""
+        },
+        {
+          "flow": "Flow: تمديد ضمان (extend_guarantee)",
+          "file": "extend_guarantee.md",
+          "status": "partial",
+          "evidence": {
+            "routes": [
+              "/api/extend.php"
+            ],
+            "events": []
+          },
+          "endpoints": [
+            "/api/extend.php"
+          ],
+          "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/extend.php` مع (guarantee_id, new_end_date, reason?).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
+          "sequence_covered": true,
+          "sequence_session": "run_1770486170_12912|goal_flow_gap"
+        },
+        {
+          "flow": "Flow: استيراد الموردين (import_suppliers)",
+          "file": "import_suppliers.md",
+          "status": "uncovered",
+          "evidence": {
+            "routes": [],
+            "events": []
+          },
+          "endpoints": [
+            "/api/import_suppliers.php"
+          ],
+          "missing_steps": [
+            "/api/import_suppliers.php"
+          ],
+          "steps_sample": [
+            "الطلب: `/api/import_suppliers.php` برفع ملف.",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
+          "sequence_covered": false,
+          "sequence_session": ""
+        },
+        {
+          "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
+          "file": "release_guarantee.md",
+          "status": "partial",
+          "evidence": {
+            "routes": [
+              "/api/release.php"
+            ],
+            "events": []
+          },
+          "endpoints": [
+            "/api/release.php"
+          ],
+          "missing_steps": [],
+          "steps_sample": [
+            "الطلب: `/api/release.php` مع (guarantee_id, reason?).",
+            "التحقق:",
+            "التنفيذ:",
+            "المخرجات:"
+          ],
+          "sequence_covered": true,
+          "sequence_session": "run_1770487186_9028|goal_purpose_focus"
+        }
+      ],
+      "events_total": 7552,
+      "reliable": true,
+      "reliability_reason": ""
     },
     "details": [
       {
         "flow": "Flow: إنشاء ضمان (create_guarantee)",
         "file": "create_guarantee.md",
-        "status": "covered",
+        "status": "partial",
         "evidence": {
           "routes": [
             "/api/create-guarantee.php"
@@ -924,6 +1005,12 @@
           "/api/create-guarantee.php"
         ],
         "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
+          "التحقق:",
+          "الإنشاء:",
+          "المخرجات:"
+        ],
         "sequence_covered": true,
         "sequence_session": "sim_session_1"
       },
@@ -941,13 +1028,19 @@
         "missing_steps": [
           "/api/export_suppliers.php"
         ],
+        "steps_sample": [
+          "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
         "sequence_covered": false,
         "sequence_session": ""
       },
       {
         "flow": "Flow: تمديد ضمان (extend_guarantee)",
         "file": "extend_guarantee.md",
-        "status": "covered",
+        "status": "partial",
         "evidence": {
           "routes": [
             "/api/extend.php"
@@ -958,6 +1051,12 @@
           "/api/extend.php"
         ],
         "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/extend.php` مع (guarantee_id, new_end_date, reason?).",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
         "sequence_covered": true,
         "sequence_session": "run_1770486170_12912|goal_flow_gap"
       },
@@ -975,13 +1074,19 @@
         "missing_steps": [
           "/api/import_suppliers.php"
         ],
+        "steps_sample": [
+          "الطلب: `/api/import_suppliers.php` برفع ملف.",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
         "sequence_covered": false,
         "sequence_session": ""
       },
       {
         "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
         "file": "release_guarantee.md",
-        "status": "covered",
+        "status": "partial",
         "evidence": {
           "routes": [
             "/api/release.php"
@@ -992,11 +1097,25 @@
           "/api/release.php"
         ],
         "missing_steps": [],
+        "steps_sample": [
+          "الطلب: `/api/release.php` مع (guarantee_id, reason?).",
+          "التحقق:",
+          "التنفيذ:",
+          "المخرجات:"
+        ],
         "sequence_covered": true,
         "sequence_session": "run_1770487186_9028|goal_purpose_focus"
       }
     ],
     "gaps": [
+      {
+        "flow": "Flow: إنشاء ضمان (create_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/create-guarantee.php"
+        ],
+        "priority_score": 60.0
+      },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
         "status": "uncovered",
@@ -1006,12 +1125,28 @@
         "priority_score": 70.0
       },
       {
+        "flow": "Flow: تمديد ضمان (extend_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/extend.php"
+        ],
+        "priority_score": 60.0
+      },
+      {
         "flow": "Flow: استيراد الموردين (import_suppliers)",
         "status": "uncovered",
         "endpoints": [
           "/api/import_suppliers.php"
         ],
         "priority_score": 70.0
+      },
+      {
+        "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/release.php"
+        ],
+        "priority_score": 60.0
       }
     ],
     "prioritized_gaps": [
@@ -1030,11 +1165,15 @@
           "/api/import_suppliers.php"
         ],
         "priority_score": 70.0
+      },
+      {
+        "flow": "Flow: إنشاء ضمان (create_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/create-guarantee.php"
+        ],
+        "priority_score": 60.0
       }
     ]
-  },
-  "generated_scenarios": [
-    "gap_flow_flow_export_suppliers_.yaml",
-    "gap_flow_flow_import_suppliers_.yaml"
-  ]
+  }
 }

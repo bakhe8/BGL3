@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "patch_plan_80",
+  "description": "Stabilize routes/web.php and routes/api.php based on experience data.",
+  "created_at": 1770542582,
+  "metadata": {
+    "experience_id": 7593,
+    "exp_hash": "af1e0bbe7644bac22dbbed9dcbbfccc9284b6331",
+    "scenario": "routes/web.php, routes/api.php",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 80,
+    "generated_at": 1770542596.5445235
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    }
+  ]
+}

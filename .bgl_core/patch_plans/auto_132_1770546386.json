@@ -1,0 +1,197 @@
+{
+  "version": 1,
+  "id": "patch_plan_132",
+  "description": "Stabilize route [role='tab'] by ensuring all scenarios are correctly configured.",
+  "created_at": 1770546287,
+  "metadata": {
+    "proposal_id": 132,
+    "proposal_name": "[role='tab'] #1770546287",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770546386.6973693
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for deleting a bank.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for deleting a bank."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for deleting a supplier.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for deleting a supplier."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for extending an action.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for extending an action."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for getting a letter preview.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for getting a letter preview."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for learning an action.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for learning an action."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for manual entry.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for manual entry."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for parsing a paste.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for parsing a paste."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for parsing a paste version 2.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for parsing a paste version 2."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for confidence demo views.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for confidence demo views."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for index views.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for index views."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for maintenance views.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for maintenance views."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for settings views.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for settings views."
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the scenario is correctly configured for statistics views.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the scenario is correctly configured for statistics views."
+      }
+    }
+  ]
+}

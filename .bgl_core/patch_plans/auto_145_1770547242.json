@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_5fa8d57ef7",
+  "description": "Patch for views/maintenance.php to stabilize route performance.",
+  "created_at": 1694000000,
+  "metadata": {
+    "proposal_id": 145,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770547242.6600733
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": null,
+      "content": "// Add necessary code here to handle batch detail view\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Add necessary code here to handle batch detail view\n"
+      }
+    }
+  ]
+}

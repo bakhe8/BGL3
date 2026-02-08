@@ -124,11 +124,18 @@ class WriteEngine:
 
     def _apply_modify(self, rel: str, op: PatchOperation, max_bytes: int) -> Tuple[bool, str, int]:
         path = self.root / rel
-        if not path.exists():
-            return False, f"File not found: {rel}", 0
-        before = _read_text(path)
         mode = (op.mode or "replace").lower()
         content = op.content or ""
+        if not path.exists():
+            # Allow controlled auto-create for append/prepend/overwrite when policy permits it.
+            if mode in {"append", "prepend", "overwrite"} and self._allow_auto_create(rel):
+                if len(content.encode("utf-8")) > max_bytes:
+                    return False, f"File too large after create: {rel}", 0
+                _write_text(path, content)
+                delta = self._count_lines_delta("", content)
+                return True, "created_missing", delta
+            return False, f"File not found: {rel}", 0
+        before = _read_text(path)
         changed = before
 
         if mode == "overwrite":

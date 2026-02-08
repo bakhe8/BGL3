@@ -1,0 +1,7 @@
+name: goal_route_recent
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/views/index.php
+- action: wait
+  ms: 800

@@ -1,0 +1,30 @@
+{
+  "rules": [
+    {
+      "name": "UI Semantic Change -> Analysis",
+      "condition": "ui_semantic_changed",
+      "action_type": "set_mode",
+      "params": {
+        "mode": "analysis"
+      },
+      "priority": 60,
+      "enabled": true
+    }
+  ],
+  "overrides": {},
+  "last_updated": 1770544565.7307568,
+  "history": [
+    {
+      "ts": 1770544565.7307568,
+      "changes": [
+        "UI Semantic Change -> Analysis.priority:75->60"
+      ],
+      "context": {
+        "ui_changed": false,
+        "change_count": 0,
+        "false_positive": 0,
+        "blocked": 9
+      }
+    }
+  ]
+}

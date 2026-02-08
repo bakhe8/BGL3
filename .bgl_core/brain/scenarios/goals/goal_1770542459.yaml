@@ -1,0 +1,7 @@
+name: goal_external_dependency
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: wait
+  ms: 1200

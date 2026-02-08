@@ -1,0 +1,15 @@
+name: autonomous_1770551559
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: type
+  selector: input[name="search"]
+  text: دفعة
+  auto_submit: true
+- action: click
+  selector: button.note-cancel-btn
+- action: click
+  selector: button.chip
+- action: wait
+  ms: 600

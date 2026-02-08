@@ -1,0 +1,18 @@
+name: gap_ui_action_views_maintenance_php
+kind: ui
+generated: true
+meta:
+  origin: ui_action_gap
+  route: /views/maintenance.php
+  selector: input[name="action"]
+  risk: danger
+steps:
+- action: goto
+  url: /views/maintenance.php
+- action: wait
+  ms: 400
+- action: click
+  selector: input[name="action"]
+  danger: true
+- action: wait
+  ms: 400

@@ -1,0 +1,9 @@
+name: goal_flow_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href*='import_suppliers.php']
+- action: wait
+  ms: 800

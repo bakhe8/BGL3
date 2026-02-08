@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "patch_plan_118",
+  "description": "Stabilize route a[href*='manual-entry.php']",
+  "created_at": 1690324800,
+  "metadata": {
+    "experience_id": 7718,
+    "exp_hash": "ee11781995e61187b2bb476bd9f6ba5f7d7ce62a",
+    "scenario": "a[href*='manual-entry.php']",
+    "confidence": 0.85,
+    "evidence_count": 4,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 118,
+    "generated_at": 1770544643.0859778
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "append",
+      "content": "\n- route: a[href*='manual-entry.php']\n  action: stabilize\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: a[href*='manual-entry.php']\n  action: stabilize\n"
+      }
+    }
+  ]
+}

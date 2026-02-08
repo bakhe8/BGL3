@@ -1,0 +1,12 @@
+name: gap_flow_flow_create_guarantee_
+kind: api
+generated: true
+meta:
+  origin: flow_gap
+  flow: 'Flow: إنشاء ضمان (create_guarantee)'
+  endpoints:
+  - /api/create-guarantee.php
+steps:
+- action: request
+  url: /api/create-guarantee.php
+  method: GET

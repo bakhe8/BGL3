@@ -1,65 +1,32 @@
 [
   {
-    "id": "53",
-    "check": "ui_action_gap",
-    "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
+    "id": "PAT_PHASE3_INTEGRITY",
+    "check": "external_check",
+    "recommendation": "ensure ui_action_snapshots + ui_flow_transitions + gap scenario execution are present",
     "evidence": [
-      {
-        "route": "/index.php",
-        "selector": "#bgl-confirm-no",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "button.note-cancel-btn",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelManualEntry",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelPaste",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelExcel",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0
-      }
+      "ui_action_snapshots_7d=390",
+      "ui_flow_transitions_7d=714",
+      "gap_scenario_done_7d=0"
     ],
-    "scope": [],
+    "scope": [
+      "ui",
+      "phase3"
+    ],
+    "confidence": 0.6
+  },
+  {
+    "id": "PAT_PHASE3_INTEGRITY",
+    "check": "external_check",
+    "recommendation": "ensure ui_action_snapshots + ui_flow_transitions + gap scenario execution are present",
+    "evidence": [
+      "ui_action_snapshots_7d=395",
+      "ui_flow_transitions_7d=743",
+      "gap_scenario_done_7d=0"
+    ],
+    "scope": [
+      "ui",
+      "phase3"
+    ],
     "confidence": 0.6
   }
 ]

@@ -5,6 +5,7 @@ import json
 import time
 import sqlite3
 import os
+import re
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -134,9 +135,10 @@ def _external_dependency_patterns() -> List[str]:
 
 
 def _scan_logs_for_external_dependency(
-    root_dir: Path, patterns: List[str], limit: int = 200
+    root_dir: Path, patterns: List[str], limit: int = 200, cutoff_ts: float = 0.0
 ) -> Dict[str, Any]:
     out = {"count": 0, "last_ts": 0.0, "last_message": "", "source": ""}
+    ts_pattern = re.compile(r"\[(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\]")
     sources = [
         ("backend", root_dir / "storage" / "logs" / "laravel.log"),
         ("backend", root_dir / "storage" / "logs" / "app.log"),
@@ -157,10 +159,24 @@ def _scan_logs_for_external_dependency(
             if not msg:
                 continue
             low = msg.lower()
+            line_ts = None
+            m = ts_pattern.search(msg)
+            if m:
+                try:
+                    line_ts = time.mktime(time.strptime(m.group(1), "%Y-%m-%d %H:%M:%S"))
+                except Exception:
+                    line_ts = None
+            if cutoff_ts:
+                # If timestamp exists and is stale, skip. If no timestamp, fall back to file mtime.
+                if line_ts is not None and line_ts < cutoff_ts:
+                    continue
+                if line_ts is None and mtime and mtime < cutoff_ts:
+                    continue
             if any(p in low for p in patterns):
                 out["count"] += 1
-                if mtime >= float(out["last_ts"] or 0):
-                    out["last_ts"] = mtime
+                candidate_ts = line_ts if line_ts is not None else mtime
+                if candidate_ts >= float(out["last_ts"] or 0):
+                    out["last_ts"] = candidate_ts
                     out["last_message"] = msg[:220]
                     out["source"] = name
     return out
@@ -208,7 +224,9 @@ def _recent_external_dependency(
         pass
     if out["count"] == 0 and root_dir:
         try:
-            log_hit = _scan_logs_for_external_dependency(root_dir, _external_dependency_patterns())
+            log_hit = _scan_logs_for_external_dependency(
+                root_dir, _external_dependency_patterns(), cutoff_ts=cutoff
+            )
             if int(log_hit.get("count") or 0) > 0:
                 out.update(log_hit)
         except Exception:
@@ -267,6 +285,30 @@ def apply_external_dependency_fallback(
 
     detected = _recent_external_dependency(db_path, minutes=window_minutes, root_dir=root_dir)
     if int(detected.get("count") or 0) < max(1, min_count):
+        # Clear any stale external dependency rule if no recent signal
+        try:
+            policy = load_self_policy(root_dir)
+            rules = policy.get("fallback_rules") or []
+            if isinstance(rules, list):
+                cleaned = [r for r in rules if str((r or {}).get("key") or "") != "external_dependency::*"]
+                if len(cleaned) != len(rules):
+                    policy["fallback_rules"] = cleaned
+                    policy["last_updated"] = time.time()
+                    history = policy.get("history") or []
+                    if not isinstance(history, list):
+                        history = []
+                    history.append(
+                        {
+                            "ts": time.time(),
+                            "changes": ["fallback_rules:-external_dependency"],
+                            "context": {"detected": detected},
+                            "source": "external_dependency",
+                        }
+                    )
+                    policy["history"] = history
+                    save_self_policy(root_dir, policy)
+        except Exception:
+            pass
         return {"ok": True, "active": False, "detected": detected}
 
     policy = load_self_policy(root_dir)
@@ -616,6 +658,14 @@ def update_fallback_rules_from_prod_ops(
 
     created: List[Dict[str, Any]] = []
     updated: List[Dict[str, Any]] = []
+    active_keys: set[str] = set()
+    seen_keys: set[str] = set()
+    active_keys: set[str] = set()
+    seen_keys: set[str] = set()
+    active_keys: set[str] = set()
+    seen_keys: set[str] = set()
+    active_keys: set[str] = set()
+    seen_keys: set[str] = set()
 
     for _, data in grouped.items():
         count = int(data.get("count") or 0)
@@ -624,6 +674,8 @@ def update_fallback_rules_from_prod_ops(
         blocked = int(data.get("blocked") or 0)
         allowed = int(data.get("allowed") or 0)
         blocked_rate = blocked / max(1, count)
+        key = f"outcomes::{data.get('operation')}::{failure_class}"
+        seen_keys.add(key)
         action = None
         if blocked_rate >= block_rate_threshold or str(data.get("last_status") or "").startswith("blocked"):
             action = "block"
@@ -781,10 +833,13 @@ def update_fallback_rules_from_outcomes(
         rows = []
 
     # operations we do not want to block by default
-    exclude_ops = {"run_scenarios", "reindex.full"}
+    # proposal.apply is excluded to avoid self-blocking loops that prevent fixes from being applied
+    exclude_ops = {"run_scenarios", "reindex.full", "reindex_full", "proposal.apply"}
 
     def _is_fail(res: str) -> bool:
         res = str(res or "").lower()
+        if res.startswith("blocked"):
+            return False
         if res in ("success", "success_sandbox", "success_direct", "success_with_override"):
             return False
         if res in ("false_positive", "proposed", "skipped", "deferred"):
@@ -860,10 +915,26 @@ def update_fallback_rules_from_outcomes(
         except Exception:
             pass
         fresh_rules.append(rule)
-    rules = fresh_rules
+    # Remove stale/over-broad outcome rules that cause self-blocking loops.
+    cleaned_rules = []
+    for rule in fresh_rules:
+        if not isinstance(rule, dict):
+            continue
+          if str(rule.get("source") or "") == "outcomes":
+              failure_class = str(rule.get("failure_class") or "").lower()
+              if failure_class == "blocked":
+                  continue
+              op = str(rule.get("operation") or "")
+              op_prefix = op.replace("*", "")
+              if op_prefix in exclude_ops:
+                  continue
+        cleaned_rules.append(rule)
+    rules = cleaned_rules
 
     created: List[Dict[str, Any]] = []
     updated: List[Dict[str, Any]] = []
+    active_keys: set[str] = set()
+    seen_keys: set[str] = set()
 
     for _, data in grouped.items():
         count = int(data.get("count") or 0)
@@ -872,6 +943,8 @@ def update_fallback_rules_from_outcomes(
         fail = int(data.get("fail") or 0)
         fail_rate = fail / max(1, count)
         failure_class = str(data.get("failure_class") or "")
+        key = f"outcomes::{data.get('operation')}::{failure_class}"
+        seen_keys.add(key)
         action = None
         severe_classes = {"write_engine", "validation", "permission", "schema"}
         soft_classes = {"timeout", "network", "llm", "browser"}
@@ -885,7 +958,7 @@ def update_fallback_rules_from_outcomes(
             action = "require_human"
         if not action:
             continue
-        key = f"outcomes::{data.get('operation')}::{failure_class}"
+        active_keys.add(key)
         existing = None
         for rule in rules:
             if not isinstance(rule, dict):
@@ -937,17 +1010,33 @@ def update_fallback_rules_from_outcomes(
         except Exception:
             pass
 
+    removed: List[Dict[str, Any]] = []
+    if seen_keys:
+        pruned = []
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            if str(rule.get("source") or "") == "outcomes":
+                k = str(rule.get("key") or "")
+                if k in seen_keys and k not in active_keys:
+                    removed.append(rule)
+                    continue
+            pruned.append(rule)
+        rules = pruned
+
     policy["fallback_rules"] = rules
     policy["last_updated"] = time.time()
     history = policy.get("history") or []
     if not isinstance(history, list):
         history = []
-    if created or updated:
+    if created or updated or removed:
         history.append(
             {
                 "ts": time.time(),
-                "changes": [f"fallback_rules_outcomes:+{len(created)}/~{len(updated)}"],
-                "context": {"created": created, "updated": updated},
+                "changes": [
+                    f"fallback_rules_outcomes:+{len(created)}/~{len(updated)}/-{len(removed)}"
+                ],
+                "context": {"created": created, "updated": updated, "removed": removed},
                 "source": "fallback_rules_outcomes",
             }
         )

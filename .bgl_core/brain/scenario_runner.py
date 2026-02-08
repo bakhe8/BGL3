@@ -139,6 +139,15 @@ DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
 # Active run identifier to tag runtime_events for attribution.
 _CURRENT_RUN_ID = ""
 
+def _trace(msg: str) -> None:
+    if os.getenv("BGL_TRACE_SCENARIO", "0") != "1":
+        return
+    try:
+        ts = time.strftime("%H:%M:%S")
+    except Exception:
+        ts = "?"
+    print(f"[trace {ts}] {msg}", flush=True)
+
 
 def _acquire_scenario_lock(cfg: dict) -> tuple[bool, str]:
     global _SCENARIO_LOCKED
@@ -340,6 +349,148 @@ async def _dom_state_hash(page) -> str:
         return ""
 
 
+async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = "pre_step") -> Dict[str, Any]:
+    """
+    Lightweight UI state handling:
+    - Close open modals
+    - Wait for loading indicators
+    - Log errors/warnings/toasts/empty states
+    """
+    now = time.time()
+    last_checked = float(getattr(page, "_bgl_ui_state_checked_at", 0) or 0)
+    # Throttle checks to avoid heavy sampling on every step.
+    if now - last_checked < 1.0:
+        return {}
+    page._bgl_ui_state_checked_at = now  # type: ignore
+
+    summary: Dict[str, Any] = {}
+    try:
+        semantic_map = await capture_semantic_map(page, limit=8)
+        summary = summarize_semantic_map(semantic_map) if semantic_map else {}
+    except Exception:
+        summary = {}
+    ui_states = summary.get("ui_states") or {}
+    if not isinstance(ui_states, dict) or not ui_states:
+        return {}
+
+    actions: List[str] = []
+    retry_needed = False
+
+    if ui_states.get("modals"):
+        try:
+            await page.keyboard.press("Escape")
+            actions.append("press_escape")
+            retry_needed = True
+        except Exception:
+            pass
+        for sel in (
+            "[data-bs-dismiss='modal']",
+            ".modal.show .btn-close",
+            ".modal.show button.close",
+            "[role='dialog'] [aria-label='Close']",
+        ):
+            try:
+                el = await page.query_selector(sel)
+                if el:
+                    await el.click()
+                    actions.append(f"click:{sel}")
+                    retry_needed = True
+                    await page.wait_for_timeout(120)
+            except Exception:
+                continue
+
+    if ui_states.get("loading"):
+        try:
+            await page.wait_for_timeout(700)
+            actions.append("wait_loading")
+            retry_needed = True
+        except Exception:
+            pass
+
+    # Attempt gentle recovery for common error/empty states (safe actions only).
+    try:
+        recovery_texts = [
+            "Retry",
+            "Try again",
+            "Refresh",
+            "Reload",
+            "إعادة المحاولة",
+            "محاولة مرة أخرى",
+            "تحديث",
+            "إعادة تحميل",
+            "اعادة تحميل",
+            "إعادة التشغيل",
+            "OK",
+            "موافق",
+            "حسنًا",
+            "حسنا",
+            "إغلاق",
+            "اغلاق",
+            "Close",
+        ]
+        recovery_selectors = []
+        for txt in recovery_texts:
+            recovery_selectors.extend(
+                [
+                    f"button:has-text('{txt}')",
+                    f"[role='button']:has-text('{txt}')",
+                    f"a:has-text('{txt}')",
+                ]
+            )
+        for sel in recovery_selectors:
+            try:
+                el = await page.query_selector(sel)
+                if not el:
+                    continue
+                await el.click()
+                actions.append(f"recover:{sel}")
+                retry_needed = True
+                await page.wait_for_timeout(150)
+                # Only one recovery click to avoid accidental cascades.
+                break
+            except Exception:
+                continue
+    except Exception:
+        pass
+
+    # Log notable UI states for attribution.
+    for key in ("errors", "warnings", "toasts", "empty_states"):
+        items = ui_states.get(key) or []
+        if items:
+            try:
+                log_event(
+                    db_path,
+                    session,
+                    {
+                        "event_type": f"ui_state_{key}",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "STATE",
+                        "payload": {"reason": reason, "items": items[:4]},
+                        "status": None,
+                    },
+                )
+            except Exception:
+                pass
+
+    if actions:
+        try:
+            log_event(
+                db_path,
+                session,
+                {
+                    "event_type": "ui_state_action",
+                    "route": page.url if hasattr(page, "url") else "",
+                    "method": "STATE",
+                    "payload": {"reason": reason, "actions": actions},
+                    "status": 200,
+                },
+            )
+        except Exception:
+            pass
+
+    return {"ui_states": ui_states, "actions": actions, "summary": summary, "retry": retry_needed}
+
+
 async def exploratory_action(
     page, motor: Motor, seen: set, session: str, learn_log: Path, db_path: Path
 ):
@@ -379,9 +530,23 @@ async def exploratory_action(
         explored = _load_explored_selectors(
             ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
         )
-        candidate_meta.sort(
-            key=lambda m: _rank_exploration_candidate(m, explored), reverse=True
+        # Prefer selectors that previously led to meaningful UI transitions on this route.
+        flow_bias = _load_ui_flow_bias(
+            ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db",
+            page.url if hasattr(page, "url") else "",
         )
+        bias_scores = {
+            str(item.get("selector") or ""): float(item.get("count") or 0)
+            for item in (flow_bias or [])
+            if item.get("selector")
+        }
+        def _score_candidate(meta: Dict[str, Any]) -> float:
+            score = _rank_exploration_candidate(meta, explored)
+            sel = str(meta.get("selector") or "")
+            if sel and sel in bias_scores:
+                score += min(2.0, 0.4 + 0.15 * bias_scores.get(sel, 0))
+            return score
+        candidate_meta.sort(key=_score_candidate, reverse=True)
         if random.random() < 0.35:
             random.shuffle(candidate_meta)
 
@@ -514,6 +679,49 @@ async def exploratory_action(
                     route=page.url if hasattr(page, "url") else "",
                     result="hover",
                 )
+                # Capture hover-driven UI changes for operational coverage.
+                try:
+                    sem = await _maybe_store_semantic_snapshot(
+                        page,
+                        db_path,
+                        source="explore_hover",
+                        session=session,
+                    )
+                    await _maybe_store_action_snapshot(
+                        page,
+                        db_path,
+                        source="explore_hover",
+                        session=session,
+                    )
+                    if sem and record_ui_flow_transition is not None:
+                        try:
+                            ui_states = (sem.get("summary") or {}).get("ui_states") or {}
+                        except Exception:
+                            ui_states = {}
+                        record_ui_flow_transition(
+                            db_path,
+                            session=session,
+                            from_url=sem.get("url") or "",
+                            to_url=sem.get("url") or "",
+                            action="hover",
+                            selector=str(m.get("selector") or ""),
+                            semantic_delta=sem.get("delta") or {},
+                            ui_states=ui_states,
+                            created_at=time.time(),
+                        )
+                    log_event(
+                        db_path,
+                        session,
+                        {
+                            "event_type": "ui_hover",
+                            "route": page.url if hasattr(page, "url") else "",
+                            "method": "HOVER",
+                            "payload": f"selector:{m.get('selector') or ''}",
+                            "status": 200,
+                        },
+                    )
+                except Exception:
+                    pass
                 learn_log.write_text(
                     learn_log.read_text()
                     + f"{time.time()}\t{session}\texplore\t{desc.strip()}\n"
@@ -902,8 +1110,29 @@ async def run_step(
             except Exception:
                 pass
         except Exception:
-            if not step.get("optional"):
+            allow_soft_fail = step.get("optional") or str(scenario_name or "").startswith("autonomous_")
+            if not allow_soft_fail:
                 raise
+            try:
+                log_event(
+                    db_path,
+                    step.get("session", ""),
+                    {
+                        "event_type": "ui_type_failed",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "TYPE",
+                        "payload": f"selector:{step.get('selector', '')}",
+                        "status": None,
+                    },
+                )
+            except Exception:
+                pass
+            return {
+                "action": action,
+                "changed": False,
+                "unchanged": True,
+                "url": page_url,
+            }
     elif action == "press":
         await ensure_cursor(page)
         try:
@@ -917,8 +1146,29 @@ async def run_step(
                 timeout=step.get("timeout", 5000),
             )
         except Exception:
-            if not step.get("optional"):
+            allow_soft_fail = step.get("optional") or str(scenario_name or "").startswith("autonomous_")
+            if not allow_soft_fail:
                 raise
+            try:
+                log_event(
+                    db_path,
+                    step.get("session", ""),
+                    {
+                        "event_type": "ui_press_failed",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "PRESS",
+                        "payload": f"selector:{step.get('selector', '')}",
+                        "status": None,
+                    },
+                )
+            except Exception:
+                pass
+            return {
+                "action": action,
+                "changed": False,
+                "unchanged": True,
+                "url": page_url,
+            }
     elif action == "scroll":
         await ensure_cursor(page)
         dx = int(step.get("dx", 0))
@@ -1096,6 +1346,28 @@ async def run_step(
                 source="scenario_runner",
                 session=session_name,
             )
+            if sem and isinstance(sem.get("summary"), dict):
+                summary = sem.get("summary") or {}
+                text_blocks = summary.get("text_blocks") or []
+                keywords = summary.get("text_keywords") or []
+                if text_blocks or keywords:
+                    try:
+                        log_event(
+                            db_path,
+                            session_name,
+                            {
+                                "event_type": "text_block_seen",
+                                "route": sem.get("url") or "",
+                                "method": "TEXT",
+                                "payload": {
+                                    "keywords": keywords[:6],
+                                    "sample": text_blocks[:3],
+                                },
+                                "status": 200,
+                            },
+                        )
+                    except Exception:
+                        pass
             await _maybe_store_action_snapshot(
                 page,
                 db_path,
@@ -1131,10 +1403,22 @@ async def run_step(
 
 
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
-    db = sqlite3.connect(str(db_path), timeout=30.0)
-    db.execute("PRAGMA journal_mode=WAL;")
-    db.execute(
-        """
+    try:
+        timeout = float(os.getenv("BGL_EVENT_DB_TIMEOUT", "30"))
+    except Exception:
+        timeout = 30.0
+    if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+        _trace(f"log_event: start type={event.get('event_type')} session={session}")
+    try:
+        db = sqlite3.connect(str(db_path), timeout=timeout)
+        db.execute("PRAGMA journal_mode=WAL;")
+    except Exception as e:
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace(f"log_event: db open error {e}")
+        return
+    try:
+        db.execute(
+            """
         CREATE TABLE IF NOT EXISTS runtime_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             timestamp REAL NOT NULL,
@@ -1152,7 +1436,15 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
             error TEXT
         )
     """
-    )
+        )
+    except Exception as e:
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace(f"log_event: table error {e}")
+        try:
+            db.close()
+        except Exception:
+            pass
+        return
     try:
         cols = {r[1] for r in db.execute("PRAGMA table_info(runtime_events)").fetchall()}
         if "run_id" not in cols:
@@ -1171,29 +1463,39 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
         payload = json.dumps(payload, ensure_ascii=False)
     elif isinstance(meta, dict) and meta:
         payload = json.dumps({"payload": payload, "meta": meta}, ensure_ascii=False)
-    db.execute(
-        """
+    try:
+        db.execute(
+            """
         INSERT INTO runtime_events (timestamp, session, run_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     """,
-        (
-            event.get("timestamp", time.time()),
-            _decorate_session(session),
-            str(event.get("run_id") or _CURRENT_RUN_ID or ""),
-            str(event.get("source") or "agent"),
-            event.get("event_type"),
-            event.get("route"),
-            event.get("method"),
-            event.get("target"),
-            event.get("step_id"),
-            payload,
-            event.get("status"),
-            event.get("latency_ms"),
-            event.get("error"),
-        ),
-    )
-    db.commit()
-    db.close()
+            (
+                event.get("timestamp", time.time()),
+                _decorate_session(session),
+                str(event.get("run_id") or _CURRENT_RUN_ID or ""),
+                str(event.get("source") or "agent"),
+                event.get("event_type"),
+                event.get("route"),
+                event.get("method"),
+                event.get("target"),
+                event.get("step_id"),
+                payload,
+                event.get("status"),
+                event.get("latency_ms"),
+                event.get("error"),
+            ),
+        )
+        db.commit()
+    except Exception as e:
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace(f"log_event: insert error {e}")
+    finally:
+        try:
+            db.close()
+        except Exception:
+            pass
+    if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+        _trace(f"log_event: done type={event.get('event_type')}")
 
 
 def _ensure_outcomes_tables(db: sqlite3.Connection) -> None:
@@ -2329,6 +2631,323 @@ def _build_search_terms(limit: int = 12) -> List[str]:
     return out
 
 
+def _load_ui_flow_bias(
+    db_path: Path, current_url: str, *, days: int = 7, limit: int = 6
+) -> List[Dict[str, Any]]:
+    """
+    Load frequent UI transitions for the current route to bias exploration.
+    Returns list of {selector, to, count}.
+    """
+    if not db_path.exists() or not current_url:
+        return []
+    try:
+        norm = _normalize_route_path(current_url)
+    except Exception:
+        norm = ""
+    if not norm:
+        return []
+    cutoff = time.time() - (days * 86400)
+    out: List[Dict[str, Any]] = []
+    try:
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.row_factory = sqlite3.Row
+        rows = db.execute(
+            """
+            SELECT from_url, to_url, action, selector, COUNT(*) as c
+            FROM ui_flow_transitions
+            WHERE created_at >= ?
+            GROUP BY from_url, to_url, action, selector
+            ORDER BY c DESC
+            LIMIT ?
+            """,
+            (cutoff, int(limit) * 4),
+        ).fetchall()
+        db.close()
+    except Exception:
+        return []
+    for r in rows:
+        from_url = _normalize_route_path(str(r["from_url"] or ""))
+        if from_url != norm:
+            continue
+        selector = str(r["selector"] or "")
+        if not selector:
+            continue
+        out.append(
+            {
+                "selector": selector,
+                "to": _normalize_route_path(str(r["to_url"] or "")),
+                "action": str(r["action"] or ""),
+                "count": int(r["c"] or 0),
+            }
+        )
+        if len(out) >= limit:
+            break
+    if out:
+        return out
+    # Fallback: use last computed ui_flow_model.json if present.
+    try:
+        flow_path = ROOT_DIR / "analysis" / "ui_flow_model.json"
+        if flow_path.exists():
+            model = json.loads(flow_path.read_text(encoding="utf-8"))
+            transitions = model.get("transitions") or []
+            for t in transitions:
+                if not isinstance(t, dict):
+                    continue
+                from_url = _normalize_route_path(str(t.get("from") or ""))
+                if from_url != norm:
+                    continue
+                selector = str(t.get("selector") or "")
+                if not selector:
+                    continue
+                out.append(
+                    {
+                        "selector": selector,
+                        "to": _normalize_route_path(str(t.get("to") or "")),
+                        "action": str(t.get("action") or ""),
+                        "count": int(t.get("count") or 0),
+                    }
+                )
+                if len(out) >= limit:
+                    break
+    except Exception:
+        return out
+    return out
+
+
+def _semantic_preferred_selectors(
+    semantic_summary: Dict[str, Any], candidates: List[Dict[str, Any]]
+) -> List[str]:
+    if not semantic_summary or not candidates:
+        return []
+    prefer: List[str] = []
+    # Search fields (id/name/placeholder)
+    search_fields = semantic_summary.get("search_fields") or []
+    search_ids = []
+    search_names = []
+    search_ph = []
+    for f in search_fields:
+        if not isinstance(f, dict):
+            continue
+        if f.get("id"):
+            search_ids.append(str(f.get("id")))
+        if f.get("name"):
+            search_names.append(str(f.get("name")))
+        if f.get("placeholder"):
+            search_ph.append(str(f.get("placeholder")))
+
+    def _match_text(candidate_text: str, tokens: List[str]) -> bool:
+        t = (candidate_text or "").lower()
+        return any(tok.lower() in t for tok in tokens if tok)
+
+    for c in candidates:
+        sel = str(c.get("selector") or "")
+        if not sel:
+            continue
+        name = str(c.get("name") or "")
+        if name and name in search_names:
+            prefer.append(sel)
+            continue
+        if any(f"#{sid}" == sel for sid in search_ids):
+            prefer.append(sel)
+            continue
+        text = str(c.get("text") or "")
+        if _match_text(text, search_ph):
+            prefer.append(sel)
+
+    # Primary actions / nav items / keywords
+    prim = semantic_summary.get("primary_actions") or []
+    navs = semantic_summary.get("nav_items") or []
+    keywords = semantic_summary.get("text_keywords") or []
+    action_texts = [str(p.get("text") or "") for p in prim if isinstance(p, dict)]
+    nav_texts = [str(n.get("text") or "") for n in navs if isinstance(n, dict)]
+    text_focus = [t for t in (action_texts + nav_texts + keywords) if t]
+    if text_focus:
+        for c in candidates:
+            sel = str(c.get("selector") or "")
+            if not sel or sel in prefer:
+                continue
+            text = str(c.get("text") or "")
+            href = str(c.get("href") or "")
+            if _match_text(text, text_focus) or _match_text(href, text_focus):
+                prefer.append(sel)
+    return _unique_order(prefer)
+
+
+def _semantic_search_selectors(
+    semantic_summary: Dict[str, Any], candidates: List[Dict[str, Any]]
+) -> List[str]:
+    if not semantic_summary or not candidates:
+        return []
+    search_fields = semantic_summary.get("search_fields") or []
+    if not isinstance(search_fields, list) or not search_fields:
+        return []
+    search_ids = set()
+    search_names = set()
+    search_ph = []
+    for f in search_fields:
+        if not isinstance(f, dict):
+            continue
+        if f.get("id"):
+            search_ids.add(str(f.get("id")))
+        if f.get("name"):
+            search_names.add(str(f.get("name")))
+        if f.get("placeholder"):
+            search_ph.append(str(f.get("placeholder")))
+
+    def _match_text(candidate_text: str, tokens: List[str]) -> bool:
+        t = (candidate_text or "").lower()
+        return any(tok.lower() in t for tok in tokens if tok)
+
+    selectors: List[str] = []
+    for c in candidates:
+        sel = str(c.get("selector") or "")
+        if not sel:
+            continue
+        tag = str(c.get("tag") or "").lower()
+        ctype = str(c.get("type") or "").lower()
+        name = str(c.get("name") or "")
+        text = str(c.get("text") or "")
+        if name and name in search_names:
+            selectors.append(sel)
+            continue
+        if sel.startswith("#") and sel[1:] in search_ids:
+            selectors.append(sel)
+            continue
+        if tag == "input" and ctype == "search":
+            selectors.append(sel)
+            continue
+        if _match_text(text, search_ph):
+            selectors.append(sel)
+    return _unique_order(selectors)
+
+
+def _semantic_action_selectors(
+    semantic_summary: Dict[str, Any], candidates: List[Dict[str, Any]]
+) -> List[str]:
+    if not semantic_summary or not candidates:
+        return []
+    prim = semantic_summary.get("primary_actions") or []
+    navs = semantic_summary.get("nav_items") or []
+    keywords = semantic_summary.get("text_keywords") or []
+    action_texts = [str(p.get("text") or "") for p in prim if isinstance(p, dict)]
+    nav_texts = [str(n.get("text") or "") for n in navs if isinstance(n, dict)]
+    focus = [t for t in (action_texts + nav_texts + keywords) if t]
+    if not focus:
+        return []
+    selectors: List[str] = []
+    for c in candidates:
+        sel = str(c.get("selector") or "")
+        if not sel:
+            continue
+        text = str(c.get("text") or "")
+        href = str(c.get("href") or "")
+        if any(f.lower() in (text or "").lower() for f in focus):
+            selectors.append(sel)
+            continue
+        if any(f.lower() in (href or "").lower() for f in focus):
+            selectors.append(sel)
+    return _unique_order(selectors)
+
+
+def _semantic_is_write_action(text: str) -> bool:
+    t = (text or "").lower()
+    keywords = [
+        "save",
+        "submit",
+        "create",
+        "add",
+        "new",
+        "import",
+        "delete",
+        "update",
+        "edit",
+        "confirm",
+        "approve",
+        "حفظ",
+        "إرسال",
+        "ارسال",
+        "انشاء",
+        "إنشاء",
+        "اضافة",
+        "إضافة",
+        "جديد",
+        "استيراد",
+        "حذف",
+        "تحديث",
+        "تعديل",
+        "تأكيد",
+        "اعتماد",
+    ]
+    return any(k in t for k in keywords)
+
+
+def _ensure_semantic_steps(
+    steps: List[Dict[str, Any]],
+    semantic_summary: Dict[str, Any],
+    candidates: List[Dict[str, Any]],
+    max_steps: int,
+) -> List[Dict[str, Any]]:
+    if not semantic_summary or not candidates:
+        return steps
+    if len(steps) >= max_steps:
+        return steps
+
+    # Build lookup for candidates
+    cand_by_sel = {str(c.get("selector") or ""): c for c in candidates if c.get("selector")}
+
+    search_selectors = _semantic_search_selectors(semantic_summary, candidates)
+    action_selectors = _semantic_action_selectors(semantic_summary, candidates)
+
+    # Check if search behavior already present
+    has_search = False
+    for s in steps:
+        if s.get("action") in ("type", "press") and s.get("selector") in search_selectors:
+            has_search = True
+            break
+
+    # Ensure search interaction if search fields exist
+    if search_selectors and not has_search and len(steps) + 2 <= max_steps:
+        sel = search_selectors[0]
+        term = random.choice(_build_search_terms())
+        steps.append({"action": "click", "selector": sel, "optional": True})
+        steps.append({"action": "type", "selector": sel, "text": term, "optional": True, "auto_submit": True})
+        if len(steps) < max_steps:
+            steps.append({"action": "press", "selector": sel, "key": "Enter", "optional": True})
+
+    # Ensure at least one semantic primary/nav action
+    has_primary = False
+    for s in steps:
+        if s.get("action") == "click" and s.get("selector") in action_selectors:
+            has_primary = True
+            break
+    if action_selectors and not has_primary and len(steps) < max_steps:
+        sel = action_selectors[0]
+        meta = cand_by_sel.get(sel, {})
+        text = str(meta.get("text") or "") + " " + str(meta.get("href") or "")
+        step: Dict[str, Any] = {"action": "click", "selector": sel}
+        if _semantic_is_write_action(text):
+            step["danger"] = True
+        steps.append(step)
+
+    return steps
+
+
+def _prioritize_candidates(
+    candidates: List[Dict[str, Any]], preferred_selectors: List[str]
+) -> List[Dict[str, Any]]:
+    if not preferred_selectors:
+        return candidates
+    pref_set = {p for p in preferred_selectors if p}
+    pref, rest = [], []
+    for c in candidates:
+        sel = str(c.get("selector") or "")
+        if sel and sel in pref_set:
+            pref.append(c)
+        else:
+            rest.append(c)
+    return pref + rest
+
+
 async def _probe_element_state(page, action: str, selector: str) -> Dict[str, Any]:
     data: Dict[str, Any] = {"selector": selector, "action": action, "found": False}
     try:
@@ -2762,6 +3381,8 @@ async def _attempt_self_heal(
                     "uri": page_url,
                     "context": ctx,
                     "text_hints": text_hints,
+                    # preserve any reveal selectors we already tried to open
+                    "reveal_selectors": clicked,
                     "reason": "ui_self_heal_failed",
                     "scenario": scenario_name,
                 }
@@ -3520,6 +4141,35 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
             )
         except Exception:
             pass
+
+
+def _seed_goals_from_semantic(db_path: Path, summary: Dict[str, Any]) -> None:
+    if not summary:
+        return
+    terms: List[str] = []
+    for t in (summary.get("text_keywords") or []):
+        if isinstance(t, str) and t.strip():
+            terms.append(t.strip())
+    if not terms:
+        return
+    # De-dup and cap
+    seen = set()
+    out_terms = []
+    for t in terms:
+        if t in seen:
+            continue
+        seen.add(t)
+        out_terms.append(t)
+        if len(out_terms) >= 3:
+            break
+    for term in out_terms:
+        _write_autonomy_goal(
+            db_path,
+            goal="purpose_focus",
+            payload={"term": term, "reason": "semantic_text"},
+            source="ui_semantic",
+            ttl_days=3,
+        )
         _write_autonomy_goal(
             db_path,
             goal="log_error",
@@ -3704,8 +4354,11 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
         selector = payload.get("selector") or ""
         context = payload.get("context") or {}
         text_hints = payload.get("text_hints") or []
+        reveal = payload.get("reveal_selectors") or []
         if isinstance(text_hints, str):
             text_hints = [text_hints]
+        if isinstance(reveal, str):
+            reveal = [reveal]
         steps = []
         if uri:
             if uri.startswith("http"):
@@ -3719,15 +4372,10 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
                 )
         else:
             steps.append({"action": "goto", "url": base_url.rstrip("/") + "/"})
-        # Broad reveal sweep: tabs, collapses, modals, offcanvas, dropdowns.
-        steps += [
-            {"action": "click", "selector": "[role='tab']", "optional": True},
-            {"action": "click", "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']", "optional": True},
-            {"action": "click", "selector": "[data-bs-toggle='modal'], [data-toggle='modal']", "optional": True},
-            {"action": "click", "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']", "optional": True},
-            {"action": "click", "selector": "[data-bs-toggle='dropdown'], [data-toggle='dropdown']", "optional": True},
-            {"action": "scroll", "dy": 700},
-        ]
+        # Prefer targeted reveals captured during the failed self-heal attempt.
+        for sel in _unique_order([str(s) for s in (reveal or []) if s])[:8]:
+            steps.append({"action": "click", "selector": sel, "optional": True})
+            steps.append({"action": "wait", "ms": 200})
         for sel in _text_reveal_selectors([str(t) for t in (text_hints or []) if t])[:6]:
             steps.append({"action": "click", "selector": sel, "optional": True})
             steps.append({"action": "wait", "ms": 200})
@@ -3742,6 +4390,16 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             steps.append({"action": "click", "selector": f"[aria-controls='{rid}']", "optional": True})
             steps.append({"action": "click", "selector": f"[data-bs-target='#{rid}']", "optional": True})
             steps.append({"action": "click", "selector": f"[data-target='#{rid}']", "optional": True})
+        # If we have no targeted context, fall back to a broad reveal sweep.
+        if not reveal and not reveal_ids:
+            steps += [
+                {"action": "click", "selector": "[role='tab']", "optional": True},
+                {"action": "click", "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']", "optional": True},
+                {"action": "click", "selector": "[data-bs-toggle='modal'], [data-toggle='modal']", "optional": True},
+                {"action": "click", "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']", "optional": True},
+                {"action": "click", "selector": "[data-bs-toggle='dropdown'], [data-toggle='dropdown']", "optional": True},
+                {"action": "scroll", "dy": 700},
+            ]
         if selector:
             steps.append({"action": "click", "selector": selector, "optional": True})
             steps.append({"action": "wait", "ms": 600})
@@ -3838,6 +4496,8 @@ def _record_goal_strategy_result(
     try:
         if not db_path.exists():
             return
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace(f"goal: record strategy start goal={goal} strat={strategy} ok={ok}")
         db = sqlite3.connect(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_goal_strategy_table(db)
@@ -3871,7 +4531,11 @@ def _record_goal_strategy_result(
             )
         db.commit()
         db.close()
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace("goal: record strategy done")
     except Exception:
+        if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
+            _trace("goal: record strategy error")
         return
 
 
@@ -3921,7 +4585,9 @@ async def run_goal_scenario(
     db_path: Path,
     goal: Dict[str, Any],
 ):
+    _trace(f"goal: start {goal.get('goal')} payload={list((goal.get('payload') or {}).keys())}")
     scenario = _goal_to_scenario(goal, base_url)
+    _trace(f"goal: scenario={'yes' if scenario else 'no'}")
     payload = goal.get("payload") or {}
     uri = payload.get("uri") or payload.get("href") or ""
     route_kind = _goal_route_kind(uri)
@@ -3929,11 +4595,56 @@ async def run_goal_scenario(
 
     default_strategy = "api" if route_kind == "api" else "ui"
     strategy = _pick_goal_strategy(db_path, goal_name, route_kind, default_strategy)
+    _trace(f"goal: strategy={strategy} route_kind={route_kind} uri={uri}")
     tried = []
 
     async def _run_ui() -> bool:
         if not scenario:
             return False
+        # Enrich goal steps using semantic summary for the target page.
+        try:
+            target_url = ""
+            steps = scenario.get("steps") if isinstance(scenario, dict) else None
+            if isinstance(steps, list):
+                for s in steps:
+                    if not isinstance(s, dict):
+                        continue
+                    if s.get("action") == "goto" and s.get("url"):
+                        target_url = str(s.get("url"))
+                        break
+            if target_url:
+                try:
+                    await page.goto(target_url, wait_until="domcontentloaded")
+                except Exception:
+                    pass
+                ui_limit = int(_cfg_value("goal_semantic_ui_limit", 80) or 80)
+                semantic_summary = {}
+                candidates = []
+                try:
+                    semantic_map = await capture_semantic_map(page, limit=min(12, ui_limit))
+                    semantic_summary = summarize_semantic_map(semantic_map) if semantic_map else {}
+                except Exception:
+                    semantic_summary = {}
+                try:
+                    ui_map = await capture_ui_map(page, limit=ui_limit)
+                    candidates = _build_selector_candidates(ui_map)
+                except Exception:
+                    candidates = []
+                if semantic_summary and candidates and isinstance(scenario.get("steps"), list):
+                    max_steps = int(
+                        _cfg_value("goal_semantic_max_steps", len(scenario["steps"]) + 3)
+                        or (len(scenario["steps"]) + 3)
+                    )
+                    max_steps = max(len(scenario["steps"]), max_steps)
+                    scenario["steps"] = _ensure_semantic_steps(
+                        list(scenario["steps"]),
+                        semantic_summary,
+                        candidates,
+                        max_steps,
+                    )
+        except Exception:
+            pass
+        _trace("goal: ui path prepare")
         out_dir = SCENARIOS_DIR / "goals"
         out_dir.mkdir(parents=True, exist_ok=True)
         path = out_dir / f"goal_{int(time.time())}.yaml"
@@ -3944,6 +4655,7 @@ async def run_goal_scenario(
             path.write_text(
                 json.dumps(scenario, ensure_ascii=False, indent=2), encoding="utf-8"
             )
+        _trace(f"goal: ui scenario written {path}")
         log_event(
             db_path,
             "autonomy_goal_scenario",
@@ -3956,6 +4668,7 @@ async def run_goal_scenario(
             },
         )
         try:
+            _trace("goal: ui run_scenario start")
             await run_scenario(
                 manager,
                 page,
@@ -3965,8 +4678,10 @@ async def run_goal_scenario(
                 db_path=db_path,
                 is_last=False,
             )
+            _trace("goal: ui run_scenario done")
             return True
         except Exception:
+            _trace("goal: ui run_scenario error")
             return False
 
     def _run_api() -> bool:
@@ -3976,6 +4691,7 @@ async def run_goal_scenario(
             url = uri
         else:
             url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
+        _trace(f"goal: api check {url}")
         return _http_check(url)
 
     ok = False
@@ -3987,6 +4703,7 @@ async def run_goal_scenario(
             ok = _run_api()
         else:
             ok = await _run_ui()
+        _trace(f"goal: strategy {strat} ok={ok}")
         _record_goal_strategy_result(db_path, goal_name, route_kind, strat, ok)
         if ok:
             break
@@ -4125,7 +4842,12 @@ def _selector_from_element(el: Dict[str, Any]) -> Optional[str]:
     classes = str(el.get("classes") or "").strip()
     href = str(el.get("href") or "").strip()
     el_type = str(el.get("type") or "").strip().lower()
+    test_id = str(el.get("testid") or "").strip()
+    test_attr = str(el.get("testattr") or "").strip()
 
+    if test_id and test_attr:
+        safe_val = test_id.replace('"', "").replace("'", "")
+        return f'[{test_attr}="{safe_val}"]'
     if tag == "a" and href:
         safe_href = href.replace('"', "").replace("'", "")
         return f'a[href="{safe_href}"]'
@@ -4163,6 +4885,8 @@ def _build_selector_candidates(ui_map: List[Dict[str, Any]]) -> List[Dict[str, A
                 "href": el.get("href"),
                 "role": el.get("role"),
                 "name": el.get("name"),
+                "testid": el.get("testid"),
+                "testattr": el.get("testattr"),
             }
         )
     return out
@@ -4246,12 +4970,31 @@ def _fallback_autonomous_steps(
     uploads: List[str],
     allow_upload: bool,
     goal_targets: Optional[List[Dict[str, str]]] = None,
+    semantic_summary: Optional[Dict[str, Any]] = None,
+    flow_bias: Optional[List[Dict[str, Any]]] = None,
 ) -> List[Dict[str, Any]]:
     steps: List[Dict[str, Any]] = []
+    used_selectors: set[str] = set()
     if goal_targets:
         target = goal_targets[0].get("target")
         if target:
             steps.append({"action": "goto", "url": target})
+    # Prefer semantic search fields when available
+    if semantic_summary:
+        preferred = _semantic_preferred_selectors(semantic_summary, candidates)
+        if preferred:
+            term = random.choice(_build_search_terms())
+            steps.append(
+                {"action": "type", "selector": preferred[0], "text": term, "auto_submit": True}
+            )
+            used_selectors.add(preferred[0])
+        # If primary actions/nav items exist, attempt a click after search/typing
+        if preferred:
+            for sel in preferred[1:4]:
+                if sel and sel not in used_selectors:
+                    steps.append({"action": "click", "selector": sel})
+                    used_selectors.add(sel)
+                    break
     if allow_upload and uploads:
         for c in candidates:
             if (
@@ -4268,6 +5011,12 @@ def _fallback_autonomous_steps(
                 )
                 break
     pick = None
+    if flow_bias:
+        for fb in flow_bias:
+            sel = str(fb.get("selector") or "")
+            if sel:
+                pick = sel
+                break
     recent_set = set(recent_week_routes or recent_routes or [])
     fresh = [
         c.get("selector")
@@ -4328,6 +5077,11 @@ async def _generate_autonomous_plan(
     goal_targets = _extract_goal_targets(goals)
     operator_targets = goal_targets["operator"]
     all_targets = goal_targets["all"]
+    # Bias candidates using recent UI flow transitions for the current page
+    flow_bias = _load_ui_flow_bias(db_path, page.url if hasattr(page, "url") else "")
+    flow_selectors = [str(fb.get("selector") or "") for fb in flow_bias if fb.get("selector")]
+    semantic_selectors = _semantic_preferred_selectors(semantic_summary, candidates)
+    candidates = _prioritize_candidates(candidates, flow_selectors + semantic_selectors)
     # Filter out stale/unproductive selectors when enough alternatives exist
     if len(candidates) > 8:
         filtered = []
@@ -4436,9 +5190,11 @@ Rules:
 - Prefer hrefs whose filename is missing in auto_insights (gap_candidates).
 - Prefer goal targets in autonomy_goals when available, but do not ignore open exploration.
  - Operator goals MUST be prioritized. If operator provides a URL, include a goto to it before other steps.
+ - If semantic_summary.search_fields exist, include a type + press/submit on a search field.
+ - If semantic_summary.primary_actions/nav_items exist, include at least one click on a matching selector.
 
 Context JSON:
-{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates, "semantic_summary": semantic_summary}, ensure_ascii=False)}
+{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates, "semantic_summary": semantic_summary, "flow_bias": flow_bias}, ensure_ascii=False)}
 """
         try:
             client = LLMClient()
@@ -4460,7 +5216,11 @@ Context JSON:
             uploads,
             allow_upload,
             goal_targets=all_targets,
+            semantic_summary=semantic_summary,
+            flow_bias=flow_bias,
         )
+    if steps:
+        steps = _ensure_semantic_steps(steps, semantic_summary, candidates, max_steps)
     if not steps:
         return None
 
@@ -4515,6 +5275,13 @@ async def run_autonomous_scenario(
 
     # Seed goals from system signals (logs/snapshots/routes) without blocking open exploration.
     _seed_goals_from_system_signals(db_path)
+    # Seed goals from semantic text blocks/keywords to expand non-interactive exploration.
+    try:
+        semantic_map = await capture_semantic_map(page, limit=12)
+        semantic_summary = summarize_semantic_map(semantic_map) if semantic_map else {}
+        _seed_goals_from_semantic(db_path, semantic_summary)
+    except Exception:
+        pass
 
     plan = await _generate_autonomous_plan(page, base_url, db_path, max_steps=max_steps)
     if not plan or not plan.get("steps"):
@@ -4679,13 +5446,38 @@ async def run_scenario(
     db_path: Path,
     is_last: bool = False,
 ):
+    _trace(f"scenario: load {scenario_path}")
     with open(scenario_path, "r", encoding="utf-8") as f:
         data = yaml.safe_load(f) or {}
     steps: List[Dict[str, Any]] = data.get("steps", [])
     name = data.get("name", scenario_path.stem)
+    _trace(f"scenario: {name} steps={len(steps)}")
+    meta = data.get("meta") or {}
+    origin = str(meta.get("origin") or "").lower()
+    is_gap = bool(
+        name.startswith("gap_")
+        or "gap" in origin
+        or str(data.get("generated") or "").lower() in ("1", "true", "yes")
+    )
+    if is_gap:
+        try:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "gap_scenario_start",
+                    "route": data.get("kind") or "ui",
+                    "method": "GAP",
+                    "payload": {"origin": origin or "gap", "meta": meta},
+                    "status": None,
+                },
+            )
+        except Exception:
+            pass
 
     # تأكيد وجود مؤشر الماوس المرئي في الصفحة المشتركة
     await ensure_cursor(page)
+    _trace(f"scenario: {name} cursor ensured")
     # تهيئة hand_profile ثابتة للجلسة، motor/policy فوق الصفحة
     hand_profile = getattr(manager, "_bgl_hand_profile", None)
     if hand_profile is None:
@@ -4699,6 +5491,7 @@ async def run_scenario(
     if authority is None:
         authority = Authority(ROOT_DIR)
         manager._bgl_authority = authority  # type: ignore
+    _trace(f"scenario: {name} authority ready")
 
     print(f"[*] Scenario '{name}' start")
     learn_log = ROOT_DIR / "storage" / "logs" / "learned_events.tsv"
@@ -4709,6 +5502,7 @@ async def run_scenario(
     exploratory_enabled = os.getenv("BGL_EXPLORATION", "1") == "1"
     stall_count = 0
     last_change_ts = time.time()
+    scenario_changed = False
     try:
         stall_threshold = int(_cfg_value("stall_recovery_threshold", 2))
     except Exception:
@@ -4921,11 +5715,13 @@ async def run_scenario(
         default_step_timeout = 45.0
 
     for idx, step in enumerate(steps):
+        _trace(f"scenario: {name} step[{idx}] action={step.get('action')} selector={step.get('selector')}")
         # prepend base_url for relative goto
         if step.get("action") == "goto" and step.get("url", "").startswith("/"):
             step = {**step, "url": base_url.rstrip("/") + step["url"]}
         step_id = f"{name}:{idx}"
         attempt = 0
+        state_retries = 0
         while True:
             try:
                 if page.is_closed():
@@ -4933,6 +5729,18 @@ async def run_scenario(
                     await ensure_cursor(page)
                     motor = Motor(hand_profile)
                     policy = Policy(motor)
+                # Handle modal/loading/error UI states before executing steps.
+                try:
+                    if step.get("action") not in ("wait",):
+                        ui_state_result = await _handle_ui_states(
+                            page, db_path, name, reason="before_step"
+                        )
+                        if ui_state_result and ui_state_result.get("retry") and state_retries < 1:
+                            state_retries += 1
+                            await page.wait_for_timeout(180)
+                            continue
+                except Exception:
+                    pass
                 # إذا مرّ خطوتان دون استكشاف، نفّذ استكشاف إجباري (يمكن تعطيله بـ BGL_EXPLORATION=0)
                 if (
                     exploratory_enabled
@@ -5109,6 +5917,7 @@ async def run_scenario(
                 steps_since_explore += 1
                 if step_result and isinstance(step_result, dict):
                     if step_result.get("changed"):
+                        scenario_changed = True
                         stall_count = 0
                         last_change_ts = time.time()
                     elif step_result.get("unchanged"):
@@ -5174,6 +5983,25 @@ async def run_scenario(
         await page.wait_for_timeout(24 * 60 * 60 * 1000)  # 24h max or until user closes
     else:
         print(f"[+] Scenario '{name}' done")
+    if is_gap:
+        try:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "gap_scenario_done",
+                    "route": data.get("kind") or "ui",
+                    "method": "GAP",
+                    "payload": {
+                        "origin": origin or "gap",
+                        "meta": meta,
+                        "changed": bool(scenario_changed),
+                    },
+                    "status": 200 if scenario_changed else None,
+                },
+            )
+        except Exception:
+            pass
 
 
 def _is_api_url(url: str) -> bool:
@@ -5352,15 +6180,18 @@ async def main(
     shadow_mode: bool = False,
 ):
     run_started = time.time()
+    _trace("main: start")
     global _CURRENT_RUN_ID
     _CURRENT_RUN_ID = f"run_{int(run_started)}_{os.getpid()}"
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
+    _trace("main: dev mode ok")
     cfg = load_config(ROOT_DIR)
     ok, reason = _acquire_scenario_lock(cfg)
     if not ok:
         print(f"[!] Scenario runner already active ({reason}); skipping.")
         return
+    _trace("main: lock acquired")
     # Apply config defaults for exploration/novelty if env not set
     os.environ.setdefault("BGL_EXPLORATION", str(cfg.get("scenario_exploration", "1")))
     os.environ.setdefault("BGL_NOVELTY_AUTO", str(cfg.get("novelty_auto", "1")))
@@ -5372,12 +6203,14 @@ async def main(
         ROOT_DIR,
         Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db"))),
     )
+    _trace("main: auto_reindex_routes done")
 
     if not SCENARIOS_DIR.exists():
         print("[!] Scenarios directory missing; nothing to run.")
         return
 
     scenario_files = sorted(SCENARIOS_DIR.rglob("*.yaml"))
+    _trace(f"main: found scenarios={len(scenario_files)}")
     # Prioritize generated gap scenarios to close coverage first.
     def _scenario_priority(path: Path) -> tuple[int, str]:
         try:
@@ -5394,10 +6227,12 @@ async def main(
             return (3, p)
         return (10, p)
     scenario_files = sorted(scenario_files, key=_scenario_priority)
+    _trace("main: priority sort complete")
     if include:
         scenario_files = [
             p for p in scenario_files if include.lower() in p.stem.lower()
         ]
+        _trace(f"main: include filter applied => {len(scenario_files)}")
     auto_flag = os.getenv("BGL_INCLUDE_AUTONOMOUS")
     if auto_flag is None:
         auto_flag = str(_cfg_value("scenario_include_autonomous", "0"))
@@ -5408,6 +6243,7 @@ async def main(
             for p in scenario_files
             if "autonomous" not in {part.lower() for part in p.parts}
         ]
+        _trace(f"main: exclude autonomous => {len(scenario_files)}")
     # Skip API-only scenarios by default unless explicitly included
     include_api_flag = os.getenv("BGL_INCLUDE_API")
     if include_api_flag is None:
@@ -5415,6 +6251,7 @@ async def main(
     include_api = str(include_api_flag) == "1"
     if not include_api:
         scenario_files = [p for p in scenario_files if "api" not in p.stem]
+        _trace(f"main: exclude api => {len(scenario_files)}")
 
     # Skip agent dashboard scenarios (الوكيل الصناعي يعمل كموظف على index.php)
     filtered = []
@@ -5430,6 +6267,7 @@ async def main(
             pass
         filtered.append(path)
     scenario_files = filtered
+    _trace(f"main: filtered => {len(scenario_files)}")
 
     auto_only_flag = os.getenv("BGL_AUTONOMOUS_ONLY")
     if auto_only_flag is None:
@@ -5443,15 +6281,18 @@ async def main(
     if not scenario_files and not autonomous_scenario:
         print("[!] No scenario files found.")
         return
+    _trace(f"main: autonomous_only={autonomous_only} autonomous_scenario={autonomous_scenario}")
 
     slow_mo = int(os.getenv("BGL_SLOW_MO_MS", str(cfg.get("slow_mo_ms", 0))))
 
     extra_headers = {"X-Shadow-Mode": "true"} if shadow_mode else None
 
     db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
+    _trace(f"main: db_path={db_path}")
     try:
         if start_run:
             start_run(db_path, run_id=_CURRENT_RUN_ID, mode="scenario_runner", started_at=run_started)
+            _trace("main: start_run logged")
     except Exception:
         pass
     try:
@@ -5466,6 +6307,7 @@ async def main(
                 ),
             },
         )
+        _trace("main: agent_run_start logged")
     except Exception:
         pass
     try:
@@ -5481,6 +6323,7 @@ async def main(
                     ui_scenarios.append(path)
             except Exception:
                 ui_scenarios.append(path)
+        _trace(f"main: api_scenarios={len(api_scenarios)} ui_scenarios={len(ui_scenarios)}")
 
         # If autonomous_only, skip predefined scenarios but keep autonomous flow.
         if autonomous_only:
@@ -5489,7 +6332,9 @@ async def main(
 
         # Run API scenarios (no browser)
         for path in api_scenarios:
+            _trace(f"api: run {path}")
             await run_api_scenario(base_url, path, db_path)
+        _trace("api: done")
 
         # Run UI scenarios (browser)
         if ui_scenarios or autonomous_scenario:
@@ -5502,9 +6347,12 @@ async def main(
                 slow_mo_ms=slow_mo,
                 extra_http_headers=extra_headers,
             )
+            _trace("ui: browser manager created")
             # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
             shared_page = await manager.new_page()
+            _trace("ui: new page created")
             await ensure_cursor(shared_page)
+            _trace("ui: cursor ensured")
             # Seed long-term goals into short-term autonomy queue
             try:
                 if pick_long_term_goals:
@@ -5526,13 +6374,17 @@ async def main(
                             source="long_term",
                             ttl_days=7,
                         )
+                _trace(f"ui: long_term_goals seeded={len(lt_goals) if 'lt_goals' in locals() else 0}")
             except Exception:
                 pass
             # Run goal-driven scenarios first (if any)
             goal_limit = int(_cfg_value("autonomy_goal_limit", 6) or 6)
             goals = _read_autonomy_goals(db_path, limit=goal_limit)
             goals = _prioritize_autonomy_goals(goals)
+            _trace(f"ui: goals loaded={len(goals)}")
             seen_goal_keys = set()
+            seen_goal_types = set()
+            single_run_goals = {"ui_self_heal_gap"}
             for g in goals:
                 key = (
                     (g.get("goal") or "")
@@ -5542,8 +6394,16 @@ async def main(
                 if key in seen_goal_keys:
                     continue
                 seen_goal_keys.add(key)
+                goal_name = str(g.get("goal") or "").strip()
+                if goal_name in single_run_goals:
+                    if goal_name in seen_goal_types:
+                        _trace(f"ui: skip goal {goal_name} (already run this cycle)")
+                        continue
+                    seen_goal_types.add(goal_name)
+                _trace(f"ui: run_goal_scenario {g.get('goal')}")
                 await run_goal_scenario(manager, shared_page, base_url, db_path, g)
             for idx, path in enumerate(ui_scenarios):
+                _trace(f"ui: run_scenario {path}")
                 await run_scenario(
                     manager,
                     shared_page,
@@ -5554,11 +6414,15 @@ async def main(
                     is_last=(idx == len(ui_scenarios) - 1),
                 )
             if autonomous_scenario:
+                _trace("ui: run_autonomous_scenario")
                 await run_autonomous_scenario(manager, shared_page, base_url, db_path)
             # One novel, safe navigation per run (read-only).
+            _trace("ui: run_novel_probe")
             await run_novel_probe(shared_page, base_url, db_path)
             if not keep_open:
+                _trace("ui: closing browser manager")
                 await manager.close()
+            _trace("ui: done")
     finally:
         pass
     # After scenarios, summarize runtime events into experiences
@@ -5568,6 +6432,7 @@ async def main(
         digest_path = ROOT_DIR / ".bgl_core" / "brain" / "context_digest.py"
         # Avoid cmd.exe quoting pitfalls on Windows; also prevents noisy "filename syntax" errors.
         subprocess.run([sys.executable, str(digest_path)], cwd=ROOT_DIR, timeout=30)
+        _trace("post: context_digest done")
     except Exception:
         pass
 
@@ -5576,6 +6441,7 @@ async def main(
         _derive_outcomes_from_runtime(db_path, since_ts=run_started)
         _derive_outcomes_from_learning(db_path, since_ts=run_started)
         _score_outcomes(db_path, since_ts=run_started, window_sec=300.0)
+        _trace("post: outcomes scored")
         try:
             try:
                 from .hypothesis import ingest_exploration_outcomes  # type: ignore
@@ -5596,18 +6462,21 @@ async def main(
             negative_threshold=float(_cfg_value("gap_score_threshold", -2.0)),
             limit=int(_cfg_value("gap_goal_limit", 10) or 10),
         )
+        _trace("post: goals seeded")
     except Exception:
         pass
 
     # Let exploration drive route index refresh if unknown routes appeared.
     try:
         _maybe_reindex_after_exploration(ROOT_DIR, db_path)
+        _trace("post: reindex_after_exploration done")
     except Exception:
         pass
 
     # After exploration, generate targeted insights (Dream Mode subset)
     try:
         _trigger_dream_from_exploration(db_path)
+        _trace("post: dream trigger done")
     except Exception:
         pass
 
@@ -5623,6 +6492,7 @@ async def main(
                 ),
             },
         )
+        _trace("post: agent_run_end logged")
     except Exception:
         pass
     try:

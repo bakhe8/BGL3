@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_98",
+  "description": "Stabilize route http://localhost:8000/api/parse-paste.php",
+  "created_at": 1770542974,
+  "metadata": {
+    "proposal_id": 98,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770543128.382343
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200"
+      }
+    }
+  ]
+}

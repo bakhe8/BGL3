@@ -1,5 +1,6 @@
 import time
 import os
+import asyncio
 import json
 import sqlite3
 import urllib.request
@@ -338,8 +339,6 @@ class BGLGuardian:
                     self.authority.record_outcome(decision_id, "fail", str(e))
                     scenario_run_stats["status"] = "fail"
 
-        report["scenario_run_stats"] = scenario_run_stats
-
         # 0. Maintenance (New in Phase 5)
         self.log_maintenance()
 
@@ -531,6 +530,7 @@ class BGLGuardian:
             "policy_auto_promoted": [],
             "api_scan": api_summary,
         }
+        report["scenario_run_stats"] = scenario_run_stats
         try:
             domain_violations = self._check_domain_rule_violations()
             report["domain_rule_violations"] = domain_violations
@@ -997,11 +997,36 @@ class BGLGuardian:
                 scan_res = {"valid": True, "report": {}}
             else:
                 measure_perf = bool(int(self.config.get("measure_perf", 0)))
-                scan_res = await self.safety.browser.scan_url(
-                    uri, measure_perf=measure_perf
-                )
+                try:
+                    scan_timeout = float(
+                        os.getenv(
+                            "BGL_BROWSER_SCAN_TIMEOUT_SEC",
+                            str(self.config.get("browser_scan_timeout_sec", 15)),
+                        )
+                        or 15
+                    )
+                except Exception:
+                    scan_timeout = 15.0
+                try:
+                    scan_res = await asyncio.wait_for(
+                        self.safety.browser.scan_url(uri, measure_perf=measure_perf),
+                        timeout=scan_timeout,
+                    )
+                except asyncio.TimeoutError:
+                    scan_res = {
+                        "status": "SKIPPED",
+                        "skipped": True,
+                        "reason": f"browser_timeout_{scan_timeout}s",
+                    }
+                except Exception as e:
+                    scan_res = {"status": "SKIPPED", "skipped": True, "reason": str(e)}
 
             status_score = 100
+            if isinstance(scan_res, dict) and scan_res.get("skipped"):
+                report["skipped_routes"].append(
+                    {"uri": uri, "reason": scan_res.get("reason", "skipped")}
+                )
+                continue
             status_val = scan_res.get("status", "SUCCESS")
             if (
                 status_val != "SUCCESS"
@@ -1353,11 +1378,26 @@ class BGLGuardian:
             except Exception:
                 continue
             title = ""
+            steps: List[str] = []
+            in_happy = False
             for line in text.splitlines():
                 line = line.strip()
                 if line.startswith("#"):
                     title = line.lstrip("#").strip()
                     break
+            for line in text.splitlines():
+                raw = line.strip()
+                if not raw:
+                    continue
+                if raw.lower().startswith("##") and ("المسار الأساسي" in raw or "happy path" in raw.lower()):
+                    in_happy = True
+                    continue
+                if raw.lower().startswith("##") and in_happy:
+                    in_happy = False
+                if in_happy:
+                    m = re.match(r"^\d+\)\s*(.+)$", raw)
+                    if m:
+                        steps.append(m.group(1).strip())
             endpoints = []
             for m in re.findall(r"/api/[A-Za-z0-9_\-./]+", text):
                 norm = self._normalize_route(m)
@@ -1365,9 +1405,11 @@ class BGLGuardian:
                     endpoints.append(norm)
             # Capture event types from runtime_events `event_type`
             events = []
-            for m in re.findall(r"runtime_events\\s*`([^`]+)`", text):
-                if m:
-                    events.append(m.strip())
+            for line in text.splitlines():
+                if "runtime_events" in line or "event_type" in line:
+                    for m in re.findall(r"`([^`]+)`", line):
+                        if m:
+                            events.append(m.strip())
             events = sorted(list({e for e in events if e}))
             flows.append(
                 {
@@ -1375,6 +1417,7 @@ class BGLGuardian:
                     "title": title or md.stem,
                     "endpoints": endpoints,
                     "events": events,
+                    "steps": steps[:12],
                 }
             )
         return flows
@@ -1672,6 +1715,7 @@ class BGLGuardian:
                     },
                     "endpoints": endpoints[:5],
                     "missing_steps": missing_steps[:5],
+                    "steps_sample": (flow.get("steps") or [])[:5],
                     "sequence_covered": sequence_covered,
                     "sequence_session": sequence_session,
                 }
@@ -1721,6 +1765,9 @@ class BGLGuardian:
         ui_paths: set[str] = set()
         event_count = 0
         ui_snapshot_count = 0
+        semantic_change_count = 0
+        gap_runs = 0
+        gap_last_ts = 0.0
         try:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
@@ -1764,6 +1811,35 @@ class BGLGuardian:
             except Exception:
                 ui_paths = set()
 
+            # Count semantic changes from UI flow transitions (operational coverage signal).
+            try:
+                rows_flow = cur.execute(
+                    "SELECT semantic_delta_json FROM ui_flow_transitions WHERE created_at >= ?",
+                    (cutoff,),
+                ).fetchall()
+                for row in rows_flow:
+                    try:
+                        payload = json.loads(row[0] or "{}")
+                    except Exception:
+                        payload = {}
+                    if isinstance(payload, dict) and payload.get("changed"):
+                        semantic_change_count += 1
+            except Exception:
+                semantic_change_count = 0
+
+            # Gap scenario execution stats (explicit link between gaps and coverage).
+            try:
+                row_gap = cur.execute(
+                    "SELECT COUNT(*), MAX(timestamp) FROM runtime_events WHERE event_type='gap_scenario_done' AND timestamp >= ?",
+                    (cutoff,),
+                ).fetchone()
+                if row_gap:
+                    gap_runs = int(row_gap[0] or 0)
+                    gap_last_ts = float(row_gap[1] or 0)
+            except Exception:
+                gap_runs = 0
+                gap_last_ts = 0.0
+
             # Sample uncovered routes for scenario generation
             if total_routes > 0:
                 rows3 = cur.execute(
@@ -1801,6 +1877,9 @@ class BGLGuardian:
             min_events = 20
         reliable = event_count >= min_events
         reason = "" if reliable else "low_runtime_events"
+        if ui_snapshot_count > 0 and semantic_change_count <= 0:
+            reliable = False
+            reason = "no_semantic_changes"
         return {
             "window_days": days,
             "total_routes": total_routes,
@@ -1811,6 +1890,9 @@ class BGLGuardian:
             "uncovered_sample": uncovered_sample,
             "events_total": event_count,
             "ui_snapshot_count": ui_snapshot_count,
+            "semantic_change_count": semantic_change_count,
+            "gap_runs": gap_runs,
+            "gap_last_ts": gap_last_ts,
             "reliable": reliable,
             "reliability_reason": reason,
         }

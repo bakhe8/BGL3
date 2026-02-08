@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_109",
+  "description": "Stabilize route a[href*='parse-paste.php'] by ensuring it handles events and maintains performance.",
+  "created_at": 1683275200,
+  "metadata": {
+    "proposal_id": 109,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770544530.852004
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": null,
+      "content": "event_handlers:\n  - event: 'parse-paste.php'\n    handler: 'handleParsePasteEvent'\n\nperformance_tuning:\n  - metric: 'avg_latency'\n    target: '0 ms'\n    action: 'optimize_performance'",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "event_handlers:\n  - event: 'parse-paste.php'\n    handler: 'handleParsePasteEvent'\n\nperformance_tuning:\n  - metric: 'avg_latency'\n    target: '0 ms'\n    action: 'optimize_performance'"
+      }
+    }
+  ]
+}

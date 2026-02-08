@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_155",
+  "description": "Patch Plan for Improving Stability Review Experience",
+  "created_at": 1690472400,
+  "metadata": {
+    "proposal_id": 155,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770548473.5240798
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n- stability_review: true",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- stability_review: true"
+      }
+    }
+  ]
+}

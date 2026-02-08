@@ -1,0 +1,15 @@
+name: autonomous_1770542531
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: type
+  selector: input[name="search"]
+  text: ضمان
+  auto_submit: true
+- action: click
+  selector: a[href="./index.php"]
+- action: click
+  selector: input[name="jump_to_index"]
+- action: wait
+  ms: 600

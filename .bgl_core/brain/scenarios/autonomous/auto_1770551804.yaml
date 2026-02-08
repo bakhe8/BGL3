@@ -1,0 +1,15 @@
+name: autonomous_1770551804
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/index.php
+- action: type
+  selector: input[name="search"]
+  text: conflict
+  auto_submit: true
+- action: click
+  selector: button.note-cancel-btn
+- action: click
+  selector: button.btn-print-overlay
+- action: wait
+  ms: 600

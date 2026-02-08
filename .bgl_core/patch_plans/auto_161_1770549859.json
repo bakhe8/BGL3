@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_161",
+  "description": "Stabilize route #btnCancelManualEntry",
+  "created_at": 1702531200,
+  "metadata": {
+    "experience_id": 7805,
+    "exp_hash": "b5f2d8a748c42d77073a507118f5015fa490386b",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 161,
+    "generated_at": 1770549859.3389497
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "overwrite",
+      "content": "stabilize_route_btnCancelManualEntry: true\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "stabilize_route_btnCancelManualEntry: true\n"
+      }
+    }
+  ]
+}

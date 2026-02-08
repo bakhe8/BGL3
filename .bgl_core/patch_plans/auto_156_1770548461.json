@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "id": "patch_plan_156",
+  "description": "Patch for improving search functionality based on user experience data.",
+  "created_at": 1683472800,
+  "metadata": {
+    "experience_id": 7777,
+    "exp_hash": "cbe0ac7e9065cf50710aa0ef3cb7d373be995b7e",
+    "scenario": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 156,
+    "generated_at": 1770548461.947819
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_search_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: search_input\n    steps:\n      - action: route\n        url: /search\n        method: GET\n        params:\n          query: $query\n        expected_status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: search_input\n    steps:\n      - action: route\n        url: /search\n        method: GET\n        params:\n          query: $query\n        expected_status_code: 200"
+      }
+    }
+  ]
+}

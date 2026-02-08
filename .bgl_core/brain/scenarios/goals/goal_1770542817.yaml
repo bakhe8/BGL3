@@ -1,0 +1,27 @@
+name: goal_ui_self_heal_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/api/parse-paste.php
+- action: click
+  selector: '[role=''tab'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''collapse''], [data-toggle=''collapse'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''modal''], [data-toggle=''modal'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''offcanvas''], [data-toggle=''offcanvas'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''dropdown''], [data-toggle=''dropdown'']'
+  optional: true
+- action: scroll
+  dy: 700
+- action: click
+  selector: '[data-bs-toggle=''dropdown''], [data-toggle=''dropdown'']'
+  optional: true
+- action: wait
+  ms: 600

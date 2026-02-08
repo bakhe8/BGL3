@@ -81,9 +81,88 @@
       "created_at": 1770529343.4422796,
       "updated_at": 1770533139.9215586,
       "expires_at": 1771137939.9215586
+    },
+    {
+      "key": "outcomes::stabilize::generic_fail",
+      "operation": "stabilize*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 1.0,
+      "count": 46,
+      "fail": 46,
+      "last_notes": "auto-log from master_verify pipeline",
+      "failure_class": "generic_fail",
+      "source": "outcomes",
+      "created_at": 1770542973.2656925,
+      "updated_at": 1770548298.0025892,
+      "expires_at": 1771153098.0025892
+    },
+    {
+      "key": "outcomes::observe::generic_fail",
+      "operation": "observe*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 1.0,
+      "count": 57,
+      "fail": 57,
+      "last_notes": "auto-log from master_verify pipeline",
+      "failure_class": "generic_fail",
+      "source": "outcomes",
+      "created_at": 1770542973.2656925,
+      "updated_at": 1770548298.0025892,
+      "expires_at": 1771153098.0025892
+    },
+    {
+      "key": "outcomes::unblock::generic_fail",
+      "operation": "unblock*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 1.0,
+      "count": 7,
+      "fail": 7,
+      "last_notes": "auto-log from master_verify pipeline",
+      "failure_class": "generic_fail",
+      "source": "outcomes",
+      "created_at": 1770542973.2656925,
+      "updated_at": 1770548298.0025892,
+      "expires_at": 1771153098.0025892
+    },
+    {
+      "key": "outcomes::investigate::generic_fail",
+      "operation": "investigate*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 1.0,
+      "count": 54,
+      "fail": 54,
+      "last_notes": "auto-log from master_verify pipeline",
+      "failure_class": "generic_fail",
+      "source": "outcomes",
+      "created_at": 1770542973.2656925,
+      "updated_at": 1770548298.0025892,
+      "expires_at": 1771153098.0025892
+    },
+    {
+      "key": "external_dependency::*",
+      "operation": "*",
+      "scope": "",
+      "action": "block",
+      "blocked_rate": 1.0,
+      "count": 2,
+      "allowed": 0,
+      "blocked": 2,
+      "last_status": "blocked_external_dependency",
+      "last_mode": "",
+      "last_source": "runtime_events",
+      "source": "external_dependency",
+      "reason": "external_dependency",
+      "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+      "created_at": 1770548298.0362408,
+      "updated_at": 1770548298.0362408,
+      "expires_at": 1770550098.0362408
     }
   ],
-  "last_updated": 1770533139.922169,
+  "last_updated": 1770548298.036254,
   "history": [
     {
       "ts": 1770488776.3417563,
@@ -428,6 +507,1160 @@
         ]
       },
       "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770542973.2656925,
+      "changes": [
+        "fallback_rules_outcomes:+8/~0"
+      ],
+      "context": {
+        "created": [
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 4,
+            "fail": 4,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::scenario_batch::blocked",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.619,
+            "count": 97,
+            "fail": 60,
+            "last_notes": "awaiting human permission",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::reindex_full::blocked",
+            "operation": "reindex_full*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 26,
+            "fail": 26,
+            "last_notes": "reindex blocked by gate/human requirement",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770542973.2656925,
+            "expires_at": 1771147773.2656925
+          }
+        ],
+        "updated": []
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770542973.3059587,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 4,
+          "allowed": 0,
+          "blocked": 4,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "runtime_events",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770542973.3059587,
+          "updated_at": 1770542973.3059587,
+          "expires_at": 1770544773.3059587
+        },
+        "detected": {
+          "count": 4,
+          "last_ts": 1770542891.8712163,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "runtime_events"
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770544568.8875225,
+      "changes": [
+        "fallback_rules_outcomes:+1/~8"
+      ],
+      "context": {
+        "created": [
+          {
+            "key": "outcomes::proposal.apply::blocked",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 8,
+            "fail": 8,
+            "last_notes": "fallback_rule:block failure_class=blocked",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770544568.8870468,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          }
+        ],
+        "updated": [
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::scenario_batch::blocked",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.619,
+            "count": 97,
+            "fail": 60,
+            "last_notes": "awaiting human permission",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::reindex_full::blocked",
+            "operation": "reindex_full*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 26,
+            "fail": 26,
+            "last_notes": "reindex blocked by gate/human requirement",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770544568.8870468,
+            "expires_at": 1771149368.8870468
+          }
+        ]
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770544568.9358566,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 6,
+          "allowed": 0,
+          "blocked": 6,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "runtime_events",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770542973.3059587,
+          "updated_at": 1770544568.9358304,
+          "expires_at": 1770546368.9358304
+        },
+        "detected": {
+          "count": 6,
+          "last_ts": 1770544398.8812099,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "runtime_events"
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770545470.65834,
+      "changes": [
+        "fallback_rules_outcomes:+0/~9"
+      ],
+      "context": {
+        "created": [],
+        "updated": [
+          {
+            "key": "outcomes::proposal.apply::blocked",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 13,
+            "fail": 13,
+            "last_notes": "fallback_rule:block failure_class=blocked",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770544568.8870468,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::scenario_batch::blocked",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.619,
+            "count": 97,
+            "fail": 60,
+            "last_notes": "awaiting human permission",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::reindex_full::blocked",
+            "operation": "reindex_full*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 26,
+            "fail": 26,
+            "last_notes": "reindex blocked by gate/human requirement",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770545470.657898,
+            "expires_at": 1771150270.657898
+          }
+        ]
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770545470.7109084,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 4,
+          "allowed": 0,
+          "blocked": 4,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "runtime_events",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770542973.3059587,
+          "updated_at": 1770545470.710893,
+          "expires_at": 1770547270.710893
+        },
+        "detected": {
+          "count": 4,
+          "last_ts": 1770544398.8812099,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "runtime_events"
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770546283.2492335,
+      "changes": [
+        "fallback_rules_outcomes:+0/~9"
+      ],
+      "context": {
+        "created": [],
+        "updated": [
+          {
+            "key": "outcomes::proposal.apply::blocked",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 18,
+            "fail": 18,
+            "last_notes": "fallback_rule:block failure_class=blocked",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770544568.8870468,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::scenario_batch::blocked",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.619,
+            "count": 97,
+            "fail": 60,
+            "last_notes": "awaiting human permission",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::reindex_full::blocked",
+            "operation": "reindex_full*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 26,
+            "fail": 26,
+            "last_notes": "reindex blocked by gate/human requirement",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770546283.2488365,
+            "expires_at": 1771151083.2488365
+          }
+        ]
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770546283.3041801,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 2,
+          "allowed": 0,
+          "blocked": 2,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "backend",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770542973.3059587,
+          "updated_at": 1770546283.3041637,
+          "expires_at": 1770548083.3041637
+        },
+        "detected": {
+          "count": 2,
+          "last_ts": 1770545799.0355966,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "backend"
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770547055.083903,
+      "changes": [
+        "fallback_rules_outcomes:+0/~9"
+      ],
+      "context": {
+        "created": [],
+        "updated": [
+          {
+            "key": "outcomes::proposal.apply::blocked",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 23,
+            "fail": 23,
+            "last_notes": "fallback_rule:block failure_class=blocked",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770544568.8870468,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::scenario_batch::blocked",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.619,
+            "count": 97,
+            "fail": 60,
+            "last_notes": "awaiting human permission",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::reindex_full::blocked",
+            "operation": "reindex_full*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 26,
+            "fail": 26,
+            "last_notes": "reindex blocked by gate/human requirement",
+            "failure_class": "blocked",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547055.0832994,
+            "expires_at": 1771151855.0832994
+          }
+        ]
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770547055.1437073,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 2,
+          "allowed": 0,
+          "blocked": 2,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "backend",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770542973.3059587,
+          "updated_at": 1770547055.1436918,
+          "expires_at": 1770548855.1436918
+        },
+        "detected": {
+          "count": 2,
+          "last_ts": 1770546493.3001475,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "backend"
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770547957.8850238,
+      "changes": [
+        "fallback_rules_outcomes:+0/~6/-0"
+      ],
+      "context": {
+        "created": [],
+        "updated": [
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          },
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770547957.884574,
+            "expires_at": 1771152757.884574
+          }
+        ],
+        "removed": []
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770547957.9488823,
+      "changes": [
+        "fallback_rules:-external_dependency"
+      ],
+      "context": {
+        "detected": {
+          "count": 0,
+          "last_ts": 0.0,
+          "last_message": "",
+          "active": false,
+          "source": ""
+        }
+      },
+      "source": "external_dependency"
+    },
+    {
+      "ts": 1770548298.0029604,
+      "changes": [
+        "fallback_rules_outcomes:+2/~4/-0"
+      ],
+      "context": {
+        "created": [
+          {
+            "key": "outcomes::proposal.apply::validation",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 6,
+            "fail": 6,
+            "last_notes": "Sandbox validation failed. post_validate=False mode=checks failure_class=validation",
+            "failure_class": "validation",
+            "source": "outcomes",
+            "created_at": 1770548298.0025892,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          },
+          {
+            "key": "outcomes::proposal.apply::write_engine",
+            "operation": "proposal.apply*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 5,
+            "fail": 5,
+            "last_notes": "Write engine errors: ['.bgl_core/brain/ui_interaction_tests.py: File not found: .bgl_core/brain/ui_interaction_tests.py']",
+            "failure_class": "write_engine",
+            "source": "outcomes",
+            "created_at": 1770548298.0025892,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          }
+        ],
+        "updated": [
+          {
+            "key": "outcomes::stabilize::generic_fail",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 46,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          },
+          {
+            "key": "outcomes::observe::generic_fail",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 57,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          },
+          {
+            "key": "outcomes::unblock::generic_fail",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          },
+          {
+            "key": "outcomes::investigate::generic_fail",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 54,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "failure_class": "generic_fail",
+            "source": "outcomes",
+            "created_at": 1770542973.2656925,
+            "updated_at": 1770548298.0025892,
+            "expires_at": 1771153098.0025892
+          }
+        ],
+        "removed": []
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770548298.0362546,
+      "changes": [
+        "fallback_rules:+external_dependency"
+      ],
+      "context": {
+        "rule": {
+          "key": "external_dependency::*",
+          "operation": "*",
+          "scope": "",
+          "action": "block",
+          "blocked_rate": 1.0,
+          "count": 2,
+          "allowed": 0,
+          "blocked": 2,
+          "last_status": "blocked_external_dependency",
+          "last_mode": "",
+          "last_source": "runtime_events",
+          "source": "external_dependency",
+          "reason": "external_dependency",
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "created_at": 1770548298.0362408,
+          "updated_at": 1770548298.0362408,
+          "expires_at": 1770550098.0362408
+        },
+        "detected": {
+          "count": 2,
+          "last_ts": 1770548160.2258222,
+          "last_message": "[2026-01-30 02:00:39] ERROR: Database Connection Timeout | Context: {\"db\":\"mysql_main\"}",
+          "active": true,
+          "source": "runtime_events"
+        }
+      },
+      "source": "external_dependency"
     }
   ]
 }

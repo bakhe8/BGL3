@@ -1,1 +1,10 @@
-Ensure the scenario is stable and does not cause any issues.
+name: gap_route_api_delete_bank_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/delete_bank.php
+steps:
+- action: request
+  url: /api/delete_bank.php
+  method: GET

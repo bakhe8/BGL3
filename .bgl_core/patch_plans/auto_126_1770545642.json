@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_126",
+  "description": "Stabilize route [data-bs-toggle='modal'], [data-toggle='modal'] by ensuring consistent modal behavior.",
+  "created_at": 1703587200,
+  "metadata": {
+    "proposal_id": 126,
+    "name": "تحسين تلقائي من خبرة: [data-bs-toggle='modal'], [data-toggle='modal']",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770545642.426854
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": null,
+      "content": "- Ensure consistent modal behavior for [data-bs-toggle='modal'], [data-toggle='modal']\n- Update event listeners to handle both data attributes",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- Ensure consistent modal behavior for [data-bs-toggle='modal'], [data-toggle='modal']\n- Update event listeners to handle both data attributes"
+      }
+    }
+  ]
+}

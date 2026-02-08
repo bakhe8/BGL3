@@ -76,5 +76,11 @@
     "check": "authority_drift",
     "recommendation": "keep approvals/patching routed through authority.py + patcher.py only",
     "scope": "policy"
+  },
+  {
+    "id": "PAT_PHASE3_INTEGRITY",
+    "check": "phase3_integrity",
+    "recommendation": "ensure ui_action_snapshots + ui_flow_transitions + gap scenario execution are present",
+    "scope": "ui"
   }
 ]

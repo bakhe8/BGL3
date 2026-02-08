@@ -1,1 +1,11 @@
-Ensure the scenario is stable and does not cause any issues.
+name: gap_route_views_settings_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /views/settings.php
+steps:
+- action: goto
+  url: /views/settings.php
+- action: wait
+  ms: 400

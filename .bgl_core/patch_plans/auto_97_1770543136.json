@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "97",
+  "description": "Stabilize route http://localhost:8000/views/batch-detail.php?import_source=test_paste_20260131",
+  "created_at": 1674832800,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 97,
+    "generated_at": 1770543136.9525337
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": "append",
+      "content": "\n\n// Ensure the route is properly handled and logged\nif (!isset($_GET['import_source'])) {\n    error_log('Missing import source parameter in batch-detail.php');\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n// Ensure the route is properly handled and logged\nif (!isset($_GET['import_source'])) {\n    error_log('Missing import source parameter in batch-detail.php');\n}\n"
+      }
+    }
+  ]
+}

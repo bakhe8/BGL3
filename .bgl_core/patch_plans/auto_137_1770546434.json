@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "137",
+  "description": "Route http://localhost:8000/views/maintenance.php: 20 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1689456000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 137,
+    "generated_at": 1770546434.8911016
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": "append",
+      "content": "\n\n// Stabilization code for views/maintenance.php\nfunction stabilizeMaintenanceView() {\n    // Add stabilization logic here\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n// Stabilization code for views/maintenance.php\nfunction stabilizeMaintenanceView() {\n    // Add stabilization logic here\n}\n"
+      }
+    }
+  ]
+}

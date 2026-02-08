@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_135",
+  "description": "Stabilize route button.note-save-btn",
+  "created_at": 1770546287,
+  "metadata": {
+    "proposal_id": 135,
+    "name": "تحسين تلقائي من خبرة: button.note-save-btn #1770546287",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770546396.3040953
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "Ensure the route is stable and handles edge cases properly.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "Ensure the route is stable and handles edge cases properly."
+      }
+    }
+  ]
+}

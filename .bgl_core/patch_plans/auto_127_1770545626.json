@@ -1,0 +1,43 @@
+{
+  "version": 1,
+  "id": "patch_127",
+  "description": "Stabilize route [data-bs-toggle='collapse'], [data-toggle='collapse']",
+  "created_at": 1690385200,
+  "metadata": {
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 127,
+    "generated_at": 1770545626.546397
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "stabilize route [data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "stabilize route [data-bs-toggle='collapse'], [data-toggle='collapse']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "stabilize route [data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "stabilize route [data-bs-toggle='collapse'], [data-toggle='collapse']"
+      }
+    }
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "143",
+  "description": "Route a[href*='import_suppliers.php']: 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1690288000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 143,
+    "generated_at": 1770547210.7036536
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_flow_flow_import_suppliers_.yaml",
+      "mode": null,
+      "content": "version: 1\nname: gap_flow_flow_import_suppliers_\ndescription: Route a[href*='import_suppliers.php']\nsteps:\n  - name: Import Suppliers\n    action: import_suppliers\n    parameters:\n      url: /import_suppliers.php",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 1\nname: gap_flow_flow_import_suppliers_\ndescription: Route a[href*='import_suppliers.php']\nsteps:\n  - name: Import Suppliers\n    action: import_suppliers\n    parameters:\n      url: /import_suppliers.php"
+      }
+    }
+  ]
+}

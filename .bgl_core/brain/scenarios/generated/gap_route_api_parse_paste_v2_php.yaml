@@ -1,1 +1,10 @@
-Ensure the scenario is stable and does not cause any issues.
+name: gap_route_api_parse_paste_v2_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/parse-paste-v2.php
+steps:
+- action: request
+  url: /api/parse-paste-v2.php
+  method: GET

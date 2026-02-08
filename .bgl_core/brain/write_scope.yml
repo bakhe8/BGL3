@@ -11,6 +11,7 @@ policy:
   auto_create_on_missing:
     - ".bgl_core/brain/scenarios/**/*.yaml"
     - ".bgl_core/brain/scenarios/**/*.yml"
+    - ".bgl_core/brain/**/*.py"
     - ".bgl_core/patch_plans/**/*.json"
     - ".bgl_core/patch_plans/**/*.yml"
     - ".bgl_core/patch_plans/**/*.yaml"

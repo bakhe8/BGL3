@@ -2,6 +2,7 @@ import asyncio
 import sys
 import subprocess
 import os
+import threading
 from pathlib import Path
 import json
 import sqlite3
@@ -39,6 +40,28 @@ def log_activity(root_path: Path, message: str):
             )
     except Exception as e:
         print(f"[WARN] Failed to log activity: {e}")
+
+
+def _run_with_timeout(label: str, func, timeout: int, default):
+    result = {"value": default}
+    error = {"exc": None}
+
+    def _target():
+        try:
+            result["value"] = func()
+        except Exception as exc:
+            error["exc"] = exc
+
+    t = threading.Thread(target=_target, daemon=True)
+    t.start()
+    t.join(timeout)
+    if t.is_alive():
+        print(f"[WARN] {label} timed out after {timeout}s.")
+        return default
+    if error["exc"] is not None:
+        print(f"[WARN] {label} failed: {error['exc']}")
+        return default
+    return result.get("value", default)
 
 
 def _read_lock_status(lock_path: Path) -> dict:
@@ -131,14 +154,24 @@ async def master_assurance_diagnostic():
     diagnostic["effective_config"] = effective_cfg
 
     # Build callgraph for reporting/reference
-    diagnostic["findings"]["callgraph_meta"] = build_callgraph(ROOT)
+    callgraph_timeout = int(cfg.get("callgraph_timeout_sec", 60) or 60)
+    diagnostic["findings"]["callgraph_meta"] = _run_with_timeout(
+        "callgraph_builder", lambda: build_callgraph(ROOT), callgraph_timeout, {}
+    )
 
     # Generate OpenAPI (merged) for contract tests and reference
-    diagnostic["openapi_path"] = str(generate_openapi(ROOT))
+    openapi_timeout = int(cfg.get("openapi_timeout_sec", 60) or 60)
+    openapi_path = _run_with_timeout(
+        "openapi_generate", lambda: generate_openapi(ROOT), openapi_timeout, None
+    )
+    diagnostic["openapi_path"] = str(openapi_path) if openapi_path else ""
 
     # Optional: run API contract/property tests (Schemathesis/Dredd) if enabled
     if cfg.get("run_api_contract", 0):
-        contract_results = run_contract_suite(ROOT)
+        contract_timeout = int(cfg.get("contract_timeout_sec", 120) or 120)
+        contract_results = _run_with_timeout(
+            "contract_suite", lambda: run_contract_suite(ROOT), contract_timeout, []
+        )
         diagnostic.setdefault("gap_tests", []).extend(contract_results)
         diagnostic.setdefault("findings", {}).setdefault("gap_tests", []).extend(contract_results)
 
@@ -184,8 +217,14 @@ async def master_assurance_diagnostic():
             max_insights = int(os.getenv("BGL_MAX_AUTO_INSIGHTS", "0") or "0")
         except Exception:
             max_insights = 0
-        auto_insights_status = audit_auto_insights(
-            ROOT, allow_legacy=allow_legacy, max_insights=max_insights
+        insights_timeout = int(cfg.get("auto_insights_timeout_sec", 60) or 60)
+        auto_insights_status = _run_with_timeout(
+            "auto_insights",
+            lambda: audit_auto_insights(
+                ROOT, allow_legacy=allow_legacy, max_insights=max_insights
+            ),
+            insights_timeout,
+            {},
         )
         diagnostic["findings"]["auto_insights_status"] = auto_insights_status
         write_auto_insights_status(ROOT, auto_insights_status)
