@@ -1,0 +1,9 @@
+name: autonomous_1770527801
+kind: ui
+steps:
+- action: goto
+  url: /index.php
+- action: click
+  selector: a[href="/?filter=ready"]
+- action: wait
+  ms: 600

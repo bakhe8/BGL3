@@ -97,7 +97,11 @@ function Ensure-ToolServer {
     $listening = Get-NetTCPConnection -LocalPort $toolServerPort -State Listen -ErrorAction SilentlyContinue
     if (-not $listening) {
         Write-Host "↻ تشغيل tool_server.py على المنفذ $toolServerPort" -ForegroundColor Cyan
-        Start-Process -FilePath "python" -ArgumentList "`"$projectPath\scripts\tool_server.py`" --port $toolServerPort" -WindowStyle Hidden
+        $pythonExe = Join-Path $projectPath ".bgl_core\\.venv312\\Scripts\\python.exe"
+        if (-not (Test-Path $pythonExe)) {
+            $pythonExe = "python"
+        }
+        Start-Process -FilePath $pythonExe -ArgumentList "`"$projectPath\scripts\tool_server.py`" --port $toolServerPort" -WindowStyle Hidden
     }
 }
 

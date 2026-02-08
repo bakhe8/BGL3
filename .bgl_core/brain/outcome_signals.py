@@ -113,6 +113,11 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
     learning_confirmations = _as_list(findings.get("learning_confirmations"))
     ui_semantic = findings.get("ui_semantic") or {}
     ui_semantic_delta = findings.get("ui_semantic_delta") or {}
+    kpi_metrics = findings.get("kpi_metrics") or {}
+    kpi_summary = kpi_metrics.get("summary") or {}
+    activity_summary = findings.get("activity_summary") or {}
+    delta_snapshot = findings.get("diagnostic_delta") or {}
+    delta_summary = delta_snapshot.get("summary") or {}
 
     # Classify failing routes into actionable vs likely-expected/scan-artifact.
     cand_conf = _candidate_conf_by_uri([c for c in policy_candidates if isinstance(c, dict)])
@@ -169,6 +174,11 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             "learning_events": len(learning_recent),
             "learning_confirmations": len(learning_confirmations),
             "ui_semantic_changes": 1 if ui_semantic_delta.get("changed") else 0,
+            "kpi_bad": int(kpi_summary.get("bad") or 0),
+            "kpi_warn": int(kpi_summary.get("warn") or 0),
+            "activity_recent": int(activity_summary.get("recent") or 0),
+            "activity_stale": 1 if activity_summary.get("stale") else 0,
+            "delta_changed_keys": int(delta_summary.get("changed_keys") or 0),
         },
         "top": {
             "failing_routes": _top([f for f in failing_routes if isinstance(f, dict)], "uri", 5),
@@ -184,6 +194,9 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
             "change_count": int(ui_semantic_delta.get("change_count") or 0),
             "keywords": (ui_semantic.get("summary") or {}).get("text_keywords", []),
         },
+        "kpi_summary": kpi_summary,
+        "activity_summary": activity_summary,
+        "delta_summary": delta_summary,
     }
 
     # ---- Deterministic intent hint (fallback) ----
@@ -222,13 +235,23 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
         hint_scope = _top(actionable, "uri", 10)
         hint_reason_parts.append(f"actionable_failures={len(actionable)}")
     else:
-        # Nothing actionable; if we only have "explained" failures we should not trigger stabilize.
-        hint_intent = Intent.OBSERVE.value
-        hint_conf = 0.75
-        if explained and failing_routes:
-            hint_reason_parts.append("failing routes appear explained by policy/scan artifacts")
+        # KPI degradations can signal real issues even without explicit route failures.
+        try:
+            kpi_bad = int(kpi_summary.get("bad") or 0)
+        except Exception:
+            kpi_bad = 0
+        if kpi_bad > 0:
+            hint_intent = Intent.STABILIZE.value
+            hint_conf = 0.7
+            hint_reason_parts.append(f"kpi_bad={kpi_bad}")
         else:
-            hint_reason_parts.append("no actionable failures detected")
+            # Nothing actionable; if we only have "explained" failures we should not trigger stabilize.
+            hint_intent = Intent.OBSERVE.value
+            hint_conf = 0.75
+            if explained and failing_routes:
+                hint_reason_parts.append("failing routes appear explained by policy/scan artifacts")
+            else:
+                hint_reason_parts.append("no actionable failures detected")
 
     # UI semantic change as a weak evolve/observe signal (when no critical blockers)
     try:
@@ -249,6 +272,23 @@ def compute_outcome_signals(diagnostic: Dict[str, Any]) -> Dict[str, Any]:
                     hint_scope = [str(k) for k in keywords[:8]]
             else:
                 hint_reason_parts.append("ui_semantic_changed_minor")
+    except Exception:
+        pass
+
+    # Delta snapshot as an evolve signal (if no blockers).
+    try:
+        delta_changed = int(delta_summary.get("changed_keys") or 0)
+        if delta_changed >= 6 and hint_intent == Intent.OBSERVE.value and readiness_ok is not False:
+            hint_intent = Intent.EVOLVE.value
+            hint_conf = 0.6
+            hint_reason_parts.append(f"env_delta_changed={delta_changed}")
+    except Exception:
+        pass
+
+    # Activity stagnation hint (kept as context if we don't switch intent).
+    try:
+        if activity_summary.get("stale"):
+            hint_reason_parts.append("activity_stale")
     except Exception:
         pass
 

@@ -1,0 +1,9 @@
+name: goal_ui_action_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/index.php
+- action: click
+  selector: button.btn-print-overlay
+- action: wait
+  ms: 600

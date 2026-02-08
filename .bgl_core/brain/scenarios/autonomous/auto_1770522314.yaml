@@ -1,0 +1,9 @@
+name: autonomous_1770522314
+kind: ui
+steps:
+- action: goto
+  url: /
+- action: click
+  selector: button.historical-banner-btn
+- action: wait
+  ms: 600

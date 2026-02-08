@@ -1,0 +1,9 @@
+name: autonomous_1770522185
+kind: ui
+steps:
+- action: goto
+  url: /
+- action: click
+  selector: button.note-save-btn
+- action: wait
+  ms: 600

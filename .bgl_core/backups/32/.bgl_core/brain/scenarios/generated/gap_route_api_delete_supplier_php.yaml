@@ -1,0 +1,10 @@
+name: gap_route_api_delete_supplier_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/delete_supplier.php
+steps:
+- action: request
+  url: /api/delete_supplier.php
+  method: GET

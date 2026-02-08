@@ -1,10 +1,1 @@
-name: gap_route_api_learning_action_php
-kind: api
-generated: true
-meta:
-  origin: coverage_gap
-  route: /api/learning-action.php
-steps:
-- action: request
-  url: /api/learning-action.php
-  method: GET
+Ensure the scenario is stable and does not cause any issues.

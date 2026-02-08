@@ -1,0 +1,9 @@
+name: autonomous_1770536728
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href="./views/settings.php"]
+- action: wait
+  ms: 600

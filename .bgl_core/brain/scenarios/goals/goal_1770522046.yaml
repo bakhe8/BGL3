@@ -1,0 +1,24 @@
+name: goal_decision_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  optional: true
+- action: type
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  text: The system is healthy, with only minor changes in the evidence related to
+    actionable failures which are being monitored.
+  optional: true
+- action: press
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  key: Enter
+  optional: true
+- action: wait
+  ms: 800
+- action: scroll
+  dy: 600

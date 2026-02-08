@@ -113,11 +113,65 @@ class StructureMemory:
             CREATE TABLE IF NOT EXISTS experiences (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 created_at REAL NOT NULL,
+                updated_at REAL,
                 scenario TEXT,
                 summary TEXT,
                 related_files TEXT,
+                exp_hash TEXT UNIQUE,
+                seen_count INTEGER DEFAULT 0,
+                last_seen REAL,
                 confidence REAL,
-                evidence_count INTEGER DEFAULT 0
+                evidence_count INTEGER DEFAULT 0,
+                value_score REAL,
+                suppressed INTEGER DEFAULT 0
+            )
+        """)
+
+        # Unified memory index (cross-cutting view over experiences/logs/scenarios/etc.)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS memory_index (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                kind TEXT NOT NULL,
+                key_hash TEXT UNIQUE NOT NULL,
+                key_text TEXT,
+                summary TEXT,
+                created_at REAL NOT NULL,
+                updated_at REAL NOT NULL,
+                last_seen REAL,
+                seen_count INTEGER DEFAULT 0,
+                evidence_count INTEGER DEFAULT 0,
+                confidence REAL,
+                value_score REAL,
+                suppressed INTEGER DEFAULT 0,
+                source_table TEXT,
+                source_id INTEGER,
+                meta_json TEXT
+            )
+        """)
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_index_kind ON memory_index(kind)"
+        )
+        cursor.execute(
+            "CREATE INDEX IF NOT EXISTS idx_memory_index_last_seen ON memory_index(last_seen DESC)"
+        )
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS memory_relations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                parent_hash TEXT NOT NULL,
+                child_hash TEXT NOT NULL,
+                relation TEXT NOT NULL,
+                created_at REAL NOT NULL,
+                notes TEXT
+            )
+        """)
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS memory_actions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                key_hash TEXT NOT NULL,
+                action TEXT NOT NULL,
+                actor TEXT,
+                created_at REAL NOT NULL,
+                notes TEXT
             )
         """)
 

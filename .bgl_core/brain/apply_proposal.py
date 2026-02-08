@@ -6,7 +6,9 @@ import sqlite3
 import time
 import subprocess
 import shutil
-from typing import Any, Optional, Tuple
+import os
+import sys
+from typing import Any, Optional, Tuple, Dict, List
 
 try:
     from .authority import Authority  # type: ignore
@@ -15,7 +17,9 @@ try:
     from .write_engine import WriteEngine  # type: ignore
     from .sandbox import BGLSandbox  # type: ignore
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
-    from .canary_release import register_canary_release  # type: ignore
+    from .canary_release import register_canary_release, evaluate_canary_releases, rollback_release  # type: ignore
+    from .agent_verify import run_all_checks  # type: ignore
+    from .config_loader import load_config  # type: ignore
 except Exception:
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
@@ -23,12 +27,129 @@ except Exception:
     from write_engine import WriteEngine
     from sandbox import BGLSandbox
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
-    from canary_release import register_canary_release
+    from canary_release import register_canary_release, evaluate_canary_releases, rollback_release
+    from agent_verify import run_all_checks
+    try:
+        from config_loader import load_config  # type: ignore
+    except Exception:
+        load_config = None  # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOG_FILE = ROOT / ".bgl_core" / "logs" / "proposal_actions.log"
 CHANGE_LOG = ROOT / ".bgl_core" / "logs" / "proposal_changes.jsonl"
+
+
+def _load_cfg() -> Dict[str, Any]:
+    if load_config is None:
+        return {}
+    try:
+        return load_config(ROOT) or {}
+    except Exception:
+        return {}
+
+
+def _cfg_flag(env_key: str, cfg: Dict[str, Any], key: str, default: bool) -> bool:
+    env_val = os.getenv(env_key)
+    if env_val is not None:
+        return str(env_val).strip() == "1"
+    try:
+        val = cfg.get(key, default)
+        if isinstance(val, (int, float)):
+            return float(val) != 0.0
+        return str(val).strip() == "1"
+    except Exception:
+        return bool(default)
+
+
+def _cfg_str(env_key: str, cfg: Dict[str, Any], key: str, default: str) -> str:
+    env_val = os.getenv(env_key)
+    if env_val is not None:
+        return str(env_val)
+    try:
+        return str(cfg.get(key, default) or default)
+    except Exception:
+        return default
+
+
+def _cfg_number(env_key: str, cfg: Dict[str, Any], key: str, default):
+    env_val = os.getenv(env_key)
+    if env_val is not None:
+        try:
+            return type(default)(env_val)
+        except Exception:
+            return default
+    try:
+        return type(default)(cfg.get(key, default))
+    except Exception:
+        return default
+
+
+def _lint_files(root: Path, files: List[str], max_files: int = 4) -> Dict[str, Any]:
+    linted = 0
+    failures = []
+    for rel in files:
+        if linted >= max_files:
+            break
+        if not rel.lower().endswith(".php"):
+            continue
+        path = root / rel
+        if not path.exists():
+            continue
+        try:
+            result = subprocess.run(
+                ["php", "-l", str(path)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
+        except FileNotFoundError:
+            return {"ok": True, "skipped": True, "reason": "php_missing"}
+        except Exception as e:
+            failures.append(f"{rel}: {e}")
+            continue
+        linted += 1
+        if result.returncode != 0:
+            failures.append(f"{rel}: {result.stderr.strip() or result.stdout.strip()}")
+    if failures:
+        return {"ok": False, "failures": failures, "linted": linted}
+    return {"ok": True, "linted": linted}
+
+
+def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_files: int) -> Dict[str, Any]:
+    mode = (mode or "checks").lower().strip()
+    if mode in ("none", "off", "skip"):
+        return {"ok": True, "mode": mode, "skipped": True}
+    results: Dict[str, Any] = {"mode": mode}
+    # Lint-only mode
+    if mode in ("lint", "php_lint"):
+        lint = _lint_files(root, changed_files, max_files=max_files)
+        results["lint"] = lint
+        results["ok"] = bool(lint.get("ok", True))
+        return results
+
+    # Checks (agent_verify) + optional lint
+    if mode in ("checks", "verify", "default"):
+        lint = _lint_files(root, changed_files, max_files=max_files)
+        results["lint"] = lint
+        try:
+            checks = run_all_checks(root)
+        except Exception as e:
+            checks = {"passed": False, "error": str(e), "results": []}
+        results["checks"] = checks
+        results["ok"] = bool(lint.get("ok", True)) and bool(checks.get("passed", False))
+        return results
+
+    # Full mode: fallback to checks + lint (safety.validate is heavy)
+    lint = _lint_files(root, changed_files, max_files=max_files)
+    results["lint"] = lint
+    try:
+        checks = run_all_checks(root)
+    except Exception as e:
+        checks = {"passed": False, "error": str(e), "results": []}
+    results["checks"] = checks
+    results["ok"] = bool(lint.get("ok", True)) and bool(checks.get("passed", False))
+    return results
 
 
 def _ensure_proposal_links(conn: sqlite3.Connection) -> None:
@@ -277,6 +398,8 @@ def main():
         print(f"Proposal {args.proposal} not found in DB.")
         return
 
+    cfg = _load_cfg()
+
     pre_status = _git_status_lines()
     auth = Authority(ROOT)
 
@@ -466,23 +589,29 @@ def main():
             print(f"[!] Write engine failed: {result.errors}")
             return
 
+        changed_files: List[str] = []
+        try:
+            for ch in result.changes:
+                if isinstance(ch, dict) and ch.get("path"):
+                    changed_files.append(str(ch.get("path")))
+                elif isinstance(ch, dict) and ch.get("from"):
+                    changed_files.append(str(ch.get("from")))
+        except Exception:
+            changed_files = []
+
+        validate_enabled = _cfg_flag("BGL_POST_APPLY_VALIDATE", cfg, "post_apply_validate", True)
+        validate_mode = _cfg_str("BGL_POST_APPLY_VALIDATE_MODE", cfg, "post_apply_validate_mode", "checks")
+        validate_max_files = int(_cfg_number("BGL_POST_APPLY_VALIDATE_MAX", cfg, "post_apply_validate_max_files", 4))
+        validate_prod = _cfg_flag("BGL_POST_APPLY_VALIDATE_PROD", cfg, "post_apply_validate_prod", True)
+        eval_result: Dict[str, Any] = {"ok": True, "skipped": True}
+        if validate_enabled and (not args.force or validate_prod):
+            eval_result = _post_apply_evaluate(Path(apply_root), changed_files, validate_mode, validate_max_files)
+
         if args.force:
             post_status = _git_status_lines()
             _log_change_summary(str(target.get("id")), "force", pre_status, post_status)
-            outcome_id = auth.record_outcome(
-                decision_id,
-                "success_direct",
-                "Proposal patch plan applied to production",
-                backup_path=(result.backups[0] if result.backups else ""),
-            )
-            _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
-            _log_learning_event(
-                proposal_id=int(target.get("id") or 0),
-                outcome_id=outcome_id,
-                result="success_direct",
-                notes="Proposal patch plan applied to production",
-            )
             # Register canary release for safe monitoring/rollback
+            release_id = None
             try:
                 change_scope = []
                 for ch in result.changes:
@@ -491,7 +620,7 @@ def main():
                     elif isinstance(ch, dict) and ch.get("from"):
                         change_scope.append(str(ch.get("from")))
                 backup_dir = ROOT / ".bgl_core" / "backups" / str(result.plan_id)
-                register_canary_release(
+                canary = register_canary_release(
                     ROOT,
                     KNOWLEDGE_DB,
                     plan_id=str(result.plan_id),
@@ -500,6 +629,65 @@ def main():
                     backup_dir=backup_dir if backup_dir.exists() else None,
                     notes=f"proposal_id={target.get('id')}",
                 )
+                if isinstance(canary, dict) and canary.get("release_id"):
+                    release_id = str(canary.get("release_id"))
+            except Exception:
+                release_id = None
+
+            eval_ok = bool(eval_result.get("ok", True))
+            eval_note = f"post_validate={eval_ok} mode={eval_result.get('mode')}"
+            if not eval_ok:
+                # Immediate rollback on validation failure if configured
+                auto_rb = _cfg_flag("BGL_POST_APPLY_AUTO_ROLLBACK", cfg, "post_apply_auto_rollback_on_fail", True)
+                rolled = False
+                if auto_rb and release_id:
+                    try:
+                        rolled = rollback_release(ROOT, release_id)
+                    except Exception:
+                        rolled = False
+                note = "Production apply failed validation."
+                if rolled:
+                    note += " rollback_performed=1"
+                note += f" {eval_note}"
+                outcome_id = auth.record_outcome(
+                    decision_id,
+                    "fail",
+                    note,
+                    backup_path=(result.backups[0] if result.backups else ""),
+                )
+                _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+                _log_learning_event(
+                    proposal_id=int(target.get("id") or 0),
+                    outcome_id=outcome_id,
+                    result="fail",
+                    notes=note,
+                )
+                # Optionally evaluate canary immediately
+                try:
+                    if _cfg_flag("BGL_CANARY_EVAL_IMMEDIATE", cfg, "post_apply_immediate_canary_eval", True):
+                        evaluate_canary_releases(ROOT, KNOWLEDGE_DB, min_age_sec=0, auto_rollback=True)
+                except Exception:
+                    pass
+                print(f"[!] Production apply failed validation for proposal {target.get('id')}.")
+                return
+
+            outcome_id = auth.record_outcome(
+                decision_id,
+                "success_direct",
+                f"Proposal patch plan applied to production. {eval_note}",
+                backup_path=(result.backups[0] if result.backups else ""),
+            )
+            _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+            _log_learning_event(
+                proposal_id=int(target.get("id") or 0),
+                outcome_id=outcome_id,
+                result="success_direct",
+                notes=f"Proposal patch plan applied to production. {eval_note}",
+            )
+            # Optional immediate canary evaluation
+            try:
+                if _cfg_flag("BGL_CANARY_EVAL_IMMEDIATE", cfg, "post_apply_immediate_canary_eval", True):
+                    evaluate_canary_releases(ROOT, KNOWLEDGE_DB, min_age_sec=0, auto_rollback=True)
             except Exception:
                 pass
             print(f"[+] Applied proposal {target.get('id')} to PRODUCTION.")
@@ -521,6 +709,25 @@ def main():
                     diff_path = None
             except Exception:
                 diff_path = None
+            eval_ok = bool(eval_result.get("ok", True))
+            eval_note = f"post_validate={eval_ok} mode={eval_result.get('mode')}"
+            if not eval_ok:
+                outcome_id = auth.record_outcome(
+                    decision_id,
+                    "fail",
+                    f"Sandbox validation failed. {eval_note}",
+                    backup_path=(result.backups[0] if result.backups else ""),
+                )
+                _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+                _log_learning_event(
+                    proposal_id=int(target.get("id") or 0),
+                    outcome_id=outcome_id,
+                    result="fail",
+                    notes=f"Sandbox validation failed. {eval_note}",
+                )
+                print(f"[!] Sandbox validation failed for proposal {target.get('id')}.")
+                return
+
             outcome_id = auth.record_outcome(
                 decision_id,
                 "success_sandbox",
@@ -557,6 +764,30 @@ def main():
             print(f"[+] Applied proposal {target.get('id')} in SANDBOX.")
             if diff_path:
                 print(f"    Diff saved: {diff_path}")
+
+            # Auto-promote to production after sandbox success (optional)
+            try:
+                auto_promote = _cfg_flag("BGL_AUTO_PROMOTE_TO_PROD", cfg, "post_apply_auto_promote_prod", False)
+            except Exception:
+                auto_promote = False
+            if auto_promote and not args.force and not dry_run:
+                try:
+                    exe = sys.executable or "python"
+                except Exception:
+                    exe = "python"
+                cmd = [exe, str(Path(__file__).resolve()), "--proposal", str(target.get("id") or args.proposal), "--force"]
+                if plan_path is not None:
+                    cmd.extend(["--plan", str(plan_path)])
+                try:
+                    subprocess.run(
+                        cmd,
+                        cwd=str(ROOT),
+                        capture_output=True,
+                        text=True,
+                        check=False,
+                    )
+                except Exception:
+                    pass
     finally:
         if sandbox:
             sandbox.cleanup()

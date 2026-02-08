@@ -26,6 +26,7 @@ import hashlib
 from pathlib import Path
 import sys
 from typing import Any, Dict, List, Optional
+import atexit
 
 import yaml  # type: ignore
 from config_loader import load_config
@@ -54,6 +55,14 @@ except Exception:
         record_behavior_hint = None  # type: ignore
         get_behavior_hints = None  # type: ignore
         mark_hint_result = None  # type: ignore
+
+try:
+    from .memory_index import upsert_memory_item  # type: ignore
+except Exception:
+    try:
+        from memory_index import upsert_memory_item  # type: ignore
+    except Exception:
+        upsert_memory_item = None  # type: ignore
 
 # تأكد من إمكانية استيراد الطبقات الداخلية عند التشغيل كسكربت
 sys.path.append(str(Path(__file__).parent))
@@ -94,6 +103,14 @@ except Exception:
     except Exception:
         start_run = None  # type: ignore
         finish_run = None  # type: ignore
+try:
+    from .run_lock import acquire_lock, release_lock  # type: ignore
+except Exception:
+    try:
+        from run_lock import acquire_lock, release_lock  # type: ignore
+    except Exception:
+        acquire_lock = None  # type: ignore
+        release_lock = None  # type: ignore
 
 try:
     from .long_term_goals import pick_long_term_goals, record_long_term_goal_result  # type: ignore
@@ -112,6 +129,8 @@ from route_indexer import LaravelRouteIndexer  # type: ignore
 
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 ROOT_DIR = Path(__file__).resolve().parents[2]
+SCENARIO_LOCK_PATH = ROOT_DIR / ".bgl_core" / "logs" / "scenario_runner.lock"
+_SCENARIO_LOCKED = False
 
 # Defaults for human-like pacing (can be overridden via env)
 DEFAULT_POST_WAIT_MS = int(os.getenv("BGL_POST_WAIT_MS", "400"))
@@ -119,6 +138,22 @@ DEFAULT_HOVER_WAIT_MS = int(os.getenv("BGL_HOVER_WAIT_MS", "70"))
 
 # Active run identifier to tag runtime_events for attribution.
 _CURRENT_RUN_ID = ""
+
+
+def _acquire_scenario_lock(cfg: dict) -> tuple[bool, str]:
+    global _SCENARIO_LOCKED
+    if _SCENARIO_LOCKED or acquire_lock is None:
+        return True, "already_locked"
+    try:
+        ttl = int(os.getenv("BGL_SCENARIO_LOCK_TTL", str(cfg.get("scenario_lock_ttl_sec", 7200))))
+    except Exception:
+        ttl = 7200
+    ok, reason = acquire_lock(SCENARIO_LOCK_PATH, ttl_sec=ttl, label="scenario_runner")
+    if ok:
+        _SCENARIO_LOCKED = True
+        if release_lock is not None:
+            atexit.register(lambda: release_lock(SCENARIO_LOCK_PATH))
+    return ok, reason
 
 
 def _decorate_session(session: str) -> str:
@@ -291,7 +326,14 @@ async def _dom_state_hash(page) -> str:
         return await page.evaluate(
             """() => {
                 const txt = (document.body && document.body.innerText) ? document.body.innerText.slice(0, 2000) : '';
-                return (location.pathname + '|' + location.search + '|' + txt.length);
+                const modalCount = document.querySelectorAll('[role="dialog"], [aria-modal="true"], .modal.show, .modal[style*="display"]').length;
+                let activeTab = '';
+                const tab = document.querySelector('[role="tab"][aria-selected="true"], .tab.active, .nav-link.active, [data-tab].active');
+                if (tab && tab.textContent) {
+                    activeTab = tab.textContent.trim().replace(/\\s+/g, ' ').slice(0, 40);
+                }
+                activeTab = activeTab.replaceAll('|', ' ');
+                return (location.pathname + '|' + location.search + '|' + txt.length + '|m' + modalCount + '|t' + activeTab);
             }"""
         )
     except Exception:
@@ -496,9 +538,53 @@ async def run_step(
     authority: Optional[Authority] = None,
     scenario_name: str = "",
 ):
+    async def _apply_pre_hints(action_name: str, selector: str) -> None:
+        if not get_behavior_hints:
+            return
+        if not page_url or not selector:
+            return
+        try:
+            hints = get_behavior_hints(
+                db_path,
+                page_url=page_url,
+                action=action_name,
+                selector=selector,
+                limit=4,
+            )
+        except Exception:
+            return
+        for h in hints:
+            hint = str(h.get("hint") or "").strip().lower()
+            if not hint:
+                continue
+            try:
+                if hint == "scroll_into_view":
+                    await page.locator(selector).scroll_into_view_if_needed(timeout=800)
+                    used_hint_ids.append(int(h.get("id") or 0))
+                elif hint.startswith("preclick:"):
+                    sel = hint.split(":", 1)[1].strip()
+                    if not sel or sel == selector:
+                        continue
+                    await policy.perform_click(
+                        page,
+                        sel,
+                        danger=False,
+                        hover_wait_ms=int(step.get("hover_wait_ms", DEFAULT_HOVER_WAIT_MS)),
+                        post_click_ms=int(step.get("click_post_wait_ms", 120)),
+                        learn_log=Path(ROOT_DIR / "storage" / "logs" / "learned_events.tsv"),
+                        session=step.get("session", "") + ":hint",
+                        screenshot_dir=Path(ROOT_DIR / "storage" / "logs" / "captures"),
+                        log_event_fn=log_event,
+                        db_path=db_path,
+                    )
+                    used_hint_ids.append(int(h.get("id") or 0))
+            except Exception:
+                continue
+
     action = step.get("action")
     is_interactive = action in ("click", "type", "press")
     before_hash = ""
+    after_hash = ""
     page_url = ""
     try:
         page_url = page.url if hasattr(page, "url") else ""
@@ -508,6 +594,8 @@ async def run_step(
     used_hint_ids: List[int] = []
     extra_wait_ms = 0
     did_submit = False
+    changed = False
+    unchanged = False
     if is_interactive and step.get("track_outcome", True):
         before_hash = await _dom_state_hash(page)
     if action == "goto":
@@ -531,6 +619,10 @@ async def run_step(
     elif action == "click":
         await ensure_cursor(page)
         danger = bool(step.get("danger", False))
+        try:
+            await _apply_pre_hints("click", str(step.get("selector", "")))
+        except Exception:
+            pass
         # Apply learned hint: wait longer after click
         try:
             if get_behavior_hints and page_url:
@@ -778,6 +870,10 @@ async def run_step(
     elif action == "type":
         await ensure_cursor(page)
         try:
+            await _apply_pre_hints("type", str(step.get("selector", "")))
+        except Exception:
+            pass
+        try:
             await page.fill(
                 step["selector"],
                 step.get("text", ""),
@@ -811,6 +907,10 @@ async def run_step(
     elif action == "press":
         await ensure_cursor(page)
         try:
+            await _apply_pre_hints("press", str(step.get("selector", "")))
+        except Exception:
+            pass
+        try:
             await page.press(
                 step["selector"],
                 step.get("key", "Enter"),
@@ -831,10 +931,12 @@ async def run_step(
         try:
             after_hash = await _dom_state_hash(page)
             unchanged = bool(before_hash and after_hash and before_hash == after_hash)
+            changed = bool(before_hash and after_hash and before_hash != after_hash)
             # If typing into search and nothing changed, attempt auto-submit once.
             if action == "type":
                 selector = str(step.get("selector", ""))
-                if await _is_search_input(page, selector):
+                is_search = await _is_search_input(page, selector)
+                if is_search:
                     force_submit = bool(
                         step.get("auto_submit", _cfg_value("auto_submit_search", True))
                     )
@@ -846,9 +948,31 @@ async def run_step(
                             session=step.get("session", ""),
                             reason="dom_no_change" if unchanged else "auto_submit",
                         )
+                        did_submit = True
                         if auto_changed:
                             after_hash = await _dom_state_hash(page)
                             unchanged = False
+                            changed = True
+                else:
+                    force_submit_form = bool(
+                        step.get(
+                            "auto_submit_form",
+                            _cfg_value("auto_submit_form", True),
+                        )
+                    )
+                    if (unchanged or force_submit_form) and not did_submit:
+                        auto_changed = await _attempt_form_submit(
+                            page,
+                            selector=selector,
+                            db_path=db_path,
+                            session=step.get("session", ""),
+                            reason="dom_no_change" if unchanged else "auto_submit_form",
+                        )
+                        did_submit = True
+                        if auto_changed:
+                            after_hash = await _dom_state_hash(page)
+                            unchanged = False
+                            changed = True
             if unchanged:
                 log_event(
                     db_path,
@@ -861,6 +985,63 @@ async def run_step(
                         "status": None,
                     },
                 )
+            # Record successful UI interaction when it produces a DOM change.
+            if changed and action in ("click", "press", "type"):
+                try:
+                    event_type = "ui_click" if action in ("click", "press") else "ui_input"
+                    log_event(
+                        db_path,
+                        step.get("session", ""),
+                        {
+                            "event_type": event_type,
+                            "route": page.url if hasattr(page, "url") else "",
+                            "method": str(action).upper(),
+                            "payload": f"selector:{step.get('selector', '')}",
+                            "status": 200,
+                        },
+                    )
+                except Exception:
+                    pass
+            # Record virtual navigation when DOM changes without URL change (modals/tabs).
+            try:
+                current_url = page.url if hasattr(page, "url") else prev_url
+            except Exception:
+                current_url = prev_url
+            if changed and current_url and current_url == prev_url:
+                log_event(
+                    db_path,
+                    step.get("session", ""),
+                    {
+                        "event_type": "virtual_nav",
+                        "route": current_url,
+                        "method": str(action).upper(),
+                        "payload": json.dumps(
+                            {
+                                "selector": step.get("selector", ""),
+                                "before": before_hash,
+                                "after": after_hash,
+                                "reason": "dom_change_no_url",
+                            },
+                            ensure_ascii=False,
+                        ),
+                        "status": 200,
+                    },
+                )
+            # Record real interaction only when it produced a meaningful DOM change.
+            if changed and action in ("click", "press", "type", "upload"):
+                try:
+                    route = current_url or ""
+                    selector = str(step.get("selector") or "")
+                    href = str(step.get("href") or "")
+                    _record_exploration_outcome(
+                        db_path,
+                        selector=selector,
+                        href=href,
+                        route=route,
+                        result=str(action),
+                    )
+                except Exception:
+                    pass
             # Record persistent behavior hints
             try:
                 if record_behavior_hint and page_url and unchanged:
@@ -940,6 +1121,13 @@ async def run_step(
                 )
     except Exception:
         pass
+
+    return {
+        "action": action,
+        "changed": changed,
+        "unchanged": unchanged,
+        "url": page_url,
+    }
 
 
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
@@ -1086,6 +1274,18 @@ def _log_outcome(
         oid = cur.lastrowid
         db.commit()
         db.close()
+        if upsert_memory_item and oid:
+            upsert_memory_item(
+                db_path,
+                kind="outcome",
+                key_text=f"{kind}:{value}:{route}",
+                summary=f"{kind} {value} on {route or 'unknown'}",
+                evidence_count=1,
+                confidence=0.65 if str(value).lower() in ("success", "changed") else 0.5,
+                meta={"source": source, "payload": payload or {}, "session": session},
+                source_table="exploration_outcomes",
+                source_id=int(oid),
+            )
         return int(oid) if oid else None
     except Exception:
         return None
@@ -1123,6 +1323,9 @@ def _derive_outcomes_from_runtime(
     try:
         if not db_path.exists():
             return ids
+        ext_window = int(_cfg_value("external_dependency_window_minutes", 30) or 30)
+        ext_dep = _recent_external_dependency(db_path, minutes=ext_window)
+        ext_active = bool(ext_dep.get("count") or 0)
         db = sqlite3.connect(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
@@ -1152,8 +1355,12 @@ def _derive_outcomes_from_runtime(
                 elif (not run_id) and session and not str(session).startswith(current_run):
                     attribution = "external"
             if event_type in ("http_error", "network_fail", "console_error"):
-                kind = "error"
-                value = event_type
+                if ext_active:
+                    kind = "deferred"
+                    value = "external_dependency"
+                else:
+                    kind = "error"
+                    value = event_type
             elif event_type == "api_call":
                 kind = "api_result"
                 value = str(status or "")
@@ -1164,11 +1371,19 @@ def _derive_outcomes_from_runtime(
                 kind = "route_index"
                 value = event_type
             elif event_type == "filechooser_blocked":
-                kind = "gap"
-                value = "filechooser_blocked"
+                if ext_active:
+                    kind = "deferred"
+                    value = "external_dependency"
+                else:
+                    kind = "gap"
+                    value = "filechooser_blocked"
             elif event_type in ("search_no_change", "dom_no_change"):
-                kind = "gap"
-                value = event_type
+                if ext_active:
+                    kind = "deferred"
+                    value = "external_dependency"
+                else:
+                    kind = "gap"
+                    value = event_type
             else:
                 continue
             oid = _log_outcome(
@@ -1186,6 +1401,8 @@ def _derive_outcomes_from_runtime(
                     "run_id": run_id,
                     "step_id": step_id,
                     "attribution": attribution,
+                    "external_dependency": ext_active,
+                    "external_detail": ext_dep.get("last_message", "") if ext_active else "",
                 },
                 session=str(session or ""),
                 ts=float(ts or time.time()),
@@ -1279,6 +1496,10 @@ def _reward_exploration_from_outcomes(db_path: Path, since_ts: float) -> None:
     """
     try:
         if not db_path.exists():
+            return
+        ext_window = int(_cfg_value("external_dependency_window_minutes", 30) or 30)
+        ext_dep = _recent_external_dependency(db_path, minutes=ext_window)
+        if ext_dep.get("count"):
             return
         db = sqlite3.connect(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
@@ -1953,6 +2174,26 @@ def _ingest_insights_to_goals(db_path: Path, since_ts: float) -> None:
                 content = p.read_text(encoding="utf-8", errors="ignore")
             except Exception:
                 continue
+            if upsert_memory_item:
+                try:
+                    first_line = ""
+                    for line in content.splitlines():
+                        if line.strip():
+                            first_line = line.strip()
+                            break
+                    upsert_memory_item(
+                        db_path,
+                        kind="insight",
+                        key_text=str(p.name),
+                        summary=first_line or "auto_insight",
+                        evidence_count=1,
+                        confidence=0.6,
+                        meta={"file": str(p.name)},
+                        source_table="auto_insights",
+                        source_id=None,
+                    )
+                except Exception:
+                    pass
             m = re.search(r"\*\*Path\*\*: `(.+?)`", content)
             if not m:
                 continue
@@ -2088,6 +2329,455 @@ def _build_search_terms(limit: int = 12) -> List[str]:
     return out
 
 
+async def _probe_element_state(page, action: str, selector: str) -> Dict[str, Any]:
+    data: Dict[str, Any] = {"selector": selector, "action": action, "found": False}
+    try:
+        el = await page.query_selector(selector)
+        if not el:
+            return data
+        data["found"] = True
+        try:
+            data["visible"] = await el.is_visible()
+        except Exception:
+            data["visible"] = None
+        try:
+            data["enabled"] = await el.is_enabled()
+        except Exception:
+            data["enabled"] = None
+        try:
+            box = await el.bounding_box()
+        except Exception:
+            box = None
+        data["box"] = box
+        if box:
+            cx = box.get("x", 0) + (box.get("width", 0) / 2)
+            cy = box.get("y", 0) + (box.get("height", 0) / 2)
+            data["center"] = {"x": cx, "y": cy}
+            try:
+                data["obscured"] = await page.evaluate(
+                    """(el) => {
+                        const r = el.getBoundingClientRect();
+                        const x = r.left + (r.width / 2);
+                        const y = r.top + (r.height / 2);
+                        const top = document.elementFromPoint(x, y);
+                        return !(top === el || (top && el.contains(top)));
+                    }""",
+                    el,
+                )
+            except Exception:
+                data["obscured"] = None
+        if action == "type":
+            try:
+                info = await el.evaluate(
+                    """el => ({
+                        disabled: !!el.disabled || el.getAttribute('disabled') !== null,
+                        readonly: !!el.readOnly || el.getAttribute('readonly') !== null,
+                        tag: (el.tagName || '').toLowerCase(),
+                        type: (el.getAttribute('type') || ''),
+                        role: (el.getAttribute('role') || '')
+                    })"""
+                )
+                if isinstance(info, dict):
+                    data.update(info)
+            except Exception:
+                pass
+        return data
+    except Exception:
+        return data
+
+
+def _unique_order(values: List[str]) -> List[str]:
+    seen: set = set()
+    out: List[str] = []
+    for v in values:
+        if not v:
+            continue
+        if v in seen:
+            continue
+        seen.add(v)
+        out.append(v)
+    return out
+
+
+def _escape_has_text(value: str) -> str:
+    try:
+        return value.replace("\\", "\\\\").replace('"', '\\"')
+    except Exception:
+        return value
+
+
+def _text_hints_from_context(ctx: Dict[str, Any], limit: int = 3) -> List[str]:
+    texts: List[str] = []
+    for key in (
+        "label_text",
+        "aria_label",
+        "placeholder",
+        "panel_label_text",
+        "modal_title",
+        "menu_label_text",
+    ):
+        val = str(ctx.get(key) or "").strip()
+        if val:
+            texts.append(val)
+    # Fall back to element_id tokens if nothing else.
+    element_id = str(ctx.get("element_id") or "").strip()
+    if element_id:
+        try:
+            tokens = re.split(r"[^a-zA-Z0-9\u0600-\u06FF]+", element_id)
+        except Exception:
+            tokens = [element_id]
+        for t in tokens:
+            t = t.strip()
+            if len(t) >= 3:
+                texts.append(t)
+    # De-dup and cap
+    return _unique_order(texts)[: max(1, int(limit or 1))]
+
+
+def _text_reveal_selectors(text_hints: List[str]) -> List[str]:
+    selectors: List[str] = []
+    for raw in text_hints:
+        text = _escape_has_text(str(raw or "").strip())
+        if not text:
+            continue
+        selectors += [
+            f"[role='tab']:has-text(\"{text}\")",
+            f"[data-bs-toggle]:has-text(\"{text}\")",
+            f"[data-toggle]:has-text(\"{text}\")",
+            f"button[aria-controls]:has-text(\"{text}\")",
+            f"button[aria-expanded]:has-text(\"{text}\")",
+            f"a[aria-controls]:has-text(\"{text}\")",
+            f"[role='button'][aria-controls]:has-text(\"{text}\")",
+            f"summary:has-text(\"{text}\")",
+        ]
+    return _unique_order(selectors)
+
+
+async def _collect_reveal_context(page, selector: str) -> Dict[str, Any]:
+    ctx: Dict[str, Any] = {
+        "element_id": "",
+        "panel_id": "",
+        "collapse_id": "",
+        "modal_id": "",
+        "offcanvas_id": "",
+        "menu_id": "",
+        "labelled_by": "",
+        "details_closed": False,
+        "label_text": "",
+        "aria_label": "",
+        "placeholder": "",
+        "panel_label_text": "",
+        "modal_title": "",
+        "menu_label_text": "",
+    }
+    try:
+        el = await page.query_selector(selector)
+        if not el:
+            return ctx
+        info = await el.evaluate(
+            """el => {
+                const out = {
+                    elementId: el.id || '',
+                    panelId: '',
+                    collapseId: '',
+                    labelledBy: '',
+                    detailsClosed: false
+                };
+                const panel = el.closest('[role=\"tabpanel\"], .tab-pane');
+                if (panel && panel.id) {
+                    out.panelId = panel.id;
+                    out.labelledBy = panel.getAttribute('aria-labelledby') || '';
+                }
+                const modal = el.closest('.modal, [role=\"dialog\"], [aria-modal=\"true\"]');
+                if (modal && modal.id) {
+                    out.modalId = modal.id;
+                }
+                const offcanvas = el.closest('.offcanvas');
+                if (offcanvas && offcanvas.id) {
+                    out.offcanvasId = offcanvas.id;
+                }
+                const menu = el.closest('.dropdown-menu, [role=\"menu\"], .menu');
+                if (menu && menu.id) {
+                    out.menuId = menu.id;
+                }
+                const collapse = el.closest('.collapse');
+                if (collapse && collapse.id) {
+                    out.collapseId = collapse.id;
+                }
+                out.ariaLabel = el.getAttribute('aria-label') || '';
+                out.placeholder = el.getAttribute('placeholder') || '';
+                try {
+                    if (el.labels && el.labels.length) {
+                        out.labelText = Array.from(el.labels).map(l => (l.innerText || '').trim()).join(' ');
+                    } else if (el.id) {
+                        const lab = document.querySelector(`label[for='${el.id}']`);
+                        if (lab) out.labelText = (lab.innerText || '').trim();
+                    }
+                } catch (e) {}
+                if (panel && out.labelledBy) {
+                    const lab = document.getElementById(out.labelledBy);
+                    if (lab) out.panelLabelText = (lab.innerText || '').trim();
+                }
+                if (modal) {
+                    const title = modal.querySelector('.modal-title');
+                    if (title) out.modalTitle = (title.innerText || '').trim();
+                }
+                if (menu) {
+                    const lbl = menu.getAttribute('aria-labelledby');
+                    if (lbl) {
+                        const lab = document.getElementById(lbl);
+                        if (lab) out.menuLabelText = (lab.innerText || '').trim();
+                    }
+                }
+                const details = el.closest('details');
+                if (details && !details.open) {
+                    out.detailsClosed = true;
+                }
+                if (!out.labelledBy) {
+                    out.labelledBy = el.getAttribute('aria-labelledby') || '';
+                }
+                return out;
+            }"""
+        )
+        if isinstance(info, dict):
+            ctx["element_id"] = str(info.get("elementId") or "")
+            ctx["panel_id"] = str(info.get("panelId") or "")
+            ctx["collapse_id"] = str(info.get("collapseId") or "")
+            ctx["modal_id"] = str(info.get("modalId") or "")
+            ctx["offcanvas_id"] = str(info.get("offcanvasId") or "")
+            ctx["menu_id"] = str(info.get("menuId") or "")
+            ctx["labelled_by"] = str(info.get("labelledBy") or "")
+            ctx["details_closed"] = bool(info.get("detailsClosed"))
+            ctx["label_text"] = str(info.get("labelText") or "")
+            ctx["aria_label"] = str(info.get("ariaLabel") or "")
+            ctx["placeholder"] = str(info.get("placeholder") or "")
+            ctx["panel_label_text"] = str(info.get("panelLabelText") or "")
+            ctx["modal_title"] = str(info.get("modalTitle") or "")
+            ctx["menu_label_text"] = str(info.get("menuLabelText") or "")
+    except Exception:
+        pass
+    return ctx
+
+
+def _build_reveal_selectors(ctx: Dict[str, Any]) -> List[str]:
+    ids: List[str] = []
+    for key in ("panel_id", "collapse_id", "element_id"):
+        val = str(ctx.get(key) or "").strip()
+        if val:
+            ids.append(val)
+    modal_id = str(ctx.get("modal_id") or "").strip()
+    offcanvas_id = str(ctx.get("offcanvas_id") or "").strip()
+    menu_id = str(ctx.get("menu_id") or "").strip()
+    labelled_by = str(ctx.get("labelled_by") or "").strip()
+    selectors: List[str] = []
+    for ident in ids:
+        selectors += [
+            f"[href='#{ident}']",
+            f"[data-bs-target='#{ident}']",
+            f"[data-target='#{ident}']",
+            f"[aria-controls='{ident}']",
+            f"[role='tab'][aria-controls='{ident}']",
+        ]
+    if modal_id:
+        selectors += [
+            f"[data-bs-toggle='modal'][data-bs-target='#{modal_id}']",
+            f"[data-toggle='modal'][data-target='#{modal_id}']",
+            f"[href='#{modal_id}'][data-bs-toggle='modal']",
+            f"[aria-controls='{modal_id}']",
+            f"[data-bs-target='#{modal_id}']",
+        ]
+    if offcanvas_id:
+        selectors += [
+            f"[data-bs-toggle='offcanvas'][data-bs-target='#{offcanvas_id}']",
+            f"[data-toggle='offcanvas'][data-target='#{offcanvas_id}']",
+            f"[href='#{offcanvas_id}'][data-bs-toggle='offcanvas']",
+            f"[aria-controls='{offcanvas_id}']",
+            f"[data-bs-target='#{offcanvas_id}']",
+        ]
+    if menu_id:
+        selectors += [
+            f"[aria-controls='{menu_id}']",
+            f"[data-bs-target='#{menu_id}']",
+            f"[data-target='#{menu_id}']",
+        ]
+    if labelled_by:
+        selectors += [
+            f"#{labelled_by}",
+            f"[id='{labelled_by}']",
+            f"[aria-controls='{labelled_by}']",
+        ]
+    return _unique_order(selectors)
+
+
+async def _attempt_self_heal(
+    page,
+    selector: str,
+    action: str,
+    precheck: Dict[str, Any],
+    db_path: Path,
+    scenario_name: str,
+) -> Dict[str, Any]:
+    result: Dict[str, Any] = {"success": False, "actions": [], "post": precheck}
+    if not selector:
+        return result
+    try:
+        heal_enabled = bool(_cfg_value("auto_self_heal", True))
+    except Exception:
+        heal_enabled = True
+    if not heal_enabled:
+        return result
+
+    actions: List[Dict[str, Any]] = []
+    try:
+        await page.locator(selector).scroll_into_view_if_needed(timeout=800)
+        actions.append({"kind": "scroll_into_view", "selector": selector})
+    except Exception:
+        pass
+
+    ctx = await _collect_reveal_context(page, selector)
+    reveal_selectors = _build_reveal_selectors(ctx)
+    try:
+        text_limit = int(_cfg_value("self_heal_text_limit", 3) or 3)
+    except Exception:
+        text_limit = 3
+    text_hints = _text_hints_from_context(ctx, limit=text_limit)
+    text_reveals = _text_reveal_selectors(text_hints)
+    try:
+        limit = int(_cfg_value("self_heal_toggle_limit", 3) or 3)
+    except Exception:
+        limit = 3
+    clicked: List[str] = []
+    combined_reveals = reveal_selectors + text_reveals
+    for sel in combined_reveals[: max(1, limit)]:
+        try:
+            el = await page.query_selector(sel)
+            if not el:
+                continue
+            await page.click(sel, timeout=1200)
+            clicked.append(sel)
+            actions.append({"kind": "click_reveal", "selector": sel})
+            await page.wait_for_timeout(120)
+        except Exception:
+            continue
+
+    if ctx.get("details_closed"):
+        try:
+            opened = await page.evaluate(
+                """(sel) => {
+                    const el = document.querySelector(sel);
+                    if (!el) return false;
+                    const details = el.closest('details');
+                    if (details && !details.open) {
+                        details.open = true;
+                        return true;
+                    }
+                    return false;
+                }""",
+                selector,
+            )
+            if opened:
+                actions.append({"kind": "open_details", "selector": selector})
+        except Exception:
+            pass
+
+    if actions:
+        try:
+            await page.wait_for_timeout(180)
+        except Exception:
+            pass
+    post = await _probe_element_state(page, action, selector)
+    result["post"] = post
+    result["actions"] = actions
+    result["reveal_selectors"] = clicked
+    result["context"] = ctx
+    result["text_hints"] = text_hints
+
+    success = bool(
+        post.get("found")
+        and post.get("visible") is not False
+        and post.get("enabled") is not False
+        and post.get("obscured") is not True
+    )
+    result["success"] = success
+
+    # Persist learned hints for future runs.
+    try:
+        page_url = page.url if hasattr(page, "url") else ""
+    except Exception:
+        page_url = ""
+    if success and record_behavior_hint and page_url:
+        try:
+            if any(a.get("kind") == "scroll_into_view" for a in actions):
+                record_behavior_hint(
+                    db_path,
+                    page_url=page_url,
+                    action=action,
+                    selector=selector,
+                    hint="scroll_into_view",
+                    confidence=0.55,
+                    notes="ui_self_heal",
+                )
+            for sel in clicked:
+                record_behavior_hint(
+                    db_path,
+                    page_url=page_url,
+                    action=action,
+                    selector=selector,
+                    hint=f"preclick:{sel}",
+                    confidence=0.6,
+                    notes="ui_self_heal",
+                )
+        except Exception:
+            pass
+
+    # Emit a goal so the correction can be regenerated into scenarios.
+    try:
+        goal_enabled = bool(_cfg_value("self_heal_write_goal", True))
+    except Exception:
+        goal_enabled = True
+    if goal_enabled and (success or actions):
+        try:
+            payload = {
+                "selector": selector,
+                "uri": page_url,
+                "reveal_selectors": clicked,
+                "context": ctx,
+                "text_hints": text_hints,
+                "reason": "ui_self_heal",
+                "scenario": scenario_name,
+            }
+            ttl_days = int(_cfg_value("self_heal_goal_ttl_days", 7) or 7)
+            _write_autonomy_goal(db_path, "ui_action_gap", payload, "self_heal", ttl_days=ttl_days)
+        except Exception:
+            pass
+    if (not success) and goal_enabled:
+        try:
+            gap_enabled = bool(_cfg_value("self_heal_write_gap_goal", True))
+        except Exception:
+            gap_enabled = True
+        if gap_enabled:
+            try:
+                payload = {
+                    "selector": selector,
+                    "uri": page_url,
+                    "context": ctx,
+                    "text_hints": text_hints,
+                    "reason": "ui_self_heal_failed",
+                    "scenario": scenario_name,
+                }
+                ttl_days = int(_cfg_value("self_heal_goal_ttl_days", 7) or 7)
+                _write_autonomy_goal(
+                    db_path,
+                    "ui_self_heal_gap",
+                    payload,
+                    "self_heal",
+                    ttl_days=ttl_days,
+                )
+            except Exception:
+                pass
+    return result
+
+
 async def _is_search_input(page, selector: str) -> bool:
     try:
         el = await page.query_selector(selector)
@@ -2099,7 +2789,11 @@ async def _is_search_input(page, selector: str) -> bool:
                 type: (el.getAttribute('type') || ''),
                 name: (el.getAttribute('name') || ''),
                 placeholder: (el.getAttribute('placeholder') || ''),
-                aria: (el.getAttribute('aria-label') || '')
+                aria: (el.getAttribute('aria-label') || ''),
+                role: (el.getAttribute('role') || ''),
+                inputmode: (el.getAttribute('inputmode') || ''),
+                contenteditable: (el.getAttribute('contenteditable') || ''),
+                isContentEditable: !!el.isContentEditable
             })"""
         )
         if not isinstance(info, dict):
@@ -2110,11 +2804,21 @@ async def _is_search_input(page, selector: str) -> bool:
                 str(info.get("name", "")),
                 str(info.get("placeholder", "")),
                 str(info.get("aria", "")),
+                str(info.get("role", "")),
+                str(info.get("inputmode", "")),
             ]
         ).lower()
-        if "search" in text or "بحث" in text:
+        if "search" in text or "بحث" in text or "filter" in text or "query" in text:
             return True
-        return str(info.get("type", "")).lower() == "search"
+        if str(info.get("type", "")).lower() == "search":
+            return True
+        if str(info.get("role", "")).lower() in ("searchbox", "combobox"):
+            return True
+        if str(info.get("inputmode", "")).lower() == "search":
+            return True
+        if str(info.get("contenteditable", "")).lower() in ("true", "plaintext-only"):
+            return True if ("search" in text or "بحث" in text) else False
+        return bool(info.get("isContentEditable")) and ("search" in text or "بحث" in text)
     except Exception:
         return False
 
@@ -2204,6 +2908,55 @@ async def _attempt_search_submit(
                 "event_type": "search_auto_submit_fail",
                 "route": page.url if hasattr(page, "url") else "",
                 "method": "SUBMIT",
+                "payload": reason,
+                "status": None,
+            },
+        )
+    return False
+
+
+async def _attempt_form_submit(
+    page,
+    *,
+    selector: str,
+    db_path: Path,
+    session: str,
+    reason: str = "dom_no_change",
+) -> bool:
+    """
+    Generic commit attempt after typing: press Enter on the input.
+    Returns True if DOM hash changes.
+    """
+    before = await _dom_state_hash(page)
+    changed = False
+    try:
+        await page.press(selector, "Enter", timeout=2000)
+        await page.wait_for_timeout(250)
+    except Exception:
+        pass
+    after = await _dom_state_hash(page)
+    if before and after and before != after:
+        changed = True
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "form_auto_submit",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "ENTER",
+                "payload": reason,
+                "status": 200,
+            },
+        )
+        return True
+    if not changed:
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "form_auto_submit_fail",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "ENTER",
                 "payload": reason,
                 "status": None,
             },
@@ -2310,6 +3063,18 @@ def _record_exploration_outcome(
             )
         db.commit()
         db.close()
+        if upsert_memory_item:
+            upsert_memory_item(
+                db_path,
+                kind="exploration",
+                key_text=selector,
+                summary=f"{result} on {route or 'unknown'}",
+                evidence_count=1,
+                confidence=0.55 if result == "changed" else 0.4,
+                meta={"href": href, "route": route, "delta_score": delta_score},
+                source_table="exploration_novelty",
+                source_id=None,
+            )
     except Exception:
         return
 
@@ -2391,6 +3156,12 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
                 payload_obj = json.loads(payload) if payload else {}
             except Exception:
                 payload_obj = {}
+            try:
+                not_before = float(payload_obj.get("not_before") or 0)
+            except Exception:
+                not_before = 0.0
+            if not_before and time.time() < not_before:
+                continue
             out.append(
                 {
                     "goal": goal,
@@ -2404,6 +3175,53 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
     except Exception:
         return []
 
+
+def _prioritize_autonomy_goals(goals: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """
+    Prefer high-impact exploration goals first (UI gaps, coverage gaps),
+    then fall back to other goals by recency.
+    """
+    if not goals:
+        return goals
+    # Lower number = higher priority
+    order = {
+        "ui_action_gap": 0,
+        "ui_self_heal_gap": 1,
+        "coverage_gap": 2,
+        "flow_gap": 3,
+        "gap_deepen": 4,
+        "goal_gap_deepen": 4,
+        "goal_route_recent": 5,
+        "insight_gap": 6,
+        "delta_change": 7,
+        "purpose_focus": 8,
+        "decision_focus": 9,
+        "long_term_focus": 10,
+        "external_dependency": 18,
+    }
+
+    def _score(item: Dict[str, Any]):
+        name = str(item.get("goal") or "").strip().lower()
+        payload = item.get("payload") or {}
+        base = order.get(name, 20)
+        try:
+            priority = float(payload.get("priority_score") or 0.0)
+        except Exception:
+            priority = 0.0
+        try:
+            created = float(item.get("created_at") or 0.0)
+        except Exception:
+            created = 0.0
+        # Promote risky/side-effectful UI gaps slightly for visibility (still gated by danger).
+        risk = str(payload.get("risk") or "").strip().lower()
+        if risk in ("danger", "write"):
+            priority += 5.0
+        return (base, -priority, -created)
+
+    try:
+        return sorted(goals, key=_score)
+    except Exception:
+        return goals
 
 def _extract_goal_targets(goals: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, str]]]:
     """Extract target URLs from goals, prioritizing operator-sourced goals."""
@@ -2548,6 +3366,63 @@ def _read_log_highlights(limit: int = 8) -> List[Dict[str, Any]]:
     return out
 
 
+def _external_dependency_patterns() -> List[str]:
+    return [
+        "database connection timeout",
+        "sqlstate",
+        "pdoexception",
+        "mysql",
+        "connection refused",
+        "econnrefused",
+        "too many connections",
+        "connection timeout",
+        "db connection timeout",
+    ]
+
+
+def _recent_external_dependency(
+    db_path: Path, minutes: int = 30
+) -> Dict[str, Any]:
+    out = {"count": 0, "last_ts": 0.0, "last_message": ""}
+    try:
+        if not db_path.exists():
+            return out
+        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db.execute("PRAGMA journal_mode=WAL;")
+        cutoff = time.time() - (minutes * 60)
+        rows = db.execute(
+            """
+            SELECT timestamp, payload
+            FROM runtime_events
+            WHERE timestamp >= ? AND event_type='log_highlight'
+            ORDER BY id DESC
+            LIMIT 200
+            """,
+            (cutoff,),
+        ).fetchall()
+        db.close()
+        patterns = _external_dependency_patterns()
+        for ts, payload in rows:
+            try:
+                if isinstance(payload, str):
+                    obj = json.loads(payload)
+                else:
+                    obj = payload or {}
+            except Exception:
+                obj = {"message": str(payload or "")}
+            msg = str((obj or {}).get("message") or "").lower()
+            if not msg:
+                continue
+            if any(p in msg for p in patterns):
+                out["count"] += 1
+                if float(ts or 0) >= float(out["last_ts"] or 0):
+                    out["last_ts"] = float(ts or 0)
+                    out["last_message"] = str((obj or {}).get("message") or "")
+        return out
+    except Exception:
+        return out
+
+
 def _recent_error_routes(db_path: Path, limit: int = 6) -> List[str]:
     try:
         if not db_path.exists():
@@ -2629,6 +3504,22 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
         payload = {"source": item.get("source"), "message": msg}
         if route_hint:
             payload["uri"] = route_hint
+        # Record log highlight into runtime_events for unified memory digestion
+        try:
+            log_event(
+                db_path,
+                session="signals",
+                event={
+                    "event_type": "log_highlight",
+                    "route": route_hint or f"log:{item.get('source') or 'log'}",
+                    "method": "LOG",
+                    "payload": payload,
+                    "status": None,
+                    "source": "logs",
+                },
+            )
+        except Exception:
+            pass
         _write_autonomy_goal(
             db_path,
             goal="log_error",
@@ -2636,6 +3527,24 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
             source="logs",
             ttl_days=7,
         )
+        # External dependency retry goal (defer execution)
+        try:
+            if any(
+                p in msg.lower() for p in _external_dependency_patterns()
+            ):
+                retry_minutes = int(_cfg_value("external_dependency_retry_minutes", 30) or 30)
+                payload_retry = dict(payload)
+                payload_retry["not_before"] = time.time() + (retry_minutes * 60)
+                payload_retry["reason"] = "external_dependency"
+                _write_autonomy_goal(
+                    db_path,
+                    goal="external_dependency",
+                    payload=payload_retry,
+                    source="logs",
+                    ttl_days=3,
+                )
+        except Exception:
+            pass
 
 
 def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str, Any]]:
@@ -2695,6 +3604,9 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
     elif g == "log_error":
         steps.append({"action": "wait", "ms": 600})
         name = "goal_log_error"
+    elif g == "external_dependency":
+        steps.append({"action": "wait", "ms": 1200})
+        name = "goal_external_dependency"
     elif g == "gap_deepen":
         uri = payload.get("uri") or ""
         search_term = (payload.get("search_term") or "").strip()
@@ -2758,6 +3670,12 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
         selector = payload.get("selector") or ""
         risk = str(payload.get("risk") or "").lower()
         danger = risk in ("danger", "write")
+        reveal = payload.get("reveal_selectors") or payload.get("reveal") or []
+        text_hints = payload.get("text_hints") or []
+        if isinstance(reveal, str):
+            reveal = [reveal]
+        if isinstance(text_hints, str):
+            text_hints = [text_hints]
         if uri:
             if uri.startswith("http"):
                 steps = [{"action": "goto", "url": uri}]
@@ -2769,12 +3687,65 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
                     }
                 ]
         if selector:
+            for sel in [str(s) for s in (reveal or []) if s]:
+                steps.append({"action": "click", "selector": sel, "optional": True})
+                steps.append({"action": "wait", "ms": 250})
+            for sel in _text_reveal_selectors([str(t) for t in (text_hints or []) if t])[:6]:
+                steps.append({"action": "click", "selector": sel, "optional": True})
+                steps.append({"action": "wait", "ms": 200})
             click_step: Dict[str, Any] = {"action": "click", "selector": selector}
             if danger:
                 click_step["danger"] = True
             steps.append(click_step)
             steps.append({"action": "wait", "ms": 600})
         name = "goal_ui_action_gap"
+    elif g == "ui_self_heal_gap":
+        uri = payload.get("uri") or ""
+        selector = payload.get("selector") or ""
+        context = payload.get("context") or {}
+        text_hints = payload.get("text_hints") or []
+        if isinstance(text_hints, str):
+            text_hints = [text_hints]
+        steps = []
+        if uri:
+            if uri.startswith("http"):
+                steps.append({"action": "goto", "url": uri})
+            else:
+                steps.append(
+                    {
+                        "action": "goto",
+                        "url": base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri),
+                    }
+                )
+        else:
+            steps.append({"action": "goto", "url": base_url.rstrip("/") + "/"})
+        # Broad reveal sweep: tabs, collapses, modals, offcanvas, dropdowns.
+        steps += [
+            {"action": "click", "selector": "[role='tab']", "optional": True},
+            {"action": "click", "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']", "optional": True},
+            {"action": "click", "selector": "[data-bs-toggle='modal'], [data-toggle='modal']", "optional": True},
+            {"action": "click", "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']", "optional": True},
+            {"action": "click", "selector": "[data-bs-toggle='dropdown'], [data-toggle='dropdown']", "optional": True},
+            {"action": "scroll", "dy": 700},
+        ]
+        for sel in _text_reveal_selectors([str(t) for t in (text_hints or []) if t])[:6]:
+            steps.append({"action": "click", "selector": sel, "optional": True})
+            steps.append({"action": "wait", "ms": 200})
+        # If we already have contextual IDs, use them directly.
+        ctx = context if isinstance(context, dict) else {}
+        reveal_ids = []
+        for k in ("panel_id", "collapse_id", "modal_id", "offcanvas_id", "menu_id"):
+            v = str(ctx.get(k) or "").strip()
+            if v:
+                reveal_ids.append(v)
+        for rid in reveal_ids:
+            steps.append({"action": "click", "selector": f"[aria-controls='{rid}']", "optional": True})
+            steps.append({"action": "click", "selector": f"[data-bs-target='#{rid}']", "optional": True})
+            steps.append({"action": "click", "selector": f"[data-target='#{rid}']", "optional": True})
+        if selector:
+            steps.append({"action": "click", "selector": selector, "optional": True})
+            steps.append({"action": "wait", "ms": 600})
+        name = "goal_ui_self_heal_gap"
     elif g in ("coverage_gap", "flow_gap"):
         uri = payload.get("uri") or ""
         if not uri:
@@ -3736,6 +4707,62 @@ async def run_scenario(
     explored: set = set()
     steps_since_explore = 0
     exploratory_enabled = os.getenv("BGL_EXPLORATION", "1") == "1"
+    stall_count = 0
+    last_change_ts = time.time()
+    try:
+        stall_threshold = int(_cfg_value("stall_recovery_threshold", 2))
+    except Exception:
+        stall_threshold = 2
+    try:
+        idle_recovery_after = float(_cfg_value("idle_recovery_after_sec", 6))
+    except Exception:
+        idle_recovery_after = 6.0
+    idle_recovery_enabled = bool(
+        int(os.getenv("BGL_IDLE_RECOVERY", str(_cfg_value("idle_recovery_enabled", 1))))
+    )
+
+    async def _idle_recovery(reason: str) -> None:
+        nonlocal last_change_ts
+        try:
+            before = await _dom_state_hash(page)
+        except Exception:
+            before = ""
+        try:
+            await exploratory_action(page, motor, explored, name, learn_log, db_path)
+        except Exception:
+            return
+        try:
+            after = await _dom_state_hash(page)
+        except Exception:
+            after = ""
+        changed_local = bool(before and after and before != after)
+        if changed_local:
+            last_change_ts = time.time()
+        log_event(
+            db_path,
+            name,
+            {
+                "event_type": "idle_recovery",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "EXPLORE",
+                "payload": json.dumps(
+                    {"reason": reason, "changed": changed_local}, ensure_ascii=False
+                ),
+                "status": 200 if changed_local else None,
+            },
+        )
+        if not changed_local:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "gap_deepen",
+                    "route": page.url if hasattr(page, "url") else "",
+                    "method": "EXPLORE",
+                    "payload": reason,
+                    "status": None,
+                },
+            )
 
     # Attach logging hooks once per page
     if not getattr(page, "_bgl_console_hook", False):
@@ -3781,30 +4808,69 @@ async def run_scenario(
 
     if not getattr(page, "_bgl_response_hook", False):
 
+        def _extract_latency_ms(response) -> Optional[float]:
+            timing = None
+            try:
+                if hasattr(response, "timing"):
+                    timing = response.timing
+                    if callable(timing):
+                        timing = timing()
+            except Exception:
+                timing = None
+            if not isinstance(timing, dict):
+                try:
+                    req = response.request
+                    if hasattr(req, "timing"):
+                        timing = req.timing
+                        if callable(timing):
+                            timing = timing()
+                except Exception:
+                    timing = None
+            if isinstance(timing, dict):
+                try:
+                    start = timing.get("startTime")
+                    end = timing.get("responseEnd") or timing.get("responseStart")
+                    if end is None:
+                        return None
+                    if start is None:
+                        return float(end)
+                    return max(0.0, float(end) - float(start))
+                except Exception:
+                    return None
+            return None
+
         async def handle_response(response):
             try:
+                req = response.request
+                resource_type = ""
+                try:
+                    resource_type = str(req.resource_type or "")
+                except Exception:
+                    resource_type = ""
+                # Only log meaningful responses to avoid static asset noise.
+                if resource_type and resource_type not in ("xhr", "fetch", "document"):
+                    return
+                latency_ms = _extract_latency_ms(response)
                 if response.status >= 400:
-                    latency_ms = None
-                    try:
-                        timing = None
-                        # Playwright versions differ; timing may be a method or attribute.
-                        if hasattr(response, "timing"):
-                            timing = response.timing
-                            if callable(timing):
-                                timing = timing()
-                        if isinstance(timing, dict):
-                            latency_ms = timing.get("responseStart")
-                        elif hasattr(timing, "get"):
-                            latency_ms = timing.get("responseStart")
-                    except Exception:
-                        latency_ms = None
                     log_event(
                         db_path,
                         name,
                         {
                             "event_type": "http_error",
                             "route": response.url,
-                            "method": response.request.method,
+                            "method": req.method,
+                            "status": response.status,
+                            "latency_ms": latency_ms,
+                        },
+                    )
+                else:
+                    log_event(
+                        db_path,
+                        name,
+                        {
+                            "event_type": "api_call",
+                            "route": response.url,
+                            "method": req.method,
                             "status": response.status,
                             "latency_ms": latency_ms,
                         },
@@ -3877,6 +4943,69 @@ async def run_scenario(
                         page, motor, explored, name, learn_log, db_path
                     )
                     steps_since_explore = 0
+                # Precheck target element state for clearer failure reasons
+                try:
+                    selector = str(step.get("selector", ""))
+                    action = str(step.get("action", ""))
+                    if selector and action in ("click", "type", "press"):
+                        precheck = await _probe_element_state(page, action, selector)
+                        step["_precheck"] = precheck
+                        log_event(
+                            db_path,
+                            name,
+                            {
+                                "event_type": "ui_precheck",
+                                "route": selector,
+                                "method": action.upper(),
+                                "payload": json.dumps(precheck, ensure_ascii=False),
+                                "status": 200 if precheck.get("found") else 404,
+                            },
+                        )
+                        # Attempt self-heal for hidden/blocked elements.
+                        if precheck and (
+                            not precheck.get("found")
+                            or precheck.get("visible") is False
+                            or precheck.get("enabled") is False
+                            or precheck.get("obscured") is True
+                            or precheck.get("disabled") is True
+                            or precheck.get("readonly") is True
+                        ):
+                            heal = await _attempt_self_heal(
+                                page,
+                                selector,
+                                action,
+                                precheck,
+                                db_path,
+                                scenario_name=name,
+                            )
+                            try:
+                                log_event(
+                                    db_path,
+                                    name,
+                                    {
+                                        "event_type": "ui_self_heal",
+                                        "route": selector,
+                                        "method": action.upper(),
+                                        "payload": json.dumps(
+                                            {
+                                                "precheck": precheck,
+                                                "post": heal.get("post"),
+                                                "actions": heal.get("actions"),
+                                                "text_hints": heal.get("text_hints"),
+                                                "success": heal.get("success"),
+                                            },
+                                            ensure_ascii=False,
+                                        ),
+                                        "status": 200 if heal.get("success") else 409,
+                                    },
+                                )
+                            except Exception:
+                                pass
+                            if isinstance(heal, dict) and heal.get("post"):
+                                step["_precheck"] = heal.get("post")
+                except Exception:
+                    pass
+
                 # Log step start for attribution
                 try:
                     log_event(
@@ -3900,9 +5029,26 @@ async def run_scenario(
                     step_timeout = float(step_timeout)
                 except Exception:
                     step_timeout = default_step_timeout
+                try:
+                    precheck = step.get("_precheck") or {}
+                    if precheck and (
+                        not precheck.get("found")
+                        or precheck.get("visible") is False
+                        or precheck.get("enabled") is False
+                        or precheck.get("obscured") is True
+                        or precheck.get("disabled") is True
+                        or precheck.get("readonly") is True
+                    ):
+                        pre_fail_timeout = float(
+                            _cfg_value("precheck_fail_timeout_sec", 8)
+                        )
+                        if pre_fail_timeout > 0:
+                            step_timeout = min(step_timeout, pre_fail_timeout)
+                except Exception:
+                    pass
 
                 async def _run_step_guarded():
-                    await run_step(
+                    return await run_step(
                         page,
                         step,
                         policy,
@@ -3911,9 +5057,12 @@ async def run_scenario(
                         scenario_name=name,
                     )
 
+                step_result = None
                 if step_timeout and step_timeout > 0:
                     try:
-                        await asyncio.wait_for(_run_step_guarded(), timeout=step_timeout)
+                        step_result = await asyncio.wait_for(
+                            _run_step_guarded(), timeout=step_timeout
+                        )
                     except asyncio.TimeoutError:
                         log_event(
                             db_path,
@@ -3928,6 +5077,7 @@ async def run_scenario(
                                         "step_index": idx,
                                         "timeout_sec": step_timeout,
                                         "step": step,
+                                        "precheck": step.get("_precheck"),
                                     },
                                     ensure_ascii=False,
                                 ),
@@ -3938,7 +5088,7 @@ async def run_scenario(
                             break
                         return
                 else:
-                    await _run_step_guarded()
+                    step_result = await _run_step_guarded()
 
                 # Log step completion
                 try:
@@ -3957,6 +5107,22 @@ async def run_scenario(
                 except Exception:
                     pass
                 steps_since_explore += 1
+                if step_result and isinstance(step_result, dict):
+                    if step_result.get("changed"):
+                        stall_count = 0
+                        last_change_ts = time.time()
+                    elif step_result.get("unchanged"):
+                        stall_count += 1
+                        if (
+                            idle_recovery_enabled
+                            and exploratory_enabled
+                            and stall_count >= max(1, stall_threshold)
+                        ):
+                            if (time.time() - last_change_ts) >= idle_recovery_after:
+                                await _idle_recovery(
+                                    reason=f"stall_count={stall_count}"
+                                )
+                                stall_count = 0
                 # بعد أي goto أو عند أول خطوة في صفحة جديدة، استكشاف سريع
                 if exploratory_enabled and step.get("action") == "goto":
                     await exploratory_action(
@@ -4191,6 +5357,10 @@ async def main(
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
     cfg = load_config(ROOT_DIR)
+    ok, reason = _acquire_scenario_lock(cfg)
+    if not ok:
+        print(f"[!] Scenario runner already active ({reason}); skipping.")
+        return
     # Apply config defaults for exploration/novelty if env not set
     os.environ.setdefault("BGL_EXPLORATION", str(cfg.get("scenario_exploration", "1")))
     os.environ.setdefault("BGL_NOVELTY_AUTO", str(cfg.get("novelty_auto", "1")))
@@ -4208,6 +5378,22 @@ async def main(
         return
 
     scenario_files = sorted(SCENARIOS_DIR.rglob("*.yaml"))
+    # Prioritize generated gap scenarios to close coverage first.
+    def _scenario_priority(path: Path) -> tuple[int, str]:
+        try:
+            p = str(path).replace("\\", "/").lower()
+        except Exception:
+            p = str(path)
+        if "/generated/" in p:
+            return (0, p)
+        if "/gaps/" in p:
+            return (1, p)
+        if "/goals/" in p:
+            return (2, p)
+        if "/autonomous/" in p:
+            return (3, p)
+        return (10, p)
+    scenario_files = sorted(scenario_files, key=_scenario_priority)
     if include:
         scenario_files = [
             p for p in scenario_files if include.lower() in p.stem.lower()
@@ -4343,7 +5529,9 @@ async def main(
             except Exception:
                 pass
             # Run goal-driven scenarios first (if any)
-            goals = _read_autonomy_goals(db_path, limit=6)
+            goal_limit = int(_cfg_value("autonomy_goal_limit", 6) or 6)
+            goals = _read_autonomy_goals(db_path, limit=goal_limit)
+            goals = _prioritize_autonomy_goals(goals)
             seen_goal_keys = set()
             for g in goals:
                 key = (

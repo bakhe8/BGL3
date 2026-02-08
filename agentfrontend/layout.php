@@ -42,9 +42,7 @@
             <?php include __DIR__ . '/partials/summary.php'; ?>
         </div>
 
-        <?php include __DIR__ . '/partials/command_center.php'; ?>
-
-        <?php include __DIR__ . '/partials/operator_goals.php'; ?>
+        <?php // Command center/operator goals removed: full automation enabled. ?>
         <?php include __DIR__ . '/partials/decision_impact.php'; ?>
 
         <div class="span-6">
@@ -60,21 +58,13 @@
             <?php include __DIR__ . '/partials/canary_status.php'; ?>
         </div>
 
-        <div class="span-6">
-            <?php include __DIR__ . '/partials/permission_queue.php'; ?>
-        </div>
-        <div class="span-6">
-            <?php include __DIR__ . '/partials/proposals_simple.php'; ?>
-        </div>
-        <div class="span-6">
-            <?php include __DIR__ . '/partials/plan_library.php'; ?>
-        </div>
-        <div class="span-6">
-            <?php include __DIR__ . '/partials/proposed_playbooks_simple.php'; ?>
+        <?php // Proposals/plan/playbooks removed: full automation enabled. ?>
+        <div class="span-12">
+            <?php include __DIR__ . '/partials/prod_operations.php'; ?>
         </div>
         <?php include __DIR__ . '/partials/report_viewer.php'; ?>
 
-        <?php include __DIR__ . '/partials/test_console.php'; ?>
+        <?php // Test console removed: full automation enabled. ?>
 
         <div class="span-4">
             <?php include __DIR__ . '/partials/snapshot_delta.php'; ?>
@@ -93,9 +83,7 @@
             <?php include __DIR__ . '/partials/kpis.php'; ?>
         </div>
 
-        <div class="span-12">
-            <?php include __DIR__ . '/partials/copilot_chat.php'; ?>
-        </div>
+        <?php // Copilot chat removed: read-only operations view. ?>
 
         <div class="span-6">
             <?php include __DIR__ . '/partials/activity.php'; ?>
@@ -162,6 +150,10 @@
               const v = String(val).toUpperCase();
               displayVal = v === 'STABLE' ? 'مستقر' : (v === 'STALLED' ? 'خامل/متوقف' : (v === 'MIXED' ? 'متذبذب' : 'غير مؤكد'));
             }
+            if (key === 'activity-stale') {
+              const v = String(val).toUpperCase();
+              displayVal = v === 'STALE' ? 'خامل' : (v === 'ACTIVE' ? 'نشط' : 'غير متوفر');
+            }
             el.textContent = displayVal;
           }
           if (key === 'llm-state' && el) {
@@ -175,6 +167,10 @@
           if (key === 'explore-status' && el) {
             const v = String(val).toUpperCase();
             el.style.color = v === 'STABLE' ? 'var(--success)' : (v === 'STALLED' ? 'var(--danger)' : 'var(--accent-2)');
+          }
+          if (key === 'activity-stale' && el) {
+            const v = String(val).toUpperCase();
+            el.style.color = v === 'STALE' ? 'var(--danger)' : (v === 'ACTIVE' ? 'var(--success)' : 'var(--muted)');
           }
         }
 
@@ -192,6 +188,7 @@
             'experience-recent': data.experience_recent,
             'experience-last': data.experience_last,
             'delta-changed': data.snapshot_delta && data.snapshot_delta.summary ? data.snapshot_delta.summary.changed_keys : null,
+            'delta-changed-keys': data.delta_changed_keys,
             'tool-server-status': data.tool_server_online ? 'ONLINE' : 'OFFLINE',
             'tool-server-port': data.tool_server_port !== undefined ? ('المنفذ: ' + data.tool_server_port) : null,
             'llm-state': data.llm_state,
@@ -206,7 +203,9 @@
             'explore-failure-rate': data.exploration_stats ? (data.exploration_stats.failure_rate + '%') : null,
             'explore-error-count': data.exploration_stats ? ((data.exploration_stats.http_error || 0) + (data.exploration_stats.network_fail || 0)) : null,
             'explore-gap-count': data.exploration_stats ? (data.exploration_stats.gap_deepen_recent || 0) : null,
-            'explore-status': data.exploration_stats ? data.exploration_stats.status : null
+            'explore-status': data.exploration_stats ? data.exploration_stats.status : null,
+            'kpi-bad': data.kpi_bad,
+            'activity-stale': data.activity_stale
           };
           Object.keys(bindMap).forEach((key) => {
             const val = bindMap[key];
@@ -349,45 +348,6 @@
           }
         }
 
-        async function sendExperienceAction(btn) {
-          const item = btn.closest('.exp-item');
-          if (!item) return;
-          const hash = item.getAttribute('data-exp-hash') || '';
-          const action = btn.getAttribute('data-exp-action') || '';
-          const scenario = btn.getAttribute('data-exp-scenario') || '';
-          const summary = btn.getAttribute('data-exp-summary') || '';
-          if (!hash || !action) return;
-          const body = new URLSearchParams();
-          body.set('action', 'experience_action');
-          body.set('exp_hash', hash);
-          body.set('exp_action', action);
-          body.set('exp_scenario', scenario);
-          body.set('exp_summary', summary);
-          try {
-            const res = await fetch('agent-dashboard.php', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-              body
-            });
-            const data = await res.json().catch(() => null);
-            if (data && data.ok) {
-              item.remove();
-              showToast('تم تحديث الخبرة.', 'success');
-            } else {
-              showToast('تعذر تحديث الخبرة.', 'warn');
-            }
-          } catch (e) {
-            showToast('تعذر تحديث الخبرة.', 'warn');
-          }
-        }
-
-        document.addEventListener('click', (e) => {
-          const btn = e.target && e.target.closest ? e.target.closest('[data-exp-action]') : null;
-          if (!btn) return;
-          e.preventDefault();
-          sendExperienceAction(btn);
-        });
-
         async function refreshLive() {
           try {
             const res = await fetch('agent-dashboard.php?live=1', {
@@ -419,89 +379,6 @@
             startLivePolling();
           };
         }
-
-        async function submitLiveForm(form) {
-          const formData = new FormData(form);
-          formData.append('ajax', '1');
-          const actionUrl = form.getAttribute('action') || window.location.pathname;
-          const res = await fetch(actionUrl, {
-            method: (form.method || 'POST').toUpperCase(),
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'application/json'
-            },
-            body: formData
-          });
-          let json = null;
-          try { json = await res.json(); } catch (e) {}
-          if (!json) {
-            showToast('تعذر تنفيذ العملية.', 'error');
-            return;
-          }
-          showToast(json.message || 'تم التنفيذ.', json.ok ? 'success' : 'error');
-          if (json.reload) {
-            setTimeout(() => location.reload(), 800);
-            return;
-          }
-          const removeKey = form.dataset.remove;
-          if (removeKey) {
-            const item = form.closest(`[data-item="${removeKey}"]`);
-            if (item) item.remove();
-            const empty = document.querySelector(`[data-empty="${removeKey}"]`);
-            const anyLeft = document.querySelector(`[data-item="${removeKey}"]`);
-            if (empty && !anyLeft) {
-              empty.style.display = 'block';
-            }
-          }
-          await refreshLive();
-        }
-
-        async function submitLiveLink(link) {
-          const href = link.getAttribute('href');
-          if (!href) return;
-          const res = await fetch(href, {
-            headers: {
-              'X-Requested-With': 'XMLHttpRequest',
-              'Accept': 'application/json'
-            }
-          });
-          let json = null;
-          try { json = await res.json(); } catch (e) {}
-          if (!json) {
-            showToast('تعذر تنفيذ العملية.', 'error');
-            return;
-          }
-          showToast(json.message || 'تم التنفيذ.', json.ok ? 'success' : 'error');
-          if (json.reload) {
-            setTimeout(() => location.reload(), 800);
-            return;
-          }
-          const removeKey = link.dataset.remove;
-          if (removeKey) {
-            const item = link.closest(`[data-item="${removeKey}"]`);
-            if (item) item.remove();
-            const empty = document.querySelector(`[data-empty="${removeKey}"]`);
-            const anyLeft = document.querySelector(`[data-item="${removeKey}"]`);
-            if (empty && !anyLeft) {
-              empty.style.display = 'block';
-            }
-          }
-          await refreshLive();
-        }
-
-        document.querySelectorAll('form[data-live="1"]').forEach((form) => {
-          form.addEventListener('submit', (e) => {
-            e.preventDefault();
-            submitLiveForm(form);
-          });
-        });
-
-        document.querySelectorAll('a[data-live-link="1"]').forEach((link) => {
-          link.addEventListener('click', (e) => {
-            e.preventDefault();
-            submitLiveLink(link);
-          });
-        });
 
         let liveTimer = null;
         function startLivePolling() {

@@ -1,62 +1,65 @@
 [
   {
-    "id": "PAT_RATE_LIMIT",
-    "check": "missing_rate_limit_middleware",
-    "evidence": [],
-    "scope": [
-      "api"
-    ],
-    "recommendation": "apply playbooks/rate_limit.md",
-    "confidence": 0.65
-  },
-  {
-    "id": "PAT_DATA_VALIDATION",
-    "check": "missing_validation_guards",
+    "id": "53",
+    "check": "ui_action_gap",
+    "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
     "evidence": [
-      "No FormRequest classes or validation calls detected in controllers"
+      {
+        "route": "/index.php",
+        "selector": "#bgl-confirm-no",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "button.note-cancel-btn",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualTestBatchId",
+        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "href": "",
+        "tag": "input",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCancelManualEntry",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCancelExcel",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      }
     ],
-    "scope": [
-      "api"
-    ],
-    "recommendation": "apply playbooks/data_validation.md",
-    "confidence": 0.65
-  },
-  {
-    "id": "PAT_DB_INDEX_MISSING",
-    "check": "db_index_missing",
-    "evidence": [
-      "suppliers missing index on normalized_name",
-      "suppliers missing index on official_name",
-      "banks missing index on contact_email"
-    ],
-    "scope": [
-      "db"
-    ],
-    "recommendation": "add indexes for reporting/filters (see db_schema.md)",
-    "confidence": 0.65
-  },
-  {
-    "id": "PAT_DB_FK_MISSING",
-    "check": "db_fk_missing",
-    "evidence": [
-      "guarantees table has no bank_id/supplier_id columns (skipped FK check)"
-    ],
-    "scope": [
-      "db"
-    ],
-    "recommendation": "add foreign keys guarantees->bank/supplier",
-    "confidence": 0.65
-  },
-  {
-    "id": "PAT_CSS_BLOAT",
-    "check": "css_bloat",
-    "evidence": [
-      "public\\css\\index-main.css size=42213 bytes lines=1768"
-    ],
-    "scope": [
-      "css"
-    ],
-    "recommendation": "refactor large CSS files (split, purge unused, minify)",
-    "confidence": 0.65
+    "scope": [],
+    "confidence": 0.6
   }
 ]

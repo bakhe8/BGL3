@@ -1,0 +1,8 @@
+version: '3'
+scenarios:
+  - name: gap_route_views_index_php
+    steps:
+      - action: render_template
+        template: views/index.php
+        context:
+          title: Home Page

@@ -17,8 +17,12 @@ function Start-ToolServer {
   if (-not (Test-Path $script)) {
     throw "لم أجد $script"
   }
+  $pythonExe = ".bgl_core\\.venv312\\Scripts\\python.exe"
+  if (-not (Test-Path $pythonExe)) {
+    $pythonExe = "python"
+  }
   Write-Host "[run] tool_server.py على 8891" -ForegroundColor Cyan
-  Start-Process -FilePath "python" -ArgumentList "$script --port 8891" -WindowStyle Hidden | Out-Null
+  Start-Process -FilePath $pythonExe -ArgumentList "$script --port 8891" -WindowStyle Hidden | Out-Null
 }
 
 function Start-PHPServer {

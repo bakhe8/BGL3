@@ -24,6 +24,7 @@ from scenario_deps import check_scenario_deps_async  # noqa: E402
 from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
 from schema_check import check_schema  # noqa: E402
 from run_ledger import start_run, finish_run  # noqa: E402
+from run_lock import acquire_lock, release_lock  # noqa: E402
 
 
 def log_activity(root_path: Path, message: str):
@@ -40,6 +41,29 @@ def log_activity(root_path: Path, message: str):
         print(f"[WARN] Failed to log activity: {e}")
 
 
+def _read_lock_status(lock_path: Path) -> dict:
+    status = {"path": str(lock_path), "exists": lock_path.exists()}
+    if not lock_path.exists():
+        return status
+    try:
+        raw = lock_path.read_text(encoding="utf-8").strip()
+        parts = raw.split("|")
+        pid = int(parts[0]) if parts and parts[0].isdigit() else 0
+        ts = float(parts[1]) if len(parts) > 1 else 0.0
+        label = parts[2] if len(parts) > 2 else ""
+        status.update(
+            {
+                "pid": pid,
+                "timestamp": ts,
+                "age_sec": round(max(0.0, time.time() - ts), 2) if ts else None,
+                "label": label,
+            }
+        )
+    except Exception:
+        status["error"] = "unreadable"
+    return status
+
+
 async def master_assurance_diagnostic():
     """
     Main entry point for Master Technical Assurance.
@@ -54,6 +78,12 @@ async def master_assurance_diagnostic():
     cfg = load_config(ROOT)
     effective_cfg = load_effective_config(ROOT)
     timeout = int(cfg.get("diagnostic_timeout_sec", 300))
+    lock_path = ROOT / ".bgl_core" / "logs" / "master_verify.lock"
+    lock_ttl = int(cfg.get("master_verify_lock_ttl_sec", max(3600, timeout * 3)))
+    ok, reason = acquire_lock(lock_path, ttl_sec=lock_ttl, label="master_verify")
+    if not ok:
+        print(f"[!] master_verify already running ({reason}); skipping.")
+        return
 
     # Master verify is an automated pipeline; leaving a browser open will hang until timeout.
     # Force keep-browser off unless explicitly overridden for debugging.
@@ -76,6 +106,10 @@ async def master_assurance_diagnostic():
         print(f"[CRITICAL] Diagnostic timed out after {timeout}s.")
         return
     finally:
+        try:
+            release_lock(lock_path)
+        except Exception:
+            pass
         try:
             finish_run(ROOT / ".bgl_core" / "brain" / "knowledge.db", run_id=run_id)
         except Exception:
@@ -106,6 +140,7 @@ async def master_assurance_diagnostic():
     if cfg.get("run_api_contract", 0):
         contract_results = run_contract_suite(ROOT)
         diagnostic.setdefault("gap_tests", []).extend(contract_results)
+        diagnostic.setdefault("findings", {}).setdefault("gap_tests", []).extend(contract_results)
 
     # Optional: lightweight perf probe (home page load)
     perf = {}
@@ -248,6 +283,7 @@ async def master_assurance_diagnostic():
             "gap_tests": diagnostic["findings"].get("gap_tests", []),
             "proposals": diagnostic["findings"].get("proposals", []),
             "external_checks": diagnostic["findings"].get("external_checks", []),
+            "tool_evidence": diagnostic["findings"].get("tool_evidence", {}),
             "scenario_deps": diagnostic["findings"].get("scenario_deps", {}),
             "runtime_events_meta": diagnostic["findings"].get(
                 "runtime_events_meta", {}
@@ -278,13 +314,65 @@ async def master_assurance_diagnostic():
             "ui_semantic_delta": diagnostic["findings"].get("ui_semantic_delta", {}),
             "self_policy": diagnostic["findings"].get("self_policy", {}),
             "self_rules": diagnostic["findings"].get("self_rules", {}),
+            "scenario_run_stats": diagnostic["findings"].get("scenario_run_stats", {}),
+            "coverage_reliability": diagnostic["findings"].get("coverage_reliability", {}),
             "knowledge_status": diagnostic["findings"].get("knowledge_status", {}),
             "learning_feedback": diagnostic["findings"].get("learning_feedback", {}),
             "long_term_goals": diagnostic["findings"].get("long_term_goals", {}),
             "canary_status": diagnostic["findings"].get("canary_status", {}),
             "diagnostic_attribution": diagnostic["findings"].get("diagnostic_attribution", {}),
             "domain_rule_summary": diagnostic["findings"].get("domain_rule_summary", {}),
+            "effective_config": diagnostic.get("effective_config", {}),
+            "context_digest": diagnostic["findings"].get("context_digest", {}),
+            "auto_plan": diagnostic["findings"].get("auto_plan", {}),
+            "failure_taxonomy": diagnostic["findings"].get("failure_taxonomy", {}),
+            "gap_scenarios": diagnostic["findings"].get("gap_scenarios", []),
+            "kpi_metrics": diagnostic["findings"].get("kpi_metrics", {}),
+            "activity_summary": diagnostic["findings"].get("activity_summary", {}),
+            "diagnostic_delta": diagnostic["findings"].get("diagnostic_delta", {}),
         }
+        try:
+            auto_cfg = effective_cfg or cfg
+        except Exception:
+            auto_cfg = cfg
+        data["automation"] = {
+            "approvals_enabled": auto_cfg.get("approvals_enabled", True),
+            "auto_propose": auto_cfg.get("auto_propose", 0),
+            "auto_propose_min_conf": auto_cfg.get("auto_propose_min_conf"),
+            "auto_propose_min_evidence": auto_cfg.get("auto_propose_min_evidence"),
+            "auto_apply": auto_cfg.get("auto_apply", 0),
+            "auto_apply_limit": auto_cfg.get("auto_apply_limit"),
+            "auto_plan": auto_cfg.get("auto_plan", 0),
+            "auto_plan_limit": auto_cfg.get("auto_plan_limit"),
+            "auto_digest": auto_cfg.get("auto_digest", 0),
+            "auto_digest_hours": auto_cfg.get("auto_digest_hours"),
+            "auto_digest_limit": auto_cfg.get("auto_digest_limit"),
+            "auto_verify": auto_cfg.get("auto_verify", 0),
+            "auto_verify_on_low_success": auto_cfg.get("auto_verify_on_low_success"),
+            "auto_verify_success_threshold": auto_cfg.get("auto_verify_success_threshold"),
+            "auto_verify_on_ui_gap": auto_cfg.get("auto_verify_on_ui_gap"),
+            "auto_verify_ui_gap_threshold": auto_cfg.get("auto_verify_ui_gap_threshold"),
+            "auto_patch_on_errors": auto_cfg.get("auto_patch_on_errors"),
+            "auto_patch_limit": auto_cfg.get("auto_patch_limit"),
+            "auto_patch_min_conf": auto_cfg.get("auto_patch_min_conf"),
+            "auto_patch_min_evidence": auto_cfg.get("auto_patch_min_evidence"),
+            "post_apply_validate": auto_cfg.get("post_apply_validate"),
+            "post_apply_validate_mode": auto_cfg.get("post_apply_validate_mode"),
+            "post_apply_auto_rollback_on_fail": auto_cfg.get("post_apply_auto_rollback_on_fail"),
+            "post_apply_immediate_canary_eval": auto_cfg.get("post_apply_immediate_canary_eval"),
+            "post_apply_auto_promote_prod": auto_cfg.get("post_apply_auto_promote_prod"),
+            "allow_prod_without_human": auto_cfg.get("allow_prod_without_human"),
+            "execution_mode": auto_cfg.get("execution_mode"),
+            "agent_mode": auto_cfg.get("agent_mode") or (auto_cfg.get("decision") or {}).get("mode"),
+        }
+        try:
+            data["run_locks"] = {
+                "master_verify": _read_lock_status(ROOT / ".bgl_core" / "logs" / "master_verify.lock"),
+                "run_scenarios": _read_lock_status(ROOT / ".bgl_core" / "logs" / "run_scenarios.lock"),
+                "scenario_runner": _read_lock_status(ROOT / ".bgl_core" / "logs" / "scenario_runner.lock"),
+            }
+        except Exception:
+            data["run_locks"] = {}
         try:
             data["schema_drift"] = check_schema(ROOT / ".bgl_core" / "brain" / "knowledge.db")
         except Exception:

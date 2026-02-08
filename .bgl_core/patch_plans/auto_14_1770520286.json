@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_14",
+  "description": "Patch Plan for Proposal ID 14: Improve UI Interaction Coverage",
+  "created_at": 1704329200,
+  "metadata": {
+    "proposal_id": 14,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770520286.879703
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/ui_interaction_tests.py",
+      "mode": "append",
+      "content": "\n# Test for cancel button\n@patch('app.ui_components.CancelButton.click', return_value=True)\n@patch('app.ui_components.InputField.clear', return_value=None)\ndef test_cancel_button(self, mock_click, mock_clear):\n    # Arrange\n    button = CancelButton()\n    input_field = InputField()\n\n    # Act\n    button.click()\n    input_field.clear()\n\n    # Assert\n    mock_click.assert_called_once()\n    mock_clear.assert_called_once()",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Test for cancel button\n@patch('app.ui_components.CancelButton.click', return_value=True)\n@patch('app.ui_components.InputField.clear', return_value=None)\ndef test_cancel_button(self, mock_click, mock_clear):\n    # Arrange\n    button = CancelButton()\n    input_field = InputField()\n\n    # Act\n    button.click()\n    input_field.clear()\n\n    # Assert\n    mock_click.assert_called_once()\n    mock_clear.assert_called_once()"
+      }
+    }
+  ]
+}

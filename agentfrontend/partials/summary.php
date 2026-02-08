@@ -51,12 +51,36 @@
             </div>
             <div class="stat-label">فجوات تعميق جديدة</div>
         </div>
-        <div class="stat-box">
-            <div class="stat-value" data-live="explore-status" style="color: var(--accent-cyan);">
-                <?= $exploreStats['status'] ?? 'غير متوفر' ?>
-            </div>
-            <div class="stat-label">استقرار الاستكشاف</div>
+    <div class="stat-box">
+        <div class="stat-value" data-live="explore-status" style="color: var(--accent-cyan);">
+            <?= $exploreStats['status'] ?? 'غير متوفر' ?>
         </div>
+        <div class="stat-label">استقرار الاستكشاف</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" data-live="kpi-bad" style="color: <?= ($kpiBadCount ?? 0) > 0 ? 'var(--danger)' : 'var(--success)' ?>;">
+            <?= isset($kpiBadCount) ? (int)$kpiBadCount : 'غير متوفر' ?>
+        </div>
+        <div class="stat-label">KPIs خارج الهدف</div>
+    </div>
+    <div class="stat-box">
+        <?php
+            $activityLabel = 'غير متوفر';
+            if (isset($activityStale)) {
+                $activityLabel = $activityStale ? 'خامل' : 'نشط';
+            }
+        ?>
+        <div class="stat-value" data-live="activity-stale" style="color: <?= $activityLabel === 'خامل' ? 'var(--danger)' : 'var(--success)' ?>;">
+            <?= $activityLabel ?>
+        </div>
+        <div class="stat-label">نشاط الوكيل</div>
+    </div>
+    <div class="stat-box">
+        <div class="stat-value" data-live="delta-changed-keys" style="color: var(--accent-secondary);">
+            <?= isset($deltaChangedKeys) ? (int)$deltaChangedKeys : 'غير متوفر' ?>
+        </div>
+        <div class="stat-label">تغيّر البيئة</div>
+    </div>
     </div>
     <div style="margin-top:10px; color: var(--text-secondary); font-size:0.85rem;">
         آخر تحديث للخبرات: <span data-live="experience-last"><?= !empty($experienceStats['last_ts']) ? date('H:i:s', (int)$experienceStats['last_ts']) : 'غير متوفر' ?></span>

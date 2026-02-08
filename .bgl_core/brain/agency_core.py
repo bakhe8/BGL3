@@ -2,6 +2,8 @@ import time
 import sqlite3
 import json
 import os
+import sys
+import subprocess
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -24,7 +26,11 @@ try:
         ingest_learned_events,
         ingest_learning_confirmations,
         list_learning_events,
+        update_fallback_rules_from_prod_ops,
+        update_fallback_rules_from_outcomes,
+        apply_external_dependency_fallback,
     )  # type: ignore
+    from .failure_classifier import summarize_failure_taxonomy  # type: ignore
     from .hypothesis import derive_hypotheses_from_diagnostic, list_hypotheses  # type: ignore
     from .observations import (
         store_env_snapshot,
@@ -44,7 +50,10 @@ try:
     from .learning_feedback import apply_learning_feedback  # type: ignore
     from .long_term_goals import refresh_long_term_goals, summarize_long_term_goals  # type: ignore
     from .canary_release import evaluate_canary_releases, summarize_canary_status  # type: ignore
+    from .metrics_enrichment import compute_kpi_metrics, summarize_agent_activity  # type: ignore
+    from .generate_playbooks import generate_from_proposed  # type: ignore
     from .schema_check import check_schema  # type: ignore
+    from .agent_verify import run_all_checks  # type: ignore
 except (ImportError, ValueError):
     from safety import SafetyNet
     from guardian import BGLGuardian
@@ -63,7 +72,11 @@ except (ImportError, ValueError):
         ingest_learned_events,
         ingest_learning_confirmations,
         list_learning_events,
+        update_fallback_rules_from_prod_ops,
+        update_fallback_rules_from_outcomes,
+        apply_external_dependency_fallback,
     )
+    from failure_classifier import summarize_failure_taxonomy
     from hypothesis import derive_hypotheses_from_diagnostic, list_hypotheses
     from observations import (
         store_env_snapshot,
@@ -83,7 +96,10 @@ except (ImportError, ValueError):
     from learning_feedback import apply_learning_feedback
     from long_term_goals import refresh_long_term_goals, summarize_long_term_goals
     from canary_release import evaluate_canary_releases, summarize_canary_status
+    from metrics_enrichment import compute_kpi_metrics, summarize_agent_activity
+    from generate_playbooks import generate_from_proposed
     from schema_check import check_schema
+    from agent_verify import run_all_checks
 
 
 class AgencyCore:
@@ -311,6 +327,8 @@ class AgencyCore:
     ) -> List[Dict[str, Any]]:
         if not ui_action_cov:
             return []
+        if ui_action_cov.get("reliable") is False:
+            return []
         try:
             ratio = float(ui_action_cov.get("coverage_ratio") or 0.0)
         except Exception:
@@ -423,6 +441,524 @@ class AgencyCore:
             except Exception:
                 pass
         return proposals
+
+    def _auto_propose_coverage_gaps(
+        self, scenario_cov: Dict[str, Any], flow_cov: Dict[str, Any]
+    ) -> List[Dict[str, Any]]:
+        proposals: List[Dict[str, Any]] = []
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS agent_proposals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT UNIQUE,
+                    description TEXT,
+                    action TEXT,
+                    count INTEGER,
+                    evidence TEXT,
+                    impact TEXT,
+                    solution TEXT,
+                    expectation TEXT
+                )
+                """
+            )
+            cur = conn.cursor()
+
+            # Scenario coverage gaps
+            if scenario_cov and scenario_cov.get("reliable") is not False:
+                try:
+                    ratio = float(scenario_cov.get("coverage_ratio") or 0.0)
+                except Exception:
+                    ratio = 0.0
+                gaps = scenario_cov.get("uncovered_sample") or []
+                try:
+                    min_ratio = float(
+                        os.getenv(
+                            "BGL_COVERAGE_MIN_RATIO",
+                            str(self.config.get("coverage_min_ratio", 35)),
+                        )
+                        or "35"
+                    )
+                except Exception:
+                    min_ratio = 35.0
+                if gaps and ratio < min_ratio:
+                    sample = gaps[:6]
+                    evidence_payload = {
+                        "coverage_ratio": ratio,
+                        "window_days": scenario_cov.get("window_days"),
+                        "sample_gaps": sample,
+                        "source": "scenario_coverage",
+                    }
+                    base = json.dumps(evidence_payload, ensure_ascii=False)
+                    try:
+                        import hashlib
+
+                        suffix = hashlib.sha1(base.encode("utf-8")).hexdigest()[:8]
+                    except Exception:
+                        suffix = str(abs(hash(base)))[:8]
+                    name = f"تغطية مسارات غير مُجرّبة ({ratio:.1f}%) #{suffix}"
+                    description = "تغطية المسارات أقل من الحد المطلوب. نحتاج تشغيل سيناريوهات للمسارات غير المغطاة."
+                    exists = cur.execute(
+                        "SELECT id FROM agent_proposals WHERE name = ?",
+                        (name,),
+                    ).fetchone()
+                    if not exists:
+                        cur.execute(
+                            """
+                            INSERT INTO agent_proposals
+                            (name, description, action, count, evidence, impact, solution, expectation)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                name,
+                                description[:400],
+                                "improve_coverage",
+                                1,
+                                json.dumps(evidence_payload, ensure_ascii=False),
+                                "medium",
+                                "",
+                                "",
+                            ),
+                        )
+                        proposal_id = cur.lastrowid
+                        conn.commit()
+                        proposals.append(
+                            {
+                                "id": proposal_id,
+                                "source": "scenario_coverage_gap",
+                                "recommendation": "توسيع التغطية للمسارات غير المُجرّبة",
+                                "evidence": sample,
+                                "severity": "medium",
+                            }
+                        )
+
+            # Flow coverage gaps
+            if flow_cov and flow_cov.get("reliable") is not False:
+                try:
+                    ratio = float(flow_cov.get("coverage_ratio") or 0.0)
+                except Exception:
+                    ratio = 0.0
+                gaps = flow_cov.get("uncovered_sample") or []
+                try:
+                    min_ratio = float(
+                        os.getenv(
+                            "BGL_MIN_FLOW_COVERAGE",
+                            str(self.config.get("min_flow_coverage", 35)),
+                        )
+                        or "35"
+                    )
+                except Exception:
+                    min_ratio = 35.0
+                if gaps and ratio < min_ratio:
+                    sample = gaps[:4]
+                    evidence_payload = {
+                        "coverage_ratio": ratio,
+                        "window_days": flow_cov.get("window_days"),
+                        "sample_gaps": sample,
+                        "source": "flow_coverage",
+                    }
+                    base = json.dumps(evidence_payload, ensure_ascii=False)
+                    try:
+                        import hashlib
+
+                        suffix = hashlib.sha1(base.encode("utf-8")).hexdigest()[:8]
+                    except Exception:
+                        suffix = str(abs(hash(base)))[:8]
+                    name = f"تغطية تدفقات غير مكتملة ({ratio:.1f}%) #{suffix}"
+                    description = "تغطية التدفقات تعتمد على مسارات بدون أحداث فعلية؛ نحتاج تشغيل تدفقات كاملة."
+                    exists = cur.execute(
+                        "SELECT id FROM agent_proposals WHERE name = ?",
+                        (name,),
+                    ).fetchone()
+                    if not exists:
+                        cur.execute(
+                            """
+                            INSERT INTO agent_proposals
+                            (name, description, action, count, evidence, impact, solution, expectation)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                            """,
+                            (
+                                name,
+                                description[:400],
+                                "improve_flow_coverage",
+                                1,
+                                json.dumps(evidence_payload, ensure_ascii=False),
+                                "medium",
+                                "",
+                                "",
+                            ),
+                        )
+                        proposal_id = cur.lastrowid
+                        conn.commit()
+                        proposals.append(
+                            {
+                                "id": proposal_id,
+                                "source": "flow_coverage_gap",
+                                "recommendation": "تشغيل التدفقات غير المكتملة بشكل فعلي",
+                                "evidence": sample,
+                                "severity": "medium",
+                            }
+                        )
+        except Exception:
+            pass
+        finally:
+            try:
+                conn.close()
+            except Exception:
+                pass
+        return proposals
+    def _auto_context_digest(self) -> Dict[str, Any]:
+        """
+        Run context_digest to unify runtime/prod logs into experiences -> proposals -> sandbox apply.
+        """
+        try:
+            enabled = os.getenv(
+                "BGL_AUTO_CONTEXT_DIGEST",
+                str(self.config.get("auto_digest", 1)),
+            )
+            if str(enabled).strip().lower() not in ("1", "true", "yes", "on"):
+                return {"ok": False, "skipped": True, "reason": "disabled"}
+        except Exception:
+            return {"ok": False, "skipped": True, "reason": "disabled"}
+
+        try:
+            hours = float(
+                os.getenv(
+                    "BGL_AUTO_DIGEST_HOURS",
+                    str(self.config.get("auto_digest_hours", 12)),
+                )
+                or 12
+            )
+        except Exception:
+            hours = 12.0
+        try:
+            limit = int(
+                os.getenv(
+                    "BGL_AUTO_DIGEST_LIMIT",
+                    str(self.config.get("auto_digest_limit", 400)),
+                )
+                or 400
+            )
+        except Exception:
+            limit = 400
+
+        script = self.root_dir / ".bgl_core" / "brain" / "context_digest.py"
+        if not script.exists():
+            return {"ok": False, "error": "context_digest_missing"}
+        try:
+            exe = sys.executable or "python"
+        except Exception:
+            exe = "python"
+
+        try:
+            proc = subprocess.run(
+                [exe, str(script), "--hours", str(hours), "--limit", str(limit)],
+                cwd=str(self.root_dir),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=120,
+            )
+            out = (proc.stdout or "").strip()
+            err = (proc.stderr or "").strip()
+            # Keep the payload compact for the report.
+            return {
+                "ok": proc.returncode == 0,
+                "returncode": proc.returncode,
+                "stdout": out[-500:] if out else "",
+                "stderr": err[-500:] if err else "",
+                "hours": hours,
+                "limit": limit,
+            }
+        except Exception as e:
+            return {"ok": False, "error": str(e), "hours": hours, "limit": limit}
+
+    def _auto_generate_patch_plans(self) -> Dict[str, Any]:
+        """
+        Auto-generate patch plans for proposals lacking a plan.
+        Uses existing generate_patch_plan.py to avoid custom logic.
+        """
+        try:
+            enabled = os.getenv(
+                "BGL_AUTO_PLAN",
+                str(self.config.get("auto_plan", self.config.get("auto_propose", 1))),
+            )
+            if str(enabled).strip().lower() not in ("1", "true", "yes", "on"):
+                return {"ok": False, "skipped": True, "reason": "disabled"}
+        except Exception:
+            return {"ok": False, "skipped": True, "reason": "disabled"}
+
+        try:
+            limit = int(
+                os.getenv(
+                    "BGL_AUTO_PLAN_LIMIT",
+                    str(self.config.get("auto_plan_limit", 3)),
+                )
+                or 3
+            )
+        except Exception:
+            limit = 3
+
+        if limit <= 0:
+            return {"ok": False, "skipped": True, "reason": "limit_zero"}
+
+        if not self.db_path.exists():
+            return {"ok": False, "error": "db_missing"}
+
+        script = self.root_dir / ".bgl_core" / "brain" / "generate_patch_plan.py"
+        if not script.exists():
+            return {"ok": False, "error": "generate_patch_plan_missing"}
+
+        try:
+            exe = sys.executable or "python"
+        except Exception:
+            exe = "python"
+
+        generated = []
+        failed = []
+        skipped = 0
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                """
+                SELECT id, name, impact, action, solution
+                FROM agent_proposals
+                WHERE solution IS NULL OR TRIM(solution) = ''
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+            conn.close()
+        except Exception as e:
+            return {"ok": False, "error": f"db_query_failed:{e}"}
+
+        if not rows:
+            return {"ok": True, "generated": 0, "failed": 0, "skipped": 0, "reason": "no_candidates"}
+
+        for row in rows:
+            pid = row["id"]
+            try:
+                proc = subprocess.run(
+                    [exe, str(script), "--proposal", str(pid)],
+                    cwd=str(self.root_dir),
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                    timeout=120,
+                )
+                if proc.returncode == 0:
+                    generated.append(int(pid))
+                else:
+                    failed.append({"id": int(pid), "error": (proc.stderr or proc.stdout or "").strip()[-200:]})
+            except Exception as e:
+                failed.append({"id": int(pid), "error": str(e)})
+
+        return {
+            "ok": len(failed) == 0,
+            "generated": len(generated),
+            "failed": len(failed),
+            "skipped": skipped,
+            "generated_ids": generated[:10],
+            "failed_samples": failed[:5],
+        }
+
+    def _auto_run_checks(self, findings: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Run agent_verify checks only when triggered by signals (coverage/quality).
+        """
+        try:
+            enabled = os.getenv(
+                "BGL_AUTO_VERIFY",
+                str(self.config.get("auto_verify", 1)),
+            )
+            if str(enabled).strip().lower() not in ("1", "true", "yes", "on"):
+                return {"ok": False, "skipped": True, "reason": "disabled"}
+        except Exception:
+            return {"ok": False, "skipped": True, "reason": "disabled"}
+
+        triggers: Dict[str, Any] = {}
+        # Trigger on low success rate
+        try:
+            if str(self.config.get("auto_verify_on_low_success", "1")) == "1":
+                threshold = float(
+                    os.getenv(
+                        "BGL_AUTO_VERIFY_SUCCESS_THRESHOLD",
+                        str(self.config.get("auto_verify_success_threshold", 0.6)),
+                    )
+                    or 0.6
+                )
+                stats = self._execution_stats()
+                sr = stats.get("success_rate")
+                if sr is not None and float(sr) < threshold:
+                    triggers["low_success_rate"] = {
+                        "success_rate": sr,
+                        "threshold": threshold,
+                    }
+        except Exception:
+            pass
+
+        # Trigger on UI action coverage gap
+        try:
+            if str(self.config.get("auto_verify_on_ui_gap", "1")) == "1":
+                ui_cov = findings.get("ui_action_coverage") or {}
+                ratio = float(ui_cov.get("coverage_ratio") or 0.0)
+                threshold = float(
+                    os.getenv(
+                        "BGL_AUTO_VERIFY_UI_GAP_THRESHOLD",
+                        str(self.config.get("auto_verify_ui_gap_threshold", 30)),
+                    )
+                    or 30
+                )
+                if ui_cov and ratio < threshold:
+                    triggers["ui_action_gap"] = {"ratio": ratio, "threshold": threshold}
+        except Exception:
+            pass
+
+        # Trigger on route coverage gap
+        try:
+            if str(self.config.get("auto_verify_on_route_gap", "1")) == "1":
+                scov = findings.get("scenario_coverage") or {}
+                ratio = float(scov.get("coverage_ratio") or 0.0)
+                threshold = float(
+                    os.getenv(
+                        "BGL_AUTO_VERIFY_ROUTE_COVERAGE_THRESHOLD",
+                        str(self.config.get("auto_verify_route_coverage_threshold", 60)),
+                    )
+                    or 60
+                )
+                if scov and ratio < threshold:
+                    triggers["route_gap"] = {"ratio": ratio, "threshold": threshold}
+        except Exception:
+            pass
+
+        # Trigger on API contract gaps
+        try:
+            if str(self.config.get("auto_verify_on_contract_gap", "1")) == "1":
+                missing = findings.get("api_contract_missing") or []
+                gaps = findings.get("api_contract_gaps") or []
+                if missing or gaps:
+                    triggers["contract_gap"] = {
+                        "missing": len(missing),
+                        "gaps": len(gaps),
+                    }
+        except Exception:
+            pass
+
+        if not triggers:
+            return {"ok": False, "skipped": True, "reason": "no_triggers"}
+
+        try:
+            checks = run_all_checks(self.root_dir)
+        except Exception as e:
+            return {"ok": False, "error": str(e), "triggers": triggers}
+        auto_actions: List[Dict[str, Any]] = []
+        try:
+            results = (checks or {}).get("results") or []
+            # Optional: auto-apply DB fixes if db checks fail and auto-apply is enabled.
+            allow_db_fixes = os.getenv("BGL_AUTO_APPLY_DB_FIXES")
+            if allow_db_fixes is None:
+                allow_db_fixes = str(self.config.get("auto_apply", 0))
+            allow_db_fixes = str(allow_db_fixes).strip().lower() in ("1", "true", "yes", "on")
+            if allow_db_fixes:
+                db_fail = [
+                    r for r in results
+                    if not r.get("passed")
+                    and str(r.get("check") or r.get("id") or "").strip().lower()
+                    in ("db_index_missing", "db_fk_missing")
+                ]
+                if db_fail:
+                    exe = sys.executable or "python"
+                    script = self.root_dir / ".bgl_core" / "brain" / "apply_db_fixes.py"
+                    if script.exists():
+                        proc = subprocess.run(
+                            [exe, str(script), "--db", "storage/database/app.sqlite"],
+                            cwd=str(self.root_dir),
+                            capture_output=True,
+                            text=True,
+                            check=False,
+                            timeout=120,
+                        )
+                        auto_actions.append(
+                            {
+                                "action": "apply_db_fixes",
+                                "ok": proc.returncode == 0,
+                                "returncode": proc.returncode,
+                                "stdout": (proc.stdout or "")[-400:],
+                                "stderr": (proc.stderr or "")[-400:],
+                                "checks": [r.get("check") or r.get("id") for r in db_fail],
+                            }
+                        )
+        except Exception as e:
+            auto_actions.append({"action": "apply_db_fixes", "ok": False, "error": str(e)})
+        return {"ok": True, "triggers": triggers, "checks": checks, "auto_actions": auto_actions}
+
+    def _sync_playbooks_from_proposals(self, proposals: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """
+        Reuse generate_playbooks.py by exporting proposals into proposed_patterns.json.
+        This avoids new logic and keeps playbook generation in one place.
+        """
+        if not proposals:
+            return {"ok": False, "skipped": True, "reason": "no_proposals"}
+        try:
+            import re
+        except Exception:
+            re = None  # type: ignore
+
+        def _slug(text: str) -> str:
+            raw = str(text or "").strip()
+            if not raw:
+                return "PB_AUTO"
+            if re is None:
+                return raw.replace(" ", "_")[:64]
+            return re.sub(r"[^a-zA-Z0-9_]+", "_", raw)[:64]
+
+        patterns: List[Dict[str, Any]] = []
+        for p in proposals:
+            if not isinstance(p, dict):
+                continue
+            pid = p.get("id") or p.get("name") or p.get("source") or "PB_AUTO"
+            pid = _slug(str(pid))
+            recommendation = (
+                p.get("recommendation")
+                or p.get("description")
+                or p.get("summary")
+                or "تحسين تلقائي مقترح."
+            )
+            evidence = p.get("evidence") or []
+            scope = p.get("scope") or []
+            try:
+                confidence = float(p.get("confidence") or p.get("score") or 0.6)
+            except Exception:
+                confidence = 0.6
+            patterns.append(
+                {
+                    "id": pid,
+                    "check": p.get("source") or p.get("check") or "proposal",
+                    "recommendation": recommendation,
+                    "evidence": evidence,
+                    "scope": scope,
+                    "confidence": confidence,
+                }
+            )
+        if not patterns:
+            return {"ok": False, "skipped": True, "reason": "no_patterns"}
+
+        proposed_path = self.root_dir / ".bgl_core" / "brain" / "proposed_patterns.json"
+        try:
+            proposed_path.write_text(
+                json.dumps(patterns, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception as e:
+            return {"ok": False, "error": f"write_failed:{e}"}
+
+        try:
+            generated = generate_from_proposed(self.root_dir) or []
+        except Exception as e:
+            return {"ok": False, "error": f"generate_failed:{e}"}
+        return {"ok": True, "generated": generated, "count": len(generated)}
 
     def _write_autonomy_goal(
         self, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 3
@@ -539,8 +1075,29 @@ class AgencyCore:
             "scenario_coverage": health_report.get("scenario_coverage", {}),
             "flow_coverage": health_report.get("flow_coverage", {}),
             "ui_action_coverage": health_report.get("ui_action_coverage", {}),
+            "scenario_run_stats": health_report.get("scenario_run_stats", {}),
+            "coverage_reliability": health_report.get("coverage_reliability", {}),
             "gap_tests": [],
+            "external_checks": health_report.get("external_checks") or [],
+            "tool_evidence": health_report.get("tool_evidence") or {},
         }
+        # KPI metrics (operational signals)
+        try:
+            findings["kpi_metrics"] = compute_kpi_metrics(self.root_dir, self.db_path)
+        except Exception:
+            findings.setdefault("kpi_metrics", {})
+        # Agent activity summary (stability/stall hints)
+        try:
+            findings["activity_summary"] = summarize_agent_activity(self.db_path)
+        except Exception:
+            findings.setdefault("activity_summary", {})
+        # Diagnostic delta snapshot (recent change context)
+        try:
+            delta_snap = latest_env_snapshot(self.db_path, kind="diagnostic_delta")
+            if delta_snap and isinstance(delta_snap, dict):
+                findings["diagnostic_delta"] = delta_snap.get("payload") or {}
+        except Exception:
+            findings.setdefault("diagnostic_delta", {})
         # Latest UI semantic snapshot (if available)
         try:
             ui_sem = latest_ui_semantic_snapshot(self.db_path)
@@ -557,7 +1114,15 @@ class AgencyCore:
                     )
         except Exception:
             findings.setdefault("ui_semantic", None)
-        findings["external_checks"] = []  # Legacy
+        # Merge auto-run checks (if any) into external_checks for unified proposal channel.
+        try:
+            auto_checks = self._auto_run_checks(findings)
+            findings["auto_checks"] = auto_checks
+            auto_results = (auto_checks.get("checks") or {}).get("results") or []
+            if auto_results:
+                findings["external_checks"].extend(auto_results)
+        except Exception:
+            findings.setdefault("auto_checks", {})
         # Convert failing external checks into actionable proposals so they share one channel
         for check in findings["external_checks"]:
             if check.get("passed"):
@@ -582,6 +1147,21 @@ class AgencyCore:
                 findings["proposals"].extend(ui_action_proposals)
         except Exception:
             pass
+        try:
+            coverage_proposals = self._auto_propose_coverage_gaps(
+                findings.get("scenario_coverage") or {},
+                findings.get("flow_coverage") or {},
+            )
+            if coverage_proposals:
+                findings["proposals"].extend(coverage_proposals)
+        except Exception:
+            pass
+        try:
+            findings["playbooks_generated"] = self._sync_playbooks_from_proposals(
+                findings.get("proposals") or []
+            )
+        except Exception:
+            findings.setdefault("playbooks_generated", {})
         findings["playbooks_meta"] = self.playbook_meta
 
         findings["interpretation"] = interpret(
@@ -668,6 +1248,64 @@ class AgencyCore:
         except Exception:
             findings.setdefault("learning_feedback", {})
 
+        # Fallback rules from prod operation outcomes (central log -> learning -> fallback)
+        try:
+            fallback_status = update_fallback_rules_from_prod_ops(
+                self.root_dir,
+                self.db_path,
+            )
+            findings["fallback_rules"] = fallback_status
+            if isinstance(fallback_status, dict) and fallback_status.get("ok"):
+                try:
+                    findings.setdefault("self_policy", {})
+                    if isinstance(findings["self_policy"], dict):
+                        findings["self_policy"].setdefault("fallback_rules", fallback_status.get("total_rules"))
+                except Exception:
+                    pass
+        except Exception:
+            findings.setdefault("fallback_rules", {})
+
+        # Fallback rules from execution outcomes (improve success rate)
+        try:
+            fb_outcomes = update_fallback_rules_from_outcomes(
+                self.root_dir,
+                self.db_path,
+            )
+            findings["fallback_rules_outcomes"] = fb_outcomes
+        except Exception:
+            findings.setdefault("fallback_rules_outcomes", {})
+        # Failure taxonomy (classified failures -> signals for rollback/fallback)
+        try:
+            if summarize_failure_taxonomy:
+                findings["failure_taxonomy"] = summarize_failure_taxonomy(self.db_path)
+        except Exception:
+            findings.setdefault("failure_taxonomy", {})
+
+        # External dependency fallback (DB/network outages -> short-lived block + rollback signal)
+        external_dependency_signal = None
+        try:
+            ext_status = apply_external_dependency_fallback(self.root_dir, self.db_path)
+            findings["external_dependency"] = ext_status
+            try:
+                detected = (ext_status or {}).get("detected") or {}
+                if int(detected.get("count") or 0) > 0:
+                    external_dependency_signal = detected
+            except Exception:
+                external_dependency_signal = None
+        except Exception:
+            findings.setdefault("external_dependency", {})
+            external_dependency_signal = None
+
+        # Auto context digest: unify runtime/prod logs into experiences -> proposals -> sandbox apply.
+        try:
+            findings["context_digest"] = self._auto_context_digest()
+        except Exception:
+            findings.setdefault("context_digest", {})
+        try:
+            findings["auto_plan"] = self._auto_generate_patch_plans()
+        except Exception:
+            findings.setdefault("auto_plan", {})
+
         # Auto-patch confirmed error experiences (sandbox) before canary evaluation.
         try:
             self._auto_patch_error_experiences(findings.get("experiences") or [])
@@ -687,7 +1325,17 @@ class AgencyCore:
 
         # Canary release evaluation (safe production promotion / rollback)
         try:
-            auto_rb = bool(int(os.getenv("BGL_CANARY_AUTO_ROLLBACK", "0") or "0"))
+            auto_rb_env = os.getenv("BGL_CANARY_AUTO_ROLLBACK")
+            if auto_rb_env is None:
+                cfg_val = self.config.get("canary_auto_rollback", 0)
+                if isinstance(cfg_val, bool):
+                    auto_rb = cfg_val
+                elif isinstance(cfg_val, (int, float)):
+                    auto_rb = float(cfg_val) != 0.0
+                else:
+                    auto_rb = str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
+            else:
+                auto_rb = bool(int(auto_rb_env or "0"))
         except Exception:
             auto_rb = False
         try:
@@ -696,11 +1344,31 @@ class AgencyCore:
         except Exception:
             min_age = 300
         try:
+            cfg_recheck = self.config.get("canary_recheck_sec", 0)
+            recheck_sec = int(os.getenv("BGL_CANARY_RECHECK_SEC", str(cfg_recheck) or "0") or "0")
+        except Exception:
+            recheck_sec = 0
+        try:
+            if os.getenv("BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK") is None:
+                cfg_val = self.config.get("canary_external_dependency_rollback", 1)
+                if isinstance(cfg_val, bool):
+                    os.environ["BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK"] = "1" if cfg_val else "0"
+                elif isinstance(cfg_val, (int, float)):
+                    os.environ["BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK"] = "1" if float(cfg_val) != 0.0 else "0"
+                else:
+                    os.environ["BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK"] = (
+                        "1" if str(cfg_val).strip().lower() in ("1", "true", "yes", "on") else "0"
+                    )
+        except Exception:
+            pass
+        try:
             canary_eval = evaluate_canary_releases(
                 self.root_dir,
                 self.db_path,
                 min_age_sec=min_age,
                 auto_rollback=auto_rb,
+                recheck_sec=recheck_sec,
+                external_dependency=external_dependency_signal,
             )
         except Exception:
             canary_eval = {"ok": False}
@@ -709,6 +1377,8 @@ class AgencyCore:
         except Exception:
             canary_eval.setdefault("summary", {})
         findings["canary_status"] = canary_eval
+
+        # Auto-run checks already executed earlier to feed proposals/external checks.
 
         # Optional Reasoning layer (connects ReasoningEngine into the main pipeline)
         reasoning_enabled = False
@@ -1027,7 +1697,8 @@ class AgencyCore:
             stats["direct_attempts"] = int(cur.fetchone()[0])
             cur.execute("SELECT result, COUNT(*) FROM outcomes GROUP BY result")
             rows = cur.fetchall()
-            total = sum(r[1] for r in rows)
+            ignore = {"proposed", "skipped", "deferred", "blocked"}
+            total = sum(count for res, count in rows if str(res or "") not in ignore)
             stats["total_outcomes"] = total
             if total > 0:
                 successes = sum(

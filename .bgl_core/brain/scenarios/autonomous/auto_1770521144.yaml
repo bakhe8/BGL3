@@ -1,0 +1,9 @@
+name: autonomous_1770521144
+kind: ui
+steps:
+- action: goto
+  url: /
+- action: click
+  selector: input[name="jump_to_index"]
+- action: wait
+  ms: 600

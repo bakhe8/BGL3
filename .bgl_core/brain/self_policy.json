@@ -11,7 +11,79 @@
     "propose_fix_change": 6,
     "auto_fix_change": 14
   },
-  "last_updated": 1770507859.001194,
+  "fallback_rules": [
+    {
+      "key": "outcomes::observe",
+      "operation": "observe*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 0.826,
+      "count": 69,
+      "fail": 57,
+      "last_notes": "auto-log from master_verify pipeline",
+      "source": "outcomes",
+      "created_at": 1770529343.4422796,
+      "updated_at": 1770533139.9215586,
+      "expires_at": 1771137939.9215586
+    },
+    {
+      "key": "outcomes::stabilize",
+      "operation": "stabilize*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 0.885,
+      "count": 52,
+      "fail": 46,
+      "last_notes": "auto-log from master_verify pipeline",
+      "source": "outcomes",
+      "created_at": 1770529343.4422796,
+      "updated_at": 1770533139.9215586,
+      "expires_at": 1771137939.9215586
+    },
+    {
+      "key": "outcomes::unblock",
+      "operation": "unblock*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 1.0,
+      "count": 7,
+      "fail": 7,
+      "last_notes": "auto-log from master_verify pipeline",
+      "source": "outcomes",
+      "created_at": 1770529343.4422796,
+      "updated_at": 1770533139.9215586,
+      "expires_at": 1771137939.9215586
+    },
+    {
+      "key": "outcomes::scenario_batch",
+      "operation": "scenario_batch*",
+      "scope": "",
+      "action": "require_human",
+      "fail_rate": 0.517,
+      "count": 120,
+      "fail": 62,
+      "last_notes": "scenario batch executed (mode=sandbox)",
+      "source": "outcomes",
+      "created_at": 1770529343.4422796,
+      "updated_at": 1770533139.9215586,
+      "expires_at": 1771137939.9215586
+    },
+    {
+      "key": "outcomes::investigate",
+      "operation": "investigate*",
+      "scope": "",
+      "action": "block",
+      "fail_rate": 0.982,
+      "count": 55,
+      "fail": 54,
+      "last_notes": "auto-log from master_verify pipeline",
+      "source": "outcomes",
+      "created_at": 1770529343.4422796,
+      "updated_at": 1770533139.9215586,
+      "expires_at": 1771137939.9215586
+    }
+  ],
+  "last_updated": 1770533139.922169,
   "history": [
     {
       "ts": 1770488776.3417563,
@@ -192,6 +264,170 @@
         }
       },
       "source": "learning_feedback"
+    },
+    {
+      "ts": 1770529343.4427269,
+      "changes": [
+        "fallback_rules_outcomes:+5/~0"
+      ],
+      "context": {
+        "created": [
+          {
+            "key": "outcomes::observe",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.838,
+            "count": 68,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770529343.4422796,
+            "expires_at": 1771134143.4422796
+          },
+          {
+            "key": "outcomes::stabilize",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.885,
+            "count": 52,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770529343.4422796,
+            "expires_at": 1771134143.4422796
+          },
+          {
+            "key": "outcomes::unblock",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770529343.4422796,
+            "expires_at": 1771134143.4422796
+          },
+          {
+            "key": "outcomes::scenario_batch",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.517,
+            "count": 120,
+            "fail": 62,
+            "last_notes": "scenario batch executed (mode=sandbox)",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770529343.4422796,
+            "expires_at": 1771134143.4422796
+          },
+          {
+            "key": "outcomes::investigate",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.982,
+            "count": 55,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770529343.4422796,
+            "expires_at": 1771134143.4422796
+          }
+        ],
+        "updated": []
+      },
+      "source": "fallback_rules_outcomes"
+    },
+    {
+      "ts": 1770533139.922171,
+      "changes": [
+        "fallback_rules_outcomes:+0/~5"
+      ],
+      "context": {
+        "created": [],
+        "updated": [
+          {
+            "key": "outcomes::observe",
+            "operation": "observe*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.826,
+            "count": 69,
+            "fail": 57,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770533139.9215586,
+            "expires_at": 1771137939.9215586
+          },
+          {
+            "key": "outcomes::stabilize",
+            "operation": "stabilize*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.885,
+            "count": 52,
+            "fail": 46,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770533139.9215586,
+            "expires_at": 1771137939.9215586
+          },
+          {
+            "key": "outcomes::unblock",
+            "operation": "unblock*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 1.0,
+            "count": 7,
+            "fail": 7,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770533139.9215586,
+            "expires_at": 1771137939.9215586
+          },
+          {
+            "key": "outcomes::scenario_batch",
+            "operation": "scenario_batch*",
+            "scope": "",
+            "action": "require_human",
+            "fail_rate": 0.517,
+            "count": 120,
+            "fail": 62,
+            "last_notes": "scenario batch executed (mode=sandbox)",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770533139.9215586,
+            "expires_at": 1771137939.9215586
+          },
+          {
+            "key": "outcomes::investigate",
+            "operation": "investigate*",
+            "scope": "",
+            "action": "block",
+            "fail_rate": 0.982,
+            "count": 55,
+            "fail": 54,
+            "last_notes": "auto-log from master_verify pipeline",
+            "source": "outcomes",
+            "created_at": 1770529343.4422796,
+            "updated_at": 1770533139.9215586,
+            "expires_at": 1771137939.9215586
+          }
+        ]
+      },
+      "source": "fallback_rules_outcomes"
     }
   ]
 }

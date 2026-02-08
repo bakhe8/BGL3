@@ -67,6 +67,8 @@ def _classify_result(result: str) -> str:
         return "success"
     if res in ("fail", "blocked", "false_positive", "skipped", "error"):
         return "fail"
+    if res in ("deferred", "no_op"):
+        return "neutral"
     return "neutral"
 
 

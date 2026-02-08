@@ -68,19 +68,93 @@ function bgl_flatten(array $data, string $prefix = ''): array {
     return $out;
 }
 
+function bgl_is_manual_proposal_disabled(string $projectRoot): bool {
+    $cfgPath = $projectRoot . '/.bgl_core/config.yml';
+    $cfg = file_exists($cfgPath) ? bgl_yaml_parse($cfgPath) : null;
+    $approvalsEnabled = true;
+    $autoApplyEnabled = false;
+    if (is_array($cfg)) {
+        if (array_key_exists('approvals_enabled', $cfg)) {
+            $approvalsEnabled = (bool)$cfg['approvals_enabled'];
+        }
+        if (array_key_exists('auto_apply', $cfg)) {
+            $autoApplyEnabled = (bool)$cfg['auto_apply'];
+        }
+    }
+    return (!$approvalsEnabled && $autoApplyEnabled);
+}
+
+function bgl_is_manual_experience_disabled(string $projectRoot): bool {
+    $cfgPath = $projectRoot . '/.bgl_core/config.yml';
+    $cfg = file_exists($cfgPath) ? bgl_yaml_parse($cfgPath) : null;
+    if (!is_array($cfg)) {
+        return false;
+    }
+    if (array_key_exists('auto_propose', $cfg)) {
+        return (bool)$cfg['auto_propose'];
+    }
+    return false;
+}
+
 function bgl_experience_hash(string $scenario, string $summary): string {
     return sha1(trim($scenario) . '|' . trim($summary));
+}
+
+function bgl_parse_cmd_tokens(string $cmd): array {
+    $tokens = [];
+    $buf = '';
+    $inQuote = false;
+    $len = strlen($cmd);
+    for ($i = 0; $i < $len; $i++) {
+        $ch = $cmd[$i];
+        if ($ch === '"') {
+            $inQuote = !$inQuote;
+            continue;
+        }
+        if (!$inQuote && ctype_space($ch)) {
+            if ($buf !== '') {
+                $tokens[] = $buf;
+                $buf = '';
+            }
+            continue;
+        }
+        $buf .= $ch;
+    }
+    if ($buf !== '') $tokens[] = $buf;
+    return $tokens;
+}
+
+function bgl_ps_quote(string $arg): string {
+    return "'" . str_replace("'", "''", $arg) . "'";
 }
 
 function bgl_start_bg(string $cmd): void {
     $cmd = trim($cmd);
     if ($cmd === '') return;
-    // Windows: when using "start", the first quoted string is treated as the window title.
-    // Use an empty title "" to avoid swallowing the executable path.
-    // Escape embedded quotes for cmd.exe
-    $safeCmd = str_replace('"', '^"', $cmd);
-    $full = 'cmd /c "start \"\" /B ' . $safeCmd . '"';
-    pclose(popen($full, "r"));
+    $isWindows = strtoupper(substr(PHP_OS, 0, 3)) === 'WIN';
+    if ($isWindows) {
+        $needsShell = preg_match('/[<>|&]/', $cmd) === 1;
+        if (!$needsShell) {
+            $tokens = bgl_parse_cmd_tokens($cmd);
+            if (!empty($tokens)) {
+                $exe = array_shift($tokens);
+                $argList = '';
+                if (!empty($tokens)) {
+                    $argList = ' -ArgumentList ' . implode(',', array_map('bgl_ps_quote', $tokens));
+                }
+                $ps = 'Start-Process -WindowStyle Hidden -FilePath ' . bgl_ps_quote($exe) . $argList;
+                $full = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
+                pclose(popen($full, "r"));
+                return;
+            }
+        }
+        // Fallback to cmd.exe for shell features like redirection.
+        $safeCmd = str_replace('"', '^"', $cmd);
+        $full = 'cmd /c "start \"\" /B ' . $safeCmd . '"';
+        pclose(popen($full, "r"));
+        return;
+    }
+    pclose(popen($cmd . " > /dev/null 2>&1 &", "r"));
 }
 
 function bgl_start_tool_server_bg(string $pythonBin, string $scriptPath, int $port): void {
@@ -151,6 +225,11 @@ function bgl_exploration_failure_stats(string $dbPath, int $minutes = 120): arra
         'search_no_change' => 0,
         'http_error' => 0,
         'network_fail' => 0,
+        'form_auto_submit_fail' => 0,
+        'search_auto_submit_fail' => 0,
+        'filechooser_blocked' => 0,
+        'console_error' => 0,
+        'success_events' => 0,
         'gap_deepen' => 0,
         'gap_deepen_recent' => 0,
         'total' => 0,
@@ -160,18 +239,48 @@ function bgl_exploration_failure_stats(string $dbPath, int $minutes = 120): arra
     if (!file_exists($dbPath)) return $out;
     try {
         $lite = new PDO("sqlite:" . $dbPath);
+        $failTypes = ['dom_no_change','search_no_change','http_error','network_fail','form_auto_submit_fail','search_auto_submit_fail','filechooser_blocked','console_error'];
+        $successTypes = ['ui_click','ui_input','form_auto_submit','search_auto_submit','file_upload','route_index_exploration','novel_probe','navigation_back'];
+        $allTypes = array_merge($failTypes, $successTypes, ['gap_deepen']);
+        $placeholders = implode(',', array_fill(0, count($allTypes), '?'));
         $stmt = $lite->prepare(
-            "SELECT event_type, COUNT(*) c FROM runtime_events WHERE timestamp >= ? AND event_type IN ('dom_no_change','search_no_change','http_error','network_fail','gap_deepen') GROUP BY event_type"
+            "SELECT event_type, COUNT(*) c FROM runtime_events WHERE timestamp >= ? AND event_type IN ($placeholders) GROUP BY event_type"
         );
-        $stmt->execute([$cutoff]);
+        $params = array_merge([$cutoff], $allTypes);
+        $stmt->execute($params);
         $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
         foreach ($rows as $r) {
             $k = $r['event_type'];
             $out[$k] = (int)$r['c'];
         }
-        $out['total'] = array_sum([$out['dom_no_change'], $out['search_no_change'], $out['http_error'], $out['network_fail']]);
+        $out['success_events'] = array_sum(array_map(fn($t) => (int)($out[$t] ?? 0), $successTypes));
+        $failTotal = array_sum(array_map(fn($t) => (int)($out[$t] ?? 0), $failTypes));
+        // External dependency detection (DB/network outage from logs)
+        try {
+            $stmt3 = $lite->prepare(
+                "SELECT COUNT(*) FROM runtime_events WHERE timestamp >= ? AND event_type='log_highlight' AND (payload LIKE ? OR payload LIKE ? OR payload LIKE ? OR payload LIKE ? OR payload LIKE ?)"
+            );
+            $stmt3->execute([
+                $cutoff,
+                '%Database Connection Timeout%',
+                '%SQLSTATE%',
+                '%PDOException%',
+                '%ECONNREFUSED%',
+                '%Connection refused%',
+            ]);
+            $out['external_dependency'] = (int)$stmt3->fetchColumn();
+        } catch (\Exception $e) {
+            $out['external_dependency'] = 0;
+        }
+        $out['total'] = $failTotal + $out['success_events'];
         if ($out['total'] > 0) {
-            $out['failure_rate'] = round((($out['dom_no_change'] + $out['search_no_change'] + $out['http_error'] + $out['network_fail']) / $out['total']) * 100, 1);
+            $effectiveFail = $failTotal;
+            if (($out['external_dependency'] ?? 0) > 0) {
+                $out['deferred_failures'] = $failTotal;
+                $effectiveFail = 0;
+                $out['status'] = 'EXTERNAL';
+            }
+            $out['failure_rate'] = round(($effectiveFail / $out['total']) * 100, 1);
         }
         // gap_deepen from outcomes (recent)
         try {
@@ -179,7 +288,9 @@ function bgl_exploration_failure_stats(string $dbPath, int $minutes = 120): arra
             $stmt2->execute([$cutoff]);
             $out['gap_deepen_recent'] = (int)$stmt2->fetchColumn();
         } catch (\Exception $e) {}
-        if ($out['failure_rate'] >= 40 || $out['gap_deepen_recent'] >= 5) {
+        if ($out['status'] === 'EXTERNAL') {
+            // keep external status
+        } elseif ($out['failure_rate'] >= 40 || $out['gap_deepen_recent'] >= 5) {
             $out['status'] = 'STALLED';
         } elseif ($out['failure_rate'] <= 10 && $out['gap_deepen_recent'] == 0) {
             $out['status'] = 'STABLE';
@@ -255,6 +366,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Handle Experience actions (promote/ignore/accept/reject)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'experience_action') {
+    if (bgl_is_manual_experience_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'خبرات النظام تُحوَّل تلقائياً إلى اقتراحات؛ الإجراءات اليدوية معطلة.']);
+    }
     $expHash = trim((string)($_POST['exp_hash'] ?? ''));
     $expAction = trim((string)($_POST['exp_action'] ?? ''));
     $expScenario = trim((string)($_POST['exp_scenario'] ?? ''));
@@ -298,6 +412,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
  * Handle Permission Grant/Deny via POST
  */
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'permission') {
+    $cfgPath = $projectRoot . '/.bgl_core/config.yml';
+    $cfg = file_exists($cfgPath) ? bgl_yaml_parse($cfgPath) : null;
+    $approvalsEnabled = true;
+    if (is_array($cfg) && array_key_exists('approvals_enabled', $cfg)) {
+        $approvalsEnabled = (bool)$cfg['approvals_enabled'];
+    }
+    if (!$approvalsEnabled) {
+        bgl_respond(['ok' => false, 'message' => 'الموافقات معطلة؛ لا حاجة لاعتماد يدوي.']);
+    }
     $perm_id = (int)$_POST['perm_id'];
     $status = $_POST['status']; // GRANTED or DENIED
     
@@ -586,6 +709,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Apply proposal in sandbox (fire-and-forget orchestrator)
 // Apply proposal in sandbox (fire-and-forget orchestrator)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['apply_proposal', 'force_apply'])) {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'الاقتراحات مؤتمتة حالياً؛ التنفيذ اليدوي معطل.']);
+    }
     $pid = $_POST['proposal_id'] ?? '';
     $isForce = $_POST['action'] === 'force_apply';
     $flag = $isForce ? '--force' : '';
@@ -611,6 +737,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array
 
 // Generate a patch plan for a proposal (LLM-assisted)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'generate_plan') {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'توليد الخطط اليدوي معطل لأن الاقتراحات مؤتمتة.']);
+    }
     $pid = trim((string)($_POST['proposal_id'] ?? ''));
     if ($pid === '') {
         bgl_respond(['ok' => false, 'message' => 'معرّف الاقتراح غير صالح.']);
@@ -625,6 +754,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Upload a patch plan and optionally attach it to a proposal
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'upload_plan') {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'رفع الخطط اليدوي معطل لأن الاقتراحات مؤتمتة.']);
+    }
     $pid = trim((string)($_POST['proposal_id'] ?? ''));
     if (!isset($_FILES['plan_file'])) {
         bgl_respond(['ok' => false, 'message' => 'لم يتم اختيار ملف الخطة.']);
@@ -660,6 +792,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Attach an existing plan to a proposal
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'attach_plan') {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'ربط الخطط اليدوي معطل لأن الاقتراحات مؤتمتة.']);
+    }
     $pid = trim((string)($_POST['proposal_id'] ?? ''));
     $planPath = trim((string)($_POST['plan_path'] ?? ''));
     if ($pid === '' || $planPath === '') {
@@ -680,6 +815,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Clear attached plan
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'clear_plan') {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'إزالة الخطط اليدوي معطل لأن الاقتراحات مؤتمتة.']);
+    }
     $pid = trim((string)($_POST['proposal_id'] ?? ''));
     if ($pid === '') {
         bgl_respond(['ok' => false, 'message' => 'بيانات الخطة غير مكتملة.']);
@@ -694,6 +832,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 
 // Apply a patch plan directly (creates proposal if needed)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && in_array($_POST['action'], ['apply_plan', 'force_plan'])) {
+    if (bgl_is_manual_proposal_disabled($projectRoot)) {
+        bgl_respond(['ok' => false, 'message' => 'تطبيق الخطط اليدوي معطل لأن الاقتراحات مؤتمتة.']);
+    }
     $planPath = trim((string)($_POST['plan_path'] ?? ''));
     $pid = trim((string)($_POST['proposal_id'] ?? ''));
     $isForce = $_POST['action'] === 'force_plan';
@@ -1488,7 +1629,7 @@ class PremiumDashboard
             if (file_exists($this->decisionDbPath)) {
                 try {
                     $dec = new PDO("sqlite:" . $this->decisionDbPath);
-                    $sql = "SELECT i.intent, o.result, o.notes, o.timestamp 
+                    $sql = "SELECT i.intent, o.result, o.notes, strftime('%s', o.timestamp) AS timestamp 
                             FROM outcomes o 
                             JOIN decisions d ON o.decision_id = d.id 
                             JOIN intents i ON d.intent_id = i.id 
@@ -1539,6 +1680,11 @@ class PremiumDashboard
 
     public function getPermissions(): array
     {
+        $cfgPath = $this->projectPath . '/.bgl_core/config.yml';
+        $cfg = file_exists($cfgPath) ? bgl_yaml_parse($cfgPath) : null;
+        if (is_array($cfg) && array_key_exists('approvals_enabled', $cfg) && !$cfg['approvals_enabled']) {
+            return [];
+        }
         if (!file_exists($this->agentDbPath)) return [];
         try {
             $lite = new PDO("sqlite:" . $this->agentDbPath);
@@ -1581,9 +1727,18 @@ class PremiumDashboard
                 $stmt = $lite->query("SELECT * FROM agent_activity ORDER BY timestamp DESC LIMIT 8");
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
                 foreach ($rows as $r) {
-                    $raw = $r['activity'] ?? 'Unknown Activity';
+                    $raw = $r['activity'] ?? '';
+                    if (!$raw) {
+                        $raw = $r['type'] ?? '';
+                    }
+                    if (!$raw) {
+                        $raw = $r['message'] ?? '';
+                    }
+                    if (!$raw) {
+                        $raw = 'Unknown Activity';
+                    }
                     $readable = $trans[$raw] ?? $raw; // Translate or keep raw
-                    
+
                     // Specific mapping for inference
                     if (str_contains($raw, 'Inference Detected')) {
                         $readable = 'اكتشاف أنماط جديدة (Inference)';
@@ -1604,7 +1759,7 @@ class PremiumDashboard
             try {
                 $dec = new PDO("sqlite:" . $this->decisionDbPath);
                 // Get outcomes linked to intents
-                $sql = "SELECT i.intent, o.result, o.timestamp 
+                $sql = "SELECT i.intent, o.result, strftime('%s', o.timestamp) AS timestamp 
                         FROM outcomes o 
                         JOIN decisions d ON o.decision_id = d.id 
                         JOIN intents i ON d.intent_id = i.id 
@@ -2051,6 +2206,17 @@ $browserStatus = $dash->getBrowserStatus();
 $envSnapshot = $dash->getEnvSnapshot('diagnostic');
 $envDelta = $dash->getEnvSnapshot('diagnostic_delta');
 $llmStatus = $dash->getLLMStatus();
+$prodFilters = [
+    'status' => (string)($_GET['prod_status'] ?? ''),
+    'operation' => (string)($_GET['prod_operation'] ?? ''),
+    'source' => (string)($_GET['prod_source'] ?? ''),
+    'scope' => (string)($_GET['prod_scope'] ?? ''),
+    'days' => (int)($_GET['prod_days'] ?? 7),
+    'limit' => (int)($_GET['prod_limit'] ?? 60),
+];
+$prodOpsFilters = bgl_prod_ops_filter_options($agentDbPath);
+$prodOpsSummary = bgl_prod_ops_summary($agentDbPath);
+$prodOps = bgl_fetch_prod_ops($agentDbPath, $prodFilters);
 $llmWarmAttempted = false;
 $permissionIssues = $dash->getPermissionIssues();
 $worstRoutes = $dash->getWorstRoutes();
@@ -2061,7 +2227,7 @@ $decisionDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 if (file_exists($decisionDbPath)) {
     try {
         $dec = new PDO("sqlite:" . $decisionDbPath);
-        $sql = "SELECT o.result, o.notes, o.timestamp, i.intent, d.decision, d.risk_level
+        $sql = "SELECT o.result, o.notes, strftime('%s', o.timestamp) AS timestamp, i.intent, d.decision, d.risk_level
                 FROM outcomes o
                 JOIN decisions d ON o.decision_id = d.id
                 JOIN intents i ON d.intent_id = i.id
@@ -2133,6 +2299,12 @@ if (file_exists($configPath)) {
 }
 $agentFlags = bgl_read_json($flagsPath);
 $effectiveCfg = bgl_deep_merge($cfg, $agentFlags);
+$approvalsEnabled = true;
+if (array_key_exists('approvals_enabled', $effectiveCfg)) {
+    $approvalsEnabled = (bool)$effectiveCfg['approvals_enabled'];
+}
+$autoApplyEnabled = (bool)($effectiveCfg['auto_apply'] ?? false);
+$autoProposeEnabled = (bool)($effectiveCfg['auto_propose'] ?? false);
 $effectiveSources = [];
 try {
     $flatCfg = bgl_flatten($cfg);
@@ -2250,6 +2422,12 @@ function bgl_build_live_payload(
     $routePayload = is_array($recentRoutes) ? $recentRoutes : [];
     $logPayload = is_array($logHighlights) ? $logHighlights : [];
     $goalPayload = is_array($autonomyGoals) ? $autonomyGoals : [];
+    $kpiSummary = $latestReport['findings']['kpi_metrics']['summary'] ?? ($latestReport['kpi_metrics']['summary'] ?? []);
+    $activitySummary = $latestReport['findings']['activity_summary'] ?? ($latestReport['activity_summary'] ?? []);
+    $deltaSummary = $latestReport['findings']['diagnostic_delta']['summary'] ?? ($latestReport['diagnostic_delta']['summary'] ?? ($deltaPayload['summary'] ?? []));
+    $kpiBad = (int)($kpiSummary['bad'] ?? 0);
+    $activityStale = $activitySummary['stale'] ?? null;
+    $deltaChangedKeys = (int)($deltaSummary['changed_keys'] ?? 0);
 
     $vitalPayload = [];
     foreach ($vitals as $key => $v) {
@@ -2302,6 +2480,9 @@ function bgl_build_live_payload(
         'snapshot_readiness' => $readinessText,
         'vitals' => $vitalPayload,
         'kpi_current' => $kpiDisplay,
+        'kpi_bad' => $kpiBad,
+        'activity_stale' => $activityStale === null ? null : ($activityStale ? 'STALE' : 'ACTIVE'),
+        'delta_changed_keys' => $deltaChangedKeys,
         'exploration_stats' => $exploreStats,
     ];
 }
@@ -2329,6 +2510,9 @@ $canaryStatus = [];
 $routesDbPath = $projectRoot . '/.bgl_core/brain/knowledge.db';
 $routeHealth = bgl_route_health_from_db($routesDbPath, 7, 24);
 $exploreStats = bgl_exploration_failure_stats($routesDbPath, 180);
+$kpiSignalSummary = [];
+$activitySignalSummary = [];
+$deltaSignalSummary = [];
 if (file_exists($reportJson)) {
     $jr = json_decode(file_get_contents($reportJson), true);
     if (is_array($jr)) {
@@ -2370,7 +2554,127 @@ if (file_exists($reportJson)) {
         } elseif (isset($jr['findings']['canary_status']) && is_array($jr['findings']['canary_status'])) {
             $canaryStatus = $jr['findings']['canary_status'];
         }
+        $kpiSignalSummary = $jr['findings']['kpi_metrics']['summary'] ?? ($jr['kpi_metrics']['summary'] ?? []);
+        $activitySignalSummary = $jr['findings']['activity_summary'] ?? ($jr['activity_summary'] ?? []);
+        $deltaSignalSummary = $jr['findings']['diagnostic_delta']['summary'] ?? ($jr['diagnostic_delta']['summary'] ?? []);
     }
+}
+
+$kpiBadCount = (int)($kpiSignalSummary['bad'] ?? 0);
+$activityStale = $activitySignalSummary['stale'] ?? null;
+$deltaChangedKeys = (int)($deltaSignalSummary['changed_keys'] ?? 0);
+
+function bgl_prod_ops_filter_options(string $dbPath): array {
+    $out = ['status' => [], 'operation' => [], 'source' => []];
+    if (!file_exists($dbPath)) return $out;
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $hasTable = $lite->query("SELECT name FROM sqlite_master WHERE type='table' AND name='prod_operations'")->fetchColumn();
+        if (!$hasTable) return $out;
+        $out['status'] = $lite->query("SELECT DISTINCT status FROM prod_operations ORDER BY status")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $out['operation'] = $lite->query("SELECT DISTINCT operation FROM prod_operations ORDER BY operation")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+        $out['source'] = $lite->query("SELECT DISTINCT source FROM prod_operations ORDER BY source")->fetchAll(PDO::FETCH_COLUMN) ?: [];
+    } catch (\Exception $e) {}
+    return $out;
+}
+
+function bgl_prod_ops_summary(string $dbPath): array {
+    $out = [
+        'day' => ['total' => 0, 'allowed' => 0, 'blocked' => 0],
+        'week' => ['total' => 0, 'allowed' => 0, 'blocked' => 0],
+        'last_ts' => null,
+    ];
+    if (!file_exists($dbPath)) return $out;
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $hasTable = $lite->query("SELECT name FROM sqlite_master WHERE type='table' AND name='prod_operations'")->fetchColumn();
+        if (!$hasTable) return $out;
+        $now = time();
+        foreach ([1 => 'day', 7 => 'week'] as $days => $key) {
+            $cutoff = $now - ($days * 86400);
+            $stmt = $lite->prepare("SELECT status, COUNT(*) c FROM prod_operations WHERE timestamp >= ? GROUP BY status");
+            $stmt->execute([$cutoff]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $total = 0;
+            $allowed = 0;
+            $blocked = 0;
+            foreach ($rows as $r) {
+                $cnt = (int)($r['c'] ?? 0);
+                $status = (string)($r['status'] ?? '');
+                $total += $cnt;
+                if ($status === 'allowed') {
+                    $allowed += $cnt;
+                } elseif (stripos($status, 'blocked') === 0) {
+                    $blocked += $cnt;
+                }
+            }
+            $out[$key] = ['total' => $total, 'allowed' => $allowed, 'blocked' => $blocked];
+        }
+        $last = $lite->query("SELECT timestamp FROM prod_operations ORDER BY timestamp DESC LIMIT 1")->fetchColumn();
+        if ($last !== false) {
+            $out['last_ts'] = (float)$last;
+        }
+    } catch (\Exception $e) {}
+    return $out;
+}
+
+function bgl_fetch_prod_ops(string $dbPath, array $filters = []): array {
+    $out = ['rows' => [], 'count' => 0];
+    if (!file_exists($dbPath)) return $out;
+    try {
+        $lite = new PDO("sqlite:" . $dbPath);
+        $hasTable = $lite->query("SELECT name FROM sqlite_master WHERE type='table' AND name='prod_operations'")->fetchColumn();
+        if (!$hasTable) return $out;
+        $where = [];
+        $params = [];
+        $days = (int)($filters['days'] ?? 7);
+        $days = $days > 0 ? $days : 7;
+        $cutoff = time() - ($days * 86400);
+        $where[] = "timestamp >= ?";
+        $params[] = $cutoff;
+
+        $status = trim((string)($filters['status'] ?? ''));
+        if ($status !== '') {
+            if ($status === 'blocked') {
+                $where[] = "status LIKE ?";
+                $params[] = "blocked%";
+            } else {
+                $where[] = "status = ?";
+                $params[] = $status;
+            }
+        }
+        $operation = trim((string)($filters['operation'] ?? ''));
+        if ($operation !== '') {
+            $where[] = "operation = ?";
+            $params[] = $operation;
+        }
+        $source = trim((string)($filters['source'] ?? ''));
+        if ($source !== '') {
+            $where[] = "source = ?";
+            $params[] = $source;
+        }
+        $scope = trim((string)($filters['scope'] ?? ''));
+        if ($scope !== '') {
+            $where[] = "scope LIKE ?";
+            $params[] = "%" . $scope . "%";
+        }
+        $limit = (int)($filters['limit'] ?? 60);
+        if ($limit < 10) $limit = 10;
+        if ($limit > 200) $limit = 200;
+        $sql = "SELECT * FROM prod_operations";
+        if (!empty($where)) {
+            $sql .= " WHERE " . implode(" AND ", $where);
+        }
+        $sql .= " ORDER BY timestamp DESC LIMIT ?";
+        $params[] = $limit;
+
+        $stmt = $lite->prepare($sql);
+        $stmt->execute($params);
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        $out['rows'] = $rows ?: [];
+        $out['count'] = count($out['rows']);
+    } catch (\Exception $e) {}
+    return $out;
 }
 // Ensure callgraph uses canonical routes count from DB.
 if (empty($callgraphMeta) || !is_array($callgraphMeta)) {

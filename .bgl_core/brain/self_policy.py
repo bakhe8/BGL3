@@ -18,6 +18,7 @@ DEFAULT_SELF_POLICY: Dict[str, Any] = {
         "propose_fix_change": 6,
         "auto_fix_change": 14,
     },
+    "fallback_rules": [],
     "last_updated": None,
     "history": [],
 }
@@ -146,4 +147,3 @@ def update_self_policy(root_dir: Path, findings: Dict[str, Any]) -> Dict[str, An
         save_self_policy(root_dir, policy)
 
     return policy
-

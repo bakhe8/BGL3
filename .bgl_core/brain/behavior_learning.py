@@ -6,6 +6,13 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+try:
+    from .memory_index import upsert_memory_item  # type: ignore
+except Exception:
+    try:
+        from memory_index import upsert_memory_item  # type: ignore
+    except Exception:
+        upsert_memory_item = None  # type: ignore
 
 def _connect(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path), timeout=30.0)
@@ -92,6 +99,18 @@ def record_behavior_hint(
             )
             conn.commit()
             conn.close()
+            if upsert_memory_item:
+                upsert_memory_item(
+                    db_path,
+                    kind="behavior_hint",
+                    key_text=f"{page_url}|{action}|{selector}|{hint}",
+                    summary=f"{action} -> {hint}",
+                    evidence_count=1,
+                    confidence=new_conf,
+                    meta={"page_url": page_url, "selector": selector, "notes": notes},
+                    source_table="behavior_hints",
+                    source_id=int(row["id"]),
+                )
             return int(row["id"])
         conn.execute(
             """
@@ -114,6 +133,18 @@ def record_behavior_hint(
         hint_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
         conn.commit()
         conn.close()
+        if upsert_memory_item and hint_id:
+            upsert_memory_item(
+                db_path,
+                kind="behavior_hint",
+                key_text=f"{page_url}|{action}|{selector}|{hint}",
+                summary=f"{action} -> {hint}",
+                evidence_count=1,
+                confidence=float(confidence or 0.5),
+                meta={"page_url": page_url, "selector": selector, "notes": notes},
+                source_table="behavior_hints",
+                source_id=int(hint_id),
+            )
         return int(hint_id or 0)
     except Exception:
         return None
@@ -185,4 +216,3 @@ def mark_hint_result(db_path: Path, hint_id: int, success: bool) -> None:
         conn.close()
     except Exception:
         return
-

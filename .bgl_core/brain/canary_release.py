@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sqlite3
 import time
 from pathlib import Path
@@ -190,7 +191,11 @@ def register_canary_release(
     return {"ok": True, "release_id": release_id, "baseline": baseline}
 
 
-def _should_rollback(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple[bool, str]:
+def _should_rollback(
+    baseline: Dict[str, Any],
+    current: Dict[str, Any],
+    failure_signal: Optional[Dict[str, Any]] = None,
+) -> Tuple[bool, str]:
     if not baseline or not current:
         return False, "insufficient_data"
     base_routes = baseline.get("routes") or {}
@@ -212,6 +217,43 @@ def _should_rollback(baseline: Dict[str, Any], current: Dict[str, Any]) -> Tuple
         err_spike = 1.0
 
     # Thresholds (can be tuned via env in future)
+    # Failure-class guardrail: severe failures in recent outcomes can force rollback.
+    try:
+        if failure_signal and failure_signal.get("ok"):
+            by_class = failure_signal.get("by_class") or {}
+            severe_classes = {"write_engine", "validation", "permission", "schema"}
+            severe_count = 0
+            for cls in severe_classes:
+                try:
+                    severe_count += int(by_class.get(cls, 0) or 0)
+                except Exception:
+                    continue
+            try:
+                threshold = int(os.getenv("BGL_CANARY_SEVERE_FAILURES", "2") or "2")
+            except Exception:
+                threshold = 2
+            if severe_count >= max(1, threshold):
+                top_cls = ""
+                try:
+                    top_cls = max(by_class.items(), key=lambda kv: kv[1])[0]
+                except Exception:
+                    top_cls = ""
+                reason = f"failure_class:{top_cls}" if top_cls else "failure_class_severe"
+                return True, reason
+    except Exception:
+        pass
+    # External dependency guardrail: DB/network outages should block promotion/trigger rollback.
+    try:
+        ext = (failure_signal or {}).get("external_dependency") or {}
+        ext_active = bool(ext.get("active") or int(ext.get("count") or 0) > 0)
+        if ext_active:
+            env_flag = os.getenv("BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK")
+            if env_flag is None:
+                env_flag = "1"
+            if str(env_flag).strip().lower() in ("1", "true", "yes", "on"):
+                return True, "external_dependency"
+    except Exception:
+        pass
     if health_drop >= 8:
         return True, "health_drop"
     if fail_delta >= 3:
@@ -273,6 +315,8 @@ def evaluate_canary_releases(
     *,
     min_age_sec: int = 300,
     auto_rollback: bool = False,
+    recheck_sec: int = 0,
+    external_dependency: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     if not db_path.exists():
         return {"ok": False, "error": "db_missing"}
@@ -280,22 +324,55 @@ def evaluate_canary_releases(
     _ensure_tables(conn)
     now = time.time()
     rows = conn.execute(
-        "SELECT * FROM canary_releases WHERE status='monitoring' ORDER BY created_at DESC",
+        "SELECT * FROM canary_releases WHERE status IN ('monitoring','promoted') ORDER BY created_at DESC",
     ).fetchall()
     evaluated = 0
     rollbacks = 0
     promoted = 0
     for row in rows:
         created_at = _safe_float(row["created_at"], now)
-        if now - created_at < min_age_sec:
+        # Respect minimum age for first evaluation
+        if now - created_at < min_age_sec and row["status"] == "monitoring":
             continue
+        # Recheck promoted releases only if interval elapsed
+        if row["status"] == "promoted" and recheck_sec:
+            last_update = _safe_float(row["updated_at"], created_at)
+            if now - last_update < recheck_sec:
+                continue
         baseline = {}
         try:
             baseline = json.loads(row["baseline_json"] or "{}")
         except Exception:
             baseline = {}
         current = _collect_metrics(db_path)
-        should_rb, reason = _should_rollback(baseline, current)
+        failure_signal = {}
+        try:
+            from .failure_classifier import summarize_failure_taxonomy  # type: ignore
+        except Exception:
+            try:
+                from failure_classifier import summarize_failure_taxonomy  # type: ignore
+            except Exception:
+                summarize_failure_taxonomy = None  # type: ignore
+        if summarize_failure_taxonomy:
+            try:
+                lookback_hours = max(1, int((now - created_at) / 3600) or 1)
+                failure_signal = summarize_failure_taxonomy(
+                    db_path,
+                    lookback_hours=lookback_hours,
+                    limit=200,
+                )
+                current["failure_taxonomy"] = failure_signal
+            except Exception:
+                failure_signal = {}
+        if external_dependency:
+            try:
+                current["external_dependency"] = external_dependency
+                if isinstance(failure_signal, dict):
+                    failure_signal = dict(failure_signal)
+                    failure_signal["external_dependency"] = external_dependency
+            except Exception:
+                pass
+        should_rb, reason = _should_rollback(baseline, current, failure_signal)
         status = "rollback_required" if should_rb else "promoted"
         conn.execute(
             "UPDATE canary_releases SET status=?, updated_at=?, current_json=? WHERE release_id=?",
@@ -303,7 +380,7 @@ def evaluate_canary_releases(
         )
         conn.execute(
             "INSERT INTO canary_release_events (release_id, created_at, event_type, detail_json) VALUES (?, ?, ?, ?)",
-            (row["release_id"], float(now), "evaluated", _safe_json({"reason": reason})),
+            (row["release_id"], float(now), "evaluated", _safe_json({"reason": reason, "status": status})),
         )
         evaluated += 1
         if status == "promoted":

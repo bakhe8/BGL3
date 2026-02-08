@@ -4,13 +4,34 @@ import shutil
 from pathlib import Path
 
 # Paths
-PYTHON_EXE = sys.executable
 ROOT_DIR = Path(__file__).parent.parent
+def _preferred_python() -> str:
+    candidates = [
+        ROOT_DIR / ".bgl_core" / ".venv312" / "Scripts" / "python.exe",
+        ROOT_DIR / ".bgl_core" / ".venv" / "Scripts" / "python.exe",
+        ROOT_DIR / ".bgl_core" / ".venv312" / "bin" / "python",
+        ROOT_DIR / ".bgl_core" / ".venv" / "bin" / "python",
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return str(cand)
+    return sys.executable
+
+
+PYTHON_EXE = _preferred_python()
 ANALYSIS_SCRIPT = ROOT_DIR / "analysis" / "analyze_trace.py"
 METRICS_GUARD = ROOT_DIR / ".bgl_core" / "brain" / "metrics_guard.py"
 SCENARIO_RUNNER = ROOT_DIR / ".bgl_core" / "brain" / "scenario_runner.py"
 TRACE_LOG = ROOT_DIR / "storage" / "logs" / "traces.jsonl"
 RUNTIME_DB = ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
+LOCK_PATH = ROOT_DIR / ".bgl_core" / "logs" / "verification_cycle.lock"
+
+try:
+    sys.path.append(str(ROOT_DIR / ".bgl_core" / "brain"))
+    from run_lock import acquire_lock, release_lock  # type: ignore
+except Exception:
+    acquire_lock = None  # type: ignore
+    release_lock = None  # type: ignore
 
 
 def run_command(cmd, description):
@@ -25,6 +46,11 @@ def run_command(cmd, description):
 
 def main():
     print("🚀 Starting Continuous Verification Cycle...\n")
+    if acquire_lock is not None:
+        ok, reason = acquire_lock(LOCK_PATH, ttl_sec=7200, label="verification_cycle")
+        if not ok:
+            print(f"[!] Verification cycle already running ({reason}); skipping.")
+            return
 
     # 1. Clean previous artifacts
     if TRACE_LOG.exists():
@@ -78,6 +104,8 @@ def main():
     run_command(cmd_stress, "Running Concurrency Stress Test (Phase 4)")
 
     print("🏁 Verification Cycle Completed Successfully!")
+    if release_lock is not None:
+        release_lock(LOCK_PATH)
 
 
 def run_shadow_phase():

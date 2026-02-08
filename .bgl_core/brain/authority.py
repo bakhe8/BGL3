@@ -28,12 +28,14 @@ try:
     from .decision_db import init_db, insert_intent, insert_decision, insert_outcome  # type: ignore
     from .decision_engine import decide  # type: ignore
     from .observations import latest_env_snapshot  # type: ignore
+    from .self_policy import load_self_policy  # type: ignore
 except Exception:
     from brain_types import ActionRequest, ActionKind, GateResult
     from config_loader import load_config
     from decision_db import init_db, insert_intent, insert_decision, insert_outcome
     from decision_engine import decide
     from observations import latest_env_snapshot
+    from self_policy import load_self_policy
 
 
 def _ensure_agent_permissions_table(conn: sqlite3.Connection):
@@ -56,6 +58,26 @@ def _safe_json(val: Any) -> str:
         return json.dumps(val, ensure_ascii=False)
     except Exception:
         return "{}"
+
+
+def _normalize_scope(scope_val: Any) -> str:
+    if scope_val is None:
+        return ""
+    if isinstance(scope_val, (list, tuple)):
+        return ",".join([str(s) for s in scope_val if s])
+    if isinstance(scope_val, dict):
+        return json.dumps(scope_val, ensure_ascii=False)
+    s = str(scope_val).strip()
+    if s.startswith("[") or s.startswith("{"):
+        try:
+            parsed = json.loads(s)
+            if isinstance(parsed, list):
+                return ",".join([str(p) for p in parsed if p])
+            if isinstance(parsed, dict):
+                return json.dumps(parsed, ensure_ascii=False)
+        except Exception:
+            return s
+    return s
 
 
 class Authority:
@@ -158,6 +180,148 @@ class Authority:
 
     def _autonomous_enabled(self) -> bool:
         return self.effective_execution_mode() == "autonomous" or os.getenv("BGL_AUTONOMOUS", "0") == "1"
+
+    def _approvals_enabled(self) -> bool:
+        env_flag = os.getenv("BGL_APPROVALS_ENABLED")
+        if env_flag is not None:
+            return str(env_flag).strip().lower() in ("1", "true", "yes", "on")
+        cfg_val = self.config.get("approvals_enabled", 1)
+        if isinstance(cfg_val, bool):
+            return cfg_val
+        if isinstance(cfg_val, (int, float)):
+            return float(cfg_val) != 0.0
+        return str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
+
+    def _fallback_guard(self, request: ActionRequest) -> Optional[Dict[str, Any]]:
+        """
+        Check self_policy fallback_rules derived from prod_operations.
+        Returns the matched rule or None.
+        """
+        try:
+            policy = load_self_policy(self.root_dir)
+        except Exception:
+            policy = {}
+        rules = policy.get("fallback_rules") or []
+        if not isinstance(rules, list):
+            return None
+        now = time.time()
+        req_scope = _normalize_scope(request.scope)
+        req_op = str(request.operation or "")
+        for rule in rules:
+            if not isinstance(rule, dict):
+                continue
+            try:
+                exp = rule.get("expires_at")
+                if exp and float(exp) < now:
+                    continue
+            except Exception:
+                pass
+            op = str(rule.get("operation") or "")
+            if op:
+                if op == "*":
+                    pass
+                elif "*" in op:
+                    prefix = op.replace("*", "")
+                    if prefix and not req_op.startswith(prefix):
+                        continue
+                elif op != req_op:
+                    continue
+            rule_scope = str(rule.get("scope") or "")
+            if rule_scope and req_scope:
+                if rule_scope not in req_scope and req_scope not in rule_scope:
+                    continue
+            return rule
+        return None
+
+    def _log_prod_operation(
+        self,
+        request: ActionRequest,
+        gate_res: GateResult,
+        *,
+        status: str,
+        source: str,
+    ) -> None:
+        if request.kind != ActionKind.WRITE_PROD:
+            return
+        try:
+            log_dir = self.root_dir / ".bgl_core" / "logs"
+            log_dir.mkdir(parents=True, exist_ok=True)
+            log_path = log_dir / "prod_operations.jsonl"
+        except Exception:
+            return
+        payload = {
+            "timestamp": time.time(),
+            "status": status,
+            "operation": request.operation,
+            "command": request.command or "",
+            "kind": request.kind.value,
+            "scope": request.scope,
+            "reason": request.reason,
+            "confidence": request.confidence,
+            "metadata": request.metadata or {},
+            "decision_id": gate_res.decision_id,
+            "intent_id": gate_res.intent_id,
+            "allowed": gate_res.allowed,
+            "requires_human": gate_res.requires_human,
+            "execution_mode": self.effective_execution_mode(),
+            "source": source,
+        }
+        try:
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(payload, ensure_ascii=False) + "\n")
+        except Exception:
+            pass
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS prod_operations (
+                  id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  timestamp REAL NOT NULL,
+                  status TEXT,
+                  operation TEXT,
+                  command TEXT,
+                  kind TEXT,
+                  scope TEXT,
+                  decision_id INTEGER,
+                  intent_id INTEGER,
+                  allowed INTEGER,
+                  requires_human INTEGER,
+                  execution_mode TEXT,
+                  source TEXT,
+                  payload_json TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO prod_operations
+                (timestamp, status, operation, command, kind, scope, decision_id, intent_id, allowed, requires_human, execution_mode, source, payload_json)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    payload["timestamp"],
+                    status,
+                    payload["operation"],
+                    payload["command"],
+                    payload["kind"],
+                    _safe_json(payload["scope"]),
+                    int(payload.get("decision_id") or 0),
+                    int(payload.get("intent_id") or 0),
+                    1 if payload.get("allowed") else 0,
+                    1 if payload.get("requires_human") else 0,
+                    payload.get("execution_mode"),
+                    payload.get("source"),
+                    _safe_json(payload),
+                ),
+            )
+            conn.commit()
+            conn.close()
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
 
     def _scope_requires_human(self, scope: List[str]) -> bool:
         """
@@ -273,6 +437,8 @@ class Authority:
             conn.close()
 
     def has_permission(self, operation: str) -> bool:
+        if not self._approvals_enabled():
+            return True
         if not self.db_path.exists():
             return False
         conn = sqlite3.connect(str(self.db_path))
@@ -291,6 +457,8 @@ class Authority:
         """
         Upserts a PENDING permission request and returns its id.
         """
+        if not self._approvals_enabled():
+            return 0
         if not self.db_path.exists():
             self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(str(self.db_path))
@@ -409,8 +577,28 @@ class Authority:
         self, decision_id: int, result: str, notes: str = "", backup_path: str = ""
     ):
         try:
+            # Append failure classification for non-success outcomes.
+            note_text = notes or ""
+            try:
+                from .failure_classifier import classify_failure, extract_failure_class  # type: ignore
+            except Exception:
+                try:
+                    from failure_classifier import classify_failure, extract_failure_class  # type: ignore
+                except Exception:
+                    classify_failure = None  # type: ignore
+                    extract_failure_class = None  # type: ignore
+            if classify_failure and extract_failure_class:
+                try:
+                    res = str(result or "").lower()
+                    if res not in ("success", "success_sandbox", "success_direct", "success_with_override"):
+                        if not extract_failure_class(note_text):
+                            fclass = classify_failure(result, note_text)
+                            if fclass:
+                                note_text = f"{note_text} failure_class={fclass}".strip()
+                except Exception:
+                    pass
             return insert_outcome(
-                self.db_path, decision_id, result, notes, backup_path=backup_path
+                self.db_path, decision_id, result, note_text, backup_path=backup_path
             )
         except Exception:
             # Never crash the caller because of audit logging.
@@ -427,6 +615,31 @@ class Authority:
         """
         # Determine whether this action can have side effects.
         write_action = request.kind in (ActionKind.WRITE_SANDBOX, ActionKind.WRITE_PROD)
+        fallback_rule = None
+        if write_action:
+            try:
+                fallback_rule = self._fallback_guard(request)
+            except Exception:
+                fallback_rule = None
+        if write_action and fallback_rule and str(fallback_rule.get("action") or "").lower() == "block":
+            decision_payload = {
+                "decision": "block",
+                "risk_level": "high",
+                "requires_human": True,
+                "justification": ["fallback_rule:block", str(fallback_rule.get("reason") or "")],
+                "maturity": "stable",
+            }
+            gate_res = self._log_decision(request, decision_payload, source=source)
+            gate_res.allowed = False
+            gate_res.requires_human = True
+            gate_res.message = "Blocked by fallback rule derived from prod operations."
+            self._log_prod_operation(request, gate_res, status="blocked_fallback", source=source)
+            self.record_outcome(
+                gate_res.decision_id or 0,
+                "blocked",
+                "fallback_rule:block",
+            )
+            return gate_res
 
         # For non-write actions, do NOT call the LLM at all. It's pure overhead and causes
         # repetitive "SmartDecisionEngine" calls during audits.
@@ -458,6 +671,7 @@ class Authority:
 
         # For write actions, de-duplicate within a run to avoid repeated LLM calls and decision spam.
         cache_key = self._cache_key(request)
+        decision_payload = {}
         cached = self._cache_get(cache_key)
         if cached:
             gate_res = cached
@@ -520,12 +734,38 @@ class Authority:
             force_requires_human = bool(decision_payload.get("force_requires_human", False))
         except Exception:
             force_requires_human = False
+        if fallback_rule and str(fallback_rule.get("action") or "").lower() == "require_human":
+            force_requires_human = True
 
         if write_action:
-            if self._autonomous_enabled():
+            # Explicit override: allow production writes without human approval.
+            allow_prod_no_human = False
+            try:
+                allow_prod_no_human = (
+                    os.getenv("BGL_ALLOW_PROD_NO_HUMAN", "0") == "1"
+                    or str(self.config.get("allow_prod_without_human", "0")).strip() == "1"
+                )
+            except Exception:
+                allow_prod_no_human = False
+            if self._autonomous_enabled() or (allow_prod_no_human and request.kind == ActionKind.WRITE_PROD):
                 gate_res.allowed = True
                 gate_res.requires_human = False
-                gate_res.message = "Autonomous execution enabled."
+                gate_res.message = "Autonomous execution enabled (production override)."
+                self._log_prod_operation(request, gate_res, status="allowed", source=source)
+                return gate_res
+            if not self._approvals_enabled():
+                # No human approval path; allow by policy/mode only.
+                if request.kind == ActionKind.WRITE_PROD and effective_mode != "direct":
+                    gate_res.allowed = False
+                    gate_res.requires_human = False
+                    gate_res.message = f"WRITE_PROD blocked (execution_mode={effective_mode})."
+                    self._log_prod_operation(request, gate_res, status="blocked_mode", source=source)
+                    self.record_outcome(gate_res.decision_id or 0, "blocked", gate_res.message)
+                    return gate_res
+                gate_res.allowed = True
+                gate_res.requires_human = False
+                gate_res.message = "Approvals disabled; allowed."
+                self._log_prod_operation(request, gate_res, status="allowed", source=source)
                 return gate_res
             # Allow limited policy overrides for sandbox writes (internal maintenance).
             # WRITE_PROD stays strictly human-gated.
@@ -558,6 +798,7 @@ class Authority:
                     gate_res.allowed = False
                     gate_res.requires_human = True
                     gate_res.message = f"Pending human approval for {request.operation} (permission_id={perm_id})."
+                    self._log_prod_operation(request, gate_res, status="blocked_pending", source=source)
                     self.record_outcome(
                         gate_res.decision_id or 0,
                         "blocked",
@@ -570,12 +811,14 @@ class Authority:
                 gate_res.allowed = False
                 gate_res.requires_human = True
                 gate_res.message = f"WRITE_PROD blocked (execution_mode={effective_mode})."
+                self._log_prod_operation(request, gate_res, status="blocked_mode", source=source)
                 self.record_outcome(gate_res.decision_id or 0, "blocked", gate_res.message)
                 return gate_res
 
             gate_res.allowed = True
             gate_res.requires_human = False
             gate_res.message = "Approved and allowed."
+            self._log_prod_operation(request, gate_res, status="allowed", source=source)
             return gate_res
 
         # Non-write actions: allow immediately.

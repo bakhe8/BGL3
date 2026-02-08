@@ -44,6 +44,211 @@
   </div>
 
   <div class="section">
+    <h2>Scenario Run Stats</h2>
+    {% if scenario_run_stats %}
+      <p>Status: <strong>{{ scenario_run_stats.status|default('n/a') }}</strong></p>
+      <p>Attempted: {{ scenario_run_stats.attempted|default(false) }}</p>
+      <p>Event delta: {{ scenario_run_stats.event_delta|default(0) }}</p>
+      <p>Duration: {{ scenario_run_stats.duration_s|default(0) }}s</p>
+      {% if scenario_run_stats.retry_delta is defined %}
+        <p>Retry delta: {{ scenario_run_stats.retry_delta }}</p>
+        <p>Retry duration: {{ scenario_run_stats.retry_duration_s|default(0) }}s</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Scenario run stats not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Coverage Reliability</h2>
+    {% if coverage_reliability %}
+      <p>Scenario coverage reliable: {{ coverage_reliability.scenario }}</p>
+      <p>UI action coverage reliable: {{ coverage_reliability.ui_actions }}</p>
+      <p>Flow coverage reliable: {{ coverage_reliability.flow }}</p>
+    {% else %}
+      <p class="warn">Coverage reliability not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Automation Status</h2>
+    {% if automation %}
+      <p>Approvals: <strong>{{ 'ENABLED' if automation.approvals_enabled else 'DISABLED' }}</strong></p>
+      <p>Auto Propose: {{ automation.auto_propose }} | min_conf {{ automation.auto_propose_min_conf }} | min_evidence {{ automation.auto_propose_min_evidence }}</p>
+      <p>Auto Apply: {{ automation.auto_apply }} | limit {{ automation.auto_apply_limit }}</p>
+      <p>Auto Plan: {{ automation.auto_plan }} | limit {{ automation.auto_plan_limit }}</p>
+      <p>Auto Digest: {{ automation.auto_digest }} | hours {{ automation.auto_digest_hours }} | limit {{ automation.auto_digest_limit }}</p>
+      <p>Auto Verify: {{ automation.auto_verify }} | low_success {{ automation.auto_verify_on_low_success }} (thr {{ automation.auto_verify_success_threshold }})</p>
+      <p>Auto Patch: {{ automation.auto_patch_on_errors }} | limit {{ automation.auto_patch_limit }} | min_conf {{ automation.auto_patch_min_conf }}</p>
+      <p>Post-Apply: validate {{ automation.post_apply_validate }} (mode {{ automation.post_apply_validate_mode }}) | auto_rollback {{ automation.post_apply_auto_rollback_on_fail }}</p>
+      <p>Canary: immediate_eval {{ automation.post_apply_immediate_canary_eval }} | auto_promote_prod {{ automation.post_apply_auto_promote_prod }}</p>
+      <p>Execution: mode {{ automation.execution_mode }} | agent_mode {{ automation.agent_mode }} | allow_prod_without_human {{ automation.allow_prod_without_human }}</p>
+    {% else %}
+      <p class="warn">Automation status not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Context Digest</h2>
+    {% if context_digest %}
+      <p>Status: <span class="{{ 'ok' if context_digest.ok else 'warn' }}">{{ context_digest.ok }}</span></p>
+      {% if context_digest.hours %}<p>Window: {{ context_digest.hours }} hours</p>{% endif %}
+      {% if context_digest.limit %}<p>Limit: {{ context_digest.limit }}</p>{% endif %}
+      {% if context_digest.stdout %}<pre>{{ context_digest.stdout }}</pre>{% endif %}
+      {% if context_digest.stderr %}<pre class="warn">{{ context_digest.stderr }}</pre>{% endif %}
+      {% if context_digest.error %}<p class="warn">Error: {{ context_digest.error }}</p>{% endif %}
+    {% else %}
+      <p class="warn">Context digest not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Auto Planning</h2>
+    {% if auto_plan %}
+      <p>Status: <span class="{{ 'ok' if auto_plan.ok else 'warn' }}">{{ auto_plan.ok }}</span></p>
+      {% if auto_plan.generated is not none %}<p>Generated: {{ auto_plan.generated }}</p>{% endif %}
+      {% if auto_plan.failed is not none %}<p>Failed: {{ auto_plan.failed }}</p>{% endif %}
+      {% if auto_plan.generated_ids %}
+        <p>Generated IDs: {{ auto_plan.generated_ids | join(', ') }}</p>
+      {% endif %}
+      {% if auto_plan.failed_samples %}
+        <ul>
+          {% for f in auto_plan.failed_samples %}
+            <li class="warn">#{{ f.id }} — {{ f.error }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if auto_plan.reason %}<p class="warn">Reason: {{ auto_plan.reason }}</p>{% endif %}
+      {% if auto_plan.error %}<p class="warn">Error: {{ auto_plan.error }}</p>{% endif %}
+    {% else %}
+      <p class="warn">Auto planning not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>KPI Signals</h2>
+    {% if kpi_metrics and kpi_metrics.summary %}
+      <p>OK: {{ kpi_metrics.summary.ok|default(0) }} |
+         WARN: {{ kpi_metrics.summary.warn|default(0) }} |
+         BAD: {{ kpi_metrics.summary.bad|default(0) }} |
+         UNKNOWN: {{ kpi_metrics.summary.unknown|default(0) }}</p>
+      {% if kpi_metrics.violations %}
+        <p><strong>Violations:</strong></p>
+        <ul>
+          {% for v in kpi_metrics.violations %}
+            <li>{{ v.name }} — current {{ v.current }} (target {{ v.target }})</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">KPI metrics not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Agent Activity Summary</h2>
+    {% if activity_summary %}
+      <p>Recent activity: {{ activity_summary.recent|default(0) }}</p>
+      <p>Last activity: {{ activity_summary.last_activity|default('n/a') }}</p>
+      <p>Status: {{ 'STALE' if activity_summary.stale else 'ACTIVE' }}</p>
+      {% if activity_summary.top_activity %}
+        <p><strong>Top activity:</strong></p>
+        <ul>
+          {% for a in activity_summary.top_activity %}
+            <li>{{ a.name }} — {{ a.count }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Activity summary not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Delta Summary</h2>
+    {% if diagnostic_delta and diagnostic_delta.summary %}
+      <p>Changed keys: {{ diagnostic_delta.summary.changed_keys|default(0) }}</p>
+      {% if diagnostic_delta.highlights %}
+        <ul>
+          {% for h in diagnostic_delta.highlights %}
+            <li>{{ h.key }}: {{ h.from }} → {{ h.to }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Delta summary not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Failure Taxonomy</h2>
+    {% if failure_taxonomy and failure_taxonomy.ok %}
+      <p>Lookback: {{ failure_taxonomy.lookback_hours }} hours</p>
+      <p>Total failures: {{ failure_taxonomy.total_failures }}</p>
+      {% if failure_taxonomy.by_class %}
+        <p><strong>By Class:</strong></p>
+        <ul>
+          {% for k, v in failure_taxonomy.by_class.items() %}
+            <li>{{ k }} — {{ v }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if failure_taxonomy.by_operation %}
+        <p><strong>Top Operations:</strong></p>
+        <ul>
+          {% for k, v in failure_taxonomy.by_operation.items() %}
+            <li>{{ k }} — {{ v }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+      {% if failure_taxonomy.samples %}
+        <p><strong>Samples:</strong></p>
+        <ul>
+          {% for s in failure_taxonomy.samples %}
+            <li>{{ s.operation }} | {{ s.class }} | {{ s.result }} — {{ s.notes }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+    {% else %}
+      <p class="warn">Failure taxonomy not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Gap Scenarios</h2>
+    {% if gap_scenarios %}
+      <p>Generated scenarios: {{ gap_scenarios|length }}</p>
+      <ul>
+        {% for s in gap_scenarios %}
+          <li>{{ s }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">No gap scenarios generated.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Run Locks</h2>
+    {% if run_locks %}
+      <table>
+        <tr><th>Lock</th><th>Exists</th><th>PID</th><th>Age (s)</th><th>Label</th></tr>
+        {% for k, v in run_locks.items() %}
+          <tr>
+            <td>{{ k }}</td>
+            <td>{{ v.exists }}</td>
+            <td>{{ v.pid|default('') }}</td>
+            <td>{{ v.age_sec|default('') }}</td>
+            <td>{{ v.label|default('') }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="warn">Run locks not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
     <h2>Change Attribution</h2>
     {% if diagnostic_attribution and diagnostic_attribution.classification %}
       <p>Classification: <strong>{{ diagnostic_attribution.classification }}</strong></p>
@@ -178,24 +383,7 @@
     {% endif %}
   </div>
 
-  <div class="section">
-    <h2>Pending Approvals</h2>
-    {% if pending_approvals %}
-      <table>
-        <tr><th>ID</th><th>Operation</th><th>Command</th><th>Timestamp</th></tr>
-        {% for p in pending_approvals %}
-          <tr>
-            <td>{{ p.id }}</td>
-            <td><code>{{ p.operation }}</code></td>
-            <td>{{ p.command }}</td>
-            <td>{{ p.timestamp }}</td>
-          </tr>
-        {% endfor %}
-      </table>
-    {% else %}
-      <p class="ok">None</p>
-    {% endif %}
-  </div>
+  <!-- Pending Approvals removed: approvals are automated. -->
 
   <div class="section">
     <h2>Recent Outcomes</h2>
@@ -618,22 +806,6 @@
       <ul>{% for g in gap_tests %}<li>{{ g.id if g.id else 'gap' }} — {{ 'PASS' if g.passed else 'FAIL' }} {% if g.evidence %}(evidence: {{ g.evidence }}){% endif %}</li>{% endfor %}</ul>
     {% else %}
       <p>No gap tests recorded.</p>
-    {% endif %}
-  </div>
-
-  <div class="section">
-    <h2>Tool Evidence</h2>
-    {% if tool_evidence %}
-      {% if tool_evidence.route_index %}
-      <h3>Route Index</h3>
-      <pre>{{ tool_evidence.route_index | tojson(indent=2) }}</pre>
-      {% endif %}
-      {% if tool_evidence.run_checks %}
-      <h3>Run Checks</h3>
-      <pre>{{ tool_evidence.run_checks | tojson(indent=2) }}</pre>
-      {% endif %}
-    {% else %}
-      <p>No tool evidence captured.</p>
     {% endif %}
   </div>
 

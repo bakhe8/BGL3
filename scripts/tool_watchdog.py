@@ -20,6 +20,18 @@ import urllib.error
 
 ROOT = Path(__file__).resolve().parents[1]
 
+def _preferred_python() -> str:
+    candidates = [
+        ROOT / ".bgl_core" / ".venv312" / "Scripts" / "python.exe",
+        ROOT / ".bgl_core" / ".venv" / "Scripts" / "python.exe",
+        ROOT / ".bgl_core" / ".venv312" / "bin" / "python",
+        ROOT / ".bgl_core" / ".venv" / "bin" / "python",
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return str(cand)
+    return sys.executable
+
 
 def _ping(port: int, timeout_s: float = 2.0) -> bool:
     url = f"http://127.0.0.1:{port}/health"
@@ -32,7 +44,7 @@ def _ping(port: int, timeout_s: float = 2.0) -> bool:
 
 
 def _spawn_tool_server(port: int) -> None:
-    cmd = [sys.executable, str(ROOT / "scripts" / "tool_server.py"), "--port", str(port)]
+    cmd = [_preferred_python(), str(ROOT / "scripts" / "tool_server.py"), "--port", str(port)]
     kwargs = {"cwd": str(ROOT)}
     if os.name == "nt":
         # CREATE_NO_WINDOW (0x08000000)

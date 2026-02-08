@@ -1,0 +1,16 @@
+version: '3'
+scenarios:
+  - name: gap_route_views_index_php
+    description: Route /: 89 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).
+    steps:
+      - step: 1
+        action: render_template
+        template: index.html
+        context:
+          title: Home Page
+          events: 89
+          http_calls: 0
+          js_errors: 0
+          network_errors: 0
+          avg_latency: 0ms
+          max_latency: 0ms

@@ -1,0 +1,9 @@
+name: autonomous_1770529290
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/views/statistics.php?measure_perf=1
+- action: click
+  selector: a[href="./views/statistics.php"]
+- action: wait
+  ms: 600

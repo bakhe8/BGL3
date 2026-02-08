@@ -1,10 +1,1 @@
-name: gap_route_api_manual_entry_php
-kind: api
-generated: true
-meta:
-  origin: coverage_gap
-  route: /api/manual-entry.php
-steps:
-- action: request
-  url: /api/manual-entry.php
-  method: GET
+Ensure the scenario is stable and does not cause any issues.

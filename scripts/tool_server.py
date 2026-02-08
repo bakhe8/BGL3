@@ -23,6 +23,22 @@ import urllib.error
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT / ".bgl_core" / "brain"))
 
+
+def _preferred_python() -> str:
+    candidates = [
+        ROOT / ".bgl_core" / ".venv312" / "Scripts" / "python.exe",
+        ROOT / ".bgl_core" / ".venv" / "Scripts" / "python.exe",
+        ROOT / ".bgl_core" / ".venv312" / "bin" / "python",
+        ROOT / ".bgl_core" / ".venv" / "bin" / "python",
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return str(cand)
+    return sys.executable or "python"
+
+
+PYTHON_EXE = _preferred_python()
+
 from llm_tools import dispatch  # type: ignore
 from intent_resolver import resolve_intent  # type: ignore
 from agency_core import AgencyCore
@@ -222,7 +238,7 @@ class Handler(BaseHTTPRequestHandler):
     def _master_verify(self, req):
         try:
             res = subprocess.run(
-                ["python", ".bgl_core/brain/master_verify.py"],
+                [PYTHON_EXE, ".bgl_core/brain/master_verify.py"],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
@@ -255,7 +271,7 @@ class Handler(BaseHTTPRequestHandler):
     def _scenario_run(self, req):
         try:
             res = subprocess.run(
-                ["python", ".bgl_core/brain/run_scenarios.py"],
+                [PYTHON_EXE, ".bgl_core/brain/run_scenarios.py"],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,

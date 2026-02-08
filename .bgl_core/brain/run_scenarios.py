@@ -6,6 +6,7 @@ from pathlib import Path
 
 from config_loader import load_config
 from scenario_deps import check_scenario_deps
+from run_lock import acquire_lock, release_lock
 
 
 ROOT = Path(__file__).parent.parent.parent
@@ -132,39 +133,18 @@ def simulate_traffic():
 
 
 def main():
-    # Prevent concurrent runs
-    if LOCK_PATH.exists():
-        try:
-            data = LOCK_PATH.read_text(encoding="utf-8").strip().split("|")
-            pid = int(data[0]) if data and data[0].isdigit() else None
-            if pid:
-                # Windows-safe liveness check
-                try:
-                    res = subprocess.run(
-                        ["tasklist", "/FI", f"PID eq {pid}"],
-                        capture_output=True,
-                        text=True,
-                        timeout=3,
-                    )
-                    if str(pid) in (res.stdout or ""):
-                        print("[!] Scenario run already in progress; skipping.")
-                        return
-                except Exception:
-                    # If unsure, avoid double-run
-                    print("[!] Scenario run lock present; skipping.")
-                    return
-        except Exception:
-            pass
-
-    try:
-        LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        LOCK_PATH.write_text(f"{os.getpid()}|{time.time()}", encoding="utf-8")
-    except Exception:
-        # If we can't lock, proceed but warn (better than blocking)
-        print("[!] Unable to write scenario lock; proceeding.")
+    cfg = load_config(ROOT)
+    lock_ttl = int(cfg.get("run_scenarios_lock_ttl_sec", 7200))
+    ok, reason = acquire_lock(LOCK_PATH, ttl_sec=lock_ttl, label="run_scenarios")
+    if not ok:
+        print(f"[!] Scenario run already in progress ({reason}); skipping.")
+        return
 
     if os.getenv("BGL_SIMULATE_SCENARIOS", "0") == "1":
-        simulate_traffic()
+        try:
+            simulate_traffic()
+        finally:
+            release_lock(LOCK_PATH)
         return
 
     deps = check_scenario_deps()
@@ -183,11 +163,7 @@ def main():
         asyncio.run(_run_real_scenarios())
         _log_activity("scenario_run_completed")
     finally:
-        try:
-            if LOCK_PATH.exists():
-                LOCK_PATH.unlink()
-        except Exception:
-            pass
+        release_lock(LOCK_PATH)
 
 
 if __name__ == "__main__":

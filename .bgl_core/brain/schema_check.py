@@ -24,7 +24,17 @@ def check_schema(db_path: Path) -> Dict[str, Any]:
         "methods": ["id", "entity_id", "name"],
         "routes": ["id", "uri", "http_method"],
         "runtime_events": ["id", "timestamp", "event_type", "run_id", "source", "step_id"],
-        "experiences": ["id", "created_at", "scenario", "summary"],
+        "experiences": [
+            "id",
+            "created_at",
+            "scenario",
+            "summary",
+            "exp_hash",
+            "seen_count",
+            "last_seen",
+            "value_score",
+            "suppressed",
+        ],
         "agent_proposals": ["id", "name", "action"],
         "decisions": ["id", "intent_id", "decision"],
         "outcomes": ["id", "decision_id", "result"],
@@ -71,6 +81,30 @@ def check_schema(db_path: Path) -> Dict[str, Any]:
                     if "step_id" not in existing_cols:
                         conn.execute("ALTER TABLE runtime_events ADD COLUMN step_id TEXT")
                         existing_cols.add("step_id")
+                except Exception:
+                    pass
+            # Soft-migrate experiences columns if missing
+            if table == "experiences":
+                try:
+                    if "exp_hash" not in existing_cols:
+                        conn.execute("ALTER TABLE experiences ADD COLUMN exp_hash TEXT")
+                        existing_cols.add("exp_hash")
+                    if "seen_count" not in existing_cols:
+                        conn.execute(
+                            "ALTER TABLE experiences ADD COLUMN seen_count INTEGER DEFAULT 0"
+                        )
+                        existing_cols.add("seen_count")
+                    if "last_seen" not in existing_cols:
+                        conn.execute("ALTER TABLE experiences ADD COLUMN last_seen REAL")
+                        existing_cols.add("last_seen")
+                    if "value_score" not in existing_cols:
+                        conn.execute("ALTER TABLE experiences ADD COLUMN value_score REAL")
+                        existing_cols.add("value_score")
+                    if "suppressed" not in existing_cols:
+                        conn.execute(
+                            "ALTER TABLE experiences ADD COLUMN suppressed INTEGER DEFAULT 0"
+                        )
+                        existing_cols.add("suppressed")
                 except Exception:
                     pass
             missing = [c for c in cols if c not in existing_cols]

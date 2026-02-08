@@ -8,6 +8,7 @@ import urllib.error
 from pathlib import Path
 from typing import List, Dict, Any, cast
 import re
+import sys
 import yaml  # type: ignore
 
 try:
@@ -44,6 +45,19 @@ except ImportError:
     from fingerprint import compute_fingerprint, fingerprint_to_payload, fingerprint_equal, fingerprint_is_fresh
 
 
+def _preferred_python(root_dir: Path) -> str:
+    candidates = [
+        root_dir / ".bgl_core" / ".venv312" / "Scripts" / "python.exe",
+        root_dir / ".bgl_core" / ".venv" / "Scripts" / "python.exe",
+        root_dir / ".bgl_core" / ".venv312" / "bin" / "python",
+        root_dir / ".bgl_core" / ".venv" / "bin" / "python",
+    ]
+    for cand in candidates:
+        if cand.exists():
+            return str(cand)
+    return sys.executable or "python"
+
+
 class BGLGuardian:
     def __init__(self, root_dir: Path, base_url: str = "http://localhost:8000"):
         self.root_dir = root_dir
@@ -64,6 +78,7 @@ class BGLGuardian:
         if self.decision_schema.exists():
             init_db(self.decision_db_path, self.decision_schema)
         self.execution_mode = str(cfg.get("execution_mode", "sandbox")).lower()
+        self.python_exe = _preferred_python(root_dir)
 
     async def perform_full_audit(self) -> Dict[str, Any]:
         """
@@ -76,6 +91,7 @@ class BGLGuardian:
         self._dedupe_permissions()
         scenario_deps = (await check_scenario_deps_async()).to_dict()
         tool_evidence = {}
+        external_checks = []
         try:
             from .llm_tools import tool_route_index, tool_run_checks  # type: ignore
         except Exception:
@@ -92,6 +108,11 @@ class BGLGuardian:
         if tool_run_checks:
             try:
                 tool_evidence["run_checks"] = tool_run_checks()
+                try:
+                    if isinstance(tool_evidence["run_checks"], dict):
+                        external_checks = tool_evidence["run_checks"].get("results") or []
+                except Exception:
+                    external_checks = []
             except Exception as e:
                 tool_evidence["run_checks"] = {"status": "ERROR", "message": str(e)}
 
@@ -103,6 +124,12 @@ class BGLGuardian:
         run_scenarios = os.getenv(
             "BGL_RUN_SCENARIOS", str(self.config.get("run_scenarios", 1))
         )
+        scenario_run_stats: Dict[str, Any] = {
+            "attempted": False,
+            "status": "skipped",
+            "event_delta": 0,
+            "duration_s": 0.0,
+        }
         if run_scenarios == "1":
             scenario_runner_main = None
             scenario_dep_error = None
@@ -162,7 +189,7 @@ class BGLGuardian:
                 ActionRequest(
                     kind=ActionKind.WRITE_SANDBOX,
                     operation="run_scenarios",
-                    command=f"python scenario_runner.py --base-url {base_url} --headless {int(headless)}",
+                    command=f"{self.python_exe} scenario_runner.py --base-url {base_url} --headless {int(headless)}",
                     scope=["scenarios"],
                     reason="Run predefined Playwright scenarios",
                     confidence=0.7,
@@ -177,18 +204,24 @@ class BGLGuardian:
                 self.authority.record_outcome(
                     decision_id, "blocked", scenario_gate.message or "scenario_batch blocked by gate"
                 )
+                scenario_run_stats["status"] = "blocked"
             elif self.agent_mode == "safe":
                 print("    [!] Guardian: agent_mode=safe => skipping scenarios/browser run.")
                 self.authority.record_outcome(decision_id, "skipped", "agent_mode safe")
+                scenario_run_stats["status"] = "safe_mode"
             elif scenario_runner_main is None:
                 self.authority.record_outcome(
                     decision_id,
                     "skipped",
                     scenario_dep_error or "scenario runner missing dependency",
                 )
+                scenario_run_stats["status"] = "deps_missing"
             else:
                 print("    [+] Permission granted for scenarios; running.")
                 try:
+                    scenario_run_stats["attempted"] = True
+                    pre_events = self._count_runtime_events()
+                    run_started = time.time()
                     await scenario_runner_main(
                         base_url,
                         headless,
@@ -198,10 +231,114 @@ class BGLGuardian:
                         include=scenario_include,
                         shadow_mode=False,
                     )
-                    self.authority.record_outcome(decision_id, "success", "scenario batch executed")
+                    run_duration = time.time() - run_started
+                    post_events = self._count_runtime_events()
+                    delta = max(0, post_events - pre_events)
+                    scenario_run_stats.update(
+                        {"event_delta": delta, "duration_s": round(run_duration, 2)}
+                    )
+                    try:
+                        min_delta = int(
+                            os.getenv(
+                                "BGL_SCENARIO_MIN_EVENT_DELTA",
+                                str(self.config.get("scenario_min_event_delta", 5)),
+                            )
+                            or 5
+                        )
+                    except Exception:
+                        min_delta = 5
+                    try:
+                        min_runtime = float(
+                            os.getenv(
+                                "BGL_SCENARIO_MIN_RUNTIME_SEC",
+                                str(self.config.get("scenario_min_runtime_sec", 4)),
+                            )
+                            or 4
+                        )
+                    except Exception:
+                        min_runtime = 4.0
+                    try:
+                        retry_enabled = bool(
+                            int(
+                                os.getenv(
+                                    "BGL_SCENARIO_RETRY_ON_LOW_EVENTS",
+                                    str(self.config.get("scenario_retry_on_low_events", 1)),
+                                )
+                            )
+                        )
+                    except Exception:
+                        retry_enabled = True
+                    try:
+                        retry_delay = float(
+                            os.getenv(
+                                "BGL_SCENARIO_RETRY_DELAY_SEC",
+                                str(self.config.get("scenario_retry_delay_sec", 8)),
+                            )
+                            or 8
+                        )
+                    except Exception:
+                        retry_delay = 8.0
+                    if delta < min_delta:
+                        if run_duration < min_runtime:
+                            scenario_run_stats["status"] = "skipped_or_locked"
+                            self.authority.record_outcome(
+                                decision_id,
+                                "deferred",
+                                "scenario_run:no_new_events (suspected lock/skip)",
+                            )
+                        elif retry_enabled:
+                            time.sleep(max(0.0, retry_delay))
+                            pre_retry = self._count_runtime_events()
+                            retry_started = time.time()
+                            try:
+                                await scenario_runner_main(
+                                    base_url,
+                                    headless,
+                                    keep_open,
+                                    max_pages=scenario_max_pages,
+                                    idle_timeout=scenario_idle_timeout,
+                                    include=scenario_include,
+                                    shadow_mode=False,
+                                )
+                            except Exception:
+                                pass
+                            retry_duration = time.time() - retry_started
+                            post_retry = self._count_runtime_events()
+                            retry_delta = max(0, post_retry - pre_retry)
+                            scenario_run_stats.update(
+                                {
+                                    "retry_delta": retry_delta,
+                                    "retry_duration_s": round(retry_duration, 2),
+                                }
+                            )
+                            if retry_delta < min_delta:
+                                scenario_run_stats["status"] = "low_events"
+                                self.authority.record_outcome(
+                                    decision_id,
+                                    "deferred",
+                                    "scenario_run:low_event_delta_after_retry",
+                                )
+                            else:
+                                scenario_run_stats["status"] = "ok"
+                                self.authority.record_outcome(
+                                    decision_id, "success", "scenario batch executed (retry)"
+                                )
+                        else:
+                            scenario_run_stats["status"] = "low_events"
+                            self.authority.record_outcome(
+                                decision_id, "deferred", "scenario_run:low_event_delta"
+                            )
+                    else:
+                        scenario_run_stats["status"] = "ok"
+                        self.authority.record_outcome(
+                            decision_id, "success", "scenario batch executed"
+                        )
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
                     self.authority.record_outcome(decision_id, "fail", str(e))
+                    scenario_run_stats["status"] = "fail"
+
+        report["scenario_run_stats"] = scenario_run_stats
 
         # 0. Maintenance (New in Phase 5)
         self.log_maintenance()
@@ -383,6 +520,7 @@ class BGLGuardian:
             "permission_issues": [],
             "agent_mode": self.agent_mode,
             "tool_evidence": tool_evidence,
+            "external_checks": external_checks,
             "scenario_deps": scenario_deps,
             "readiness": readiness,
             "api_contract": api_contract.get("summary", {}),
@@ -469,7 +607,7 @@ class BGLGuardian:
                 ratio = float(coverage.get("coverage_ratio") or 0.0)
                 gap_limit = int(os.getenv("BGL_COVERAGE_GOAL_LIMIT", "4") or "4")
                 min_score = float(os.getenv("BGL_COVERAGE_GOAL_MIN_SCORE", "40") or "40")
-                if ratio < min_ratio:
+                if ratio < min_ratio and coverage.get("reliable", True):
                     prioritized = sorted(
                         scenario_gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
                     )
@@ -549,7 +687,7 @@ class BGLGuardian:
                     )
                     or "45"
                 )
-                if ratio < min_ratio:
+                if ratio < min_ratio and ui_cov.get("reliable", True):
                     prioritized = sorted(
                         ui_gaps,
                         key=lambda g: float(g.get("priority_score") or 0),
@@ -614,25 +752,41 @@ class BGLGuardian:
 
             # Seed flow gap goals for uncovered/partial flows
             try:
-                gap_limit = int(os.getenv("BGL_FLOW_GOAL_LIMIT", "3") or "3")
-                prioritized = sorted(
-                    flow_gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
-                )
-                coverage_payload["flow"]["prioritized_gaps"] = prioritized[:gap_limit]
-                seeded = 0
-                for item in prioritized:
-                    if seeded >= gap_limit:
-                        break
-                    flow_name = item.get("flow") or ""
-                    endpoints = item.get("endpoints") or []
-                    if not endpoints and not flow_name:
-                        continue
-                    if endpoints:
-                        for ep in endpoints[:2]:
+                if flow_cov.get("reliable", True):
+                    gap_limit = int(os.getenv("BGL_FLOW_GOAL_LIMIT", "3") or "3")
+                    prioritized = sorted(
+                        flow_gaps, key=lambda g: float(g.get("priority_score") or 0), reverse=True
+                    )
+                    coverage_payload["flow"]["prioritized_gaps"] = prioritized[:gap_limit]
+                    seeded = 0
+                    for item in prioritized:
+                        if seeded >= gap_limit:
+                            break
+                        flow_name = item.get("flow") or ""
+                        endpoints = item.get("endpoints") or []
+                        if not endpoints and not flow_name:
+                            continue
+                        if endpoints:
+                            for ep in endpoints[:2]:
+                                self._write_autonomy_goal(
+                                    "flow_gap",
+                                    {
+                                        "uri": ep,
+                                        "flow": flow_name,
+                                        "coverage_ratio": flow_cov.get("coverage_ratio"),
+                                        "window_days": flow_days,
+                                        "priority_score": item.get("priority_score"),
+                                    },
+                                    "flow_coverage",
+                                    ttl_days=3,
+                                )
+                                seeded += 1
+                                if seeded >= gap_limit:
+                                    break
+                        else:
                             self._write_autonomy_goal(
                                 "flow_gap",
                                 {
-                                    "uri": ep,
                                     "flow": flow_name,
                                     "coverage_ratio": flow_cov.get("coverage_ratio"),
                                     "window_days": flow_days,
@@ -642,21 +796,6 @@ class BGLGuardian:
                                 ttl_days=3,
                             )
                             seeded += 1
-                            if seeded >= gap_limit:
-                                break
-                    else:
-                        self._write_autonomy_goal(
-                            "flow_gap",
-                            {
-                                "flow": flow_name,
-                                "coverage_ratio": flow_cov.get("coverage_ratio"),
-                                "window_days": flow_days,
-                                "priority_score": item.get("priority_score"),
-                            },
-                            "flow_coverage",
-                            ttl_days=3,
-                        )
-                        seeded += 1
             except Exception:
                 pass
         except Exception:
@@ -716,11 +855,37 @@ class BGLGuardian:
         # Generate gap scenarios (optional, non-blocking)
         try:
             gen_limit = int(os.getenv("BGL_COVERAGE_SCENARIO_LIMIT", "6") or "6")
-            generated = self._generate_gap_scenarios(coverage_payload, limit=gen_limit)
+            reliable = True
+            try:
+                reliable = (
+                    (coverage_payload.get("scenario") or {})
+                    .get("summary", {})
+                    .get("reliable", True)
+                    and (coverage_payload.get("ui_actions") or {})
+                    .get("summary", {})
+                    .get("reliable", True)
+                    and (coverage_payload.get("flow") or {})
+                    .get("summary", {})
+                    .get("reliable", True)
+                )
+            except Exception:
+                reliable = True
+            generated = [] if not reliable else self._generate_gap_scenarios(coverage_payload, limit=gen_limit)
             if generated:
                 coverage_payload["generated_scenarios"] = generated
+                report["gap_scenarios"] = generated
         except Exception:
             pass
+
+        # Coverage reliability summary (avoid acting on low-evidence coverage)
+        try:
+            report["coverage_reliability"] = {
+                "scenario": (report.get("scenario_coverage") or {}).get("reliable", True),
+                "ui_actions": (report.get("ui_action_coverage") or {}).get("reliable", True),
+                "flow": (report.get("flow_coverage") or {}).get("reliable", True),
+            }
+        except Exception:
+            report["coverage_reliability"] = {}
 
         # UI flow model (phase 3: flow understanding)
         try:
@@ -1139,6 +1304,21 @@ class BGLGuardian:
         if not probe_path.exists():
             return []
 
+    def _count_runtime_events(self) -> int:
+        if not self.db_path.exists():
+            return 0
+        try:
+            conn = sqlite3.connect(str(self.db_path))
+            row = conn.execute("SELECT COUNT(*) FROM runtime_events").fetchone()
+            conn.close()
+            return int(row[0] or 0) if row else 0
+        except Exception:
+            try:
+                conn.close()
+            except Exception:
+                pass
+            return 0
+
     def _normalize_route(self, route: str) -> str:
         """Normalize route/URL to a path for coverage comparison."""
         if not route:
@@ -1400,8 +1580,10 @@ class BGLGuardian:
             return {}
         cutoff = time.time() - (days * 86400)
         route_seen: set[str] = set()
+        action_route_seen: set[str] = set()
         events_seen: set[str] = set()
         session_routes: Dict[str, List[str]] = {}
+        event_count = 0
         try:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
@@ -1415,19 +1597,35 @@ class BGLGuardian:
                 """,
                 (cutoff,),
             ).fetchall()
+            event_count = len(rows)
+            action_event_types = {
+                "api_call",
+                "http_error",
+                "network_fail",
+                "scenario_step_done",
+                "file_upload",
+                "form_auto_submit",
+                "search_auto_submit",
+                "ui_precheck",
+                "ui_self_heal",
+            }
             for r in rows:
                 route = r["route"] or ""
                 norm = self._normalize_route(route)
                 if norm:
                     route_seen.add(norm)
                     sess = r["session"] or ""
-                    session_routes.setdefault(str(sess), []).append(norm)
-                ev = r["event_type"] or ""
-                if ev:
-                    events_seen.add(str(ev))
+                    if str(r["event_type"] or "") in action_event_types:
+                        session_routes.setdefault(str(sess), []).append(norm)
+                ev = str(r["event_type"] or "")
+                if ev and ev in action_event_types:
+                    events_seen.add(ev)
+                if norm and str(r["event_type"] or "") in action_event_types:
+                    action_route_seen.add(norm)
             conn.close()
         except Exception:
             route_seen = set()
+            action_route_seen = set()
             events_seen = set()
             session_routes = {}
 
@@ -1437,17 +1635,22 @@ class BGLGuardian:
         for flow in flows:
             endpoints = flow.get("endpoints") or []
             events = flow.get("events") or []
-            hit_endpoints = [e for e in endpoints if e in route_seen]
+            hit_endpoints = [e for e in endpoints if e in action_route_seen]
             hit_events = [e for e in events if e in events_seen]
             status = "uncovered"
-            if hit_endpoints or hit_events:
-                if endpoints and events and (not hit_endpoints or not hit_events):
-                    status = "partial"
+            if endpoints:
+                if hit_endpoints:
+                    status = "covered" if len(hit_endpoints) == len(endpoints) else "partial"
+                    if events and not hit_events:
+                        status = "partial"
                 else:
+                    status = "uncovered"
+            else:
+                if hit_events:
                     status = "covered"
             if status == "covered":
                 covered += 1
-            missing_steps = [e for e in endpoints if e not in route_seen]
+            missing_steps = [e for e in endpoints if e not in action_route_seen]
             sequence_covered = False
             sequence_session = ""
             if endpoints and session_routes:
@@ -1477,6 +1680,18 @@ class BGLGuardian:
         ratio = round((covered / max(1, len(flows))) * 100, 2)
         seq_ratio = round((seq_covered / max(1, len(flows))) * 100, 2)
         uncovered = [r for r in results if r.get("status") != "covered"]
+        try:
+            min_events = int(
+                os.getenv(
+                    "BGL_FLOW_MIN_EVENTS",
+                    str(self.config.get("flow_min_events", 10)),
+                )
+                or 10
+            )
+        except Exception:
+            min_events = 10
+        reliable = event_count >= min_events
+        reason = "" if reliable else "low_runtime_events"
         return {
             "window_days": days,
             "total_flows": len(flows),
@@ -1486,6 +1701,9 @@ class BGLGuardian:
             "sequence_coverage_ratio": seq_ratio,
             "uncovered_sample": uncovered[:limit],
             "details": results,
+            "events_total": event_count,
+            "reliable": reliable,
+            "reliability_reason": reason,
         }
 
     def _compute_scenario_coverage(self, days: int = 7, limit: int = 12) -> Dict[str, Any]:
@@ -1501,6 +1719,8 @@ class BGLGuardian:
         known_routes: set[str] = set()
         uncovered_sample: List[Dict[str, Any]] = []
         ui_paths: set[str] = set()
+        event_count = 0
+        ui_snapshot_count = 0
         try:
             conn = sqlite3.connect(str(self.db_path))
             conn.row_factory = sqlite3.Row
@@ -1516,6 +1736,14 @@ class BGLGuardian:
                 "SELECT DISTINCT route FROM runtime_events WHERE timestamp >= ? AND route IS NOT NULL",
                 (cutoff,),
             ).fetchall()
+            try:
+                event_row = cur.execute(
+                    "SELECT COUNT(*) FROM runtime_events WHERE timestamp >= ?",
+                    (cutoff,),
+                ).fetchone()
+                event_count = int(event_row[0] or 0) if event_row else 0
+            except Exception:
+                event_count = 0
             for r in rows:
                 norm = self._normalize_route(r["route"] or "")
                 if norm:
@@ -1532,6 +1760,7 @@ class BGLGuardian:
                     norm = self._normalize_route(r["url"] or "")
                     if norm:
                         ui_paths.add(norm)
+                ui_snapshot_count = len(rows2)
             except Exception:
                 ui_paths = set()
 
@@ -1560,6 +1789,18 @@ class BGLGuardian:
         covered_count = len(covered_routes)
         ratio = round((covered_count / max(1, total_routes)) * 100, 2)
         ui_ratio = round((len(ui_paths) / max(1, total_routes)) * 100, 2) if total_routes else 0.0
+        try:
+            min_events = int(
+                os.getenv(
+                    "BGL_COVERAGE_MIN_EVENTS",
+                    str(self.config.get("coverage_min_events", 20)),
+                )
+                or 20
+            )
+        except Exception:
+            min_events = 20
+        reliable = event_count >= min_events
+        reason = "" if reliable else "low_runtime_events"
         return {
             "window_days": days,
             "total_routes": total_routes,
@@ -1568,6 +1809,10 @@ class BGLGuardian:
             "ui_snapshot_paths": len(ui_paths),
             "ui_coverage_ratio": ui_ratio,
             "uncovered_sample": uncovered_sample,
+            "events_total": event_count,
+            "ui_snapshot_count": ui_snapshot_count,
+            "reliable": reliable,
+            "reliability_reason": reason,
         }
 
     def _compute_ui_action_coverage(self, days: int = 7, limit: int = 12) -> Dict[str, Any]:
@@ -1837,6 +2082,18 @@ class BGLGuardian:
         max_gap_store = max(12, int(limit) * 2)
         gaps = gaps[:max_gap_store]
 
+        try:
+            min_snapshots = int(
+                os.getenv(
+                    "BGL_UI_ACTION_MIN_SNAPSHOTS",
+                    str(self.config.get("ui_action_min_snapshots", 2)),
+                )
+                or 2
+            )
+        except Exception:
+            min_snapshots = 2
+        reliable = len(rows) >= min_snapshots
+        reason = "" if reliable else "low_snapshot_count"
         return {
             "window_days": days,
             "snapshot_count": len(rows),
@@ -1847,6 +2104,8 @@ class BGLGuardian:
             "routes_with_coverage": routes_covered,
             "uncovered_sample": uncovered_sample,
             "gaps": gaps,
+            "reliable": reliable,
+            "reliability_reason": reason,
         }
 
     def _write_autonomy_goal(
@@ -2603,6 +2862,31 @@ class BGLGuardian:
             conn.close()
             for r in rows:
                 uri = r["scenario"]
+                # Avoid flagging routes with zero failures (summary contains "0 failed").
+                summary = str(r["summary"] or "")
+                fail_count = 0
+                js_err = 0
+                net_err = 0
+                try:
+                    m = re.search(r"\\((\\d+) failed\\)", summary)
+                    if m:
+                        fail_count = int(m.group(1) or 0)
+                except Exception:
+                    fail_count = 0
+                try:
+                    m = re.search(r"(\\d+) JS errors", summary)
+                    if m:
+                        js_err = int(m.group(1) or 0)
+                except Exception:
+                    js_err = 0
+                try:
+                    m = re.search(r"(\\d+) network errors", summary)
+                    if m:
+                        net_err = int(m.group(1) or 0)
+                except Exception:
+                    net_err = 0
+                if fail_count == 0 and js_err == 0 and net_err == 0:
+                    continue
                 scored[uri] = scored.get(uri, 0) + 5 + int(r["confidence"] * 2)
         except Exception:
             pass
@@ -2634,6 +2918,18 @@ class BGLGuardian:
 
     def _pending_approvals(self, limit: int = 25) -> List[Dict[str, Any]]:
         """Return pending human approvals from agent_permissions (best-effort)."""
+        try:
+            approvals_enabled = self.config.get("approvals_enabled", 1)
+            if isinstance(approvals_enabled, bool):
+                if not approvals_enabled:
+                    return []
+            elif isinstance(approvals_enabled, (int, float)):
+                if float(approvals_enabled) == 0.0:
+                    return []
+            elif str(approvals_enabled).strip().lower() in ("0", "false", "no", "off"):
+                return []
+        except Exception:
+            pass
         if not self.db_path.exists():
             return []
         try:
@@ -2840,7 +3136,7 @@ class BGLGuardian:
 
             # Use CREATE_NO_WINDOW for Windows if possible, or just start /B
             self._sensor_proc = subprocess.Popen(
-                ["python", sensor_path],
+                [self.python_exe, sensor_path],
                 creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
                 stdout=subprocess.DEVNULL,
                 stderr=subprocess.DEVNULL,

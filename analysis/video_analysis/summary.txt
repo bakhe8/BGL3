@@ -1,0 +1,14 @@
+fps=25.0
+nframes=1654
+duration=66.16
+samples=67
+max_diff=0.06398703157901764 at t=9.0
+longest_idle_start=10.0
+longest_idle_end=66.0
+longest_idle_duration=56.0
+saved_frames:
+  start: C:\Users\Bakheet\Documents\Projects\BGL3\analysis\video_analysis\fe74c89c_start_t0.png
+  end: C:\Users\Bakheet\Documents\Projects\BGL3\analysis\video_analysis\fe74c89c_end_t66.png
+  max_change: C:\Users\Bakheet\Documents\Projects\BGL3\analysis\video_analysis\fe74c89c_max_change_t9.png
+  idle_start: C:\Users\Bakheet\Documents\Projects\BGL3\analysis\video_analysis\fe74c89c_idle_start_t10.png
+  idle_end: C:\Users\Bakheet\Documents\Projects\BGL3\analysis\video_analysis\fe74c89c_idle_end_t66.png

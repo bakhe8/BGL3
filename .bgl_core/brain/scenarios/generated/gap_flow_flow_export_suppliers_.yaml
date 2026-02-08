@@ -1,0 +1,12 @@
+name: gap_flow_flow_export_suppliers_
+kind: api
+generated: true
+meta:
+  origin: flow_gap
+  flow: 'Flow: تصدير الموردين (export_suppliers)'
+  endpoints:
+  - /api/export_suppliers.php
+steps:
+- action: request
+  url: /api/export_suppliers.php
+  method: GET
