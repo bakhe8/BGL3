@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "id": "772",
+  "description": "Stabilize route / by improving performance and reliability.",
+  "created_at": 1694080000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 772,
+    "generated_at": 1770610741.7146897
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "api_version: v2\nendpoint: /delete/bank\ntype: DELETE\ndescription: Delete bank information",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api_version: v2\nendpoint: /delete/bank\ntype: DELETE\ndescription: Delete bank information"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": null,
+      "content": "api_version: v2\nendpoint: /delete/supplier\ntype: DELETE\ndescription: Delete supplier information",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api_version: v2\nendpoint: /delete/supplier\ntype: DELETE\ndescription: Delete supplier information"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": null,
+      "content": "api_version: v2\nendpoint: /extend\ntype: POST\ndescription: Extend resource",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api_version: v2\nendpoint: /extend\ntype: POST\ndescription: Extend resource"
+      }
+    }
+  ]
+}

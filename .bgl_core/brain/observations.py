@@ -331,6 +331,27 @@ def compute_ui_semantic_delta(
         "page_type_changed": _norm(prev_summary.get("page_type")) != _norm(curr_summary.get("page_type")),
     }
 
+    # Include UI state transitions (modals/loading/errors) as semantic deltas.
+    try:
+        prev_states = prev_summary.get("ui_states") if isinstance(prev_summary, dict) else {}
+        curr_states = curr_summary.get("ui_states") if isinstance(curr_summary, dict) else {}
+        if not isinstance(prev_states, dict):
+            prev_states = {}
+        if not isinstance(curr_states, dict):
+            curr_states = {}
+        state_keys = set(prev_states.keys()) | set(curr_states.keys())
+        changed_keys = []
+        for key in sorted(state_keys):
+            if _norm(prev_states.get(key)) != _norm(curr_states.get(key)):
+                changed_keys.append(key)
+        delta["ui_states"] = {
+            "changed": bool(changed_keys),
+            "changed_keys": changed_keys[:8],
+            "count_changed": len(changed_keys),
+        }
+    except Exception:
+        delta["ui_states"] = {"changed": False, "changed_keys": [], "count_changed": 0}
+
     changed = (
         delta["title_changed"]
         or delta["headings"]["count_added"]
@@ -354,6 +375,7 @@ def compute_ui_semantic_delta(
         or delta["text_keywords"]["count_added"]
         or delta["text_keywords"]["count_removed"]
         or delta["page_type_changed"]
+        or bool((delta.get("ui_states") or {}).get("changed"))
     )
 
     change_count = 0
@@ -370,6 +392,8 @@ def compute_ui_semantic_delta(
             + int(delta["text_blocks"]["count_added"]) + int(delta["text_blocks"]["count_removed"])
             + int(delta["text_keywords"]["count_added"]) + int(delta["text_keywords"]["count_removed"])
         )
+        if isinstance(delta.get("ui_states"), dict):
+            change_count += int(delta["ui_states"].get("count_changed") or 0)
     except Exception:
         change_count = 0
 

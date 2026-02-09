@@ -1,0 +1,11 @@
+name: gap_route_views_confidence_demo_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /views/confidence-demo.php
+steps:
+- action: goto
+  url: /views/confidence-demo.php
+- action: wait
+  ms: 400

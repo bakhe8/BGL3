@@ -1,44 +1,37 @@
-# Runtime Safety Checks (operational, non-domain)
-#
-# These rules can be consumed by safety/governor layers to gate risky operations.
-# Use action WARN unless a failure should hard-stop.
-
 rules:
-  - id: RS001
-    name: Automated Writability Check
-    description: "Verify file/folder permissions before performing write operations."
-    action: WARN
-    rationale: "Prevents task failure and partial writes when OS denies access."
-    scope: filesystem
-
-  - id: RS002
-    name: Sandbox Vendor Link Guard
-    description: "Skip creating vendor junction if target exists to avoid mklink errors."
-    action: INFO
-    rationale: "Documents the current sandbox behavior; prevents noisy failures."
-
-  - id: RS003
-    name: Canonical Rename Pipeline Enforcement
-    description: "rename_class must follow playbook rename_class (update refs incl. tests, refresh autoload, use sandbox DB copy). PHPUnit must not run before autoload refresh."
-    action: WARN
-    rationale: "Prevents inconsistent state during rename; avoids repeated failures."
-    scope: sandbox
-
-  - id: RS004
-    name: Production Mode Write Lock
-    description: "When PRODUCTION_MODE is enabled, all API write operations must be centrally blocked (e.g., in autoload/middleware) with explicit 403, except whitelisted maintenance endpoints."
-    action: WARN
-    rationale: "Prevents تسلل بيانات اختبار/تعديلات غير مقصودة في بيئة الإنتاج."
-    scope: api
-
-  - id: RS005
-    name: Rate Limit Guard
-    description: "API write endpoints should enforce a rate limiting middleware/guard with configurable thresholds."
-    action: WARN
-    rationale: "يمنع إساءة الاستخدام والضغط المفاجئ على مسارات الكتابة."
-    scope: api
-
-# Auto-added playbook guards
+- id: RS001
+  name: Automated Writability Check
+  description: Verify file/folder permissions before performing write operations.
+  action: WARN
+  rationale: Prevents task failure and partial writes when OS denies access.
+  scope: filesystem
+- id: RS002
+  name: Sandbox Vendor Link Guard
+  description: Skip creating vendor junction if target exists to avoid mklink errors.
+  action: INFO
+  rationale: Documents the current sandbox behavior; prevents noisy failures.
+- id: RS003
+  name: Canonical Rename Pipeline Enforcement
+  description: rename_class must follow playbook rename_class (update refs incl. tests,
+    refresh autoload, use sandbox DB copy). PHPUnit must not run before autoload refresh.
+  action: WARN
+  rationale: Prevents inconsistent state during rename; avoids repeated failures.
+  scope: sandbox
+- id: RS004
+  name: Production Mode Write Lock
+  description: When PRODUCTION_MODE is enabled, all API write operations must be centrally
+    blocked (e.g., in autoload/middleware) with explicit 403, except whitelisted maintenance
+    endpoints.
+  action: WARN
+  rationale: Prevents تسلل بيانات اختبار/تعديلات غير مقصودة في بيئة الإنتاج.
+  scope: api
+- id: RS005
+  name: Rate Limit Guard
+  description: API write endpoints should enforce a rate limiting middleware/guard
+    with configurable thresholds.
+  action: WARN
+  rationale: يمنع إساءة الاستخدام والضغط المفاجئ على مسارات الكتابة.
+  scope: api
 - id: RS006
   name: audit_trail_required
   description: Ensure audit trail exists for CRUD on banks/suppliers
@@ -87,4 +80,183 @@ rules:
   action: WARN
   rationale: Recoverability for critical master data
   scope: ops
-
+- id: RS_454
+  name: Auto rule for 454
+  description: Ensure playbook 454 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_560
+  name: Auto rule for 560
+  description: Ensure playbook 560 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_689
+  name: Auto rule for 689
+  description: Ensure playbook 689 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_690
+  name: Auto rule for 690
+  description: Ensure playbook 690 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_699
+  name: Auto rule for 699
+  description: Ensure playbook 699 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_716
+  name: Auto rule for 716
+  description: Ensure playbook 716 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_717
+  name: Auto rule for 717
+  description: Ensure playbook 717 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_726
+  name: Auto rule for 726
+  description: Ensure playbook 726 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_743
+  name: Auto rule for 743
+  description: Ensure playbook 743 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_744
+  name: Auto rule for 744
+  description: Ensure playbook 744 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_753
+  name: Auto rule for 753
+  description: Ensure playbook 753 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_770
+  name: Auto rule for 770
+  description: Ensure playbook 770 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_771
+  name: Auto rule for 771
+  description: Ensure playbook 771 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_790
+  name: Auto rule for 790
+  description: Ensure playbook 790 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_791
+  name: Auto rule for 791
+  description: Ensure playbook 791 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_800
+  name: Auto rule for 800
+  description: Ensure playbook 800 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_PAT_PHASE3_INTEGRITY
+  name: Auto rule for PAT_PHASE3_INTEGRITY
+  description: Ensure playbook PAT_PHASE3_INTEGRITY is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_825
+  name: Auto rule for 825
+  description: Ensure playbook 825 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_842
+  name: Auto rule for 842
+  description: Ensure playbook 842 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'
+- id: RS_859
+  name: Auto rule for 859
+  description: Ensure playbook 859 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-09'

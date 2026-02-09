@@ -7,6 +7,14 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
+try:
+    from .decision_db import record_decision_trace  # type: ignore
+except Exception:
+    try:
+        from decision_db import record_decision_trace  # type: ignore
+    except Exception:
+        record_decision_trace = None  # type: ignore
+
 
 def _connect(db_path: Path) -> sqlite3.Connection:
     conn = sqlite3.connect(str(db_path), timeout=30.0)
@@ -415,6 +423,20 @@ def rollback_release(root_dir: Path, release_id: str, conn: Optional[sqlite3.Con
         (release_id, float(now), "rollback", _safe_json({"restored": restored})),
     )
     conn.commit()
+    try:
+        if record_decision_trace is not None:
+            record_decision_trace(
+                root_dir / ".bgl_core" / "brain" / "knowledge.db",
+                kind="rollback",
+                decision_id=0,
+                outcome_id=None,
+                operation=f"canary_rollback:{release_id}",
+                result="rolled_back",
+                source="canary_release",
+                details={"release_id": release_id, "restored": restored},
+            )
+    except Exception:
+        pass
     if close_conn:
         conn.close()
     return restored > 0

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "started_at": 1770594799.1922903,
+    "started_at": 1770668023.7275066,
     "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
     "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
     "ok": true
@@ -684,6 +684,461 @@
       "controller": "GenericHandler",
       "action": "main",
       "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\views\\statistics.php"
+    },
+    {
+      "uri": "/agent-dashboard.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agent-dashboard.php"
+    },
+    {
+      "uri": "/agent.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agent.php"
+    },
+    {
+      "uri": "/server.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\server.php"
+    },
+    {
+      "uri": "/agentfrontend/bootstrap.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\bootstrap.php"
+    },
+    {
+      "uri": "/agentfrontend/layout.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\layout.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/activity.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\activity.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/agent_autonomy_state.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\agent_autonomy_state.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/agent_controls.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\agent_controls.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/autonomy_goals.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\autonomy_goals.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/blockers.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\blockers.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/canary_status.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\canary_status.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/command_center.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\command_center.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/copilot_chat.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\copilot_chat.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/decisions.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\decisions.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/decision_impact.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\decision_impact.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/domain_map.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\domain_map.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/effective_config.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\effective_config.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/events.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\events.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/experiences.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\experiences.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/external_checks.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\external_checks.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/extra_widget.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\extra_widget.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/flows.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\flows.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/gap_tests.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\gap_tests.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/hallucination_metrics.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\hallucination_metrics.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/health.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\health.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/intents.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\intents.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/js_inventory.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\js_inventory.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/knowledge_curation.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\knowledge_curation.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/kpis.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\kpis.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/learning_feedback.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\learning_feedback.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/log_highlights.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\log_highlights.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/long_term_goals.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\long_term_goals.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/monitoring_widgets.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\monitoring_widgets.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/operator_goals.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\operator_goals.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/permissions.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\permissions.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/permission_queue.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\permission_queue.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/plan_library.php",
+      "http_method": "POST",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\plan_library.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/prod_operations.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\prod_operations.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/proposals_simple.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\proposals_simple.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/proposed_playbooks_simple.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\proposed_playbooks_simple.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/quick_actions.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\quick_actions.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/report_viewer.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\report_viewer.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/route_updates.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\route_updates.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/rules.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\rules.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/simple_mode.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\simple_mode.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/snapshot_delta.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\snapshot_delta.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/summary.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\summary.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/test_console.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\test_console.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/tool_evidence.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\tool_evidence.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/topbar.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\topbar.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/vector_db_status.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\vector_db_status.php"
+    },
+    {
+      "uri": "/agentfrontend/partials/worst_routes.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\worst_routes.php"
+    },
+    {
+      "uri": "/partials/confirm-modal.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\confirm-modal.php"
+    },
+    {
+      "uri": "/partials/excel-import-modal.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\excel-import-modal.php"
+    },
+    {
+      "uri": "/partials/historical-banner.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\historical-banner.php"
+    },
+    {
+      "uri": "/partials/letter-renderer.php",
+      "http_method": "GET",
+      "controller": "LetterBuilder",
+      "action": "handle",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\letter-renderer.php"
+    },
+    {
+      "uri": "/partials/manual-entry-modal.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\manual-entry-modal.php"
+    },
+    {
+      "uri": "/partials/paste-modal.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\paste-modal.php"
+    },
+    {
+      "uri": "/partials/preview-placeholder.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\preview-placeholder.php"
+    },
+    {
+      "uri": "/partials/record-form.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\record-form.php"
+    },
+    {
+      "uri": "/partials/suggestions.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\suggestions.php"
+    },
+    {
+      "uri": "/partials/supplier-suggestions.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\supplier-suggestions.php"
+    },
+    {
+      "uri": "/partials/timeline-section.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\timeline-section.php"
+    },
+    {
+      "uri": "/partials/unified-header.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\unified-header.php"
+    },
+    {
+      "uri": "/templates/letter-template.php",
+      "http_method": "GET",
+      "controller": "GenericHandler",
+      "action": "main",
+      "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\templates\\letter-template.php"
     }
   ],
   "php": {
@@ -2088,6 +2543,8 @@
         "code_contracts",
         "code_intel",
         "config_loader",
+        "config_tuner",
+        "db_utils",
         "decision_db",
         "decision_engine",
         "failure_classifier",
@@ -2168,6 +2625,7 @@
     },
     ".bgl_core\\brain\\apply_proposal.py": {
       "functions": [
+        "_auto_run_scenarios_after_apply",
         "_candidate_plan_from_payload",
         "_cfg_flag",
         "_cfg_number",
@@ -2179,13 +2637,17 @@
         "_link_proposal_outcome",
         "_lint_files",
         "_load_cfg",
+        "_load_code_contracts",
         "_log_change_summary",
         "_log_learning_event",
         "_parse_status",
+        "_patch_risk_summary",
         "_post_apply_evaluate",
         "_resolve_plan_from_proposal",
         "_run_phpunit_tests",
+        "_summarize_eval_failure",
         "_try_parse_json",
+        "_write_eval_artifact",
         "main"
       ],
       "classes": {},
@@ -2196,6 +2658,8 @@
         "brain_types",
         "canary_release",
         "config_loader",
+        "db_utils",
+        "decision_db",
         "hashlib",
         "json",
         "os",
@@ -2245,7 +2709,10 @@
           "_cache_key",
           "_cache_set",
           "_eligible_for_direct",
+          "_fallback_block_disabled",
           "_fallback_guard",
+          "_fallback_require_human_disabled",
+          "_force_no_human_approvals",
           "_load_runtime_contracts",
           "_log_decision",
           "_log_prod_operation",
@@ -2491,6 +2958,7 @@
       "imports": [
         "__future__",
         "code_contracts",
+        "decision_db",
         "failure_classifier",
         "json",
         "os",
@@ -2632,6 +3100,25 @@
         "yaml"
       ]
     },
+    ".bgl_core\\brain\\config_tuner.py": {
+      "functions": [
+        "_auto_tune_enabled",
+        "_clamp",
+        "_read_json",
+        "_write_json",
+        "apply_safe_config_tuning"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "config_loader",
+        "json",
+        "os",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
     ".bgl_core\\brain\\context_digest.py": {
       "functions": [
         "_bucket_count",
@@ -2647,10 +3134,12 @@
         "_load_code_contracts",
         "_log_runtime_event",
         "_normalize_scope",
+        "_read_digest_state",
         "_row_context",
         "_safe_json",
         "_snapshot_context",
         "_value_score",
+        "_write_digest_state",
         "auto_apply_proposals",
         "auto_promote_experiences",
         "fetch_events",
@@ -2670,6 +3159,7 @@
         "argparse",
         "code_contracts",
         "config_loader",
+        "db_utils",
         "embeddings",
         "hashlib",
         "json",
@@ -2732,20 +3222,38 @@
         "typing"
       ]
     },
-    ".bgl_core\\brain\\decision_db.py": {
+    ".bgl_core\\brain\\db_utils.py": {
       "functions": [
-        "_connect",
-        "_ensure_outcome_columns",
-        "init_db",
-        "insert_decision",
-        "insert_intent",
-        "insert_outcome"
+        "connect_db"
       ],
       "classes": {},
       "imports": [
+        "pathlib",
+        "sqlite3",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\decision_db.py": {
+      "functions": [
+        "_connect",
+        "_ensure_decision_trace",
+        "_ensure_outcome_columns",
+        "_safe_json",
+        "init_db",
+        "insert_decision",
+        "insert_intent",
+        "insert_outcome",
+        "record_decision_trace"
+      ],
+      "classes": {},
+      "imports": [
+        "db_utils",
+        "json",
         "os",
         "pathlib",
-        "sqlite3"
+        "sqlite3",
+        "time",
+        "typing"
       ]
     },
     ".bgl_core\\brain\\decision_engine.py": {
@@ -2772,6 +3280,7 @@
       "imports": [
         "json",
         "llm_client",
+        "os",
         "typing"
       ]
     },
@@ -2922,13 +3431,19 @@
     },
     ".bgl_core\\brain\\generate_playbooks.py": {
       "functions": [
+        "_approvals_disabled",
+        "_auto_approve_pending",
         "generate_from_proposed"
       ],
       "classes": {},
       "imports": [
+        "approve_playbook",
+        "config_loader",
         "datetime",
         "json",
-        "pathlib"
+        "os",
+        "pathlib",
+        "shutil"
       ]
     },
     ".bgl_core\\brain\\governor.py": {
@@ -2962,11 +3477,13 @@
         "BGLGuardian": [
           "__init__",
           "_auto_promote_policy_candidates",
+          "_callgraph_summary",
           "_check_business_conflicts_real",
           "_check_domain_rule_violations",
           "_check_learning_confirmations",
           "_check_permissions",
           "_classify_expected_failure",
+          "_cleanup_expected_failures",
           "_compute_adaptive_limit",
           "_compute_flow_coverage",
           "_compute_scenario_coverage",
@@ -2975,7 +3492,9 @@
           "_contract_missing_routes",
           "_contract_quality_gaps",
           "_count_runtime_events",
+          "_decision_explanations",
           "_dedupe_permissions",
+          "_dependency_graph_summary",
           "_detect_log_anomalies",
           "_ensure_routes_indexed",
           "_gate_reindex",
@@ -2985,6 +3504,7 @@
           "_has_permission",
           "_is_api_route",
           "_load_api_contract",
+          "_load_context_digest_state",
           "_load_recent_experiences",
           "_load_route_stats",
           "_maybe_record_policy_candidate",
@@ -2994,12 +3514,16 @@
           "_persist_route_stats",
           "_preflight_services",
           "_prune_logs",
+          "_recent_decision_traces",
           "_recent_outcomes",
+          "_record_expected_failure_trace",
           "_render_example",
           "_request_permission",
+          "_runtime_profile_summary",
           "_scan_api_route",
           "_sequence_matches",
           "_target_duration",
+          "_unify_actions",
           "_update_route_health",
           "_worst_routes",
           "_write_autonomy_goal",
@@ -3014,8 +3538,11 @@
         "asyncio",
         "authority",
         "brain_types",
+        "callgraph_builder",
+        "canary_release",
         "config_loader",
         "contract_seeder",
+        "db_utils",
         "decision_db",
         "decision_engine",
         "fault_locator",
@@ -3208,9 +3735,13 @@
         "_connect",
         "_ensure_tables",
         "_external_dependency_patterns",
+        "_fallback_block_disabled",
+        "_fallback_require_human_disabled",
         "_fingerprint",
+        "_normalize_fallback_action",
         "_normalize_scope",
         "_recent_external_dependency",
+        "_record_fallback_rule_trace",
         "_root_from_db",
         "_runtime_contract_confidence",
         "_safe_json",
@@ -3231,6 +3762,7 @@
         "__future__",
         "code_contracts",
         "config_loader",
+        "decision_db",
         "failure_classifier",
         "hashlib",
         "json",
@@ -3318,6 +3850,7 @@
       "functions": [
         "_clamp",
         "_connect",
+        "_decision_trace_stats",
         "_ensure_tables",
         "_interval_hours",
         "_outcome_stats",
@@ -3760,6 +4293,7 @@
           "__init__",
           "_analyze_file",
           "_infer_method",
+          "_parse_route_definitions",
           "index_project",
           "run"
         ]
@@ -3794,8 +4328,10 @@
     },
     ".bgl_core\\brain\\run_lock.py": {
       "functions": [
+        "_parse_lock",
         "_pid_alive",
         "acquire_lock",
+        "refresh_lock",
         "release_lock"
       ],
       "classes": {},
@@ -3819,7 +4355,9 @@
       "classes": {},
       "imports": [
         "asyncio",
+        "canary_release",
         "config_loader",
+        "json",
         "os",
         "pathlib",
         "random",
@@ -3927,12 +4465,17 @@
         "_attempt_form_submit",
         "_attempt_search_submit",
         "_attempt_self_heal",
+        "_attempt_semantic_shift",
         "_auto_reindex_routes",
         "_autonomous_enabled",
         "_autonomous_plan_hash",
         "_build_reveal_selectors",
         "_build_search_terms",
         "_build_selector_candidates",
+        "_candidate_is_active",
+        "_candidate_is_disabled",
+        "_candidate_is_tab_like",
+        "_candidate_needs_hover",
         "_cfg_value",
         "_cleanup_autonomy_goals",
         "_collect_dream_targets",
@@ -3950,8 +4493,11 @@
         "_ensure_semantic_steps",
         "_escape_has_text",
         "_external_dependency_patterns",
+        "_external_domain_allowed",
+        "_external_nav_recent_count",
         "_extract_goal_targets",
         "_fallback_autonomous_steps",
+        "_flag_truthy",
         "_generate_autonomous_plan",
         "_goal_flow_priority",
         "_goal_route_kind",
@@ -3960,8 +4506,10 @@
         "_href_basename",
         "_http_check",
         "_ingest_insights_to_goals",
+        "_inject_priority_goto",
         "_is_api_scenario",
         "_is_api_url",
+        "_is_external_url",
         "_is_recent_autonomous_plan",
         "_is_safe_novel_href",
         "_is_search_input",
@@ -3970,6 +4518,7 @@
         "_list_upload_fixtures",
         "_load_explored_selectors",
         "_load_flow_priority_map",
+        "_load_flow_priority_routes",
         "_load_insight_basenames",
         "_load_seen_novel",
         "_load_ui_flow_bias",
@@ -3984,6 +4533,7 @@
         "_pop_context",
         "_prioritize_autonomy_goals",
         "_prioritize_candidates",
+        "_prioritize_candidates_by_routes",
         "_probe_element_state",
         "_push_context",
         "_rank_exploration_candidate",
@@ -3999,6 +4549,7 @@
         "_record_exploration_outcome",
         "_record_explored_selector",
         "_record_goal_strategy_result",
+        "_refresh_scenario_lock",
         "_resolve_route_to_file",
         "_reward_exploration_from_outcomes",
         "_route_source_files",
@@ -4014,11 +4565,15 @@
         "_seed_goals_from_semantic",
         "_seed_goals_from_system_signals",
         "_selector_from_element",
+        "_selector_key_from_selector",
         "_semantic_action_selectors",
         "_semantic_is_write_action",
+        "_semantic_plan_steps",
         "_semantic_preferred_selectors",
         "_semantic_search_selectors",
+        "_session_semantic_changed",
         "_should_trigger_dream",
+        "_stable_selector_key",
         "_text_hints_from_context",
         "_text_reveal_selectors",
         "_trace",
@@ -4049,6 +4604,7 @@
         "brain_types",
         "browser_manager",
         "config_loader",
+        "db_utils",
         "hand_profile",
         "hashlib",
         "hypothesis",
@@ -4074,6 +4630,7 @@
         "time",
         "typing",
         "urllib.error",
+        "urllib.parse",
         "urllib.request",
         "yaml"
       ]
@@ -4128,6 +4685,7 @@
     ".bgl_core\\brain\\test_gate.py": {
       "functions": [
         "_contract_map",
+        "_heuristic_tests",
         "_load_write_scope",
         "_normalize",
         "_risk_tier",
@@ -4483,8 +5041,8 @@
       ],
       "classes": {},
       "imports": [
+        "db_utils",
         "pathlib",
-        "sqlite3",
         "time",
         "typing"
       ]
@@ -4502,6 +5060,11 @@
       ]
     },
     ".bgl_core\\brain\\checks\\__init__.py": {
+      "functions": [],
+      "classes": {},
+      "imports": []
+    },
+    ".bgl_core\\brain\\scenarios\\generated\\gap_route_indexer.py": {
       "functions": [],
       "classes": {},
       "imports": []
@@ -5099,7 +5662,7 @@
     }
   },
   "risk_summary": {
-    "high": 153,
+    "high": 156,
     "medium": 172,
     "low": 61
   }

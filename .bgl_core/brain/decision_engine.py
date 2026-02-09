@@ -1,5 +1,6 @@
 from typing import Dict, Any, List
 import json
+import os
 
 try:
     from .llm_client import LLMClient  # type: ignore
@@ -242,6 +243,19 @@ def _apply_code_intent_override(
     decision = str(payload.get("decision", "observe") or "observe").lower()
     risk_level = str(payload.get("risk_level", "low") or "low").lower()
     requires_human = bool(payload.get("requires_human", False))
+
+    force_no_human = False
+    try:
+        force_no_human = bool(policy.get("force_no_human_approvals", False))
+    except Exception:
+        force_no_human = False
+    if not force_no_human:
+        try:
+            env_force = os.getenv("BGL_FORCE_NO_HUMAN_APPROVALS")
+            if env_force is not None:
+                force_no_human = str(env_force).strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            force_no_human = False
     intent = str(code_hint.get("intent") or "").lower()
     confidence = float(code_hint.get("confidence") or 0.0)
     just = _ensure_justification(payload)
@@ -254,6 +268,10 @@ def _apply_code_intent_override(
         just.append(f"code_intent_hint:{intent} (conf={confidence})")
     elif intent in ("evolve",) and decision == "observe" and confidence >= 0.6:
         just.append(f"code_intent_hint:{intent} (conf={confidence})")
+
+    if force_no_human:
+        requires_human = False
+        policy_notes.append("policy:force_no_human_approvals")
 
     payload["decision"] = decision
     payload["risk_level"] = risk_level

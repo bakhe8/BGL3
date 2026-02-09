@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_814",
+  "description": "Stabilize route http://localhost:8000/api/parse-paste.php",
+  "created_at": 1770617247,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 814,
+    "generated_at": 1770617907.821739
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "overwrite",
+      "content": "api:\n  parse_paste:\n    url: http://localhost:8000/api/parse-paste.php\n    method: POST\n    headers:\n      Content-Type: application/json\n    body: {}\n    expected_status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "api:\n  parse_paste:\n    url: http://localhost:8000/api/parse-paste.php\n    method: POST\n    headers:\n      Content-Type: application/json\n    body: {}\n    expected_status_code: 200"
+      }
+    }
+  ]
+}

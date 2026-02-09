@@ -2,9 +2,264 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Generated)
   version: '0.1'
-  x-bgl-generated-at: '2026-02-09 02:53:55'
+  x-bgl-generated-at: '2026-02-09 23:06:44'
 paths:
   /:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agent-dashboard.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agent.php:
+    post:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/bootstrap.php:
+    post:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/layout.php:
+    post:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/activity.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/agent_autonomy_state.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/agent_controls.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/autonomy_goals.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/blockers.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/canary_status.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/command_center.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/copilot_chat.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/decision_impact.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/decisions.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/domain_map.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/effective_config.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/events.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/experiences.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/external_checks.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/extra_widget.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/flows.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/gap_tests.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/hallucination_metrics.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/health.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/intents.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/js_inventory.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/knowledge_curation.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/kpis.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/learning_feedback.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/log_highlights.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/long_term_goals.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/monitoring_widgets.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/operator_goals.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/permission_queue.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/permissions.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/plan_library.php:
+    post:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/prod_operations.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/proposals_simple.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/proposed_playbooks_simple.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/quick_actions.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/report_viewer.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/route_updates.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/rules.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/simple_mode.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/snapshot_delta.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/summary.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/test_console.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/tool_evidence.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/topbar.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/vector_db_status.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /agentfrontend/partials/worst_routes.php:
     get:
       responses:
         '200':
@@ -339,6 +594,76 @@ paths:
         '200':
           description: OK
     post:
+      responses:
+        '200':
+          description: OK
+  /partials/confirm-modal.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/excel-import-modal.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/historical-banner.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/letter-renderer.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/manual-entry-modal.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/paste-modal.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/preview-placeholder.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/record-form.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/suggestions.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/supplier-suggestions.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/timeline-section.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /partials/unified-header.php:
+    get:
+      responses:
+        '200':
+          description: OK
+  /server.php:
+    post:
+      responses:
+        '200':
+          description: OK
+  /templates/letter-template.php:
+    get:
       responses:
         '200':
           description: OK

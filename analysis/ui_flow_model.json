@@ -1,33 +1,37 @@
 {
   "window_days": 7,
-  "node_count": 8,
+  "node_count": 9,
   "transition_count": 30,
   "nodes": {
     "/": {
-      "out": 251,
-      "in": 280
+      "out": 335,
+      "in": 356
     },
     "/index.php": {
-      "out": 157,
-      "in": 161
+      "out": 188,
+      "in": 193
     },
     "/about:blank": {
       "out": 43,
       "in": 0
     },
     "/views/batches.php": {
-      "out": 18,
+      "out": 20,
       "in": 0
     },
     "/api/settings.php": {
-      "out": 24,
-      "in": 36
+      "out": 8,
+      "in": 20
+    },
+    "/views/statistics.php": {
+      "out": 0,
+      "in": 9
     },
     "/api/release.php": {
       "out": 0,
       "in": 8
     },
-    "/views/statistics.php": {
+    "/api/smart-paste-confidence.php": {
       "out": 0,
       "in": 8
     },
@@ -42,21 +46,21 @@
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 86
+      "count": 135
     },
     {
       "from": "/",
       "to": "/",
       "action": "click",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 64
+      "count": 77
     },
     {
       "from": "/index.php",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 42
+      "count": 47
     },
     {
       "from": "/about:blank",
@@ -70,62 +74,69 @@
       "to": "/index.php",
       "action": "goto",
       "selector": "",
-      "count": 28
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "type",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 22
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 19
+      "count": 29
     },
     {
       "from": "/",
       "to": "/",
       "action": "hover",
       "selector": "a[href=\"./views/batches.php\"]",
-      "count": 18
-    },
-    {
-      "from": "/views/batches.php",
-      "to": "/",
-      "action": "goto",
-      "selector": "",
-      "count": 18
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
-      "count": 15
+      "count": 25
     },
     {
       "from": "/",
       "to": "/index.php",
       "action": "type",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 14
+      "count": 25
     },
     {
-      "from": "/",
-      "to": "/api/settings.php",
-      "action": "goto",
-      "selector": "",
-      "count": 12
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "input[name=\"search\"]",
+      "count": 21
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "press",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 21
+    },
+    {
+      "from": "/views/batches.php",
+      "to": "/",
+      "action": "goto",
+      "selector": "",
+      "count": 20
+    },
+    {
+      "from": "/",
+      "to": "/index.php",
+      "action": "type",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 16
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "count": 16
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "count": 13
+    },
+    {
+      "from": "/",
+      "to": "/api/settings.php",
+      "action": "goto",
+      "selector": "",
       "count": 12
     },
     {
@@ -139,7 +150,7 @@
       "from": "/index.php",
       "to": "/index.php",
       "action": "click",
-      "selector": "input[name=\"search\"]",
+      "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']",
       "count": 11
     },
     {
@@ -157,17 +168,24 @@
       "count": 10
     },
     {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']",
-      "count": 10
-    },
-    {
       "from": "/",
       "to": "/index.php",
       "action": "goto",
       "selector": "",
+      "count": 10
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 10
+    },
+    {
+      "from": "/",
+      "to": "/views/statistics.php",
+      "action": "click",
+      "selector": "a[href*='statistics.php']",
       "count": 9
     },
     {
@@ -186,9 +204,9 @@
     },
     {
       "from": "/",
-      "to": "/views/statistics.php",
-      "action": "click",
-      "selector": "a[href*='statistics.php']",
+      "to": "/api/smart-paste-confidence.php",
+      "action": "goto",
+      "selector": "",
       "count": 8
     },
     {
@@ -232,20 +250,26 @@
       "action": "click",
       "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
       "count": 8
-    },
-    {
-      "from": "/api/settings.php",
-      "to": "/api/settings.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='dropdown'], [data-toggle='dropdown']",
-      "count": 8
-    },
-    {
-      "from": "/api/settings.php",
-      "to": "/api/settings.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='modal'], [data-toggle='modal']",
-      "count": 8
     }
+  ],
+  "priority_routes": [
+    "/api/release.php",
+    "/api/smart-paste-confidence.php",
+    "/views/statistics.php",
+    "/views/batches.php",
+    "/api/settings.php",
+    "/about:blank",
+    "/api/parse-paste.php",
+    "/index.php"
+  ],
+  "hot_routes": [
+    "/",
+    "/index.php",
+    "/api/parse-paste.php",
+    "/about:blank",
+    "/api/settings.php",
+    "/views/batches.php",
+    "/views/statistics.php",
+    "/api/release.php"
   ]
 }

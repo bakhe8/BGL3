@@ -1,8 +1,11 @@
 from pathlib import Path
-import sqlite3
 import time
 from typing import Dict, Any, List
 
+try:
+    from ..db_utils import connect_db  # type: ignore
+except Exception:
+    from db_utils import connect_db  # type: ignore
 
 def run(project_root: Path) -> Dict[str, Any]:
     """
@@ -23,8 +26,7 @@ def run(project_root: Path) -> Dict[str, Any]:
     gap_done = 0
     evidence: List[str] = []
     try:
-        conn = sqlite3.connect(str(db_path))
-        conn.row_factory = sqlite3.Row
+        conn = connect_db(str(db_path), timeout=30.0)
         tables = {
             row[0]
             for row in conn.execute(

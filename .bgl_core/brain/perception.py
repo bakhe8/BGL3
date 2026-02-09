@@ -22,6 +22,16 @@ UI_MAP_JS = r"""
     const tag = (el.tagName || '').toLowerCase();
     const text = pickText(el).slice(0, 120);
     const href = (tag === 'a') ? (el.getAttribute('href') || '') : '';
+    const onclick = el.getAttribute('onclick') || '';
+    const dataTab = el.getAttribute('data-tab') || '';
+    const dataTarget = el.getAttribute('data-target') || '';
+    const dataBsTarget = el.getAttribute('data-bs-target') || '';
+    const dataTargetAttr = dataBsTarget ? 'data-bs-target' : (dataTarget ? 'data-target' : '');
+    const ariaControls = el.getAttribute('aria-controls') || '';
+    const ariaSelected = el.getAttribute('aria-selected') || '';
+    const ariaExpanded = el.getAttribute('aria-expanded') || '';
+    const ariaDisabled = el.getAttribute('aria-disabled') || '';
+    const disabled = el.disabled ? 'true' : '';
     let testAttr = '';
     let testId = '';
     const testAttrs = ['data-testid', 'data-test', 'data-qa', 'data-cy'];
@@ -38,6 +48,15 @@ UI_MAP_JS = r"""
       classes: el.className || '',
       type: el.type || (tag === 'a' ? 'link' : ''),
       href,
+      onclick,
+      datatab: dataTab,
+      datatarget: dataTarget || dataBsTarget,
+      datatarget_attr: dataTargetAttr,
+      ariacontrols: ariaControls,
+      aria_selected: ariaSelected,
+      aria_expanded: ariaExpanded,
+      aria_disabled: ariaDisabled,
+      disabled: disabled,
       name: el.getAttribute('name') || '',
       testid: testId,
       testattr: testAttr,

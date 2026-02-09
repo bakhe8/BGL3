@@ -1,20 +1,81 @@
 {
-  "generated_at": 1770594789.5066364,
+  "generated_at": 1770667946.8364294,
   "scenario": {
     "summary": {
       "window_days": 7,
-      "total_routes": 46,
-      "covered_routes": 46,
-      "coverage_ratio": 100.0,
-      "ui_snapshot_paths": 22,
-      "ui_coverage_ratio": 47.83,
-      "uncovered_sample": [],
-      "events_total": 10706,
-      "ui_snapshot_count": 69,
-      "semantic_change_count": 5,
-      "gap_runs": 26,
-      "gap_changed": 3,
-      "gap_last_ts": 1770593843.0999131,
+      "total_routes": 111,
+      "covered_routes": 47,
+      "coverage_ratio": 42.34,
+      "ui_snapshot_paths": 24,
+      "ui_coverage_ratio": 21.62,
+      "uncovered_sample": [
+        {
+          "route": "/agent-dashboard.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/server.php",
+          "method": "POST",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/bootstrap.php",
+          "method": "POST",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/layout.php",
+          "method": "POST",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/activity.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/agent_autonomy_state.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/agent_controls.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/autonomy_goals.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/blockers.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/canary_status.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/command_center.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/copilot_chat.php",
+          "method": "GET",
+          "status_score": 100
+        }
+      ],
+      "events_total": 17441,
+      "ui_snapshot_count": 79,
+      "semantic_change_count": 23,
+      "gap_runs": 215,
+      "gap_changed": 33,
+      "gap_last_ts": 1770667952.1519291,
       "reliable": true,
       "reliability_reason": ""
     },
@@ -24,11 +85,12 @@
     "summary": {
       "window_days": 7,
       "snapshot_count": 12,
-      "total_actions": 117,
-      "covered_actions": 0,
-      "coverage_ratio": 0.0,
-      "routes_with_actions": 4,
-      "routes_with_coverage": 0,
+      "total_actions": 126,
+      "covered_actions": 21,
+      "coverage_ratio": 16.67,
+      "operational_coverage_ratio": 16.67,
+      "routes_with_actions": 2,
+      "routes_with_coverage": 2,
       "uncovered_sample": [
         {
           "route": "/index.php",
@@ -59,15 +121,6 @@
         },
         {
           "route": "/index.php",
-          "selector": "input[name=\"search\"]",
-          "text": "بنك",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0
-        },
-        {
-          "route": "/index.php",
           "selector": "a[href=\"./index.php\"]",
           "text": "✕",
           "href": "./index.php",
@@ -77,44 +130,8 @@
         },
         {
           "route": "/index.php",
-          "selector": "a[href=\"./views/batches.php\"]",
-          "text": "📦 الدفعات",
-          "href": "./views/batches.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/statistics.php\"]",
-          "text": "📊 إحصائيات",
-          "href": "./views/statistics.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/settings.php\"]",
-          "text": "⚙ إعدادات",
-          "href": "./views/settings.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/maintenance.php\"]",
-          "text": "🛠️ صيانة",
-          "href": "./views/maintenance.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.btn",
-          "text": "← السابق",
+          "selector": "button.historical-banner-btn",
+          "text": "↩️ العودة للوضع الحالي",
           "href": "",
           "tag": "button",
           "risk": "safe",
@@ -122,8 +139,8 @@
         },
         {
           "route": "/index.php",
-          "selector": "input[name=\"jump_to_index\"]",
-          "text": "1",
+          "selector": "#decisionStatus",
+          "text": "pending",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -131,12 +148,57 @@
         },
         {
           "route": "/index.php",
-          "selector": "button.historical-banner-btn",
-          "text": "↩️ العودة للوضع الحالي",
+          "selector": "#activeAction",
+          "text": "",
           "href": "",
-          "tag": "button",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#relatedTo",
+          "text": "contract",
+          "href": "",
+          "tag": "input",
           "risk": "safe",
           "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#eventSubtype",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#supplierInput",
+          "text": "—",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#supplierIdHidden",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "a[href=\"/?filter=all\"]",
+          "text": "📊 53",
+          "href": "/?filter=all",
+          "tag": "a",
+          "risk": "safe",
+          "priority_score": 63.0
         }
       ],
       "gaps": [
@@ -186,8 +248,8 @@
           "priority_score": 86.0
         },
         {
-          "route": "/index.php",
-          "selector": "#btnCancelExcel",
+          "route": "/",
+          "selector": "#bgl-confirm-no",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -195,18 +257,45 @@
           "priority_score": 86.0
         },
         {
-          "route": "/views/maintenance.php",
-          "selector": "input[name=\"action\"]",
-          "text": "delete_all",
+          "route": "/",
+          "selector": "button.note-cancel-btn",
+          "text": "إلغاء",
+          "href": "",
+          "tag": "button",
+          "risk": "danger",
+          "priority_score": 86.0
+        },
+        {
+          "route": "/",
+          "selector": "#manualTestBatchId",
+          "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
           "href": "",
           "tag": "input",
           "risk": "danger",
           "priority_score": 86.0
         },
         {
-          "route": "/views/maintenance.php",
-          "selector": "button.btn-danger",
-          "text": "حذف الكل",
+          "route": "/",
+          "selector": "#btnCancelManualEntry",
+          "text": "إلغاء",
+          "href": "",
+          "tag": "button",
+          "risk": "danger",
+          "priority_score": 86.0
+        },
+        {
+          "route": "/",
+          "selector": "#btnCancelPaste",
+          "text": "إلغاء",
+          "href": "",
+          "tag": "button",
+          "risk": "danger",
+          "priority_score": 86.0
+        },
+        {
+          "route": "/",
+          "selector": "#btnCancelExcel",
+          "text": "إلغاء",
           "href": "",
           "tag": "button",
           "risk": "danger",
@@ -216,15 +305,6 @@
           "route": "/index.php",
           "selector": "button.note-save-btn",
           "text": "حفظ",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "#addNoteBtn",
-          "text": "+ إضافة ملاحظة",
           "href": "",
           "tag": "button",
           "risk": "write",
@@ -258,25 +338,43 @@
           "priority_score": 84.0
         },
         {
-          "route": "/views/batch-detail.php",
-          "selector": "input[name=\"search\"]",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "route": "/",
+          "selector": "button.note-save-btn",
+          "text": "حفظ",
           "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 80.0
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0
         },
         {
-          "route": "/views/batches.php",
-          "selector": "input[name=\"search\"]",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "route": "/",
+          "selector": "#btnSaveManualEntry",
+          "text": "✓ حفظ وإضافة",
           "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 80.0
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0
         },
         {
-          "route": "/views/maintenance.php",
+          "route": "/",
+          "selector": "#btnProcessPaste",
+          "text": "✨ تحليل وإضافة",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0
+        },
+        {
+          "route": "/",
+          "selector": "#excelTestNote",
+          "text": "مثل: اختبار استيراد Excel",
+          "href": "",
+          "tag": "input",
+          "risk": "write",
+          "priority_score": 84.0
+        },
+        {
+          "route": "/",
           "selector": "input[name=\"search\"]",
           "text": "بحث برقم الضمان، المورد، أو البنك...",
           "href": "",
@@ -295,33 +393,6 @@
         },
         {
           "route": "/index.php",
-          "selector": "input[name=\"search\"]",
-          "text": "بنك",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.btn",
-          "text": "← السابق",
-          "href": "",
-          "tag": "button",
-          "risk": "safe",
-          "priority_score": 68.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "input[name=\"jump_to_index\"]",
-          "text": "1",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0
-        },
-        {
-          "route": "/index.php",
           "selector": "button.historical-banner-btn",
           "text": "↩️ العودة للوضع الحالي",
           "href": "",
@@ -332,16 +403,7 @@
         {
           "route": "/index.php",
           "selector": "#decisionStatus",
-          "text": "released",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0
-        },
-        {
-          "route": "/index.php",
-          "selector": "#activeAction",
-          "text": "release",
+          "text": "pending",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -357,6 +419,9 @@
           "priority_score": 68.0
         }
       ],
+      "gap_runs": 3,
+      "gap_changed": 0,
+      "gap_last_ts": 1770593752.3114355,
       "reliable": true,
       "reliability_reason": ""
     },
@@ -407,8 +472,8 @@
         "priority_score": 86.0
       },
       {
-        "route": "/index.php",
-        "selector": "#btnCancelExcel",
+        "route": "/",
+        "selector": "#bgl-confirm-no",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -416,18 +481,45 @@
         "priority_score": 86.0
       },
       {
-        "route": "/views/maintenance.php",
-        "selector": "input[name=\"action\"]",
-        "text": "delete_all",
+        "route": "/",
+        "selector": "button.note-cancel-btn",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#manualTestBatchId",
+        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
         "risk": "danger",
         "priority_score": 86.0
       },
       {
-        "route": "/views/maintenance.php",
-        "selector": "button.btn-danger",
-        "text": "حذف الكل",
+        "route": "/",
+        "selector": "#btnCancelManualEntry",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelExcel",
+        "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
@@ -437,15 +529,6 @@
         "route": "/index.php",
         "selector": "button.note-save-btn",
         "text": "حفظ",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#addNoteBtn",
-        "text": "+ إضافة ملاحظة",
         "href": "",
         "tag": "button",
         "risk": "write",
@@ -479,25 +562,43 @@
         "priority_score": 84.0
       },
       {
-        "route": "/views/batch-detail.php",
-        "selector": "input[name=\"search\"]",
-        "text": "بحث برقم الضمان، المورد، أو البنك...",
+        "route": "/",
+        "selector": "button.note-save-btn",
+        "text": "حفظ",
         "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 80.0
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0
       },
       {
-        "route": "/views/batches.php",
-        "selector": "input[name=\"search\"]",
-        "text": "بحث برقم الضمان، المورد، أو البنك...",
+        "route": "/",
+        "selector": "#btnSaveManualEntry",
+        "text": "✓ حفظ وإضافة",
         "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 80.0
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0
       },
       {
-        "route": "/views/maintenance.php",
+        "route": "/",
+        "selector": "#btnProcessPaste",
+        "text": "✨ تحليل وإضافة",
+        "href": "",
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0
+      },
+      {
+        "route": "/",
+        "selector": "#excelTestNote",
+        "text": "مثل: اختبار استيراد Excel",
+        "href": "",
+        "tag": "input",
+        "risk": "write",
+        "priority_score": 84.0
+      },
+      {
+        "route": "/",
         "selector": "input[name=\"search\"]",
         "text": "بحث برقم الضمان، المورد، أو البنك...",
         "href": "",
@@ -516,33 +617,6 @@
       },
       {
         "route": "/index.php",
-        "selector": "input[name=\"search\"]",
-        "text": "بنك",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 68.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "button.btn",
-        "text": "← السابق",
-        "href": "",
-        "tag": "button",
-        "risk": "safe",
-        "priority_score": 68.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "input[name=\"jump_to_index\"]",
-        "text": "1",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 68.0
-      },
-      {
-        "route": "/index.php",
         "selector": "button.historical-banner-btn",
         "text": "↩️ العودة للوضع الحالي",
         "href": "",
@@ -553,16 +627,7 @@
       {
         "route": "/index.php",
         "selector": "#decisionStatus",
-        "text": "released",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 68.0
-      },
-      {
-        "route": "/index.php",
-        "selector": "#activeAction",
-        "text": "release",
+        "text": "pending",
         "href": "",
         "tag": "input",
         "risk": "safe",
@@ -614,6 +679,78 @@
         "tag": "button",
         "risk": "danger",
         "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#bgl-confirm-no",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "button.note-cancel-btn",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#manualTestBatchId",
+        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "href": "",
+        "tag": "input",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelManualEntry",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelExcel",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "button.note-save-btn",
+        "text": "حفظ",
+        "href": "",
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0
       }
     ]
   },
@@ -621,130 +758,137 @@
     "summary": {
       "window_days": 14,
       "total_flows": 5,
-      "covered_flows": 0,
-      "coverage_ratio": 0.0,
-      "sequence_covered_flows": 5,
-      "sequence_coverage_ratio": 100.0,
+      "covered_flows": 2,
+      "coverage_ratio": 40.0,
+      "operational_covered_flows": 5,
+      "operational_coverage_ratio": 100.0,
+      "sequence_covered_flows": 2,
+      "sequence_coverage_ratio": 40.0,
       "uncovered_sample": [
         {
           "flow": "Flow: إنشاء ضمان (create_guarantee)",
           "file": "create_guarantee.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/create-guarantee.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "api_call",
+              "autonomy_goal_result",
+              "http_error"
+            ],
+            "missing_events": [
+              "guarantee_created"
+            ]
           },
           "endpoints": [
-            "/api/create-guarantee.php"
+            "/api/create-guarantee.php",
+            "/supplier_id",
+            "/422",
+            "/422.",
+            "/currency"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/supplier_id",
+            "/422",
+            "/422.",
+            "/currency",
+            "/Phone"
+          ],
           "steps_sample": [
             "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
             "التحقق:",
             "الإنشاء:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "sim_session_1",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 28
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
           "file": "export_suppliers.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/export_suppliers.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "api_call",
+              "autonomy_goal_result",
+              "network_fail",
+              "scenario_step_start"
+            ],
+            "missing_events": [
+              "export_suppliers"
+            ]
           },
           "endpoints": [
-            "/api/export_suppliers.php"
+            "/api/export_suppliers.php",
+            "/streaming",
+            "/XLSX",
+            "/indexing"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/streaming",
+            "/XLSX",
+            "/indexing"
+          ],
           "steps_sample": [
             "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
             "التحقق:",
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770593602_39376|gap_flow_flow_export_suppliers_",
-          "gap_runs": 2
-        },
-        {
-          "flow": "Flow: تمديد ضمان (extend_guarantee)",
-          "file": "extend_guarantee.md",
-          "status": "partial",
-          "evidence": {
-            "routes": [
-              "/api/extend.php"
-            ],
-            "events": []
-          },
-          "endpoints": [
-            "/api/extend.php"
-          ],
-          "missing_steps": [],
-          "steps_sample": [
-            "الطلب: `/api/extend.php` مع (guarantee_id, new_end_date, reason?).",
-            "التحقق:",
-            "التنفيذ:",
-            "المخرجات:"
-          ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770486170_12912|goal_flow_gap",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 28
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
           "file": "import_suppliers.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/import_suppliers.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "autonomy_goal_result",
+              "http_error",
+              "import_banks",
+              "log_highlight"
+            ],
+            "missing_events": [
+              "import_suppliers"
+            ]
           },
           "endpoints": [
-            "/api/import_suppliers.php"
+            "/api/import_suppliers.php",
+            "/XLSX",
+            "/Phone/Tax/",
+            "/Phone/Tax"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/XLSX",
+            "/Phone/Tax/",
+            "/Phone/Tax"
+          ],
           "steps_sample": [
             "الطلب: `/api/import_suppliers.php` برفع ملف.",
             "التحقق:",
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770593602_39376|gap_flow_flow_import_suppliers_",
-          "gap_runs": 2
-        },
-        {
-          "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
-          "file": "release_guarantee.md",
-          "status": "partial",
-          "evidence": {
-            "routes": [
-              "/api/release.php"
-            ],
-            "events": []
-          },
-          "endpoints": [
-            "/api/release.php"
-          ],
-          "missing_steps": [],
-          "steps_sample": [
-            "الطلب: `/api/release.php` مع (guarantee_id, reason?).",
-            "التحقق:",
-            "التنفيذ:",
-            "المخرجات:"
-          ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 26
         }
       ],
       "details": [
@@ -752,59 +896,106 @@
           "flow": "Flow: إنشاء ضمان (create_guarantee)",
           "file": "create_guarantee.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/create-guarantee.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "api_call",
+              "autonomy_goal_result",
+              "http_error"
+            ],
+            "missing_events": [
+              "guarantee_created"
+            ]
           },
           "endpoints": [
-            "/api/create-guarantee.php"
+            "/api/create-guarantee.php",
+            "/supplier_id",
+            "/422",
+            "/422.",
+            "/currency"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/supplier_id",
+            "/422",
+            "/422.",
+            "/currency",
+            "/Phone"
+          ],
           "steps_sample": [
             "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
             "التحقق:",
             "الإنشاء:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "sim_session_1",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 28
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
           "file": "export_suppliers.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/export_suppliers.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "api_call",
+              "autonomy_goal_result",
+              "network_fail",
+              "scenario_step_start"
+            ],
+            "missing_events": [
+              "export_suppliers"
+            ]
           },
           "endpoints": [
-            "/api/export_suppliers.php"
+            "/api/export_suppliers.php",
+            "/streaming",
+            "/XLSX",
+            "/indexing"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/streaming",
+            "/XLSX",
+            "/indexing"
+          ],
           "steps_sample": [
             "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
             "التحقق:",
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770593602_39376|gap_flow_flow_export_suppliers_",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 28
         },
         {
           "flow": "Flow: تمديد ضمان (extend_guarantee)",
           "file": "extend_guarantee.md",
-          "status": "partial",
+          "status": "covered",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/extend.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "autonomy_goal_result",
+              "dom_no_change",
+              "gap_deepen",
+              "http_error",
+              "idle_recovery"
+            ],
+            "missing_events": [
+              "guarantee_extended"
+            ]
           },
           "endpoints": [
             "/api/extend.php"
@@ -818,41 +1009,69 @@
           ],
           "sequence_covered": true,
           "sequence_session": "run_1770486170_12912|goal_flow_gap",
-          "gap_runs": 2
+          "gap_runs": 26
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
           "file": "import_suppliers.md",
           "status": "partial",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/import_suppliers.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "autonomy_goal_result",
+              "http_error",
+              "import_banks",
+              "log_highlight"
+            ],
+            "missing_events": [
+              "import_suppliers"
+            ]
           },
           "endpoints": [
-            "/api/import_suppliers.php"
+            "/api/import_suppliers.php",
+            "/XLSX",
+            "/Phone/Tax/",
+            "/Phone/Tax"
           ],
-          "missing_steps": [],
+          "missing_steps": [
+            "/XLSX",
+            "/Phone/Tax/",
+            "/Phone/Tax"
+          ],
           "steps_sample": [
             "الطلب: `/api/import_suppliers.php` برفع ملف.",
             "التحقق:",
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": true,
-          "sequence_session": "run_1770593602_39376|gap_flow_flow_import_suppliers_",
-          "gap_runs": 2
+          "sequence_covered": false,
+          "sequence_session": "",
+          "gap_runs": 26
         },
         {
           "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
           "file": "release_guarantee.md",
-          "status": "partial",
+          "status": "covered",
+          "operational_status": "covered",
           "evidence": {
             "routes": [
               "/api/release.php"
             ],
-            "events": []
+            "events": [],
+            "route_events": [
+              "autonomy_goal_result",
+              "dom_no_change",
+              "http_error",
+              "log_highlight",
+              "scenario_step_done"
+            ],
+            "missing_events": [
+              "guarantee_released"
+            ]
           },
           "endpoints": [
             "/api/release.php"
@@ -866,13 +1085,16 @@
           ],
           "sequence_covered": true,
           "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-          "gap_runs": 2
+          "gap_runs": 25
         }
       ],
-      "events_total": 11574,
-      "gap_runs": 10,
-      "gap_changed": 2,
-      "gap_last_ts": 1770593843.0999131,
+      "events_total": 18309,
+      "gap_runs": 133,
+      "gap_changed": 28,
+      "gap_last_ts": 1770667948.0959082,
+      "semantic_change_count": 23,
+      "schema_errors": [],
+      "invalid_flows": 0,
       "reliable": true,
       "reliability_reason": ""
     },
@@ -881,59 +1103,106 @@
         "flow": "Flow: إنشاء ضمان (create_guarantee)",
         "file": "create_guarantee.md",
         "status": "partial",
+        "operational_status": "covered",
         "evidence": {
           "routes": [
             "/api/create-guarantee.php"
           ],
-          "events": []
+          "events": [],
+          "route_events": [
+            "api_call",
+            "autonomy_goal_result",
+            "http_error"
+          ],
+          "missing_events": [
+            "guarantee_created"
+          ]
         },
         "endpoints": [
-          "/api/create-guarantee.php"
+          "/api/create-guarantee.php",
+          "/supplier_id",
+          "/422",
+          "/422.",
+          "/currency"
         ],
-        "missing_steps": [],
+        "missing_steps": [
+          "/supplier_id",
+          "/422",
+          "/422.",
+          "/currency",
+          "/Phone"
+        ],
         "steps_sample": [
           "الطلب: `/api/create-guarantee.php` مع الحقول (bank_id, supplier_id, amount, currency, start_date, end_date, notes?).",
           "التحقق:",
           "الإنشاء:",
           "المخرجات:"
         ],
-        "sequence_covered": true,
-        "sequence_session": "sim_session_1",
-        "gap_runs": 2
+        "sequence_covered": false,
+        "sequence_session": "",
+        "gap_runs": 27
       },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
         "file": "export_suppliers.md",
         "status": "partial",
+        "operational_status": "covered",
         "evidence": {
           "routes": [
             "/api/export_suppliers.php"
           ],
-          "events": []
+          "events": [],
+          "route_events": [
+            "api_call",
+            "autonomy_goal_result",
+            "network_fail",
+            "scenario_step_start"
+          ],
+          "missing_events": [
+            "export_suppliers"
+          ]
         },
         "endpoints": [
-          "/api/export_suppliers.php"
+          "/api/export_suppliers.php",
+          "/streaming",
+          "/XLSX",
+          "/indexing"
         ],
-        "missing_steps": [],
+        "missing_steps": [
+          "/streaming",
+          "/XLSX",
+          "/indexing"
+        ],
         "steps_sample": [
           "الطلب: `/api/export_suppliers.php` (اختياري: فلاتر/مدى تاريخ).",
           "التحقق:",
           "التنفيذ:",
           "المخرجات:"
         ],
-        "sequence_covered": true,
-        "sequence_session": "run_1770593602_39376|gap_flow_flow_export_suppliers_",
-        "gap_runs": 2
+        "sequence_covered": false,
+        "sequence_session": "",
+        "gap_runs": 27
       },
       {
         "flow": "Flow: تمديد ضمان (extend_guarantee)",
         "file": "extend_guarantee.md",
-        "status": "partial",
+        "status": "covered",
+        "operational_status": "covered",
         "evidence": {
           "routes": [
             "/api/extend.php"
           ],
-          "events": []
+          "events": [],
+          "route_events": [
+            "autonomy_goal_result",
+            "dom_no_change",
+            "gap_deepen",
+            "http_error",
+            "idle_recovery"
+          ],
+          "missing_events": [
+            "guarantee_extended"
+          ]
         },
         "endpoints": [
           "/api/extend.php"
@@ -947,41 +1216,69 @@
         ],
         "sequence_covered": true,
         "sequence_session": "run_1770486170_12912|goal_flow_gap",
-        "gap_runs": 2
+        "gap_runs": 25
       },
       {
         "flow": "Flow: استيراد الموردين (import_suppliers)",
         "file": "import_suppliers.md",
         "status": "partial",
+        "operational_status": "covered",
         "evidence": {
           "routes": [
             "/api/import_suppliers.php"
           ],
-          "events": []
+          "events": [],
+          "route_events": [
+            "autonomy_goal_result",
+            "http_error",
+            "import_banks",
+            "log_highlight"
+          ],
+          "missing_events": [
+            "import_suppliers"
+          ]
         },
         "endpoints": [
-          "/api/import_suppliers.php"
+          "/api/import_suppliers.php",
+          "/XLSX",
+          "/Phone/Tax/",
+          "/Phone/Tax"
         ],
-        "missing_steps": [],
+        "missing_steps": [
+          "/XLSX",
+          "/Phone/Tax/",
+          "/Phone/Tax"
+        ],
         "steps_sample": [
           "الطلب: `/api/import_suppliers.php` برفع ملف.",
           "التحقق:",
           "التنفيذ:",
           "المخرجات:"
         ],
-        "sequence_covered": true,
-        "sequence_session": "run_1770593602_39376|gap_flow_flow_import_suppliers_",
-        "gap_runs": 2
+        "sequence_covered": false,
+        "sequence_session": "",
+        "gap_runs": 25
       },
       {
         "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
         "file": "release_guarantee.md",
-        "status": "partial",
+        "status": "covered",
+        "operational_status": "covered",
         "evidence": {
           "routes": [
             "/api/release.php"
           ],
-          "events": []
+          "events": [],
+          "route_events": [
+            "autonomy_goal_result",
+            "dom_no_change",
+            "http_error",
+            "log_highlight",
+            "scenario_step_done"
+          ],
+          "missing_events": [
+            "guarantee_released"
+          ]
         },
         "endpoints": [
           "/api/release.php"
@@ -995,90 +1292,62 @@
         ],
         "sequence_covered": true,
         "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-        "gap_runs": 2
+        "gap_runs": 24
       }
     ],
-    "gaps": [
-      {
-        "flow": "Flow: إنشاء ضمان (create_guarantee)",
-        "status": "partial",
-        "endpoints": [
-          "/api/create-guarantee.php"
-        ],
-        "priority_score": 60.0
-      },
-      {
-        "flow": "Flow: تصدير الموردين (export_suppliers)",
-        "status": "partial",
-        "endpoints": [
-          "/api/export_suppliers.php"
-        ],
-        "priority_score": 60.0
-      },
-      {
-        "flow": "Flow: تمديد ضمان (extend_guarantee)",
-        "status": "partial",
-        "endpoints": [
-          "/api/extend.php"
-        ],
-        "priority_score": 60.0
-      },
-      {
-        "flow": "Flow: استيراد الموردين (import_suppliers)",
-        "status": "partial",
-        "endpoints": [
-          "/api/import_suppliers.php"
-        ],
-        "priority_score": 60.0
-      },
-      {
-        "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
-        "status": "partial",
-        "endpoints": [
-          "/api/release.php"
-        ],
-        "priority_score": 60.0
-      }
-    ],
+    "gaps": [],
     "prioritized_gaps": [
       {
         "flow": "Flow: إنشاء ضمان (create_guarantee)",
         "status": "partial",
         "endpoints": [
-          "/api/create-guarantee.php"
+          "/api/create-guarantee.php",
+          "/supplier_id",
+          "/422",
+          "/422.",
+          "/currency"
         ],
-        "priority_score": 60.0
+        "priority_score": 110.0
       },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
         "status": "partial",
         "endpoints": [
-          "/api/export_suppliers.php"
+          "/api/export_suppliers.php",
+          "/streaming",
+          "/XLSX",
+          "/indexing"
         ],
-        "priority_score": 60.0
+        "priority_score": 90.0
       },
       {
-        "flow": "Flow: تمديد ضمان (extend_guarantee)",
+        "flow": "Flow: استيراد الموردين (import_suppliers)",
         "status": "partial",
         "endpoints": [
-          "/api/extend.php"
+          "/api/import_suppliers.php",
+          "/XLSX",
+          "/Phone/Tax/",
+          "/Phone/Tax"
         ],
-        "priority_score": 60.0
+        "priority_score": 90.0
       }
     ]
   },
+  "generated_scenarios": [
+    "gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml"
+  ],
   "existing_generated_scenarios": [
     "gap_flow_flow_create_guarantee_.yaml",
     "gap_flow_flow_export_suppliers_.yaml",
     "gap_flow_flow_extend_guarantee_.yaml",
     "gap_flow_flow_import_suppliers_.yaml",
     "gap_flow_flow_release_guarantee_.yaml",
+    "gap_route_agent_dashboard_php.yaml",
+    "gap_route_agent_php.yaml",
+    "gap_route_agentfrontend_bootstrap_php.yaml",
+    "gap_route_agentfrontend_layout_php.yaml",
+    "gap_route_agentfrontend_partials_activity_php.yaml",
     "gap_route_api_delete_bank_php.yaml",
-    "gap_route_api_delete_supplier_php.yaml",
-    "gap_route_api_extend_php.yaml",
-    "gap_route_api_get_letter_preview_php.yaml",
-    "gap_route_api_learning_action_php.yaml",
-    "gap_route_api_manual_entry_php.yaml",
-    "gap_route_api_parse_paste_php.yaml"
+    "gap_route_api_delete_supplier_php.yaml"
   ]
 }

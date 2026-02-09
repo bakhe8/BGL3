@@ -527,6 +527,14 @@
           {% endfor %}
         </ul>
       {% endif %}
+      {% if flow_coverage.schema_errors %}
+        <p class="warn">Flow schema errors:</p>
+        <ul>
+          {% for e in flow_coverage.schema_errors %}
+            <li>{{ e.file }} — {{ e.errors | join(', ') }}</li>
+          {% endfor %}
+        </ul>
+      {% endif %}
     {% else %}
       <p class="warn">Flow coverage not recorded.</p>
     {% endif %}
@@ -873,6 +881,42 @@
         {% endfor %}
       </ul>
     {% else %}<p>No proposals.</p>{% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Unified Actions</h2>
+    {% if unified_actions %}
+      <ul>
+        {% for a in unified_actions %}
+          <li>
+            <strong>{{ a.kind }}</strong>
+            {% if a.title %}: {{ a.title }}{% endif %}
+            {% if a.severity %} ({{ a.severity }}){% endif %}
+            {% if a.source %} — source: {{ a.source }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">No unified actions.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Decision Explanations (Recent)</h2>
+    {% if decision_explanations %}
+      <ul>
+        {% for d in decision_explanations %}
+          <li>
+            {{ d.intent or 'intent' }} → {{ d.decision or 'decision' }}
+            {% if d.result %} ({{ d.result }}){% endif %}
+            {% if d.reason %} — {{ d.reason }}{% endif %}
+            {% if d.notes %} — {{ d.notes }}{% endif %}
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="ok">No decision explanations.</p>
+    {% endif %}
   </div>
 </body>
 </html>

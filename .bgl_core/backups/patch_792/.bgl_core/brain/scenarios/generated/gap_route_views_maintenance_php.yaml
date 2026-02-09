@@ -1,0 +1,11 @@
+name: gap_route_views_maintenance_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /views/maintenance.php
+steps:
+- action: goto
+  url: /views/maintenance.php
+- action: wait
+  ms: 400

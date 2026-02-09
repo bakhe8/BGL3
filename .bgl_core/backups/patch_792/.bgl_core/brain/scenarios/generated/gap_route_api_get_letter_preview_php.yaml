@@ -1,0 +1,10 @@
+name: gap_route_api_get_letter_preview_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/get-letter-preview.php
+steps:
+- action: request
+  url: /api/get-letter-preview.php
+  method: GET

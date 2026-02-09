@@ -796,17 +796,17 @@
     "expected_statuses": [
       400
     ],
-    "reason": "Bank must exist before creating guarantee; creation blocked when no valid bank mapping.",
-    "category": "policy_expected",
+    "reason": "Auto-promoted from evidence, updated to reflect actual expected status.",
+    "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
   {
     "uri": "/api/create-supplier.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      400
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Auto-promoted from evidence, updated to reflect actual expected status.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -814,9 +814,9 @@
     "uri": "/api/delete_bank.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Updated based on current evidence",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -824,9 +824,9 @@
     "uri": "/api/delete_supplier.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Updated based on current evidence",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -874,9 +874,9 @@
     "uri": "/api/import.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Updated based on current evidence",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },

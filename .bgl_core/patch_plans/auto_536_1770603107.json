@@ -1,0 +1,201 @@
+{
+  "version": 2,
+  "id": "patch_plan_536",
+  "description": "Stabilize route http://localhost:8000/",
+  "created_at": 1770603058,
+  "metadata": {
+    "experience_id": 8803,
+    "exp_hash": "a3568a9af28da104fc5a74543dba58c6252bf489",
+    "scenario": "http://localhost:8000/",
+    "confidence": 0.85,
+    "evidence_count": 11,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 536,
+    "generated_at": 1770603107.5264595
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for bank deletion API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for bank deletion API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for supplier deletion API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for supplier deletion API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for extend API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for extend API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for letter preview API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for letter preview API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for learning action API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for learning action API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for manual entry API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for manual entry API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for parse paste API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for parse paste API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for parse paste v2 API",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for parse paste v2 API"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for confidence demo view",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for confidence demo view"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for index view",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for index view"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_maintenance_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for maintenance view",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for maintenance view"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for settings view",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for settings view"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "append",
+      "content": "\n# Stabilization changes\n- Ensure proper error handling for statistics view",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization changes\n- Ensure proper error handling for statistics view"
+      }
+    }
+  ]
+}

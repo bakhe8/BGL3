@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_474",
+  "description": "Patch Plan for #bgl-confirm-no",
+  "created_at": 1690324800,
+  "metadata": {
+    "proposal_id": 474,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770599781.4762502
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/#bgl-confirm-no.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: #bgl-confirm-no\nsteps:\n  - step_id: 1\n    description: Ensure route is stable\n    actions:\n      - action_id: 1.1\n        type: stabilize_route\n        parameters:\n          route_name: #bgl-confirm-no",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: #bgl-confirm-no\nsteps:\n  - step_id: 1\n    description: Ensure route is stable\n    actions:\n      - action_id: 1.1\n        type: stabilize_route\n        parameters:\n          route_name: #bgl-confirm-no"
+      }
+    }
+  ]
+}

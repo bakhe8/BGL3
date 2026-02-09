@@ -25,14 +25,14 @@ from typing import Any, Dict, Optional, List, Tuple
 try:
     from .brain_types import ActionRequest, ActionKind, GateResult  # type: ignore
     from .config_loader import load_config  # type: ignore
-    from .decision_db import init_db, insert_intent, insert_decision, insert_outcome  # type: ignore
+    from .decision_db import init_db, insert_intent, insert_decision, insert_outcome, record_decision_trace  # type: ignore
     from .decision_engine import decide  # type: ignore
     from .observations import latest_env_snapshot  # type: ignore
     from .self_policy import load_self_policy  # type: ignore
 except Exception:
     from brain_types import ActionRequest, ActionKind, GateResult
     from config_loader import load_config
-    from decision_db import init_db, insert_intent, insert_decision, insert_outcome
+    from decision_db import init_db, insert_intent, insert_decision, insert_outcome, record_decision_trace
     from decision_engine import decide
     from observations import latest_env_snapshot
     from self_policy import load_self_policy
@@ -392,11 +392,60 @@ class Authority:
             return float(cfg_val) != 0.0
         return str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
 
+    def _force_no_human_approvals(self) -> bool:
+        env_flag = os.getenv("BGL_FORCE_NO_HUMAN_APPROVALS")
+        if env_flag is not None:
+            return str(env_flag).strip().lower() in ("1", "true", "yes", "on")
+        cfg_val = self.config.get("force_no_human_approvals", 0)
+        if isinstance(cfg_val, bool):
+            return cfg_val
+        if isinstance(cfg_val, (int, float)):
+            return float(cfg_val) != 0.0
+        return str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
+
+    def _fallback_block_disabled(self) -> bool:
+        env_flag = os.getenv("BGL_DISABLE_FALLBACK_BLOCKS")
+        if env_flag is not None:
+            return str(env_flag).strip().lower() in ("1", "true", "yes", "on")
+        cfg_val = self.config.get("fallback_block_disabled", 0)
+        if isinstance(cfg_val, bool):
+            return cfg_val
+        if isinstance(cfg_val, (int, float)):
+            return float(cfg_val) != 0.0
+        return str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
+
+    def _fallback_require_human_disabled(self) -> bool:
+        env_flag = os.getenv("BGL_DISABLE_FALLBACK_REQUIRE_HUMAN")
+        if env_flag is not None:
+            return str(env_flag).strip().lower() in ("1", "true", "yes", "on")
+        cfg_val = self.config.get("fallback_require_human_disabled", 0)
+        if isinstance(cfg_val, bool):
+            return cfg_val
+        if isinstance(cfg_val, (int, float)):
+            return float(cfg_val) != 0.0
+        return str(cfg_val).strip().lower() in ("1", "true", "yes", "on")
+
     def _fallback_guard(self, request: ActionRequest) -> Optional[Dict[str, Any]]:
         """
         Check self_policy fallback_rules derived from prod_operations.
         Returns the matched rule or None.
         """
+        if self._fallback_block_disabled() and self._fallback_require_human_disabled():
+            return None
+        try:
+            env_flag = os.getenv("BGL_FALLBACK_GUARD_ENABLED")
+            if env_flag is not None:
+                if str(env_flag).strip().lower() in ("0", "false", "no", "off"):
+                    return None
+            cfg_val = self.config.get("fallback_guard_enabled", 1)
+            if isinstance(cfg_val, bool) and not cfg_val:
+                return None
+            if isinstance(cfg_val, (int, float)) and float(cfg_val) == 0.0:
+                return None
+            if isinstance(cfg_val, str) and cfg_val.strip().lower() in ("0", "false", "no", "off"):
+                return None
+        except Exception:
+            pass
         try:
             policy = load_self_policy(self.root_dir)
         except Exception:
@@ -417,6 +466,12 @@ class Authority:
         for rule in rules:
             if not isinstance(rule, dict):
                 continue
+            try:
+                action = str(rule.get("action") or "").lower()
+                if action not in ("block", "require_human"):
+                    continue
+            except Exception:
+                pass
             try:
                 rule_source = str(rule.get("source") or "")
                 if (
@@ -540,6 +595,27 @@ class Authority:
                 conn.close()
             except Exception:
                 pass
+        try:
+            record_decision_trace(
+                self.db_path,
+                kind="prod_op",
+                decision_id=int(gate_res.decision_id or 0),
+                intent_id=int(gate_res.intent_id or 0),
+                operation=str(request.operation or ""),
+                risk_level=str(gate_res.risk_level or ""),
+                result=str(status or ""),
+                source=source,
+                details={
+                    "status": status,
+                    "operation": request.operation,
+                    "scope": request.scope,
+                    "allowed": gate_res.allowed,
+                    "requires_human": gate_res.requires_human,
+                    "execution_mode": self.effective_execution_mode(),
+                },
+            )
+        except Exception:
+            pass
 
     def _scope_requires_human(self, scope: List[str]) -> bool:
         """
@@ -790,6 +866,20 @@ class Authority:
             bool(decision_payload.get("requires_human", False)),
             "; ".join(list(decision_payload.get("justification", []))[:10]),
         )
+        try:
+            record_decision_trace(
+                self.db_path,
+                kind="decision",
+                decision_id=int(decision_id or 0),
+                intent_id=int(intent_id or 0),
+                operation=str(request.operation or ""),
+                risk_level=str(decision_payload.get("risk_level", "")),
+                result=str(decision_payload.get("decision", "")),
+                source=source,
+                details={"decision": decision_payload, "metadata": meta},
+            )
+        except Exception:
+            pass
 
         return GateResult(
             allowed=False,
@@ -807,6 +897,7 @@ class Authority:
         try:
             # Append failure classification for non-success outcomes.
             note_text = notes or ""
+            failure_class = ""
             try:
                 from .failure_classifier import classify_failure, extract_failure_class  # type: ignore
             except Exception:
@@ -823,11 +914,29 @@ class Authority:
                             fclass = classify_failure(result, note_text)
                             if fclass:
                                 note_text = f"{note_text} failure_class={fclass}".strip()
+                    try:
+                        failure_class = extract_failure_class(note_text) or ""
+                    except Exception:
+                        failure_class = ""
                 except Exception:
                     pass
-            return insert_outcome(
+            outcome_id = insert_outcome(
                 self.db_path, decision_id, result, note_text, backup_path=backup_path
             )
+            try:
+                record_decision_trace(
+                    self.db_path,
+                    kind="outcome",
+                    decision_id=int(decision_id or 0),
+                    outcome_id=int(outcome_id or 0),
+                    result=str(result or ""),
+                    failure_class=str(failure_class or ""),
+                    source="authority",
+                    details={"notes": note_text, "backup_path": backup_path},
+                )
+            except Exception:
+                pass
+            return outcome_id
         except Exception:
             # Never crash the caller because of audit logging.
             pass
@@ -850,39 +959,49 @@ class Authority:
             except Exception:
                 fallback_rule = None
         if write_action and fallback_rule and str(fallback_rule.get("action") or "").lower() == "block":
-            fallback_ctx = _compact_fallback_context(fallback_rule)
-            fallback_note = "fallback_rule:block"
-            if fallback_ctx:
-                fallback_note = f"{fallback_note} ctx={_safe_json(fallback_ctx)}"
-            decision_payload = {
-                "decision": "block",
-                "risk_level": "high",
-                "requires_human": True,
-                "justification": [
-                    "fallback_rule:block",
-                    str(fallback_rule.get("reason") or ""),
-                    str(fallback_ctx.get("intent") or ""),
-                ],
-                "maturity": "stable",
-            }
-            gate_res = self._log_decision(request, decision_payload, source=source)
-            gate_res.allowed = False
-            gate_res.requires_human = True
-            gate_res.message = "Blocked by fallback rule derived from prod operations."
-            try:
-                if request.metadata is None:
-                    request.metadata = {}
-                if isinstance(request.metadata, dict) and fallback_ctx:
-                    request.metadata["fallback_ctx"] = fallback_ctx
-            except Exception:
-                pass
-            self._log_prod_operation(request, gate_res, status="blocked_fallback", source=source)
-            self.record_outcome(
-                gate_res.decision_id or 0,
-                "blocked",
-                fallback_note,
-            )
-            return gate_res
+            if self._fallback_block_disabled():
+                try:
+                    if request.metadata is None:
+                        request.metadata = {}
+                    if isinstance(request.metadata, dict):
+                        request.metadata["fallback_block_ignored"] = _compact_fallback_context(fallback_rule)
+                except Exception:
+                    pass
+                fallback_rule = None
+            else:
+                fallback_ctx = _compact_fallback_context(fallback_rule)
+                fallback_note = "fallback_rule:block"
+                if fallback_ctx:
+                    fallback_note = f"{fallback_note} ctx={_safe_json(fallback_ctx)}"
+                decision_payload = {
+                    "decision": "block",
+                    "risk_level": "high",
+                    "requires_human": True,
+                    "justification": [
+                        "fallback_rule:block",
+                        str(fallback_rule.get("reason") or ""),
+                        str(fallback_ctx.get("intent") or ""),
+                    ],
+                    "maturity": "stable",
+                }
+                gate_res = self._log_decision(request, decision_payload, source=source)
+                gate_res.allowed = False
+                gate_res.requires_human = True
+                gate_res.message = "Blocked by fallback rule derived from prod operations."
+                try:
+                    if request.metadata is None:
+                        request.metadata = {}
+                    if isinstance(request.metadata, dict) and fallback_ctx:
+                        request.metadata["fallback_ctx"] = fallback_ctx
+                except Exception:
+                    pass
+                self._log_prod_operation(request, gate_res, status="blocked_fallback", source=source)
+                self.record_outcome(
+                    gate_res.decision_id or 0,
+                    "blocked",
+                    fallback_note,
+                )
+                return gate_res
 
         # For non-write actions, do NOT call the LLM at all. It's pure overhead and causes
         # repetitive "SmartDecisionEngine" calls during audits.
@@ -948,6 +1067,20 @@ class Authority:
             except Exception:
                 env_delta_payload = None
             try:
+                code_temporal_signals = {}
+                code_intent_signals = {}
+                try:
+                    if isinstance(env_snapshot_payload, dict):
+                        code_temporal_signals = env_snapshot_payload.get("code_temporal_signals") or {}
+                        code_intent_signals = env_snapshot_payload.get("code_intent_signals") or {}
+                except Exception:
+                    code_temporal_signals = {}
+                    code_intent_signals = {}
+                if code_temporal_signals:
+                    meta["code_temporal_signals"] = code_temporal_signals
+                if code_intent_signals:
+                    meta["code_intent_signals"] = code_intent_signals
+
                 if deterministic_gate:
                     requires_human = True
                     try:
@@ -973,6 +1106,8 @@ class Authority:
                             "metadata": request.metadata,
                             "action_kind": request.kind.value,
                             "runtime_hint": runtime_hint,
+                            "code_temporal_signals": code_temporal_signals,
+                            "code_intent_signals": code_intent_signals,
                             # Give decision engine a canonical view of the environment.
                             "env_snapshot": env_snapshot_payload,
                             "env_delta": env_delta_payload,
@@ -995,12 +1130,17 @@ class Authority:
 
         effective_mode = self.effective_execution_mode()
         force_requires_human = False
+        force_no_human = self._force_no_human_approvals()
         try:
             force_requires_human = bool(decision_payload.get("force_requires_human", False))
         except Exception:
             force_requires_human = False
-        if fallback_rule and str(fallback_rule.get("action") or "").lower() == "require_human":
-            force_requires_human = True
+        if force_no_human:
+            force_requires_human = False
+            decision_payload["requires_human"] = False
+        if fallback_rule and str(fallback_rule.get("action") or "").lower() == "require_human" and not force_no_human:
+            if not self._fallback_require_human_disabled():
+                force_requires_human = True
 
         if write_action:
             # Explicit override: allow production writes without human approval.
@@ -1018,7 +1158,7 @@ class Authority:
                 gate_res.message = "Autonomous execution enabled (production override)."
                 self._log_prod_operation(request, gate_res, status="allowed", source=source)
                 return gate_res
-            if not self._approvals_enabled():
+            if force_no_human or not self._approvals_enabled():
                 # No human approval path; allow by policy/mode only.
                 if request.kind == ActionKind.WRITE_PROD and effective_mode != "direct":
                     gate_res.allowed = False

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "527",
+  "description": "Prod op proposal.apply|29|force|plan:29 on .bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml: 1 ops, allowed 1, blocked 0 (0.0%). Last=allowed mode=autonomous source=apply_proposal.",
+  "created_at": 1694083200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 527,
+    "generated_at": 1770601578.906565
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html"
+      }
+    }
+  ]
+}

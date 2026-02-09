@@ -6,6 +6,10 @@ import sys
 import subprocess
 from pathlib import Path
 from typing import Dict, Any, List
+try:
+    from .db_utils import connect_db  # type: ignore
+except Exception:
+    from db_utils import connect_db  # type: ignore
 
 # Core Service Imports (Internal)
 try:
@@ -331,7 +335,7 @@ class AgencyCore:
 
         created = 0
         try:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = connect_db(self.db_path)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS agent_proposals (
@@ -469,7 +473,7 @@ class AgencyCore:
 
         proposals: List[Dict[str, Any]] = []
         try:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = connect_db(self.db_path)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS agent_proposals (
@@ -559,7 +563,7 @@ class AgencyCore:
     ) -> List[Dict[str, Any]]:
         proposals: List[Dict[str, Any]] = []
         try:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = connect_db(self.db_path)
             conn.execute(
                 """
                 CREATE TABLE IF NOT EXISTS agent_proposals (
@@ -764,13 +768,23 @@ class AgencyCore:
             exe = "python"
 
         try:
+            timeout_sec = float(
+                os.getenv(
+                    "BGL_AUTO_DIGEST_TIMEOUT_SEC",
+                    str(self.config.get("auto_digest_timeout_sec", 120)),
+                )
+                or 120
+            )
+        except Exception:
+            timeout_sec = 120.0
+        try:
             proc = subprocess.run(
                 [exe, str(script), "--hours", str(hours), "--limit", str(limit)],
                 cwd=str(self.root_dir),
                 capture_output=True,
                 text=True,
                 check=False,
-                timeout=120,
+                timeout=timeout_sec,
             )
             out = (proc.stdout or "").strip()
             err = (proc.stderr or "").strip()
@@ -831,7 +845,7 @@ class AgencyCore:
         failed = []
         skipped = 0
         try:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = connect_db(self.db_path)
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 """
@@ -1076,7 +1090,7 @@ class AgencyCore:
         self, goal: str, payload: Dict[str, Any], source: str, ttl_days: int = 3
     ) -> None:
         try:
-            db = sqlite3.connect(str(self.db_path), timeout=30.0)
+            db = connect_db(self.db_path, timeout=30.0)
             db.execute("PRAGMA journal_mode=WAL;")
             db.execute(
                 "CREATE TABLE IF NOT EXISTS autonomy_goals (id INTEGER PRIMARY KEY AUTOINCREMENT, goal TEXT, payload TEXT, source TEXT, created_at REAL, expires_at REAL)"
@@ -1862,12 +1876,32 @@ class AgencyCore:
             except Exception:
                 pass
 
+        # Safe config tuning via agent_flags.json (no direct config.yml writes)
+        try:
+            from .config_tuner import apply_safe_config_tuning  # type: ignore
+        except Exception:
+            try:
+                from config_tuner import apply_safe_config_tuning  # type: ignore
+            except Exception:
+                apply_safe_config_tuning = None  # type: ignore
+        if apply_safe_config_tuning:
+            try:
+                tune_res = apply_safe_config_tuning(self.root_dir, diagnostic_map)
+                diagnostic_map["findings"]["config_tuning"] = tune_res
+                if isinstance(tune_res, dict) and tune_res.get("status") == "applied":
+                    self.log_activity(
+                        "CONFIG_TUNING",
+                        f"Applied safe config updates: {list(tune_res.get('updates', {}).keys())}",
+                    )
+            except Exception:
+                pass
+
         return diagnostic_map
 
     def _execution_stats(self) -> Dict[str, Any]:
         stats = {"direct_attempts": 0, "success_rate": None, "total_outcomes": 0}
         try:
-            conn = sqlite3.connect(str(self.decision_db_path))
+            conn = connect_db(self.decision_db_path, timeout=30.0)
             cur = conn.cursor()
             cur.execute("SELECT COUNT(*) FROM outcomes WHERE result = 'mode_direct'")
             stats["direct_attempts"] = int(cur.fetchone()[0])
@@ -1891,7 +1925,7 @@ class AgencyCore:
     def get_active_blockers(self) -> List[Dict[str, Any]]:
         """Retrieves unresolved agent struggles from cognitive memory."""
         try:
-            conn = sqlite3.connect(str(self.db_path))
+            conn = connect_db(self.db_path)
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             cursor.execute("SELECT * FROM agent_blockers WHERE status = 'PENDING'")
@@ -1904,7 +1938,7 @@ class AgencyCore:
 
     def solve_blocker(self, blocker_id: int):
         """Marks a cognitive struggle as resolved."""
-        conn = sqlite3.connect(str(self.db_path))
+        conn = connect_db(self.db_path)
         conn.execute(
             "UPDATE agent_blockers SET status = 'RESOLVED' WHERE id = ?", (blocker_id,)
         )
@@ -1962,16 +1996,29 @@ class AgencyCore:
 
     def log_activity(self, activity_type: str, message: str, status: str = "INFO"):
         """Persistent activity logging for dashboard visibility."""
-        try:
-            conn = sqlite3.connect(str(self.db_path))
-            conn.execute(
-                "INSERT INTO agent_activity (timestamp, type, message, status) VALUES (?, ?, ?, ?)",
-                (time.time(), activity_type, message, status),
-            )
-            conn.commit()
-            conn.close()
-        except Exception as e:
-            print(f"[!] AgencyCore: Activity log error: {e}")
+        for attempt in range(3):
+            try:
+                conn = connect_db(self.db_path)
+                conn.execute(
+                    "INSERT INTO agent_activity (timestamp, type, message, status) VALUES (?, ?, ?, ?)",
+                    (time.time(), activity_type, message, status),
+                )
+                conn.commit()
+                conn.close()
+                return
+            except sqlite3.OperationalError as e:
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                if "locked" in str(e).lower() and attempt < 2:
+                    time.sleep(0.1 * (attempt + 1))
+                    continue
+                print(f"[!] AgencyCore: Activity log error: {e}")
+                return
+            except Exception as e:
+                print(f"[!] AgencyCore: Activity log error: {e}")
+                return
 
     def log_trace(self, message: str, level: str = "INFO"):
         """Systemic tracing for audit trails."""

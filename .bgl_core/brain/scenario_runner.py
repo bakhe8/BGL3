@@ -14,6 +14,7 @@ Env overrides:
 import argparse
 import asyncio
 import os
+from urllib.parse import urlparse
 import subprocess
 import time
 import sqlite3
@@ -25,12 +26,16 @@ import random
 import hashlib
 from pathlib import Path
 import sys
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 import atexit
 
 import yaml  # type: ignore
 from config_loader import load_config
 from browser_manager import BrowserManager
+try:
+    from .db_utils import connect_db  # type: ignore
+except Exception:
+    from db_utils import connect_db  # type: ignore
 
 try:
     # Optional dependency: scenarios should still run without the visible cursor overlay.
@@ -104,13 +109,14 @@ except Exception:
         start_run = None  # type: ignore
         finish_run = None  # type: ignore
 try:
-    from .run_lock import acquire_lock, release_lock  # type: ignore
+    from .run_lock import acquire_lock, release_lock, refresh_lock  # type: ignore
 except Exception:
     try:
-        from run_lock import acquire_lock, release_lock  # type: ignore
+        from run_lock import acquire_lock, release_lock, refresh_lock  # type: ignore
     except Exception:
         acquire_lock = None  # type: ignore
         release_lock = None  # type: ignore
+        refresh_lock = None  # type: ignore
 
 try:
     from .long_term_goals import pick_long_term_goals, record_long_term_goal_result  # type: ignore
@@ -131,6 +137,7 @@ SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 ROOT_DIR = Path(__file__).resolve().parents[2]
 SCENARIO_LOCK_PATH = ROOT_DIR / ".bgl_core" / "logs" / "scenario_runner.lock"
 _SCENARIO_LOCKED = False
+_LAST_LOCK_HEARTBEAT = 0.0
 
 # Defaults for human-like pacing (can be overridden via env)
 DEFAULT_POST_WAIT_MS = int(os.getenv("BGL_POST_WAIT_MS", "400"))
@@ -229,9 +236,26 @@ def _acquire_scenario_lock(cfg: dict) -> tuple[bool, str]:
     ok, reason = acquire_lock(SCENARIO_LOCK_PATH, ttl_sec=ttl, label="scenario_runner")
     if ok:
         _SCENARIO_LOCKED = True
+        global _LAST_LOCK_HEARTBEAT
+        _LAST_LOCK_HEARTBEAT = time.time()
         if release_lock is not None:
             atexit.register(lambda: release_lock(SCENARIO_LOCK_PATH))
     return ok, reason
+
+
+def _refresh_scenario_lock() -> None:
+    global _LAST_LOCK_HEARTBEAT
+    if not _SCENARIO_LOCKED or refresh_lock is None:
+        return
+    try:
+        interval = int(os.getenv("BGL_SCENARIO_LOCK_HEARTBEAT_SEC", "60"))
+    except Exception:
+        interval = 60
+    now = time.time()
+    if _LAST_LOCK_HEARTBEAT and (now - _LAST_LOCK_HEARTBEAT) < interval:
+        return
+    if refresh_lock(SCENARIO_LOCK_PATH, label="scenario_runner"):
+        _LAST_LOCK_HEARTBEAT = now
 
 
 def _decorate_session(session: str) -> str:
@@ -457,6 +481,8 @@ async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = 
             ".modal.show .btn-close",
             ".modal.show button.close",
             "[role='dialog'] [aria-label='Close']",
+            ".offcanvas.show .btn-close",
+            ".offcanvas.show button.close",
         ):
             try:
                 el = await page.query_selector(sel)
@@ -467,6 +493,18 @@ async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = 
                     await page.wait_for_timeout(120)
             except Exception:
                 continue
+        # Fallback: click backdrop to close overlays when close buttons are missing.
+        for sel in (".modal-backdrop", ".offcanvas-backdrop", ".overlay", "[data-backdrop]"):
+            try:
+                el = await page.query_selector(sel)
+                if el:
+                    await el.click()
+                    actions.append(f"backdrop:{sel}")
+                    retry_needed = True
+                    await page.wait_for_timeout(120)
+                    break
+            except Exception:
+                continue
 
     if ui_states.get("loading"):
         try:
@@ -475,6 +513,11 @@ async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = 
             retry_needed = True
         except Exception:
             pass
+        try:
+            await page.wait_for_load_state("networkidle", timeout=1500)
+            actions.append("wait_networkidle")
+        except Exception:
+            actions.append("loading_persist")
 
     # Attempt gentle recovery for common error/empty states (safe actions only).
     try:
@@ -483,6 +526,8 @@ async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = 
             "Try again",
             "Refresh",
             "Reload",
+            "Back",
+            "رجوع",
             "إعادة المحاولة",
             "محاولة مرة أخرى",
             "تحديث",
@@ -556,8 +601,199 @@ async def _handle_ui_states(page, db_path: Path, session: str, *, reason: str = 
             )
         except Exception:
             pass
+        # Persist snapshots + flow transition so UI state recoveries count as operational evidence.
+        try:
+            sem = await _maybe_store_semantic_snapshot(
+                page,
+                db_path,
+                source="ui_state_recovery",
+                session=session,
+            )
+            await _maybe_store_action_snapshot(
+                page,
+                db_path,
+                source="ui_state_recovery",
+                session=session,
+            )
+            if sem and record_ui_flow_transition is not None:
+                try:
+                    ui_states = (sem.get("summary") or {}).get("ui_states") or {}
+                except Exception:
+                    ui_states = {}
+                record_ui_flow_transition(
+                    db_path,
+                    session=session,
+                    from_url=sem.get("url") or "",
+                    to_url=sem.get("url") or "",
+                    action="ui_state_recovery",
+                    selector="|".join(actions)[:180],
+                    semantic_delta=sem.get("delta") or {},
+                    ui_states=ui_states,
+                    created_at=time.time(),
+                )
+        except Exception:
+            pass
 
     return {"ui_states": ui_states, "actions": actions, "summary": summary, "retry": retry_needed}
+
+
+async def _attempt_semantic_shift(page, db_path: Path, session: str) -> bool:
+    """
+    Try a safe UI interaction to force a semantic change when the page appears static.
+    This is a best-effort, non-destructive action (tabs/collapses/menus).
+    """
+    try:
+        if os.getenv("BGL_SEMANTIC_SHIFT", "1") != "1":
+            return False
+    except Exception:
+        pass
+    try:
+        before_hash = await _dom_state_hash(page)
+    except Exception:
+        before_hash = ""
+    selectors = [
+        "[role='tab']",
+        ".nav-link",
+        "[data-bs-toggle='tab']",
+        "[data-tab]",
+        "[data-bs-toggle='collapse']",
+        "[data-toggle='collapse']",
+        "[data-bs-toggle='dropdown']",
+        "[data-toggle='dropdown']",
+        "[aria-expanded='false']",
+        "[aria-controls]",
+    ]
+    candidate_selectors: List[Tuple[str, Dict[str, Any]]] = []
+    try:
+        ui_limit = int(os.getenv("BGL_UI_ACTION_LIMIT", "80") or "80")
+    except Exception:
+        ui_limit = 80
+    try:
+        ui_map = await capture_ui_map(page, limit=ui_limit)
+    except Exception:
+        ui_map = []
+    if ui_map:
+        try:
+            candidates = _build_selector_candidates(ui_map)
+        except Exception:
+            candidates = []
+        for c in candidates:
+            sel = str(c.get("selector") or "")
+            if not sel:
+                continue
+            if _candidate_is_disabled(c):
+                continue
+            if _candidate_is_tab_like(c):
+                if _candidate_is_active(c):
+                    continue
+                candidate_selectors.append((sel, c))
+    seen = set()
+
+    def _iter_selectors():
+        for sel, meta in candidate_selectors:
+            if sel in seen:
+                continue
+            seen.add(sel)
+            yield sel, meta, "ui_map"
+        for sel in selectors:
+            if sel in seen:
+                continue
+            seen.add(sel)
+            yield sel, {}, "fallback"
+
+    for sel, meta, source in _iter_selectors():
+        try:
+            el = await page.query_selector(sel)
+            if not el:
+                continue
+            try:
+                text = (await el.inner_text()) or ""
+            except Exception:
+                text = ""
+            if _semantic_is_write_action(text):
+                continue
+            try:
+                if not meta or _candidate_needs_hover(meta):
+                    await el.hover()
+                    await page.wait_for_timeout(120)
+            except Exception:
+                pass
+            try:
+                await el.click()
+            except Exception:
+                # Some selectors are hover-only; ignore click errors.
+                pass
+            await page.wait_for_timeout(240)
+            after_hash = await _dom_state_hash(page)
+            changed = bool(before_hash and after_hash and before_hash != after_hash)
+            try:
+                log_event(
+                    db_path,
+                    session,
+                    {
+                        "event_type": "semantic_shift_attempt",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "SHIFT",
+                        "payload": {
+                            "selector": sel,
+                            "changed": changed,
+                            "source": source,
+                        },
+                        "status": 200 if changed else 204,
+                    },
+                )
+            except Exception:
+                pass
+            if changed:
+                try:
+                    sem = await _maybe_store_semantic_snapshot(
+                        page,
+                        db_path,
+                        source="semantic_shift",
+                        session=session,
+                    )
+                    await _maybe_store_action_snapshot(
+                        page,
+                        db_path,
+                        source="semantic_shift",
+                        session=session,
+                    )
+                    try:
+                        if _record_exploration_outcome:
+                            _record_exploration_outcome(
+                                db_path,
+                                selector=sel,
+                                href="",
+                                route=page.url if hasattr(page, "url") else "",
+                                result="changed",
+                                delta_score=1.0,
+                                selector_key=_selector_key_from_selector(sel),
+                            )
+                    except Exception:
+                        pass
+                    if sem and record_ui_flow_transition is not None:
+                        ui_states = {}
+                        try:
+                            ui_states = (sem.get("summary") or {}).get("ui_states") or {}
+                        except Exception:
+                            ui_states = {}
+                        record_ui_flow_transition(
+                            db_path,
+                            session=session,
+                            from_url=sem.get("url") or "",
+                            to_url=sem.get("url") or "",
+                            action="semantic_shift",
+                            selector=str(sel),
+                            semantic_delta=sem.get("delta") or {},
+                            ui_states=ui_states,
+                            created_at=time.time(),
+                        )
+                except Exception:
+                    pass
+                return True
+        except Exception:
+            continue
+    return False
 
 
 async def exploratory_action(
@@ -576,25 +812,100 @@ async def exploratory_action(
                 tag = (
                     await el.evaluate("el => (el.tagName || '').toLowerCase()")
                 ) or ""
+                text = (
+                    await el.evaluate(
+                        "el => (el.innerText || el.textContent || '').trim().slice(0, 120)"
+                    )
+                ) or ""
+                role = await el.get_attribute("role") or ""
+                onclick = await el.get_attribute("onclick") or ""
+                data_tab = await el.get_attribute("data-tab") or ""
+                data_target = await el.get_attribute("data-target") or ""
+                data_bs_target = await el.get_attribute("data-bs-target") or ""
+                data_target_attr = (
+                    "data-bs-target" if data_bs_target else ("data-target" if data_target else "")
+                )
+                aria_controls = await el.get_attribute("aria-controls") or ""
+                classes = await el.get_attribute("class") or ""
+                elem_id = await el.get_attribute("id") or ""
+                elem_name = await el.get_attribute("name") or ""
+                testid = ""
+                testattr = ""
+                for attr in ("data-testid", "data-test", "data-qa", "data-cy"):
+                    try:
+                        val = await el.get_attribute(attr)
+                    except Exception:
+                        val = None
+                    if val:
+                        testid = str(val)
+                        testattr = attr
+                        break
+                aria_selected = await el.get_attribute("aria-selected") or ""
+                aria_expanded = await el.get_attribute("aria-expanded") or ""
+                aria_disabled = await el.get_attribute("aria-disabled") or ""
+                try:
+                    disabled_prop = await el.evaluate("el => !!el.disabled")
+                except Exception:
+                    disabled_prop = False
+                disabled_attr = await el.get_attribute("disabled")
+                disabled = "true" if disabled_prop or disabled_attr is not None else ""
                 meta = {
                     "element": el,
                     "tag": tag,
+                    "role": role,
+                    "classes": classes,
+                    "text": text,
                     "href": await el.get_attribute("href") or "",
                     "selector": _selector_from_element(
                         {
                             "tag": tag,
-                            "id": await el.get_attribute("id") or "",
-                            "name": await el.get_attribute("name") or "",
-                            "classes": await el.get_attribute("class") or "",
+                            "id": elem_id,
+                            "name": elem_name,
+                            "classes": classes,
                             "href": await el.get_attribute("href") or "",
                             "type": await el.get_attribute("type") or "",
+                            "text": text,
+                            "role": role,
+                            "onclick": onclick,
+                            "datatab": data_tab,
+                            "datatarget": data_bs_target or data_target,
+                            "datatarget_attr": data_target_attr,
+                            "ariacontrols": aria_controls,
+                            "aria_selected": aria_selected,
+                            "aria_expanded": aria_expanded,
+                            "aria_disabled": aria_disabled,
+                            "disabled": disabled,
+                            "testid": testid,
+                            "testattr": testattr,
                         }
                     )
                     or "",
+                    "id": elem_id,
+                    "name": elem_name,
+                    "testid": testid,
+                    "testattr": testattr,
+                    "onclick": onclick,
+                    "datatab": data_tab,
+                    "datatarget": data_bs_target or data_target,
+                    "datatarget_attr": data_target_attr,
+                    "ariacontrols": aria_controls,
+                    "aria_selected": aria_selected,
+                    "aria_expanded": aria_expanded,
+                    "aria_disabled": aria_disabled,
+                    "disabled": disabled,
                 }
+                meta["selector_key"] = _stable_selector_key(meta)
                 candidate_meta.append(meta)
             except Exception:
                 continue
+
+        if candidate_meta:
+            candidate_meta = [
+                m
+                for m in candidate_meta
+                if not _candidate_is_disabled(m)
+                and not (_candidate_is_tab_like(m) and _candidate_is_active(m))
+            ]
 
         explored = _load_explored_selectors(
             ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
@@ -614,6 +925,8 @@ async def exploratory_action(
             sel = str(meta.get("selector") or "")
             if sel and sel in bias_scores:
                 score += min(2.0, 0.4 + 0.15 * bias_scores.get(sel, 0))
+            if _candidate_is_tab_like(meta) and not _candidate_is_active(meta):
+                score += 0.25
             return score
         candidate_meta.sort(key=_score_candidate, reverse=True)
         if random.random() < 0.35:
@@ -704,6 +1017,7 @@ async def exploratory_action(
                         href="",
                         route=page.url if hasattr(page, "url") else "",
                         result="search",
+                        selector_key=_selector_key_from_selector("input[type='search']"),
                     )
                     return
                 except Exception:
@@ -747,6 +1061,7 @@ async def exploratory_action(
                     href=href,
                     route=page.url if hasattr(page, "url") else "",
                     result="hover",
+                    selector_key=str(m.get("selector_key") or ""),
                 )
                 # Capture hover-driven UI changes for operational coverage.
                 try:
@@ -815,6 +1130,7 @@ async def run_step(
     authority: Optional[Authority] = None,
     scenario_name: str = "",
 ):
+    _refresh_scenario_lock()
     async def _apply_pre_hints(action_name: str, selector: str) -> None:
         if not get_behavior_hints:
             return
@@ -859,7 +1175,7 @@ async def run_step(
                 continue
 
     action = step.get("action")
-    is_interactive = action in ("click", "type", "press")
+    is_interactive = action in ("click", "type", "press", "hover")
     before_hash = ""
     after_hash = ""
     page_url = ""
@@ -962,6 +1278,16 @@ async def run_step(
             )
             if extra_wait_ms:
                 await page.wait_for_timeout(int(extra_wait_ms))
+        except Exception:
+            if not step.get("optional"):
+                raise
+    elif action == "hover":
+        await ensure_cursor(page)
+        try:
+            selector = str(step.get("selector", ""))
+            if selector:
+                await page.hover(selector)
+                await page.wait_for_timeout(int(step.get("hover_wait_ms", 120)))
         except Exception:
             if not step.get("optional"):
                 raise
@@ -1304,10 +1630,40 @@ async def run_step(
                         "status": None,
                     },
                 )
-            # Record successful UI interaction when it produces a DOM change.
-            if changed and action in ("click", "press", "type"):
+                if action == "hover":
+                    log_event(
+                        db_path,
+                        step.get("session", ""),
+                        {
+                            "event_type": "ui_hover",
+                            "route": page.url if hasattr(page, "url") else "",
+                            "method": "HOVER",
+                            "payload": f"selector:{step.get('selector', '')}",
+                            "status": None,
+                        },
+                    )
+            if action == "hover":
                 try:
-                    event_type = "ui_click" if action in ("click", "press") else "ui_input"
+                    selector = str(step.get("selector") or "")
+                    href = str(step.get("href") or "")
+                    selector_key = str(step.get("selector_key") or "") or _selector_key_from_selector(selector)
+                    _record_exploration_outcome(
+                        db_path,
+                        selector=selector,
+                        href=href,
+                        route=page.url if hasattr(page, "url") else "",
+                        result="hover",
+                        selector_key=selector_key,
+                    )
+                except Exception:
+                    pass
+            # Record successful UI interaction when it produces a DOM change.
+            if changed and action in ("click", "press", "type", "hover"):
+                try:
+                    if action == "hover":
+                        event_type = "ui_hover"
+                    else:
+                        event_type = "ui_click" if action in ("click", "press") else "ui_input"
                     log_event(
                         db_path,
                         step.get("session", ""),
@@ -1407,7 +1763,7 @@ async def run_step(
 
     # Persist UI semantic snapshot + flow transition (phase 3)
     try:
-        if action in ("goto", "click", "type", "press", "upload"):
+        if action in ("goto", "click", "type", "press", "upload", "hover"):
             session_name = str(step.get("session") or scenario_name or "")
             sem = await _maybe_store_semantic_snapshot(
                 page,
@@ -1435,6 +1791,23 @@ async def run_step(
                                 "status": 200,
                             },
                         )
+                        try:
+                            # Promote meaningful non-interactive content into autonomy goals
+                            # so exploration can verify context, not just buttons.
+                            _write_autonomy_goal(
+                                db_path,
+                                "text_focus",
+                                {
+                                    "url": sem.get("url") or "",
+                                    "keywords": keywords[:6],
+                                    "sample": text_blocks[:3],
+                                    "priority_score": 45 + (5 * min(3, len(keywords))),
+                                },
+                                source="text_blocks",
+                                ttl_days=3,
+                            )
+                        except Exception:
+                            pass
                     except Exception:
                         pass
             await _maybe_store_action_snapshot(
@@ -1460,6 +1833,56 @@ async def run_step(
                     ui_states=ui_states,
                     created_at=time.time(),
                 )
+            # If no semantic change detected, attempt one safe semantic shift per scenario.
+            try:
+                if sem and not (sem.get("delta") or {}).get("changed"):
+                    if not getattr(page, "_bgl_semantic_shift_done", False):
+                        attempts = int(getattr(page, "_bgl_semantic_shift_attempts", 0) or 0)
+                        if attempts < 2:
+                            shifted = await _attempt_semantic_shift(page, db_path, session_name)
+                            page._bgl_semantic_shift_attempts = attempts + 1  # type: ignore
+                            if shifted:
+                                page._bgl_semantic_shift_done = True  # type: ignore
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+    # Record executed UI actions as exploration outcomes (operational coverage).
+    try:
+        if action in ("click", "type", "press", "hover"):
+            selector = str(step.get("selector") or "")
+            if selector:
+                tag = ""
+                href = ""
+                try:
+                    el = await page.query_selector(selector)
+                    if el:
+                        tag = (
+                            await el.evaluate(
+                                "el => (el.tagName || '').toLowerCase()"
+                            )
+                        ) or ""
+                        href = await el.get_attribute("href") or ""
+                except Exception:
+                    tag = ""
+                    href = ""
+                if _record_explored_selector:
+                    _record_explored_selector(db_path, selector, href, tag)
+                result = "changed" if changed else action
+                if _record_exploration_outcome:
+                    selector_key = _selector_key_from_selector(selector)
+                    if not selector_key and href:
+                        selector_key = f"href={_href_basename(href)}"
+                    _record_exploration_outcome(
+                        db_path,
+                        selector=selector,
+                        href=href,
+                        route=page_url,
+                        result=result,
+                        delta_score=1.0 if changed else 0.0,
+                        selector_key=selector_key,
+                    )
     except Exception:
         pass
 
@@ -1473,14 +1896,18 @@ async def run_step(
 
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     try:
-        timeout = float(os.getenv("BGL_EVENT_DB_TIMEOUT", "30"))
+        timeout = float(os.getenv("BGL_EVENT_DB_TIMEOUT", "5"))
     except Exception:
-        timeout = 30.0
+        timeout = 5.0
     if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
         _trace(f"log_event: start type={event.get('event_type')} session={session}")
     try:
-        db = sqlite3.connect(str(db_path), timeout=timeout)
+        db = connect_db(str(db_path), timeout=timeout)
         db.execute("PRAGMA journal_mode=WAL;")
+        try:
+            db.execute(f"PRAGMA busy_timeout={int(timeout * 1000)};")
+        except Exception:
+            pass
     except Exception as e:
         if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
             _trace(f"log_event: db open error {e}")
@@ -1566,6 +1993,22 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     except Exception as e:
         if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
             _trace(f"log_event: insert error {e}")
+        # Fallback: append to jsonl if DB is locked, to avoid stalling scenarios
+        try:
+            if "database is locked" in str(e).lower():
+                fallback = ROOT_DIR / ".bgl_core" / "logs" / "runtime_events_fallback.jsonl"
+                fallback.parent.mkdir(parents=True, exist_ok=True)
+                payload = {
+                    "timestamp": time.time(),
+                    "session": _decorate_session(session),
+                    "event": event,
+                    "error": "database_is_locked",
+                }
+                fallback.open("a", encoding="utf-8").write(
+                    json.dumps(payload, ensure_ascii=False) + "\n"
+                )
+        except Exception:
+            pass
     finally:
         try:
             db.close()
@@ -1650,7 +2093,7 @@ def _log_outcome(
     try:
         if not db_path.exists():
             return None
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         payload_json = json.dumps(payload or {}, ensure_ascii=False)
@@ -1729,7 +2172,7 @@ def _log_relation(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         db.execute(
@@ -1752,7 +2195,7 @@ def _derive_outcomes_from_runtime(
         ext_window = int(_cfg_value("external_dependency_window_minutes", 30) or 30)
         ext_dep = _recent_external_dependency(db_path, minutes=ext_window)
         ext_active = bool(ext_dep.get("count") or 0)
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -1913,6 +2356,7 @@ def _apply_exploration_reward(db_path: Path, selector: str, delta: float) -> Non
         route="",
         result="reward",
         delta_score=delta,
+        selector_key=_selector_key_from_selector(selector),
     )
 
 
@@ -1927,7 +2371,7 @@ def _reward_exploration_from_outcomes(db_path: Path, since_ts: float) -> None:
         ext_dep = _recent_external_dependency(db_path, minutes=ext_window)
         if ext_dep.get("count"):
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -1979,7 +2423,7 @@ def _score_outcomes(db_path: Path, since_ts: float, window_sec: float = 300.0) -
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         cur = db.cursor()
@@ -2086,7 +2530,7 @@ def _seed_goals_from_outcome_scores(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_outcomes_tables(db)
         rows = db.execute(
@@ -2132,7 +2576,7 @@ def _load_seen_novel(db_path: Path, limit: int = 500) -> set:
     try:
         if not db_path.exists():
             return set()
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -2145,63 +2589,120 @@ def _load_seen_novel(db_path: Path, limit: int = 500) -> set:
         return set()
 
 
+def _external_nav_recent_count(db_path: Path, hours: float = 24.0) -> int:
+    try:
+        if not db_path.exists():
+            return 0
+        cutoff = time.time() - float(hours) * 3600.0
+        db = connect_db(str(db_path), timeout=15.0)
+        db.execute("PRAGMA journal_mode=WAL;")
+        cur = db.cursor()
+        row = cur.execute(
+            "SELECT COUNT(*) FROM runtime_events WHERE event_type='external_nav' AND timestamp >= ?",
+            (cutoff,),
+        ).fetchone()
+        db.close()
+        return int(row[0] or 0) if row else 0
+    except Exception:
+        return 0
+
+
+def _external_domain_allowed(href: str, base_url: str) -> bool:
+    try:
+        parsed = urlparse(href)
+        netloc = (parsed.netloc or "").lower()
+    except Exception:
+        return False
+    if not netloc:
+        return True
+    try:
+        base_netloc = urlparse(base_url).netloc.lower()
+    except Exception:
+        base_netloc = ""
+    if base_netloc and (netloc == base_netloc or netloc.endswith("." + base_netloc)):
+        return True
+    try:
+        cfg = load_config(ROOT_DIR)
+        allow = cfg.get("external_allow_domains") or cfg.get("allow_external_domains") or []
+    except Exception:
+        allow = []
+    if isinstance(allow, str):
+        allow = [allow]
+    allow = [str(d).strip().lower() for d in allow if d]
+    for dom in allow:
+        if netloc == dom or netloc.endswith("." + dom):
+            return True
+    return False
+
+
+def _is_external_url(href: str, base_url: str) -> bool:
+    try:
+        parsed = urlparse(href)
+        netloc = (parsed.netloc or "").lower()
+    except Exception:
+        return False
+    if not netloc:
+        return False
+    try:
+        base_netloc = urlparse(base_url).netloc.lower()
+    except Exception:
+        base_netloc = ""
+    if base_netloc and (netloc == base_netloc or netloc.endswith("." + base_netloc)):
+        return False
+    return True
+
+
 def _is_safe_novel_href(href: str, text: str, base_url: str) -> bool:
     """
     Conservative safety filter: only allow read-only navigation.
     """
-    if _autonomous_enabled():
-        if not href:
-            return False
-        h = href.strip()
-        if h.startswith("#") or h.lower().startswith("javascript:"):
-            return False
-        return True
     if not href:
         return False
     h = href.strip()
     if h.startswith("#") or h.lower().startswith("javascript:"):
         return False
-    if "/api/" in h:
-        return False
-    # Block common write/action words (English + Arabic).
-    block = [
-        "delete",
-        "remove",
-        "destroy",
-        "drop",
-        "import",
-        "upload",
-        "save",
-        "update",
-        "edit",
-        "create",
-        "add",
-        "submit",
-        "approve",
-        "reject",
-        "write",
-        "حذف",
-        "استيراد",
-        "رفع",
-        "حفظ",
-        "تحديث",
-        "تعديل",
-        "إنشاء",
-        "انشاء",
-        "اضافة",
-        "إضافة",
-        "رفض",
-        "اعتماد",
-        "ارسال",
-        "إرسال",
-    ]
-    s = (h + " " + (text or "")).lower()
-    for b in block:
-        if b.lower() in s:
+    if not _autonomous_enabled():
+        if "/api/" in h:
             return False
-    # Avoid external domains
+        # Block common write/action words (English + Arabic).
+        block = [
+            "delete",
+            "remove",
+            "destroy",
+            "drop",
+            "import",
+            "upload",
+            "save",
+            "update",
+            "edit",
+            "create",
+            "add",
+            "submit",
+            "approve",
+            "reject",
+            "write",
+            "حذف",
+            "استيراد",
+            "رفع",
+            "حفظ",
+            "تحديث",
+            "تعديل",
+            "إنشاء",
+            "انشاء",
+            "اضافة",
+            "إضافة",
+            "رفض",
+            "اعتماد",
+            "ارسال",
+            "إرسال",
+        ]
+        s = (h + " " + (text or "")).lower()
+        for b in block:
+            if b.lower() in s:
+                return False
+    # Avoid external domains unless allowlisted
     if h.startswith("http"):
-        return h.startswith(base_url.rstrip("/"))
+        return _external_domain_allowed(h, base_url)
     return True
 
 
@@ -2221,7 +2722,7 @@ def _routes_table_count(db_path: Path) -> int:
     try:
         if not db_path.exists():
             return 0
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         count = cur.execute("SELECT COUNT(*) FROM routes").fetchone()[0]
@@ -2301,7 +2802,7 @@ def _unknown_routes_from_runtime(db_path: Path, limit: int = 60) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -2384,7 +2885,7 @@ def _recent_runtime_routes(db_path: Path, limit: int = 200) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -2414,7 +2915,7 @@ def _recent_routes_within_days(
         if not db_path.exists():
             return []
         cutoff = time.time() - (days * 86400)
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -2557,7 +3058,7 @@ def _routes_for_file(db_path: Path, file_rel: str, limit: int = 6) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         like_unix = f"%/{file_rel}"
@@ -2773,7 +3274,7 @@ def _load_ui_flow_bias(
     cutoff = time.time() - (days * 86400)
     out: List[Dict[str, Any]] = []
     try:
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.row_factory = sqlite3.Row
         rows = db.execute(
             """
@@ -2836,6 +3337,35 @@ def _load_ui_flow_bias(
     except Exception:
         return out
     return out
+
+
+def _session_semantic_changed(db_path: Path, session: str, since_ts: float) -> bool:
+    if not db_path.exists() or not session:
+        return False
+    try:
+        db = connect_db(str(db_path), timeout=30.0)
+        db.row_factory = sqlite3.Row
+        rows = db.execute(
+            """
+            SELECT semantic_delta_json
+            FROM ui_flow_transitions
+            WHERE session = ? AND created_at >= ?
+            ORDER BY created_at DESC
+            LIMIT 12
+            """,
+            (session, float(since_ts)),
+        ).fetchall()
+        db.close()
+    except Exception:
+        return False
+    for row in rows:
+        try:
+            payload = json.loads(row[0] or "{}")
+        except Exception:
+            payload = {}
+        if isinstance(payload, dict) and payload.get("changed"):
+            return True
+    return False
 
 
 def _semantic_preferred_selectors(
@@ -2924,6 +3454,8 @@ def _semantic_search_selectors(
 
     selectors: List[str] = []
     for c in candidates:
+        if _candidate_is_disabled(c):
+            continue
         sel = str(c.get("selector") or "")
         if not sel:
             continue
@@ -2960,6 +3492,10 @@ def _semantic_action_selectors(
         return []
     selectors: List[str] = []
     for c in candidates:
+        if _candidate_is_disabled(c):
+            continue
+        if _candidate_is_tab_like(c) and _candidate_is_active(c):
+            continue
         sel = str(c.get("selector") or "")
         if not sel:
             continue
@@ -3003,6 +3539,65 @@ def _semantic_is_write_action(text: str) -> bool:
         "اعتماد",
     ]
     return any(k in t for k in keywords)
+
+
+def _semantic_plan_steps(
+    semantic_summary: Dict[str, Any],
+    candidates: List[Dict[str, Any]],
+    max_steps: int,
+) -> List[Dict[str, Any]]:
+    """
+    Build a minimal action plan directly from semantic_summary signals.
+    Deterministic fallback when LLM output is weak or empty.
+    """
+    steps: List[Dict[str, Any]] = []
+    if not semantic_summary or not candidates or max_steps <= 0:
+        return steps
+    search_selectors = _semantic_search_selectors(semantic_summary, candidates)
+    action_selectors = _semantic_action_selectors(semantic_summary, candidates)
+    cand_by_sel = {str(c.get("selector") or ""): c for c in candidates if c.get("selector")}
+
+    if search_selectors and len(steps) + 2 <= max_steps:
+        sel = search_selectors[0]
+        term = random.choice(_build_search_terms())
+        steps.append({"action": "click", "selector": sel, "optional": True})
+        steps.append(
+            {"action": "type", "selector": sel, "text": term, "optional": True, "auto_submit": True}
+        )
+        if len(steps) < max_steps:
+            steps.append({"action": "press", "selector": sel, "key": "Enter", "optional": True})
+
+    for sel in action_selectors:
+        if len(steps) >= max_steps:
+            break
+        meta = cand_by_sel.get(sel, {})
+        if _candidate_needs_hover(meta):
+            steps.append({"action": "hover", "selector": sel, "optional": True})
+        steps.append({"action": "click", "selector": sel, "optional": True})
+        break
+
+    try:
+        page_type = str(semantic_summary.get("page_type") or "").strip().lower()
+    except Exception:
+        page_type = ""
+    if page_type and len(steps) < max_steps:
+        def _pick_by_tag(tags: set[str]) -> str:
+            for c in candidates:
+                tag = str(c.get("tag") or "").lower()
+                sel = str(c.get("selector") or "")
+                if tag in tags and sel:
+                    return sel
+            return ""
+        if any(k in page_type for k in ("list", "table", "grid", "index")):
+            sel = _pick_by_tag({"tr", "td", "li"}) or "table tbody tr"
+            steps.append({"action": "click", "selector": sel, "optional": True})
+        elif any(k in page_type for k in ("detail", "form", "edit")):
+            sel = _pick_by_tag({"input", "textarea", "select"}) or "input, textarea, select"
+            steps.append({"action": "click", "selector": sel, "optional": True})
+            steps.append({"action": "scroll", "dy": 400})
+        elif any(k in page_type for k in ("dashboard", "summary", "report")):
+            steps.append({"action": "scroll", "dy": 600})
+    return steps
 
 
 def _ensure_semantic_steps(
@@ -3051,7 +3646,49 @@ def _ensure_semantic_steps(
         step: Dict[str, Any] = {"action": "click", "selector": sel}
         if _semantic_is_write_action(text):
             step["danger"] = True
+        if _candidate_needs_hover(meta):
+            steps.append({"action": "hover", "selector": sel, "optional": True})
         steps.append(step)
+
+    # Use page_type to suggest a safe, meaningful interaction
+    try:
+        page_type = str(semantic_summary.get("page_type") or "").strip().lower()
+    except Exception:
+        page_type = ""
+    if page_type and len(steps) < max_steps:
+        def _pick_by_tag(tags: set[str]) -> str:
+            for c in candidates:
+                tag = str(c.get("tag") or "").lower()
+                sel = str(c.get("selector") or "")
+                if tag in tags and sel:
+                    return sel
+            return ""
+        if any(k in page_type for k in ("list", "table", "grid", "index")):
+            sel = _pick_by_tag({"tr", "td", "li"})
+            if not sel:
+                sel = "table tbody tr"
+            steps.append({"action": "click", "selector": sel, "optional": True})
+        elif any(k in page_type for k in ("detail", "form", "edit")):
+            sel = _pick_by_tag({"input", "textarea", "select"})
+            if not sel:
+                sel = "input, textarea, select"
+            steps.append({"action": "click", "selector": sel, "optional": True})
+            steps.append({"action": "scroll", "dy": 400})
+        elif any(k in page_type for k in ("dashboard", "summary", "report")):
+            steps.append({"action": "scroll", "dy": 600})
+
+    plan_steps = _semantic_plan_steps(semantic_summary, candidates, max_steps)
+    if plan_steps:
+        def _sig(s: Dict[str, Any]) -> tuple:
+            return (s.get("action"), s.get("selector") or "", s.get("url") or "")
+        existing = {_sig(s) for s in steps}
+        for s in plan_steps:
+            if len(steps) >= max_steps:
+                break
+            if _sig(s) in existing:
+                continue
+            steps.append(s)
+            existing.add(_sig(s))
 
     return steps
 
@@ -3185,12 +3822,16 @@ def _text_reveal_selectors(text_hints: List[str]) -> List[str]:
             continue
         selectors += [
             f"[role='tab']:has-text(\"{text}\")",
+            f"[data-tab]:has-text(\"{text}\")",
             f"[data-bs-toggle]:has-text(\"{text}\")",
             f"[data-toggle]:has-text(\"{text}\")",
             f"button[aria-controls]:has-text(\"{text}\")",
             f"button[aria-expanded]:has-text(\"{text}\")",
             f"a[aria-controls]:has-text(\"{text}\")",
             f"[role='button'][aria-controls]:has-text(\"{text}\")",
+            f"button.tab-btn:has-text(\"{text}\")",
+            f"[onclick*=\"switchTab\"]:has-text(\"{text}\")",
+            f"button[onclick*=\"switchTab\"]:has-text(\"{text}\")",
             f"summary:has-text(\"{text}\")",
         ]
     return _unique_order(selectors)
@@ -3721,6 +4362,7 @@ def _ensure_exploration_novelty_table(db: sqlite3.Connection) -> None:
         CREATE TABLE IF NOT EXISTS exploration_novelty (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             selector TEXT,
+            selector_key TEXT,
             href_base TEXT,
             route TEXT,
             seen_count INTEGER DEFAULT 0,
@@ -3730,13 +4372,25 @@ def _ensure_exploration_novelty_table(db: sqlite3.Connection) -> None:
         )
         """
     )
+    try:
+        cols = {r[1] for r in db.execute("PRAGMA table_info(exploration_novelty)").fetchall()}
+        if "selector_key" not in cols:
+            db.execute("ALTER TABLE exploration_novelty ADD COLUMN selector_key TEXT")
+        if "href_base" not in cols:
+            db.execute("ALTER TABLE exploration_novelty ADD COLUMN href_base TEXT")
+        if "route" not in cols:
+            db.execute("ALTER TABLE exploration_novelty ADD COLUMN route TEXT")
+        if "last_score_delta" not in cols:
+            db.execute("ALTER TABLE exploration_novelty ADD COLUMN last_score_delta REAL")
+    except Exception:
+        pass
 
 
 def _load_explored_selectors(db_path: Path, limit: int = 2000) -> set:
     try:
         if not db_path.exists():
             return set()
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_table(db)
         rows = db.execute(
@@ -3761,15 +4415,31 @@ def _record_explored_selector(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
-        db.execute("PRAGMA journal_mode=WAL;")
-        _ensure_exploration_table(db)
-        db.execute(
-            "INSERT INTO exploration_history (selector, href, tag, created_at) VALUES (?, ?, ?, ?)",
-            (selector, href, tag, time.time()),
-        )
-        db.commit()
-        db.close()
+        for attempt in range(2):
+            try:
+                db = connect_db(str(db_path), timeout=3.0)
+                db.execute("PRAGMA journal_mode=WAL;")
+                try:
+                    db.execute("PRAGMA busy_timeout=3000;")
+                except Exception:
+                    pass
+                _ensure_exploration_table(db)
+                db.execute(
+                    "INSERT INTO exploration_history (selector, href, tag, created_at) VALUES (?, ?, ?, ?)",
+                    (selector, href, tag, time.time()),
+                )
+                db.commit()
+                db.close()
+                break
+            except sqlite3.OperationalError as e:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+                if attempt == 0 and "locked" in str(e).lower():
+                    time.sleep(0.08)
+                    continue
+                return
     except Exception:
         return
 
@@ -3782,32 +4452,56 @@ def _record_exploration_outcome(
     route: str,
     result: str,
     delta_score: float = 0.0,
+    selector_key: str | None = None,
 ) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
-        db.execute("PRAGMA journal_mode=WAL;")
-        _ensure_exploration_novelty_table(db)
-        href_base = _href_basename(href or "") if href else ""
-        row = db.execute(
-            "SELECT id, seen_count FROM exploration_novelty WHERE selector=?",
-            (selector,),
-        ).fetchone()
-        if row:
-            rid, sc = row
-            sc = int(sc or 0) + 1
-            db.execute(
-                "UPDATE exploration_novelty SET seen_count=?, last_seen=?, last_result=?, href_base=?, route=?, last_score_delta=? WHERE id=?",
-                (sc, time.time(), result, href_base, route, delta_score, rid),
-            )
-        else:
-            db.execute(
-                "INSERT INTO exploration_novelty (selector, href_base, route, seen_count, last_seen, last_result, last_score_delta) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (selector, href_base, route, 1, time.time(), result, delta_score),
-            )
-        db.commit()
-        db.close()
+        for attempt in range(2):
+            try:
+                db = connect_db(str(db_path), timeout=3.0)
+                db.execute("PRAGMA journal_mode=WAL;")
+                try:
+                    db.execute("PRAGMA busy_timeout=3000;")
+                except Exception:
+                    pass
+                _ensure_exploration_novelty_table(db)
+                href_base = _href_basename(href or "") if href else ""
+                key = str(selector_key or "").strip() or _selector_key_from_selector(selector)
+                if key:
+                    row = db.execute(
+                        "SELECT id, seen_count FROM exploration_novelty WHERE selector_key=?",
+                        (key,),
+                    ).fetchone()
+                else:
+                    row = db.execute(
+                        "SELECT id, seen_count FROM exploration_novelty WHERE selector=?",
+                        (selector,),
+                    ).fetchone()
+                if row:
+                    rid, sc = row
+                    sc = int(sc or 0) + 1
+                    db.execute(
+                        "UPDATE exploration_novelty SET seen_count=?, last_seen=?, last_result=?, href_base=?, route=?, last_score_delta=?, selector_key=? WHERE id=?",
+                        (sc, time.time(), result, href_base, route, delta_score, key, rid),
+                    )
+                else:
+                    db.execute(
+                        "INSERT INTO exploration_novelty (selector, selector_key, href_base, route, seen_count, last_seen, last_result, last_score_delta) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                        (selector, key, href_base, route, 1, time.time(), result, delta_score),
+                    )
+                db.commit()
+                db.close()
+                break
+            except sqlite3.OperationalError as e:
+                try:
+                    db.close()
+                except Exception:
+                    pass
+                if attempt == 0 and "locked" in str(e).lower():
+                    time.sleep(0.08)
+                    continue
+                return
         if upsert_memory_item:
             upsert_memory_item(
                 db_path,
@@ -3824,17 +4518,24 @@ def _record_exploration_outcome(
         return
 
 
-def _novelty_score(db_path: Path, selector: str) -> float:
+def _novelty_score(db_path: Path, selector: str, selector_key: str = "") -> float:
     try:
-        if not db_path.exists() or not selector:
+        if not db_path.exists() or (not selector and not selector_key):
             return 1.0
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_exploration_novelty_table(db)
-        row = db.execute(
-            "SELECT seen_count, last_seen, last_score_delta FROM exploration_novelty WHERE selector=?",
-            (selector,),
-        ).fetchone()
+        key = str(selector_key or "").strip()
+        if key:
+            row = db.execute(
+                "SELECT seen_count, last_seen, last_score_delta FROM exploration_novelty WHERE selector_key=?",
+                (key,),
+            ).fetchone()
+        else:
+            row = db.execute(
+                "SELECT seen_count, last_seen, last_score_delta FROM exploration_novelty WHERE selector=?",
+                (selector,),
+            ).fetchone()
         db.close()
         if not row:
             return 3.0
@@ -3853,10 +4554,11 @@ def _novelty_score(db_path: Path, selector: str) -> float:
 def _rank_exploration_candidate(meta: Dict[str, Any], explored: set) -> float:
     tag = str(meta.get("tag") or "").lower()
     selector = str(meta.get("selector") or "")
+    selector_key = str(meta.get("selector_key") or "")
     href = str(meta.get("href") or "")
     novelty = 1.0 if selector not in explored and href not in explored else 0.2
     novelty += _novelty_score(
-        ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db", selector
+        ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db", selector, selector_key
     )
     tag_bonus = 0.4 if tag in ("button", "a") else 0.1
     # If selector is heavily penalized, push it down
@@ -3886,7 +4588,7 @@ def _read_autonomy_goals(db_path: Path, limit: int = 8) -> List[Dict[str, Any]]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_autonomy_goals_table(db)
         _cleanup_autonomy_goals(db)
@@ -3971,6 +4673,162 @@ def _load_flow_priority_map(max_age_s: int = 300) -> Dict[str, float]:
     return priorities
 
 
+def _load_flow_priority_routes(max_age_s: int = 300, limit: int = 6) -> List[str]:
+    """
+    Load least-seen routes from ui_flow_model.json to guide exploration order.
+    """
+    try:
+        flow_path = ROOT_DIR / "analysis" / "ui_flow_model.json"
+        if flow_path.exists():
+            model = json.loads(flow_path.read_text(encoding="utf-8"))
+            routes = model.get("priority_routes") or []
+            if isinstance(routes, list) and routes:
+                return [str(r) for r in routes if r][:limit]
+            nodes = model.get("nodes") or {}
+            if isinstance(nodes, dict) and nodes:
+                counts = []
+                for route, node in nodes.items():
+                    try:
+                        cnt = float(node.get("out") or 0) + float(node.get("in") or 0)
+                    except Exception:
+                        cnt = 0.0
+                    counts.append((str(route), cnt))
+                counts = sorted(counts, key=lambda kv: kv[1])
+                return [r for r, _ in counts[:limit] if r]
+    except Exception:
+        return []
+    return []
+
+
+def _prioritize_candidates_by_routes(
+    candidates: List[Dict[str, Any]], priority_routes: List[str]
+) -> List[Dict[str, Any]]:
+    if not candidates or not priority_routes:
+        return candidates
+    priority_set = {str(r) for r in priority_routes if r}
+    pref, rest = [], []
+    for c in candidates:
+        href = str(c.get("href") or "")
+        route = _normalize_route_path(href) if href else ""
+        if route and route in priority_set:
+            pref.append(c)
+        else:
+            rest.append(c)
+    return pref + rest
+
+
+def _inject_priority_goto(
+    steps: List[Dict[str, Any]],
+    priority_routes: List[str],
+    base_url: str,
+    current_url: str,
+    max_steps: int,
+) -> List[Dict[str, Any]]:
+    if not priority_routes or len(steps) >= max_steps:
+        return steps
+    try:
+        current_norm = _normalize_route_path(current_url or "")
+    except Exception:
+        current_norm = ""
+    target_route = ""
+    for r in priority_routes:
+        if not r:
+            continue
+        if current_norm and _normalize_route_path(r) == current_norm:
+            continue
+        target_route = str(r)
+        break
+    if not target_route:
+        return steps
+    target_url = target_route
+    if not target_route.startswith("http"):
+        if not target_route.startswith("/"):
+            target_route = f"/{target_route}"
+        target_url = base_url.rstrip("/") + target_route
+    for s in steps:
+        if s.get("action") == "goto" and str(s.get("url") or "") in (
+            target_url,
+            target_route,
+        ):
+            return steps
+    steps.insert(0, {"action": "goto", "url": target_url, "optional": True})
+    if len(steps) > max_steps:
+        return steps[:max_steps]
+    return steps
+
+
+def _candidate_needs_hover(candidate: Dict[str, Any]) -> bool:
+    cls = str(candidate.get("classes") or "").lower()
+    role = str(candidate.get("role") or "").lower()
+    text = str(candidate.get("text") or "").lower()
+    datatarget = str(candidate.get("datatarget") or "").lower()
+    aria_controls = str(candidate.get("ariacontrols") or "").lower()
+    aria_expanded = str(candidate.get("aria_expanded") or "").lower()
+    onclick = str(candidate.get("onclick") or "").lower()
+    tokens = ("dropdown", "menu", "submenu", "nav", "navbar", "tab", "toggle")
+    if any(t in cls for t in tokens):
+        return True
+    if any(t in role for t in ("menu", "menuitem", "tab", "navigation")):
+        return True
+    if any(t in text for t in ("menu", "القائمة", "القوائم")):
+        return True
+    if datatarget or aria_controls:
+        return True
+    if aria_expanded in ("false", "0"):
+        return True
+    if "dropdown" in onclick or "toggle" in onclick:
+        return True
+    return False
+
+
+def _flag_truthy(value: Any) -> bool:
+    if value is True:
+        return True
+    if value is False or value is None:
+        return False
+    s = str(value).strip().lower()
+    return s in ("1", "true", "yes", "y", "on")
+
+
+def _candidate_is_disabled(candidate: Dict[str, Any]) -> bool:
+    if _flag_truthy(candidate.get("disabled")):
+        return True
+    if _flag_truthy(candidate.get("aria_disabled")):
+        return True
+    cls = str(candidate.get("classes") or "").lower()
+    return "disabled" in cls or "is-disabled" in cls
+
+
+def _candidate_is_active(candidate: Dict[str, Any]) -> bool:
+    if _flag_truthy(candidate.get("aria_selected")):
+        return True
+    cls = str(candidate.get("classes") or "").lower()
+    if any(t in cls for t in ("active", "selected", "current", "is-active", "open")):
+        return True
+    role = str(candidate.get("role") or "").lower()
+    aria_expanded = candidate.get("aria_expanded")
+    if role in ("tab", "button") and _flag_truthy(aria_expanded):
+        return True
+    return False
+
+
+def _candidate_is_tab_like(candidate: Dict[str, Any]) -> bool:
+    role = str(candidate.get("role") or "").lower()
+    if role == "tab":
+        return True
+    cls = str(candidate.get("classes") or "").lower()
+    if "tab" in cls:
+        return True
+    if str(candidate.get("datatab") or ""):
+        return True
+    if str(candidate.get("datatarget") or "") and "tab" in cls:
+        return True
+    onclick = str(candidate.get("onclick") or "").lower()
+    if "switchtab" in onclick:
+        return True
+    return False
+
+
 def _goal_flow_priority(goal: Dict[str, Any], flow_map: Dict[str, float]) -> float:
     payload = goal.get("payload") or {}
     target = (
@@ -4007,6 +4865,7 @@ def _prioritize_autonomy_goals(goals: List[Dict[str, Any]]) -> List[Dict[str, An
         "gap_deepen": 4,
         "goal_gap_deepen": 4,
         "goal_route_recent": 5,
+        "text_focus": 6,
         "insight_gap": 6,
         "delta_change": 7,
         "purpose_focus": 8,
@@ -4066,7 +4925,7 @@ def _write_autonomy_goal(
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_autonomy_goals_table(db)
         _cleanup_autonomy_goals(db)
@@ -4115,7 +4974,7 @@ def _read_latest_delta(db_path: Path) -> Dict[str, Any]:
     try:
         if not db_path.exists():
             return {}
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         row = cur.execute(
@@ -4136,7 +4995,7 @@ def _read_recent_routes_from_db(
         if not db_path.exists():
             return []
         cutoff = time.time() - (days * 86400)
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -4203,7 +5062,7 @@ def _recent_external_dependency(
     try:
         if not db_path.exists():
             return out
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cutoff = time.time() - (minutes * 60)
         rows = db.execute(
@@ -4243,7 +5102,7 @@ def _recent_error_routes(db_path: Path, limit: int = 6) -> List[str]:
     try:
         if not db_path.exists():
             return []
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         rows = cur.execute(
@@ -4272,6 +5131,34 @@ def _recent_error_routes(db_path: Path, limit: int = 6) -> List[str]:
 
 
 def _seed_goals_from_system_signals(db_path: Path) -> None:
+    # Refresh long-term goals and surface top items into autonomy goals.
+    try:
+        from .long_term_goals import refresh_long_term_goals, pick_long_term_goals  # type: ignore
+    except Exception:
+        try:
+            from long_term_goals import refresh_long_term_goals, pick_long_term_goals  # type: ignore
+        except Exception:
+            refresh_long_term_goals = None  # type: ignore
+            pick_long_term_goals = None  # type: ignore
+    if refresh_long_term_goals and pick_long_term_goals:
+        try:
+            refresh_long_term_goals(db_path, lookback_days=30, max_candidates=12)
+            ltg = pick_long_term_goals(db_path, limit=3, min_priority=0.25)
+            for g in ltg:
+                _write_autonomy_goal(
+                    db_path,
+                    goal=str(g.get("goal") or "long_term_goal"),
+                    payload={
+                        "goal_key": g.get("goal_key"),
+                        "title": g.get("title"),
+                        "payload": g.get("payload"),
+                        "priority": g.get("priority"),
+                    },
+                    source="long_term_goals",
+                    ttl_days=7,
+                )
+        except Exception:
+            pass
     # Snapshot delta -> goals
     delta = _read_latest_delta(db_path)
     if isinstance(delta, dict):
@@ -4338,19 +5225,40 @@ def _seed_goals_from_system_signals(db_path: Path) -> None:
             pass
 
 
-def _seed_goals_from_semantic(db_path: Path, summary: Dict[str, Any]) -> None:
+def _seed_goals_from_semantic(
+    db_path: Path, summary: Dict[str, Any], *, current_url: str = ""
+) -> None:
     if not summary:
         return
     terms: List[str] = []
     for t in (summary.get("text_keywords") or []):
         if isinstance(t, str) and t.strip():
             terms.append(t.strip())
+    # Fold in headings/text blocks for non-interactive context anchors.
+    for h in (summary.get("headings") or []):
+        if isinstance(h, dict):
+            txt = str(h.get("text") or "").strip()
+        else:
+            txt = str(h or "").strip()
+        if txt:
+            terms.append(txt)
+    for block in (summary.get("text_blocks") or [])[:2]:
+        txt = str(block or "").strip()
+        if txt:
+            terms.append(txt)
     if not terms:
         return
+    def _trim_term(term: str) -> str:
+        cleaned = re.sub(r"\\s+", " ", term or "").strip()
+        parts = cleaned.split(" ")
+        return " ".join(parts[:6]) if parts else ""
     # De-dup and cap
     seen = set()
     out_terms = []
     for t in terms:
+        t = _trim_term(t)
+        if not t:
+            continue
         if t in seen:
             continue
         seen.add(t)
@@ -4358,10 +5266,13 @@ def _seed_goals_from_semantic(db_path: Path, summary: Dict[str, Any]) -> None:
         if len(out_terms) >= 3:
             break
     for term in out_terms:
+        payload = {"term": term, "reason": "semantic_text"}
+        if current_url:
+            payload["uri"] = current_url
         _write_autonomy_goal(
             db_path,
             goal="purpose_focus",
-            payload={"term": term, "reason": "semantic_text"},
+            payload=payload,
             source="ui_semantic",
             ttl_days=3,
         )
@@ -4501,6 +5412,8 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
         steps += [
             {"action": "scroll", "dy": 700},
             {"action": "click", "selector": "[role='tab']", "optional": True},
+            {"action": "click", "selector": "button.tab-btn, .tab-btn", "optional": True},
+            {"action": "click", "selector": "[onclick*=\"switchTab\"]", "optional": True},
             {"action": "click", "selector": "[data-filter]", "optional": True},
             {
                 "action": "click",
@@ -4619,7 +5532,7 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
                 url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
             steps = [{"action": "goto", "url": url}, {"action": "wait", "ms": 800}]
         name = f"goal_{g}"
-    elif g in ("purpose_focus", "decision_focus", "long_term_focus"):
+    elif g in ("purpose_focus", "decision_focus", "long_term_focus", "text_focus"):
         uri = payload.get("uri") or payload.get("href") or ""
         term = (
             payload.get("term")
@@ -4629,6 +5542,13 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
             or ""
         )
         term = str(term or "").strip()
+        if not term and g == "text_focus":
+            try:
+                keywords = payload.get("keywords") or []
+                if isinstance(keywords, list) and keywords:
+                    term = str(keywords[0] or "").strip()
+            except Exception:
+                term = ""
         search_selector = "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
         if uri:
             basename = _href_basename(uri)
@@ -4646,6 +5566,11 @@ def _goal_to_scenario(goal: Dict[str, Any], base_url: str) -> Optional[Dict[str,
                 else:
                     url = base_url.rstrip("/") + (uri if uri.startswith("/") else "/" + uri)
                 steps = [{"action": "goto", "url": url}, {"action": "wait", "ms": 800}]
+            if term:
+                safe_term = re.sub(r"[\"'\\n\\r]+", " ", term).strip()
+                if safe_term:
+                    steps.append({"action": "hover", "selector": f"text={safe_term[:32]}", "optional": True})
+                    steps.append({"action": "scroll", "dy": 500})
         else:
             steps = [{"action": "goto", "url": base_url.rstrip("/") + "/"}]
             if term:
@@ -4693,7 +5618,7 @@ def _record_goal_strategy_result(
             return
         if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
             _trace(f"goal: record strategy start goal={goal} strat={strategy} ok={ok}")
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_goal_strategy_table(db)
         row = db.execute(
@@ -4740,7 +5665,7 @@ def _pick_goal_strategy(
     try:
         if not db_path.exists():
             return default_strategy
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         _ensure_goal_strategy_table(db)
         rows = db.execute(
@@ -5035,7 +5960,7 @@ def _record_autonomous_plan(db_path: Path, plan: Dict[str, Any]) -> None:
     try:
         if not db_path.exists():
             return
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         cur.execute(
@@ -5058,7 +5983,7 @@ def _is_recent_autonomous_plan(
     try:
         if not db_path.exists():
             return False
-        db = sqlite3.connect(str(db_path), timeout=30.0)
+        db = connect_db(str(db_path), timeout=30.0)
         db.execute("PRAGMA journal_mode=WAL;")
         cur = db.cursor()
         cur.execute(
@@ -5088,10 +6013,40 @@ def _selector_from_element(el: Dict[str, Any]) -> Optional[str]:
     el_type = str(el.get("type") or "").strip().lower()
     test_id = str(el.get("testid") or "").strip()
     test_attr = str(el.get("testattr") or "").strip()
+    data_tab = str(el.get("datatab") or "").strip()
+    data_target = str(el.get("datatarget") or "").strip()
+    data_target_attr = str(el.get("datatarget_attr") or "").strip()
+    aria_controls = str(el.get("ariacontrols") or "").strip()
+    onclick = str(el.get("onclick") or "").strip()
+    role = str(el.get("role") or "").strip().lower()
+    text = str(el.get("text") or "").strip()
 
     if test_id and test_attr:
         safe_val = test_id.replace('"', "").replace("'", "")
         return f'[{test_attr}="{safe_val}"]'
+    if data_tab:
+        safe_val = data_tab.replace('"', "").replace("'", "")
+        return f'[data-tab="{safe_val}"]'
+    if aria_controls:
+        safe_val = aria_controls.replace('"', "").replace("'", "")
+        return f'[aria-controls="{safe_val}"]'
+    if data_target:
+        safe_val = data_target.replace('"', "").replace("'", "")
+        if "data-bs-target" in data_target_attr:
+            return f'[data-bs-target="{safe_val}"]'
+        return f'[data-target="{safe_val}"]'
+    if onclick:
+        # Handle common tab switchers like switchTab('banks')
+        try:
+            m = re.search(r"switchTab\\(['\\\"]([^'\\\"]+)['\\\"]\\)", onclick)
+        except Exception:
+            m = None
+        if m:
+            arg = m.group(1)
+            if _is_simple_token(arg):
+                return f'[onclick*="switchTab"][onclick*="{arg}"]'
+        if "switchTab" in onclick:
+            return '[onclick*="switchTab"]'
     if tag == "a" and href:
         safe_href = href.replace('"', "").replace("'", "")
         return f'a[href="{safe_href}"]'
@@ -5101,13 +6056,82 @@ def _selector_from_element(el: Dict[str, Any]) -> Optional[str]:
         return f'{tag}[name="{name}"]'
     if tag == "input" and el_type == "file":
         return 'input[type="file"]'
+    if text and (role == "tab" or "tab" in classes.lower() or "tab-btn" in classes.lower()):
+        try:
+            safe_text = _escape_has_text(text)
+        except Exception:
+            safe_text = text.replace('"', '\\"')
+        if safe_text:
+            return f'{tag or "button"}:has-text("{safe_text}")'
     if classes:
-        for c in classes.split():
-            if _is_simple_token(c):
+        tokens = [c for c in classes.split() if _is_simple_token(c)]
+        if tokens:
+            prefer = [c for c in tokens if "tab" in c.lower()]
+            ordered = prefer + [c for c in tokens if c not in prefer]
+            for c in ordered:
                 return f"{tag}.{c}" if tag else f".{c}"
     if tag:
         return tag
     return None
+
+
+def _stable_selector_key(meta: Dict[str, Any]) -> str:
+    """
+    Build a stable, attribute-based key for UI elements to reduce selector churn.
+    Prefer explicit test IDs, then stable attributes, then text-derived fallback.
+    """
+    if not isinstance(meta, dict):
+        return ""
+    testid = str(meta.get("testid") or "").strip()
+    testattr = str(meta.get("testattr") or "data-testid").strip() or "data-testid"
+    if testid:
+        return f"{testattr}={testid}"
+    elem_id = str(meta.get("id") or "").strip()
+    if elem_id:
+        return f"id={elem_id}"
+    name = str(meta.get("name") or "").strip()
+    if name:
+        return f"name={name}"
+    datatab = str(meta.get("datatab") or "").strip()
+    if datatab:
+        return f"data-tab={datatab}"
+    datatarget = str(meta.get("datatarget") or "").strip()
+    datatarget_attr = str(meta.get("datatarget_attr") or "data-target").strip() or "data-target"
+    if datatarget:
+        return f"{datatarget_attr}={datatarget}"
+    aria_controls = str(meta.get("ariacontrols") or "").strip()
+    if aria_controls:
+        return f"aria-controls={aria_controls}"
+    href = str(meta.get("href") or "").strip()
+    href_base = _href_basename(href) if href else ""
+    if href_base:
+        return f"href={href_base}"
+    role = str(meta.get("role") or "").strip().lower()
+    text = str(meta.get("text") or "").strip()
+    if role and text:
+        return f"role={role}|text={text[:32]}"
+    if text:
+        return f"text={text[:32]}"
+    return ""
+
+
+def _selector_key_from_selector(selector: str) -> str:
+    sel = str(selector or "").strip()
+    if not sel:
+        return ""
+    if sel.startswith("#") and len(sel) > 1:
+        return f"id={sel[1:]}"
+    # data-testid/data-test/data-qa/data-cy
+    m = re.search(r"\[(data-(?:testid|test|qa|cy))=['\"]?([^'\"]+)['\"]?\]", sel, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}={m.group(2)}"
+    m = re.search(r"\[(name|id|aria-controls|data-tab|data-target|data-bs-target)=['\"]?([^'\"]+)['\"]?\]", sel, re.IGNORECASE)
+    if m:
+        return f"{m.group(1)}={m.group(2)}"
+    m = re.search(r"href\\*=['\"]?([^'\"]+)['\"]?", sel, re.IGNORECASE)
+    if m:
+        return f"href={_href_basename(m.group(1))}"
+    return ""
 
 
 def _build_selector_candidates(ui_map: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -5120,15 +6144,28 @@ def _build_selector_candidates(ui_map: List[Dict[str, Any]]) -> List[Dict[str, A
         if not sel or sel in seen:
             continue
         seen.add(sel)
+        selector_key = _stable_selector_key({**el, "selector": sel})
         out.append(
             {
                 "selector": sel,
+                "selector_key": selector_key,
                 "tag": el.get("tag"),
                 "text": el.get("text"),
                 "type": el.get("type"),
                 "href": el.get("href"),
                 "role": el.get("role"),
+                "id": el.get("id"),
                 "name": el.get("name"),
+                "classes": el.get("classes"),
+                "onclick": el.get("onclick"),
+                "datatab": el.get("datatab"),
+                "datatarget": el.get("datatarget"),
+                "datatarget_attr": el.get("datatarget_attr"),
+                "ariacontrols": el.get("ariacontrols"),
+                "aria_selected": el.get("aria_selected"),
+                "aria_expanded": el.get("aria_expanded"),
+                "aria_disabled": el.get("aria_disabled"),
+                "disabled": el.get("disabled"),
                 "testid": el.get("testid"),
                 "testattr": el.get("testattr"),
             }
@@ -5150,7 +6187,7 @@ def _list_upload_fixtures() -> List[str]:
 def _sanitize_steps(
     steps: Any, max_steps: int, uploads: List[str], allow_upload: bool = True
 ) -> List[Dict[str, Any]]:
-    allowed = {"goto", "click", "type", "press", "upload", "wait", "scroll"}
+    allowed = {"goto", "click", "type", "press", "upload", "wait", "scroll", "hover"}
     out: List[Dict[str, Any]] = []
     if not isinstance(steps, list):
         return out
@@ -5172,7 +6209,7 @@ def _sanitize_steps(
                 step["wait_until"] = raw.get("wait_until")
             if raw.get("post_wait_ms") is not None:
                 step["post_wait_ms"] = int(raw.get("post_wait_ms") or 0)
-        elif action in ("click", "type", "press", "upload"):
+        elif action in ("click", "type", "press", "upload", "hover"):
             selector = raw.get("selector")
             if not selector:
                 continue
@@ -5193,6 +6230,8 @@ def _sanitize_steps(
                 step["files"] = files
                 if "danger" not in raw:
                     step["danger"] = True
+            if action == "hover":
+                step["hover_wait_ms"] = int(raw.get("hover_wait_ms", 120))
         elif action == "wait":
             step["ms"] = int(raw.get("ms", raw.get("duration_ms", 500)))
         elif action == "scroll":
@@ -5216,6 +6255,8 @@ def _fallback_autonomous_steps(
     goal_targets: Optional[List[Dict[str, str]]] = None,
     semantic_summary: Optional[Dict[str, Any]] = None,
     flow_bias: Optional[List[Dict[str, Any]]] = None,
+    priority_routes: Optional[List[str]] = None,
+    max_steps: int = 8,
 ) -> List[Dict[str, Any]]:
     steps: List[Dict[str, Any]] = []
     used_selectors: set[str] = set()
@@ -5223,15 +6264,30 @@ def _fallback_autonomous_steps(
         target = goal_targets[0].get("target")
         if target:
             steps.append({"action": "goto", "url": target})
+    elif priority_routes:
+        target = priority_routes[0]
+        if target:
+            steps.append({"action": "goto", "url": target})
     # Prefer semantic search fields when available
     if semantic_summary:
+        semantic_steps = _semantic_plan_steps(semantic_summary, candidates, max_steps=max_steps)
+        for s in semantic_steps:
+            if len(steps) >= max_steps:
+                break
+            sel = str(s.get("selector") or "")
+            if sel and sel in used_selectors:
+                continue
+            steps.append(s)
+            if sel:
+                used_selectors.add(sel)
         preferred = _semantic_preferred_selectors(semantic_summary, candidates)
         if preferred:
             term = random.choice(_build_search_terms())
-            steps.append(
-                {"action": "type", "selector": preferred[0], "text": term, "auto_submit": True}
-            )
-            used_selectors.add(preferred[0])
+            if preferred[0] not in used_selectors:
+                steps.append(
+                    {"action": "type", "selector": preferred[0], "text": term, "auto_submit": True}
+                )
+                used_selectors.add(preferred[0])
         # If primary actions/nav items exist, attempt a click after search/typing
         if preferred:
             for sel in preferred[1:4]:
@@ -5282,6 +6338,9 @@ def _fallback_autonomous_steps(
     elif candidates:
         pick = candidates[random.randrange(0, len(candidates))].get("selector")
     if pick:
+        cand_by_sel = {str(c.get("selector") or ""): c for c in candidates if c.get("selector")}
+        if _candidate_needs_hover(cand_by_sel.get(pick, {})):
+            steps.append({"action": "hover", "selector": pick, "optional": True})
         steps.append({"action": "click", "selector": pick})
     if steps:
         steps.append({"action": "wait", "ms": 600})
@@ -5324,8 +6383,10 @@ async def _generate_autonomous_plan(
     # Bias candidates using recent UI flow transitions for the current page
     flow_bias = _load_ui_flow_bias(db_path, page.url if hasattr(page, "url") else "")
     flow_selectors = [str(fb.get("selector") or "") for fb in flow_bias if fb.get("selector")]
+    priority_routes = _load_flow_priority_routes()
     semantic_selectors = _semantic_preferred_selectors(semantic_summary, candidates)
     candidates = _prioritize_candidates(candidates, flow_selectors + semantic_selectors)
+    candidates = _prioritize_candidates_by_routes(candidates, priority_routes)
     # Filter out stale/unproductive selectors when enough alternatives exist
     if len(candidates) > 8:
         filtered = []
@@ -5427,7 +6488,7 @@ Rules:
 - Use ONLY selectors from the provided candidates.
 - Avoid repeating selectors in recent_routes.
 - Up to {max_steps} steps.
-- You may click, type, press, upload, wait, scroll, goto.
+- You may click, type, press, upload, wait, scroll, goto, hover.
 - If you choose upload, use files from available_uploads.
 - If you perform a write-like action (save/submit/import), include "danger": true.
 - Prefer selectors that are not used in the last 7 days.
@@ -5436,9 +6497,10 @@ Rules:
  - Operator goals MUST be prioritized. If operator provides a URL, include a goto to it before other steps.
  - If semantic_summary.search_fields exist, include a type + press/submit on a search field.
  - If semantic_summary.primary_actions/nav_items exist, include at least one click on a matching selector.
+ - Prefer priority_routes when choosing navigation targets.
 
 Context JSON:
-{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates, "semantic_summary": semantic_summary, "flow_bias": flow_bias}, ensure_ascii=False)}
+{json.dumps({"base_url": base_url, "available_uploads": uploads, "recent_routes": recent_routes, "recent_routes_7d": recent_week_routes, "gap_candidates": gap_candidates, "autonomy_goals": goals, "operator_goals": operator_goal_urls, "candidates": candidates, "semantic_summary": semantic_summary, "flow_bias": flow_bias, "priority_routes": priority_routes}, ensure_ascii=False)}
 """
         try:
             client = LLMClient()
@@ -5462,9 +6524,16 @@ Context JSON:
             goal_targets=all_targets,
             semantic_summary=semantic_summary,
             flow_bias=flow_bias,
+            priority_routes=priority_routes,
+            max_steps=max_steps,
         )
     if steps:
         steps = _ensure_semantic_steps(steps, semantic_summary, candidates, max_steps)
+        try:
+            current_url = page.url if hasattr(page, "url") else ""
+        except Exception:
+            current_url = ""
+        steps = _inject_priority_goto(steps, priority_routes, base_url, current_url, max_steps)
     if not steps:
         return None
 
@@ -5479,6 +6548,10 @@ Context JSON:
             uploads,
             allow_upload,
             goal_targets=all_targets,
+            semantic_summary=semantic_summary,
+            flow_bias=flow_bias,
+            priority_routes=priority_routes,
+            max_steps=max_steps,
         )
         if not steps:
             return None
@@ -5523,7 +6596,12 @@ async def run_autonomous_scenario(
     try:
         semantic_map = await capture_semantic_map(page, limit=12)
         semantic_summary = summarize_semantic_map(semantic_map) if semantic_map else {}
-        _seed_goals_from_semantic(db_path, semantic_summary)
+        current_url = ""
+        try:
+            current_url = page.url if hasattr(page, "url") else ""
+        except Exception:
+            current_url = ""
+        _seed_goals_from_semantic(db_path, semantic_summary, current_url=current_url)
     except Exception:
         pass
 
@@ -5620,6 +6698,10 @@ async def run_novel_probe(page, base_url: str, db_path: Path):
     ui_map = await capture_ui_map(page, limit=80)
     seen = _load_seen_novel(db_path, limit=500)
     candidates: List[str] = []
+    external_candidates: List[str] = []
+    max_external_per_run = int(_cfg_value("external_allow_max_per_run", 1) or 1)
+    max_external_per_day = int(_cfg_value("external_allow_max_per_day", 5) or 5)
+    external_today = _external_nav_recent_count(db_path, hours=24.0)
 
     for el in ui_map or []:
         href = (el.get("href") or "").strip()
@@ -5640,9 +6722,14 @@ async def run_novel_probe(page, base_url: str, db_path: Path):
 
         if full in seen:
             continue
+        if _is_external_url(full, base):
+            if external_today >= max_external_per_day:
+                continue
+            external_candidates.append(full)
+            continue
         candidates.append(full)
 
-    if not candidates:
+    if not candidates and not external_candidates:
         log_event(
             db_path,
             "novel_probe",
@@ -5657,7 +6744,16 @@ async def run_novel_probe(page, base_url: str, db_path: Path):
         page._bgl_novelty_done = True  # type: ignore
         return
 
-    target = candidates[0]
+    target = candidates[0] if candidates else None
+    if not target and external_candidates and max_external_per_run > 0:
+        target = external_candidates[0]
+    if not target:
+        page._bgl_novelty_done = True  # type: ignore
+        return
+    is_external = _is_external_url(target, base)
+    if is_external and max_external_per_run <= 0:
+        page._bgl_novelty_done = True  # type: ignore
+        return
     log_event(
         db_path,
         "novel_probe",
@@ -5669,6 +6765,18 @@ async def run_novel_probe(page, base_url: str, db_path: Path):
             "status": None,
         },
     )
+    if is_external:
+        log_event(
+            db_path,
+            "novel_probe",
+            {
+                "event_type": "external_nav",
+                "route": target,
+                "method": "GET",
+                "payload": "external_allowlisted_navigation",
+                "status": None,
+            },
+        )
     try:
         await page.goto(target, wait_until="domcontentloaded")
         await page.wait_for_timeout(800)
@@ -5796,6 +6904,7 @@ async def _run_scenario_impl(
     stall_count = 0
     last_change_ts = time.time()
     scenario_changed = False
+    scenario_started = time.time()
     try:
         stall_threshold = int(_cfg_value("stall_recovery_threshold", 2))
     except Exception:
@@ -6269,6 +7378,47 @@ async def _run_scenario_impl(
                         continue
                 raise
 
+    # Enforce semantic change: if none detected, attempt a safe shift and record a gap signal.
+    try:
+        semantic_changed = _session_semantic_changed(db_path, str(name), scenario_started)
+    except Exception:
+        semantic_changed = False
+    if not semantic_changed and exploratory_enabled:
+        try:
+            shifted = await _attempt_semantic_shift(page, db_path, name)
+            if shifted:
+                semantic_changed = True
+                scenario_changed = True
+        except Exception:
+            pass
+    if not semantic_changed:
+        try:
+            log_event(
+                db_path,
+                name,
+                {
+                    "event_type": "semantic_delta_missing",
+                    "route": page.url if hasattr(page, "url") else "",
+                    "method": "SEMANTIC",
+                    "payload": {"scenario": name, "reason": "no_semantic_change"},
+                    "status": None,
+                },
+            )
+            _write_autonomy_goal(
+                db_path,
+                goal="gap_deepen",
+                payload={
+                    "uri": page.url if hasattr(page, "url") else "",
+                    "kind": "semantic_delta",
+                    "scenario": name,
+                    "value": "semantic_delta_missing",
+                },
+                source="semantic_delta",
+                ttl_days=2,
+            )
+        except Exception:
+            pass
+
     if keep_open and is_last:
         print(
             f"[!] Scenario '{name}' finished. Browser left open for manual review. Close it to continue."
@@ -6278,6 +7428,30 @@ async def _run_scenario_impl(
         print(f"[+] Scenario '{name}' done")
     if is_gap:
         try:
+            route_hint = ""
+            selector_hint = ""
+            try:
+                route_hint = str(meta.get("route") or data.get("route") or "").strip()
+            except Exception:
+                route_hint = ""
+            if not route_hint:
+                try:
+                    for s in steps:
+                        if s.get("action") in ("goto", "request"):
+                            route_hint = str(s.get("url") or "").strip()
+                            if route_hint:
+                                break
+                except Exception:
+                    route_hint = ""
+            if steps:
+                try:
+                    for s in steps:
+                        if s.get("action") in ("click", "type", "press", "hover"):
+                            selector_hint = str(s.get("selector") or "").strip()
+                            if selector_hint:
+                                break
+                except Exception:
+                    selector_hint = ""
             log_event(
                 db_path,
                 name,
@@ -6289,10 +7463,25 @@ async def _run_scenario_impl(
                         "origin": origin or "gap",
                         "meta": meta,
                         "changed": bool(scenario_changed),
+                        "route": route_hint,
+                        "selector": selector_hint,
                     },
                     "status": 200 if scenario_changed else None,
                 },
             )
+            if selector_hint and _record_exploration_outcome:
+                try:
+                    _record_exploration_outcome(
+                        db_path,
+                        selector=selector_hint,
+                        href="",
+                        route=route_hint,
+                        result="changed" if scenario_changed else "no_change",
+                        delta_score=1.0 if scenario_changed else -0.2,
+                        selector_key=_selector_key_from_selector(selector_hint),
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -6488,6 +7677,30 @@ async def run_api_scenario(
     print(f"[+] API Scenario '{name}' done")
     if is_gap:
         try:
+            route_hint = ""
+            selector_hint = ""
+            try:
+                route_hint = str(meta.get("route") or data.get("route") or "").strip()
+            except Exception:
+                route_hint = ""
+            if not route_hint:
+                try:
+                    for s in steps:
+                        if s.get("action") in ("goto", "request"):
+                            route_hint = str(s.get("url") or "").strip()
+                            if route_hint:
+                                break
+                except Exception:
+                    route_hint = ""
+            if steps:
+                try:
+                    for s in steps:
+                        if s.get("action") in ("click", "type", "press", "hover"):
+                            selector_hint = str(s.get("selector") or "").strip()
+                            if selector_hint:
+                                break
+                except Exception:
+                    selector_hint = ""
             log_event(
                 db_path,
                 name,
@@ -6499,6 +7712,8 @@ async def run_api_scenario(
                         "origin": origin or "gap",
                         "meta": meta,
                         "changed": bool(scenario_changed),
+                        "route": route_hint,
+                        "selector": selector_hint,
                     },
                     "status": 200 if scenario_changed else None,
                 },
@@ -6567,9 +7782,19 @@ async def main(
     scenario_files = sorted(scenario_files, key=_scenario_priority)
     _trace("main: priority sort complete")
     if include:
-        scenario_files = [
-            p for p in scenario_files if include.lower() in p.stem.lower()
-        ]
+        filtered = []
+        gap_keep = []
+        for p in scenario_files:
+            try:
+                p_norm = str(p).replace("\\", "/").lower()
+                if "/generated/" in p_norm or p.stem.startswith("gap_"):
+                    gap_keep.append(p)
+                    continue
+            except Exception:
+                pass
+            if include.lower() in p.stem.lower():
+                filtered.append(p)
+        scenario_files = gap_keep + filtered
         _trace(f"main: include filter applied => {len(scenario_files)}")
     auto_flag = os.getenv("BGL_INCLUDE_AUTONOMOUS")
     if auto_flag is None:
@@ -6719,7 +7944,15 @@ async def main(
         # Run API scenarios (no browser)
         for path in api_scenarios:
             _trace(f"api: run {path}")
+            try:
+                _refresh_scenario_lock()
+            except Exception:
+                pass
             await run_api_scenario(base_url, path, db_path)
+            try:
+                _refresh_scenario_lock()
+            except Exception:
+                pass
         _trace("api: done")
 
         # Run UI scenarios (browser)
@@ -6790,6 +8023,10 @@ async def main(
                 await run_goal_scenario(manager, shared_page, base_url, db_path, g)
             for idx, path in enumerate(ui_scenarios):
                 _trace(f"ui: run_scenario {path}")
+                try:
+                    _refresh_scenario_lock()
+                except Exception:
+                    pass
                 await run_scenario(
                     manager,
                     shared_page,
@@ -6799,6 +8036,10 @@ async def main(
                     db_path,
                     is_last=(idx == len(ui_scenarios) - 1),
                 )
+                try:
+                    _refresh_scenario_lock()
+                except Exception:
+                    pass
             if autonomous_scenario:
                 _trace("ui: run_autonomous_scenario")
                 await run_autonomous_scenario(manager, shared_page, base_url, db_path)
@@ -6817,7 +8058,19 @@ async def main(
 
         digest_path = ROOT_DIR / ".bgl_core" / "brain" / "context_digest.py"
         # Avoid cmd.exe quoting pitfalls on Windows; also prevents noisy "filename syntax" errors.
-        subprocess.run([sys.executable, str(digest_path)], cwd=ROOT_DIR, timeout=30)
+        digest_env = os.environ.copy()
+        # Keep post-run digest fast: never auto-apply during scenario execution.
+        digest_env.setdefault("BGL_AUTO_APPLY", "0")
+        digest_env.setdefault("BGL_AUTO_APPLY_LIMIT", "0")
+        digest_env.setdefault("BGL_AUTO_PROMOTE_TO_PROD", "0")
+        digest_hours = str(_cfg_value("auto_digest_hours", 12))
+        digest_limit = str(_cfg_value("auto_digest_limit", 200))
+        subprocess.run(
+            [sys.executable, str(digest_path), "--hours", digest_hours, "--limit", digest_limit],
+            cwd=ROOT_DIR,
+            env=digest_env,
+            timeout=30,
+        )
         _trace("post: context_digest done")
     except Exception:
         pass

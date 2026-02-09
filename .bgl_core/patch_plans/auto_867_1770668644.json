@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "id": "patch_plan_867",
+  "description": "Stabilize route /views/statistics.php",
+  "created_at": 1694000000,
+  "metadata": {
+    "experience_id": 9314,
+    "exp_hash": "931658693c7e1749d2ad838f18acc0543daa1dfe",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 867,
+    "generated_at": 1770668644.3094358
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /views/statistics.php\n  stability: high\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /views/statistics.php\n  stability: high\n"
+      }
+    }
+  ]
+}

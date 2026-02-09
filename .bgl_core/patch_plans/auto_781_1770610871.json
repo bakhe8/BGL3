@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "781",
+  "description": "Route http://localhost:8000/api/delete_bank.php: 3 events, 3 HTTP calls (3 failed), 0 JS errors, 0 network errors, avg latency 17.17 ms (max 22.6 ms).",
+  "created_at": 1690452800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 781,
+    "generated_at": 1770610871.2798288
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "api:\n  - path: /api/delete_bank.php\n    method: DELETE\n    success:\n      - status_code: 204\n        response_body: {}\n      - status_code: 500\n        response_body: {\"error\": \"Internal Server Error\"}\n    failure:\n      - status_code: 404\n        response_body: {\"error\": \"Not Found\"}",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api:\n  - path: /api/delete_bank.php\n    method: DELETE\n    success:\n      - status_code: 204\n        response_body: {}\n      - status_code: 500\n        response_body: {\"error\": \"Internal Server Error\"}\n    failure:\n      - status_code: 404\n        response_body: {\"error\": \"Not Found\"}"
+      }
+    }
+  ]
+}

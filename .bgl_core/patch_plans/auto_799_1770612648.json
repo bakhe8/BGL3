@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "799",
+  "description": "Route a[href=\"./views/settings.php\"]: 1 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1690483200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 799,
+    "generated_at": 1770612648.260376
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_settings_php.yaml",
+      "mode": null,
+      "content": "route:\n  path: ./views/settings.php\n  method: GET\n  handler: settings_handler\n  description: Handle settings page",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "route:\n  path: ./views/settings.php\n  method: GET\n  handler: settings_handler\n  description: Handle settings page"
+      }
+    }
+  ]
+}

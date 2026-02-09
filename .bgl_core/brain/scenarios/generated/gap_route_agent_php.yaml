@@ -1,0 +1,11 @@
+name: gap_route_agent_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agent.php
+steps:
+- action: goto
+  url: /agent.php
+- action: wait
+  ms: 400

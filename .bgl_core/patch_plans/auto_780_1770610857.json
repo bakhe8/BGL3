@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "780",
+  "description": "Route api: 44 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1692352800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 780,
+    "generated_at": 1770610857.7384973
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/api_smoke.yaml",
+      "mode": "append",
+      "content": "\n- event: api_route_stabilization\n  description: Ensure API route is stable and performs as expected.\n  steps:\n    - step: run_tests\n      command: ./run_api_tests.sh\n      expected_result: all tests pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- event: api_route_stabilization\n  description: Ensure API route is stable and performs as expected.\n  steps:\n    - step: run_tests\n      command: ./run_api_tests.sh\n      expected_result: all tests pass"
+      }
+    }
+  ]
+}

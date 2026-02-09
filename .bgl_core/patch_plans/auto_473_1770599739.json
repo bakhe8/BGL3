@@ -1,0 +1,44 @@
+{
+  "version": 1,
+  "id": "473",
+  "description": "Route http://localhost:8000/: 2 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770599542,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 473,
+    "generated_at": 1770599739.5778155
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nservices:\n  app:\n    image: myapp\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=True",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nservices:\n  app:\n    image: myapp\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=True"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nservices:\n  app:\n    image: myapp\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=True",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nservices:\n  app:\n    image: myapp\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=True"
+      }
+    }
+  ]
+}

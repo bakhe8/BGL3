@@ -1,0 +1,15 @@
+name: autonomous_1770602530
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/views/batch-detail.php?import_source=excel_20260115_101359_Copyofextension12JAN
+- action: type
+  selector: input[name="search"]
+  text: supplier
+  auto_submit: true
+- action: click
+  selector: '#btnCancelExcel'
+- action: click
+  selector: button.note-save-btn
+- action: wait
+  ms: 600

@@ -173,4 +173,19 @@ class AgentConsole
 }
 
 // تشغيل الواجهة
+$argv = $argv ?? ($_SERVER['argv'] ?? []);
+if (!is_array($argv)) {
+    $argv = [];
+}
+if (PHP_SAPI !== 'cli') {
+    // Allow simple web usage: /agent.php?cmd=status or /agent.php?cmd=chat&q=...
+    $cmd = isset($_GET['cmd']) ? (string)$_GET['cmd'] : null;
+    if ($cmd) {
+        $argv = array_values(array_filter([
+            'agent.php',
+            $cmd,
+            isset($_GET['q']) ? (string)$_GET['q'] : null,
+        ], static fn($v) => $v !== null && $v !== ''));
+    }
+}
 (new AgentConsole())->handle($argv);

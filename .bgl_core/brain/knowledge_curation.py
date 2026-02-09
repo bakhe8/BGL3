@@ -68,6 +68,42 @@ def _ensure_tables(conn: sqlite3.Connection) -> None:
     )
 
 
+def _ensure_conflict_history_table(conn: sqlite3.Connection) -> None:
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS knowledge_conflict_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            key TEXT NOT NULL,
+            winner_path TEXT,
+            created_at REAL NOT NULL,
+            reason TEXT
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_knowledge_conflict_history_key ON knowledge_conflict_history(key, created_at DESC)"
+    )
+
+
+def _load_conflict_history(conn: sqlite3.Connection, cutoff: float) -> Dict[str, Dict[str, int]]:
+    history: Dict[str, Dict[str, int]] = {}
+    try:
+        rows = conn.execute(
+            "SELECT key, winner_path FROM knowledge_conflict_history WHERE created_at >= ?",
+            (float(cutoff),),
+        ).fetchall()
+    except Exception:
+        return history
+    for row in rows:
+        key = str(row[0] or "")
+        winner = str(row[1] or "")
+        if not key or not winner:
+            continue
+        history.setdefault(key, {})
+        history[key][winner] = history[key].get(winner, 0) + 1
+    return history
+
+
 def _extract_meta(content: str) -> Tuple[Optional[str], Optional[str]]:
     try:
         import re
@@ -161,6 +197,20 @@ def _item_from_path(
             status = "stale_age"
             confidence = max(0.1, confidence - 0.2)
             notes = f"{notes} age_days={int(age_days)}".strip()
+        try:
+            decay_days = int(os.getenv("BGL_KNOWLEDGE_DECAY_DAYS", "45") or 45)
+        except Exception:
+            decay_days = 45
+        if decay_days > 0 and age_days > decay_days:
+            decay = min(0.35, (age_days / float(decay_days)) * 0.05)
+            confidence = max(0.1, confidence - decay)
+            notes = f"{notes} decay={round(decay, 2)}".strip()
+        try:
+            boost_days = int(os.getenv("BGL_KNOWLEDGE_RECENT_BOOST_DAYS", "2") or 2)
+        except Exception:
+            boost_days = 2
+        if boost_days > 0 and age_days <= boost_days:
+            confidence = min(0.98, confidence + 0.05)
 
     return {
         "key": str(key),
@@ -201,12 +251,45 @@ def curate_knowledge(root_dir: Path, db_path: Path) -> Dict[str, Any]:
     for item in items:
         grouped.setdefault(str(item.get("key") or ""), []).append(item)
 
+    history_counts: Dict[str, Dict[str, int]] = {}
+    try:
+        history_days = int(os.getenv("BGL_KNOWLEDGE_CONFLICT_HISTORY_DAYS", "30") or 30)
+    except Exception:
+        history_days = 30
+    history_cutoff = time.time() - (history_days * 86400.0)
+    try:
+        stable_count = int(os.getenv("BGL_KNOWLEDGE_CONFLICT_STABLE_COUNT", "2") or 2)
+    except Exception:
+        stable_count = 2
+
+    conn = None
+    try:
+        conn = _connect(db_path)
+        _ensure_tables(conn)
+        _ensure_conflict_history_table(conn)
+        history_counts = _load_conflict_history(conn, history_cutoff)
+    except Exception:
+        history_counts = {}
+
     conflicts: List[Dict[str, Any]] = []
     for key, group in grouped.items():
         if len(group) <= 1:
             continue
         ranked = sorted(group, key=_rank_item, reverse=True)
         winner = ranked[0]
+        stable_winner = ""
+        if history_counts and key in history_counts:
+            winners = history_counts.get(key) or {}
+            if winners:
+                try:
+                    stable_winner = max(winners.items(), key=lambda kv: kv[1])[0]
+                except Exception:
+                    stable_winner = ""
+                if stable_winner and winners.get(stable_winner, 0) >= stable_count:
+                    for item in ranked:
+                        if str(item.get("source_path") or "") == stable_winner:
+                            winner = item
+                            break
         active = [g for g in ranked if str(g.get("status") or "") in ("active", "legacy")]
         if active:
             # Mark non-winners as superseded when multiple active entries exist.
@@ -235,14 +318,16 @@ def curate_knowledge(root_dir: Path, db_path: Path) -> Dict[str, Any]:
                             }
                             for i in ranked[:4]
                         ],
-                        "reason": "close_confidence",
+                        "reason": "stable_history" if stable_winner else "close_confidence",
                     }
                 )
 
     # Persist registry
     try:
-        conn = _connect(db_path)
-        _ensure_tables(conn)
+        if conn is None:
+            conn = _connect(db_path)
+            _ensure_tables(conn)
+            _ensure_conflict_history_table(conn)
         conn.execute("DELETE FROM knowledge_items")
         conn.execute("DELETE FROM knowledge_conflicts")
         now = time.time()
@@ -267,6 +352,14 @@ def curate_knowledge(root_dir: Path, db_path: Path) -> Dict[str, Any]:
                     now,
                 ),
             )
+        # prune old history to keep DB small
+        try:
+            conn.execute(
+                "DELETE FROM knowledge_conflict_history WHERE created_at < ?",
+                (float(history_cutoff),),
+            )
+        except Exception:
+            pass
         for conflict in conflicts:
             conn.execute(
                 """
@@ -281,10 +374,28 @@ def curate_knowledge(root_dir: Path, db_path: Path) -> Dict[str, Any]:
                     str(conflict.get("reason") or ""),
                 ),
             )
+            try:
+                conn.execute(
+                    """
+                    INSERT INTO knowledge_conflict_history (key, winner_path, created_at, reason)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        str(conflict.get("key") or ""),
+                        str(conflict.get("winner_path") or ""),
+                        now,
+                        str(conflict.get("reason") or ""),
+                    ),
+                )
+            except Exception:
+                pass
         conn.commit()
         conn.close()
     except Exception:
-        pass
+        try:
+            conn.close()
+        except Exception:
+            pass
 
     # Summaries
     counts: Dict[str, int] = {

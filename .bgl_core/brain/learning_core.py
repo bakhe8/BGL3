@@ -12,6 +12,7 @@ from typing import Any, Dict, List, Optional, Tuple
 try:
     from .config_loader import load_config  # type: ignore
     from .self_policy import load_self_policy, save_self_policy  # type: ignore
+    from .decision_db import record_decision_trace  # type: ignore
 except Exception:
     try:
         from config_loader import load_config  # type: ignore
@@ -22,6 +23,10 @@ except Exception:
     except Exception:
         load_self_policy = None  # type: ignore
         save_self_policy = None  # type: ignore
+    try:
+        from decision_db import record_decision_trace  # type: ignore
+    except Exception:
+        record_decision_trace = None  # type: ignore
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -67,6 +72,26 @@ def _safe_json(obj: Any) -> str:
         return "{}"
 
 
+def _record_fallback_rule_trace(
+    db_path: Path, *, source: str, payload: Dict[str, Any]
+) -> None:
+    if record_decision_trace is None:
+        return
+    try:
+        record_decision_trace(
+            db_path,
+            kind="fallback_rules",
+            decision_id=0,
+            outcome_id=None,
+            operation="fallback_rules_update",
+            result=str(source),
+            source="learning_core",
+            details=payload,
+        )
+    except Exception:
+        pass
+
+
 def _root_from_db(db_path: Path) -> Path:
     try:
         return db_path.parent.parent.parent
@@ -98,6 +123,30 @@ def _cfg_flag(env_key: str, cfg: Dict[str, Any], key: str, default: bool) -> boo
         return str(val).strip() == "1"
     except Exception:
         return bool(default)
+
+
+def _fallback_block_disabled(cfg: Dict[str, Any]) -> bool:
+    return _cfg_flag("BGL_DISABLE_FALLBACK_BLOCKS", cfg, "fallback_block_disabled", False)
+
+
+def _fallback_require_human_disabled(cfg: Dict[str, Any]) -> bool:
+    return _cfg_flag(
+        "BGL_DISABLE_FALLBACK_REQUIRE_HUMAN",
+        cfg,
+        "fallback_require_human_disabled",
+        False,
+    )
+
+
+def _normalize_fallback_action(action: Optional[str], cfg: Dict[str, Any]) -> Optional[str]:
+    act = str(action or "").lower()
+    if not act:
+        return None
+    if act == "block" and _fallback_block_disabled(cfg):
+        return "observe"
+    if act == "require_human" and _fallback_require_human_disabled(cfg):
+        return "observe"
+    return act
 
 
 def _normalize_scope(scope_val: Any) -> str:
@@ -257,6 +306,39 @@ def apply_external_dependency_fallback(
             cfg = load_config(root_dir) or {}
         except Exception:
             cfg = {}
+
+    enabled = _cfg_flag(
+        "BGL_EXTERNAL_DEP_FALLBACK_ENABLED",
+        cfg,
+        "external_dependency_fallback_enabled",
+        True,
+    )
+    if not enabled:
+        # Clean any existing external dependency rule when disabled.
+        try:
+            policy = load_self_policy(root_dir)
+            rules = policy.get("fallback_rules") or []
+            if isinstance(rules, list):
+                cleaned = [r for r in rules if str((r or {}).get("key") or "") != "external_dependency::*"]
+                if len(cleaned) != len(rules):
+                    policy["fallback_rules"] = cleaned
+                    policy["last_updated"] = time.time()
+                    history = policy.get("history") or []
+                    if not isinstance(history, list):
+                        history = []
+                    history.append(
+                        {
+                            "ts": time.time(),
+                            "changes": ["fallback_rules:-external_dependency"],
+                            "context": {"disabled": True},
+                            "source": "external_dependency",
+                        }
+                    )
+                    policy["history"] = history
+                    save_self_policy(root_dir, policy)
+        except Exception:
+            pass
+        return {"ok": False, "error": "disabled", "active": False}
 
     window_minutes = int(
         _cfg_number(
@@ -779,13 +861,17 @@ def update_fallback_rules_from_prod_ops(
         blocked = int(data.get("blocked") or 0)
         allowed = int(data.get("allowed") or 0)
         blocked_rate = blocked / max(1, count)
-        key = f"outcomes::{data.get('operation')}::{failure_class}"
-        seen_keys.add(key)
+        # track seen keys by operation+scope to avoid stale rules
+        seen_keys.add(f"{data.get('operation')}::{data.get('scope')}")
         action = None
         if blocked_rate >= block_rate_threshold or str(data.get("last_status") or "").startswith("blocked"):
             action = "block"
         elif blocked_rate >= max(0.1, block_rate_threshold / 2):
             action = "require_human"
+        if not action:
+            continue
+        original_action = action
+        action = _normalize_fallback_action(action, cfg)
         if not action:
             continue
         key = f"{data.get('operation')}::{data.get('scope')}"
@@ -813,6 +899,9 @@ def update_fallback_rules_from_prod_ops(
             "updated_at": now,
             "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
         }
+        if original_action != action:
+            payload["disabled_action"] = original_action
+            payload["disabled_reason"] = "fallback_action_disabled"
         if existing:
             existing.update(payload)
             updated.append(existing)
@@ -861,7 +950,18 @@ def update_fallback_rules_from_prod_ops(
     save_self_policy(root_dir, policy)
     conn.commit()
     conn.close()
-
+    _record_fallback_rule_trace(
+        db_path,
+        source="fallback_rules_prod_ops",
+        payload={
+            "created": len(created),
+            "updated": len(updated),
+            "total_rules": len(rules),
+            "lookback_hours": lookback_hours,
+            "min_samples": min_samples,
+            "block_rate_threshold": block_rate_threshold,
+        },
+    )
     return {
         "ok": True,
         "created": created,
@@ -956,6 +1056,12 @@ def update_fallback_rules_from_outcomes(
         op = str(r["operation"] or "")
         if not op:
             continue
+        try:
+            notes_text = str(r["notes"] or "")
+            if "auto-log from master_verify pipeline" in notes_text:
+                continue
+        except Exception:
+            pass
         # Normalize to prefix (e.g., proposal.apply|26 -> proposal.apply)
         prefix = op.split("|")[0].strip()
         if prefix in exclude_ops:
@@ -1063,6 +1169,10 @@ def update_fallback_rules_from_outcomes(
             action = "require_human"
         if not action:
             continue
+        original_action = action
+        action = _normalize_fallback_action(action, cfg)
+        if not action:
+            continue
         active_keys.add(key)
         existing = None
         for rule in rules:
@@ -1086,6 +1196,9 @@ def update_fallback_rules_from_outcomes(
             "updated_at": now,
             "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
         }
+        if original_action != action:
+            payload["disabled_action"] = original_action
+            payload["disabled_reason"] = "fallback_action_disabled"
         if existing:
             existing.update(payload)
             updated.append(existing)
@@ -1150,6 +1263,20 @@ def update_fallback_rules_from_outcomes(
     conn.commit()
     conn.close()
 
+    _record_fallback_rule_trace(
+        db_path,
+        source="fallback_rules_outcomes",
+        payload={
+            "created": len(created),
+            "updated": len(updated),
+            "removed": len(removed),
+            "total_rules": len(rules),
+            "lookback_hours": lookback_hours,
+            "min_samples": min_samples,
+            "fail_rate_threshold": fail_rate_threshold,
+            "block_rate_threshold": block_rate_threshold,
+        },
+    )
     return {
         "ok": True,
         "created": created,
@@ -1307,6 +1434,10 @@ def update_fallback_rules_from_runtime_contracts(
             action = "require_human"
         if not action:
             continue
+        original_action = action
+        action = _normalize_fallback_action(action, cfg)
+        if not action:
+            continue
 
         key = f"runtime_contract::{file_path}"
         active_keys.add(key)
@@ -1333,6 +1464,9 @@ def update_fallback_rules_from_runtime_contracts(
             "updated_at": now,
             "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
         }
+        if original_action != action:
+            payload["disabled_action"] = original_action
+            payload["disabled_reason"] = "fallback_action_disabled"
         if existing:
             existing.update(payload)
             updated.append(existing)
@@ -1399,6 +1533,19 @@ def update_fallback_rules_from_runtime_contracts(
         policy["history"] = history[-30:]
     save_self_policy(root_dir, policy)
 
+    _record_fallback_rule_trace(
+        db_path,
+        source="fallback_rules_runtime",
+        payload={
+            "created": len(created),
+            "updated": len(updated),
+            "removed": len(removed),
+            "total_rules": len(rules),
+            "min_events": min_events,
+            "block_rate_threshold": block_rate_threshold,
+            "require_rate_threshold": require_rate_threshold,
+        },
+    )
     return {
         "ok": True,
         "created": created,
@@ -1548,6 +1695,10 @@ def update_fallback_rules_from_code_intent(
             action = "block"
         elif temporal_risk and risk in ("high", "medium"):
             action = "require_human"
+        original_action = action
+        action = _normalize_fallback_action(action, cfg)
+        if not action:
+            continue
 
         reason_parts = ["code_intent_signals"]
         if suggested:
@@ -1590,6 +1741,9 @@ def update_fallback_rules_from_code_intent(
             "updated_at": now,
             "expires_at": now + float(expire_days) * 86400.0 if expire_days > 0 else None,
         }
+        if original_action != action:
+            payload["disabled_action"] = original_action
+            payload["disabled_reason"] = "fallback_action_disabled"
         if existing:
             existing.update(payload)
             updated.append(existing)
@@ -1655,6 +1809,18 @@ def update_fallback_rules_from_code_intent(
         policy["history"] = history[-30:]
     save_self_policy(root_dir, policy)
 
+    _record_fallback_rule_trace(
+        db_path,
+        source="fallback_rules_code_intent",
+        payload={
+            "created": len(created),
+            "updated": len(updated),
+            "removed": len(removed),
+            "total_rules": len(rules),
+            "min_repeat": min_repeat,
+            "block_repeat": block_repeat,
+        },
+    )
     return {
         "ok": True,
         "created": created,

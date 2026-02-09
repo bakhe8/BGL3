@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_865",
+  "description": "Stabilize scenario goal_1770667652.yaml",
+  "created_at": 1704396000,
+  "metadata": {
+    "proposal_id": 865,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770668672.4852767
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770667652.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenario:\n  name: goal_1770667652\n  events:\n    - event_type: http_request\n      url: /api/v1/data\n      method: GET\n      expected_status_code: 200\n      timeout: 500ms",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenario:\n  name: goal_1770667652\n  events:\n    - event_type: http_request\n      url: /api/v1/data\n      method: GET\n      expected_status_code: 200\n      timeout: 500ms"
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "815",
+  "description": "Route http://localhost:8000/api/manual-entry.php: 1 events, 1 HTTP calls (1 failed), 0 JS errors, 0 network errors, avg latency 18.5 ms (max 18.5 ms).",
+  "created_at": 1770617247,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 815,
+    "generated_at": 1770617892.4830031
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_manual_entry_php.yaml",
+      "mode": "append",
+      "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 9196, \\\"exp_hash\\\": \\\"240bcb7217731e93d3e20decdca295e3d083083d\\\", \\\"scenario\\\": \\\"http://localhost:8000/api/manual-entry.php\\\", \\\"summary\\\": \\\"Route http://localhost:8000/api/manual-entry.php: 1 events, 1 HTTP calls (1 failed), 0 JS errors, 0 network errors, avg latency 18.5 ms (max 18.5 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 1, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 9196, \\\"exp_hash\\\": \\\"240bcb7217731e93d3e20decdca295e3d083083d\\\", \\\"scenario\\\": \\\"http://localhost:8000/api/manual-entry.php\\\", \\\"summary\\\": \\\"Route http://localhost:8000/api/manual-entry.php: 1 events, 1 HTTP calls (1 failed), 0 JS errors, 0 network errors, avg latency 18.5 ms (max 18.5 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 1, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\""
+      }
+    }
+  ]
+}

@@ -183,6 +183,52 @@ def _outcome_stats(conn: sqlite3.Connection, lookback_days: int) -> Dict[str, An
     return {"total": total, "fail": fail, "success": success, "fail_rate": fail_rate}
 
 
+def _decision_trace_stats(conn: sqlite3.Connection, lookback_days: int) -> Dict[str, Any]:
+    cutoff = time.time() - (lookback_days * 86400)
+    try:
+        rows = conn.execute(
+            """
+            SELECT result, failure_class, COUNT(*) c
+            FROM decision_traces
+            WHERE created_at >= ?
+            GROUP BY result, failure_class
+            """,
+            (float(cutoff),),
+        ).fetchall()
+    except Exception:
+        return {"total": 0, "blocked": 0, "rollback": 0, "blocked_ratio": 0.0}
+    total = 0
+    blocked = 0
+    for row in rows:
+        try:
+            result = str(row["result"] or "").lower()
+        except Exception:
+            result = ""
+        try:
+            fclass = str(row["failure_class"] or "").lower()
+        except Exception:
+            fclass = ""
+        count = int(row["c"] or 0)
+        total += count
+        if result == "blocked" or fclass == "blocked":
+            blocked += count
+    try:
+        rb_row = conn.execute(
+            "SELECT COUNT(*) c FROM decision_traces WHERE created_at >= ? AND kind='rollback'",
+            (float(cutoff),),
+        ).fetchone()
+        rollback = int(rb_row["c"] or 0) if rb_row else 0
+    except Exception:
+        rollback = 0
+    blocked_ratio = blocked / max(1, total)
+    return {
+        "total": total,
+        "blocked": blocked,
+        "rollback": rollback,
+        "blocked_ratio": blocked_ratio,
+    }
+
+
 def refresh_long_term_goals(
     db_path: Path,
     *,
@@ -272,6 +318,37 @@ def refresh_long_term_goals(
                 "priority": _clamp(pri, 0.2, 1.0),
                 "status": "active",
                 "notes": "fail_rate_trigger",
+            }
+        )
+
+    # Decision trace stability -> blocked/rollback signals
+    trace_stats = _decision_trace_stats(conn, lookback_days)
+    if trace_stats.get("total", 0) >= 5 and trace_stats.get("blocked_ratio", 0.0) >= 0.3:
+        pri = 0.55 + min(0.35, float(trace_stats.get("blocked_ratio", 0.0)))
+        add_candidate(
+            {
+                "goal_key": "blocked_dependency_review",
+                "title": "Blocked dependency review",
+                "goal": "blocked_dependency_review",
+                "payload": {"trace_stats": trace_stats},
+                "source": "decision_traces",
+                "priority": _clamp(pri, 0.2, 1.0),
+                "status": "active",
+                "notes": "blocked_ratio_trigger",
+            }
+        )
+    if int(trace_stats.get("rollback", 0) or 0) >= 2:
+        pri = 0.6 + min(0.25, 0.05 * int(trace_stats.get("rollback", 0) or 0))
+        add_candidate(
+            {
+                "goal_key": "rollback_review",
+                "title": "Rollback review",
+                "goal": "rollback_review",
+                "payload": {"trace_stats": trace_stats},
+                "source": "decision_traces",
+                "priority": _clamp(pri, 0.2, 1.0),
+                "status": "active",
+                "notes": "rollback_trigger",
             }
         )
 

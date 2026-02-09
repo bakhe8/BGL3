@@ -84,6 +84,25 @@ def _contract_map(data: Dict[str, Any]) -> Dict[str, Dict[str, Any]]:
     return mapping
 
 
+def _heuristic_tests(root: Path, rel_paths: List[str]) -> List[str]:
+    stems = []
+    for rel in rel_paths:
+        try:
+            stems.append(Path(rel).stem)
+        except Exception:
+            continue
+    if not stems:
+        return []
+    candidates: List[str] = []
+    suites = ["tests/Unit", "tests/Feature", "tests/Integration"]
+    for suite in suites:
+        for stem in stems:
+            candidate = root / suite / f"{stem}Test.php"
+            if candidate.exists():
+                candidates.append(str(candidate))
+    return candidates
+
+
 def collect_tests_for_files(root: Path, rel_paths: List[str]) -> List[str]:
     data = load_code_contracts(root)
     contract_map = _contract_map(data)
@@ -98,7 +117,10 @@ def collect_tests_for_files(root: Path, rel_paths: List[str]) -> List[str]:
     for t in sorted(set(tests)):
         if (root / t).exists():
             existing.append(str(root / t))
-    return existing
+    if existing:
+        return existing
+    # Fallback heuristic when contracts lack explicit tests.
+    return _heuristic_tests(root, rel_paths)
 
 def evaluate_files(
     root: Path,

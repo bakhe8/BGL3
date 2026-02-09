@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_779",
+  "description": "Stabilize scenario goal_1770610512.yaml",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 779,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770610822.7657413
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770610512.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_1770610512\ndescription: Stabilize scenario goal_1770610512\nsteps:\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 9146, \\\"exp_hash\\\": \\\"a249b9704a652bbb28a86ed557b644a29e6777a9\\\", \\\"scenario\\\": \\\"C:\\\\\\\\Users\\\\\\\\Bakheet\\\\\\\\Documents\\\\\\\\Projects\\\\\\\\BGL3\\\\\\\\.bgl_core\\\\\\\\brain\\\\\\\\scenarios\\\\\\\\goals\\\\\\\\goal_1770610512.yaml\\\", \\\"summary\\\": \\\"Route C:\\\\\\\\Users\\\\\\\\Bakheet\\\\\\\\Documents\\\\\\\\Projects\\\\\\\\BGL3\\\\\\\\.bgl_core\\\\\\\\brain\\\\\\\\scenarios\\\\\\\\goals\\\\\\\\goal_1770610512.yaml: 1 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 1, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_1770610512\ndescription: Stabilize scenario goal_1770610512\nsteps:\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 9146, \\\"exp_hash\\\": \\\"a249b9704a652bbb28a86ed557b644a29e6777a9\\\", \\\"scenario\\\": \\\"C:\\\\\\\\Users\\\\\\\\Bakheet\\\\\\\\Documents\\\\\\\\Projects\\\\\\\\BGL3\\\\\\\\.bgl_core\\\\\\\\brain\\\\\\\\scenarios\\\\\\\\goals\\\\\\\\goal_1770610512.yaml\\\", \\\"summary\\\": \\\"Route C:\\\\\\\\Users\\\\\\\\Bakheet\\\\\\\\Documents\\\\\\\\Projects\\\\\\\\BGL3\\\\\\\\.bgl_core\\\\\\\\brain\\\\\\\\scenarios\\\\\\\\goals\\\\\\\\goal_1770610512.yaml: 1 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 1, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"\n"
+      }
+    }
+  ]
+}

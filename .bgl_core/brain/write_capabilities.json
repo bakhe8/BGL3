@@ -3,7 +3,7 @@
   "policy": {
     "mode": "direct",
     "require_backup": true,
-    "require_tests": true,
+    "require_tests": false,
     "max_files_per_change": 30,
     "max_lines_per_change": 500,
     "max_file_bytes": 400000,

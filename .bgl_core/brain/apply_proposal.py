@@ -9,6 +9,10 @@ import shutil
 import os
 import sys
 from typing import Any, Optional, Tuple, Dict, List
+try:
+    from .db_utils import connect_db  # type: ignore
+except Exception:
+    from db_utils import connect_db  # type: ignore
 
 try:
     from .authority import Authority  # type: ignore
@@ -19,8 +23,9 @@ try:
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
     from .canary_release import register_canary_release, evaluate_canary_releases, rollback_release  # type: ignore
     from .agent_verify import run_all_checks  # type: ignore
-    from .test_gate import require_tests_enabled, collect_tests_for_files  # type: ignore
+    from .test_gate import require_tests_enabled, collect_tests_for_files, evaluate_files  # type: ignore
     from .config_loader import load_config  # type: ignore
+    from .decision_db import record_decision_trace  # type: ignore
 except Exception:
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
@@ -30,11 +35,15 @@ except Exception:
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
     from canary_release import register_canary_release, evaluate_canary_releases, rollback_release
     from agent_verify import run_all_checks
-    from test_gate import require_tests_enabled, collect_tests_for_files
+    from test_gate import require_tests_enabled, collect_tests_for_files, evaluate_files
     try:
         from config_loader import load_config  # type: ignore
     except Exception:
         load_config = None  # type: ignore
+    try:
+        from decision_db import record_decision_trace  # type: ignore
+    except Exception:
+        record_decision_trace = None  # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
@@ -85,6 +94,84 @@ def _cfg_number(env_key: str, cfg: Dict[str, Any], key: str, default):
         return type(default)(cfg.get(key, default))
     except Exception:
         return default
+
+
+def _auto_run_scenarios_after_apply(cfg: Dict[str, Any], *, proposal_id: Optional[str], mode: str) -> None:
+    enabled = _cfg_flag(
+        "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY",
+        cfg,
+        "auto_run_scenarios_after_apply",
+        False,
+    )
+    if not enabled:
+        return
+    if mode == "prod":
+        prod_enabled = _cfg_flag(
+            "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_PROD",
+            cfg,
+            "auto_run_scenarios_after_apply_prod",
+            True,
+        )
+        if not prod_enabled:
+            return
+    try:
+        limit = int(
+            _cfg_number(
+                "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_LIMIT",
+                cfg,
+                "auto_run_scenarios_after_apply_limit",
+                6,
+            )
+        )
+    except Exception:
+        limit = 6
+    try:
+        timeout_sec = int(
+            _cfg_number(
+                "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_TIMEOUT_SEC",
+                cfg,
+                "auto_run_scenarios_after_apply_timeout_sec",
+                240,
+            )
+        )
+    except Exception:
+        timeout_sec = 240
+    include_api = _cfg_flag(
+        "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_INCLUDE_API",
+        cfg,
+        "auto_run_scenarios_after_apply_include_api",
+        True,
+    )
+    include_autonomous = _cfg_flag(
+        "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_INCLUDE_AUTONOMOUS",
+        cfg,
+        "auto_run_scenarios_after_apply_include_autonomous",
+        False,
+    )
+    headless = _cfg_flag(
+        "BGL_AUTO_RUN_SCENARIOS_AFTER_APPLY_HEADLESS",
+        cfg,
+        "auto_run_scenarios_after_apply_headless",
+        True,
+    )
+    env = os.environ.copy()
+    env.setdefault("BGL_SCENARIO_BATCH_LIMIT", str(limit))
+    env.setdefault("BGL_INCLUDE_API", "1" if include_api else "0")
+    env.setdefault("BGL_INCLUDE_AUTONOMOUS", "1" if include_autonomous else "0")
+    env.setdefault("BGL_AUTONOMOUS_SCENARIO", "1" if include_autonomous else "0")
+    env.setdefault("BGL_HEADLESS", "1" if headless else "0")
+    env.setdefault("BGL_RUN_AFTER_APPLY", "1")
+    if proposal_id:
+        env.setdefault("BGL_APPLY_PROPOSAL_ID", str(proposal_id))
+    try:
+        subprocess.run(
+            [sys.executable, str(ROOT / ".bgl_core" / "brain" / "run_scenarios.py")],
+            cwd=ROOT,
+            env=env,
+            timeout=timeout_sec,
+        )
+    except Exception:
+        return
 
 
 def _lint_files(root: Path, files: List[str], max_files: int = 4) -> Dict[str, Any]:
@@ -148,11 +235,27 @@ def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_fi
     require_tests = require_tests_enabled(root, False)
     if require_tests:
         test_paths = collect_tests_for_files(root, changed_files)
-        phpunit = _run_phpunit_tests(root, test_paths, max_files=max_files)
-        results["phpunit"] = phpunit
-        if not phpunit.get("ok", False):
-            results["ok"] = False
-            return results
+        if not test_paths:
+            # Allow scenario-backed validation for high-risk files when tests are missing
+            try:
+                gate = evaluate_files(
+                    root,
+                    changed_files,
+                    require_tests=True,
+                    allow_scenarios=True,
+                )
+            except Exception as e:
+                gate = {"ok": False, "errors": [f"scenario_gate_error:{e}"]}
+            results["tests_gate"] = gate
+            if not gate.get("ok", False):
+                results["ok"] = False
+                return results
+        else:
+            phpunit = _run_phpunit_tests(root, test_paths, max_files=max_files)
+            results["phpunit"] = phpunit
+            if not phpunit.get("ok", False):
+                results["ok"] = False
+                return results
     # Lint-only mode
     if mode in ("lint", "php_lint"):
         lint = _lint_files(root, changed_files, max_files=max_files)
@@ -184,6 +287,138 @@ def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_fi
     return results
 
 
+def _summarize_eval_failure(eval_result: Dict[str, Any], max_items: int = 3) -> str:
+    parts: List[str] = []
+    lint = eval_result.get("lint") or {}
+    if isinstance(lint, dict) and not lint.get("ok", True):
+        failures = lint.get("failures") or []
+        if failures:
+            parts.append("lint:" + "; ".join(str(f) for f in failures[:max_items]))
+        else:
+            parts.append("lint:failed")
+    phpunit = eval_result.get("phpunit") or {}
+    if isinstance(phpunit, dict) and not phpunit.get("ok", True):
+        err = phpunit.get("error") or ""
+        out = phpunit.get("output") or ""
+        detail = err or out
+        if detail:
+            parts.append(f"phpunit:{str(detail)[:200]}")
+        else:
+            parts.append("phpunit:failed")
+    tests_gate = eval_result.get("tests_gate") or {}
+    if isinstance(tests_gate, dict) and not tests_gate.get("ok", True):
+        errors = tests_gate.get("errors") or []
+        if errors:
+            parts.append("tests_gate:" + "; ".join(str(e) for e in errors[:max_items]))
+        else:
+            parts.append("tests_gate:failed")
+    checks = eval_result.get("checks") or {}
+    if isinstance(checks, dict) and not checks.get("passed", True):
+        failed = []
+        for r in checks.get("results") or []:
+            try:
+                if not r.get("passed", False):
+                    cid = r.get("id") or r.get("check") or "check"
+                    evidence = r.get("evidence") or []
+                    ev = ""
+                    if isinstance(evidence, list) and evidence:
+                        ev = str(evidence[0])
+                    elif evidence:
+                        ev = str(evidence)
+                    item = f"{cid}"
+                    if ev:
+                        item += f"({ev[:120]})"
+                    failed.append(item)
+            except Exception:
+                continue
+        if failed:
+            parts.append("checks:" + "; ".join(failed[:max_items]))
+        else:
+            parts.append("checks:failed")
+    return " | ".join(parts)
+
+
+def _write_eval_artifact(proposal_id: Any, eval_result: Dict[str, Any]) -> Optional[Path]:
+    try:
+        out_dir = ROOT / ".bgl_core" / "logs"
+        out_dir.mkdir(parents=True, exist_ok=True)
+        path = out_dir / f"post_apply_eval_{proposal_id}.json"
+        path.write_text(json.dumps(eval_result, ensure_ascii=False, indent=2), encoding="utf-8")
+        return path
+    except Exception:
+        return None
+
+
+def _load_code_contracts(root: Path) -> Dict[str, Any]:
+    path = root / "analysis" / "code_contracts.json"
+    if not path.exists():
+        return {}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _patch_risk_summary(root: Path, changed_files: List[str]) -> Dict[str, Any]:
+    data = _load_code_contracts(root)
+    contracts = data.get("contracts") or []
+    if not isinstance(contracts, list):
+        contracts = []
+    contract_map: Dict[str, Dict[str, Any]] = {}
+    for c in contracts:
+        if not isinstance(c, dict):
+            continue
+        file_path = str(c.get("file") or "").replace("\\", "/").lstrip("/")
+        if file_path:
+            contract_map[file_path] = c
+    high_risk = 0
+    stateful = 0
+    startup_exec = 0
+    accumulates = 0
+    missing_tests = 0
+    inspected = 0
+    markers: List[str] = []
+    for rel in changed_files:
+        rel_norm = str(rel or "").replace("\\", "/").lstrip("/")
+        if not rel_norm:
+            continue
+        inspected += 1
+        c = contract_map.get(rel_norm) or {}
+        risk = str(c.get("risk") or "").lower()
+        if risk == "high":
+            high_risk += 1
+        temporal = c.get("temporal_profile") or {}
+        if isinstance(temporal, dict):
+            if temporal.get("stateful"):
+                stateful += 1
+            if temporal.get("startup_exec"):
+                startup_exec += 1
+            if temporal.get("accumulates") or temporal.get("first_request_writes"):
+                accumulates += 1
+            if temporal.get("stateful") or temporal.get("startup_exec"):
+                markers.append(rel_norm)
+        tests = c.get("tests") or []
+        if not tests:
+            missing_tests += 1
+    ratio_stateful = round(stateful / max(1, inspected), 3) if inspected else 0.0
+    risk_level = "low"
+    if high_risk > 0 or startup_exec > 0 or accumulates > 0:
+        risk_level = "medium"
+    if high_risk >= 2 or (ratio_stateful >= 0.4 and startup_exec > 0):
+        risk_level = "high"
+    return {
+        "inspected": inspected,
+        "high_risk_files": high_risk,
+        "stateful_files": stateful,
+        "startup_exec_files": startup_exec,
+        "accumulates_files": accumulates,
+        "missing_tests": missing_tests,
+        "stateful_ratio": ratio_stateful,
+        "risk_level": risk_level,
+        "markers": markers[:6],
+    }
+
+
 def _ensure_proposal_links(conn: sqlite3.Connection) -> None:
     conn.execute(
         """
@@ -206,7 +441,7 @@ def _link_proposal_outcome(
     if not proposal_id or not decision_id:
         return
     try:
-        conn = sqlite3.connect(str(KNOWLEDGE_DB))
+        conn = connect_db(KNOWLEDGE_DB, timeout=30.0)
         _ensure_proposal_links(conn)
         conn.execute(
             """
@@ -247,7 +482,7 @@ def _log_learning_event(
     *, proposal_id: int, outcome_id: Optional[int], result: str, notes: str
 ) -> None:
     try:
-        conn = sqlite3.connect(str(KNOWLEDGE_DB))
+        conn = connect_db(KNOWLEDGE_DB, timeout=30.0)
         _ensure_learning_events(conn)
         fp_src = f"proposal_outcome|{proposal_id}|{outcome_id}|{result}"
         fp = hashlib.sha1(fp_src.encode("utf-8")).hexdigest()
@@ -404,7 +639,7 @@ def main():
     args = parser.parse_args()
 
     # Fetch from DB
-    conn_kb = sqlite3.connect(str(KNOWLEDGE_DB))
+    conn_kb = connect_db(KNOWLEDGE_DB, timeout=30.0)
     conn_kb.row_factory = sqlite3.Row
     target = None
     try:
@@ -496,7 +731,7 @@ def main():
                 )
                 plan_path = out_path
                 try:
-                    conn = sqlite3.connect(str(KNOWLEDGE_DB))
+                    conn = connect_db(KNOWLEDGE_DB, timeout=30.0)
                     conn.execute(
                         "UPDATE agent_proposals SET solution = ? WHERE id = ?",
                         (str(out_path.relative_to(ROOT)).replace("\\", "/"), target.get("id")),
@@ -631,6 +866,22 @@ def main():
         except Exception:
             changed_files = []
 
+        patch_risk = _patch_risk_summary(Path(apply_root), changed_files)
+        try:
+            if record_decision_trace is not None:
+                record_decision_trace(
+                    KNOWLEDGE_DB,
+                    kind="patch_risk",
+                    decision_id=int(decision_id or 0),
+                    outcome_id=None,
+                    operation=f"proposal.apply|{target.get('id')}",
+                    result=str(patch_risk.get("risk_level") or ""),
+                    source="apply_proposal",
+                    details={"changed_files": changed_files, "patch_risk": patch_risk},
+                )
+        except Exception:
+            pass
+
         validate_enabled = _cfg_flag("BGL_POST_APPLY_VALIDATE", cfg, "post_apply_validate", True)
         validate_mode = _cfg_str("BGL_POST_APPLY_VALIDATE_MODE", cfg, "post_apply_validate_mode", "checks")
         validate_max_files = int(_cfg_number("BGL_POST_APPLY_VALIDATE_MAX", cfg, "post_apply_validate_max_files", 4))
@@ -638,6 +889,7 @@ def main():
         eval_result: Dict[str, Any] = {"ok": True, "skipped": True}
         if validate_enabled and (not args.force or validate_prod):
             eval_result = _post_apply_evaluate(Path(apply_root), changed_files, validate_mode, validate_max_files)
+        eval_result["patch_risk"] = patch_risk
 
         if args.force:
             post_status = _git_status_lines()
@@ -668,6 +920,13 @@ def main():
 
             eval_ok = bool(eval_result.get("ok", True))
             eval_note = f"post_validate={eval_ok} mode={eval_result.get('mode')}"
+            if not eval_ok:
+                detail = _summarize_eval_failure(eval_result)
+                artifact = _write_eval_artifact(target.get("id"), eval_result)
+                if detail:
+                    eval_note += f" detail={detail}"
+                if artifact:
+                    eval_note += f" eval={artifact}"
             if not eval_ok:
                 # Immediate rollback on validation failure if configured
                 auto_rb = _cfg_flag("BGL_POST_APPLY_AUTO_ROLLBACK", cfg, "post_apply_auto_rollback_on_fail", True)
@@ -723,6 +982,7 @@ def main():
             except Exception:
                 pass
             print(f"[+] Applied proposal {target.get('id')} to PRODUCTION.")
+            _auto_run_scenarios_after_apply(cfg, proposal_id=str(target.get("id") or ""), mode="prod")
         else:
             # Capture sandbox diff for review
             diff_path = ROOT / ".bgl_core" / "logs" / f"proposal_{target.get('id')}_sandbox.diff"
@@ -743,6 +1003,13 @@ def main():
                 diff_path = None
             eval_ok = bool(eval_result.get("ok", True))
             eval_note = f"post_validate={eval_ok} mode={eval_result.get('mode')}"
+            if not eval_ok:
+                detail = _summarize_eval_failure(eval_result)
+                artifact = _write_eval_artifact(target.get("id"), eval_result)
+                if detail:
+                    eval_note += f" detail={detail}"
+                if artifact:
+                    eval_note += f" eval={artifact}"
             if not eval_ok:
                 outcome_id = auth.record_outcome(
                     decision_id,
@@ -793,9 +1060,16 @@ def main():
                 )
             except Exception:
                 pass
+            # Optional immediate canary evaluation for sandbox releases
+            try:
+                if _cfg_flag("BGL_CANARY_EVAL_IMMEDIATE", cfg, "post_apply_immediate_canary_eval", True):
+                    evaluate_canary_releases(ROOT, KNOWLEDGE_DB, min_age_sec=0, auto_rollback=False)
+            except Exception:
+                pass
             print(f"[+] Applied proposal {target.get('id')} in SANDBOX.")
             if diff_path:
                 print(f"    Diff saved: {diff_path}")
+            _auto_run_scenarios_after_apply(cfg, proposal_id=str(target.get("id") or ""), mode="sandbox")
 
             # Auto-promote to production after sandbox success (optional)
             try:

@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_816",
+  "description": "Stabilize route http://localhost:8000/api/learning-action.php",
+  "created_at": 1704539200,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 816,
+    "generated_at": 1770617868.2280629
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_learning_action_php.yaml",
+      "mode": "overwrite",
+      "content": "api_version: '1.0'\nroute_name: 'learning-action'\nhttp_method: 'POST'\nendpoint: '/api/learning-action.php'\nexpected_status_code: 200\nparameters:\n  - name: 'action_id'\n    type: 'string'\n    required: true\n  - name: 'user_id'\n    type: 'string'\n    required: true\ntests:\n  - description: 'Test successful learning action'\n    request_body: '{\"action_id\": \"123\", \"user_id\": \"456\"}'\n    expected_response: '{\"status\": \"success\"}'\n  - description: 'Test invalid action ID'\n    request_body: '{\"action_id\": \"invalid\", \"user_id\": \"456\"}'\n    expected_status_code: 400\n  - description: 'Test missing user ID'\n    request_body: '{\"action_id\": \"123\"}'\n    expected_status_code: 400",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "api_version: '1.0'\nroute_name: 'learning-action'\nhttp_method: 'POST'\nendpoint: '/api/learning-action.php'\nexpected_status_code: 200\nparameters:\n  - name: 'action_id'\n    type: 'string'\n    required: true\n  - name: 'user_id'\n    type: 'string'\n    required: true\ntests:\n  - description: 'Test successful learning action'\n    request_body: '{\"action_id\": \"123\", \"user_id\": \"456\"}'\n    expected_response: '{\"status\": \"success\"}'\n  - description: 'Test invalid action ID'\n    request_body: '{\"action_id\": \"invalid\", \"user_id\": \"456\"}'\n    expected_status_code: 400\n  - description: 'Test missing user ID'\n    request_body: '{\"action_id\": \"123\"}'\n    expected_status_code: 400"
+      }
+    }
+  ]
+}

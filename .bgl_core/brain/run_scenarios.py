@@ -1,4 +1,5 @@
 import asyncio
+import json
 import os
 import sqlite3
 import time
@@ -62,6 +63,31 @@ async def _run_real_scenarios():
         include=include,
         shadow_mode=shadow_mode,
     )
+    if shadow_mode:
+        register_canary_release = None
+        try:
+            from canary_release import register_canary_release
+        except Exception:
+            try:
+                from .canary_release import register_canary_release  # type: ignore
+            except Exception:
+                register_canary_release = None
+        if register_canary_release:
+            try:
+                release = register_canary_release(
+                    ROOT,
+                    DB_PATH,
+                    plan_id="scenario_shadow",
+                    change_scope=[],
+                    source="scenario_shadow",
+                    notes=f"shadow_mode=1 include={include or 'all'}",
+                )
+                _log_activity(
+                    "scenario_shadow_canary",
+                    json.dumps({"ok": bool(release.get("ok")), "release_id": release.get("release_id")}),
+                )
+            except Exception:
+                _log_activity("scenario_shadow_canary_failed")
 
 
 def simulate_traffic():

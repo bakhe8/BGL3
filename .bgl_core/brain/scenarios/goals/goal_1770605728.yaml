@@ -1,0 +1,69 @@
+name: goal_ui_self_heal_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/index.php
+- action: click
+  selector: '[role=''tab'']:has-text("📄 عقد")'
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: '[data-bs-toggle]:has-text("📄 عقد")'
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: '[data-toggle]:has-text("📄 عقد")'
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: button[aria-controls]:has-text("📄 عقد")
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: button[aria-expanded]:has-text("📄 عقد")
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: a[aria-controls]:has-text("📄 عقد")
+  optional: true
+- action: wait
+  ms: 200
+- action: click
+  selector: '[role=''tab'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''collapse''], [data-toggle=''collapse'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''modal''], [data-toggle=''modal'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''offcanvas''], [data-toggle=''offcanvas'']'
+  optional: true
+- action: click
+  selector: '[data-bs-toggle=''dropdown''], [data-toggle=''dropdown'']'
+  optional: true
+- action: scroll
+  dy: 700
+- action: click
+  selector: input[name="relatedTo"]
+  optional: true
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: conflict
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

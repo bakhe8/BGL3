@@ -1,0 +1,15 @@
+name: autonomous_1770612297
+kind: ui
+steps:
+- action: goto
+  url: /api/export_suppliers.php
+- action: type
+  selector: input[name="search"]
+  text: risk
+  auto_submit: true
+- action: click
+  selector: '#bgl-confirm-no'
+- action: click
+  selector: button.note-cancel-btn
+- action: wait
+  ms: 600

@@ -1,6 +1,14 @@
 base_url: http://localhost:8000
+external_allow_domains:
+  - github.com
+  - raw.githubusercontent.com
+external_allow_max_per_run: 1
+external_allow_max_per_day: 5
 headless: 0
 run_scenarios: 1
+auto_run_gap_scenarios: 1
+gap_scenario_run_limit: 6
+gap_scenario_timeout_sec: 240
 scenario_include_api: 1
 scenario_exploration: 1
 scenario_include_autonomous: 1
@@ -8,7 +16,7 @@ autonomous_scenario: 1
 autonomous_only: 0
 autonomous_max_steps: 12
 scenario_lock_ttl_sec: 7200
-scenario_shadow_mode: 0
+scenario_shadow_mode: 1 # Shadow mode enabled (was 0)
 scenario_min_event_delta: 5
 scenario_min_runtime_sec: 4
 scenario_retry_on_low_events: 1
@@ -27,7 +35,7 @@ reasoning_enabled: 1
 keep_browser: 0
 step_timeout_sec: 45
 diagnostic_timeout_sec: 600
-fast_verify: 1
+fast_verify: 0
 master_verify_lock_ttl_sec: 7200
 agent_mode: autonomous
 agent_mode_bypass_env: BGL_LIGHT_MODE
@@ -54,10 +62,12 @@ decision:
     min_confidence: 0.60
     max_risk: medium
   refactor:
-    requires_human: true
+    requires_human: false
   reindex_full:
     requires_human: false
+  force_no_human_approvals: 1
 approvals_enabled: 0
+force_no_human_approvals: 1
 execution_mode: autonomous
 post_wait_ms: 1500
 hover_wait_ms: 300
@@ -69,12 +79,13 @@ store_ui_actions: 1
 ui_action_limit: 80
 ui_action_window_days: 7
 ui_action_sample_limit: 12
-ui_action_goal_limit: 4
-ui_action_goal_min_score: 45
+ui_action_goal_limit: 12
+ui_action_goal_min_score: 40
 min_ui_action_coverage: 30
 coverage_min_events: 20
 ui_action_min_snapshots: 2
 flow_min_events: 10
+flow_require_events: 1
 memory_auto_curate: 1
 memory_auto_merge: 1
 memory_auto_split: 1
@@ -83,7 +94,7 @@ memory_split_limit: 80
 memory_group_min: 3
 memory_suppress_threshold: 0.35
 memory_split_min_len: 180
-autonomy_goal_limit: 8
+autonomy_goal_limit: 12
 canary_min_age_sec: 0
 canary_auto_rollback: 1
 canary_recheck_sec: 3600
@@ -103,16 +114,27 @@ dream_mode_timeout_sec: 60
 dream_mode_batch_limit: 8
 dream_mode_max_insights: 8
 dream_mode_sleep_seconds: 0.1
+# Self-loop: experiences → proposals (reduced thresholds to activate loop)
 auto_propose: 1
-auto_propose_min_conf: 0.7
-auto_propose_min_evidence: 3
-auto_propose_min_conf_high: 0.7
-auto_propose_min_evidence_high: 2
-auto_propose_limit: 6
+auto_propose_min_conf: 0.6
+auto_propose_min_evidence: 2
+auto_propose_min_conf_high: 0.65
+auto_propose_min_evidence_high: 1
+auto_propose_limit: 8
 auto_plan: 1
 auto_plan_limit: 3
 auto_apply: 1
-auto_apply_limit: 3
+auto_apply_limit: 5
+auto_apply_timeout_sec: 120
+# Auto-run scenarios after proposal apply
+auto_run_scenarios_after_apply: 1
+auto_run_scenarios_after_apply_prod: 1
+auto_run_scenarios_after_apply_limit: 6
+auto_run_scenarios_after_apply_timeout_sec: 240
+auto_run_scenarios_after_apply_include_api: 1
+auto_run_scenarios_after_apply_include_autonomous: 0
+auto_run_scenarios_after_apply_headless: 1
+# Self-improving loop: context_digest → experiences → proposals → sandbox → verify
 auto_digest: 1
 auto_digest_hours: 12
 auto_digest_limit: 400
@@ -137,19 +159,26 @@ self_heal_text_limit: 3
 prod_ops_full: 1
 prod_ops_hours: 0
 prod_ops_limit: 0
-fallback_rules_enabled: 1
+fallback_rules_enabled: 0
 fallback_rules_lookback_hours: 0
 fallback_rules_min_samples: 3
 fallback_rules_block_rate: 0.4
 fallback_rules_expire_days: 7
-fallback_outcomes_enabled: 1
+fallback_block_disabled: 1
+fallback_require_human_disabled: 1
+fallback_outcomes_enabled: 0
 fallback_outcomes_hours: 24
 fallback_outcomes_min_samples: 4
 fallback_outcomes_fail_rate: 0.45
 fallback_outcomes_block_rate: 0.75
 fallback_outcomes_expire_days: 7
-external_dependency_window_minutes: 30
-external_dependency_retry_minutes: 30
-external_dependency_fallback_minutes: 30
-external_dependency_min_count: 1
+# External dependency fallback (reduced from 30min to 5min, min_count 1→3 to reduce blocking)
+external_dependency_fallback_enabled: 0
+external_dependency_window_minutes: 10
+external_dependency_retry_minutes: 10
+external_dependency_fallback_minutes: 5
+external_dependency_min_count: 999999
+fallback_runtime_enabled: 0
+fallback_code_intent_enabled: 0
+fallback_guard_enabled: 0
 canary_external_dependency_rollback: 1

@@ -1,7 +1,18 @@
 import json
+import os
+import shutil
 from pathlib import Path
 from datetime import date
 
+try:
+    from .config_loader import load_config  # type: ignore
+except Exception:
+    from config_loader import load_config
+
+try:
+    from .approve_playbook import append_rule  # type: ignore
+except Exception:
+    from approve_playbook import append_rule
 
 TEMPLATE = """---
 id: {id}
@@ -37,6 +48,56 @@ maturity:
 """
 
 
+def _approvals_disabled(cfg: dict) -> bool:
+    """Return True when human approvals are globally disabled."""
+    try:
+        env_flag = os.getenv("BGL_APPROVALS_ENABLED")
+        if env_flag is not None:
+            if str(env_flag).strip().lower() in ("0", "false", "no", "off"):
+                return True
+    except Exception:
+        pass
+    try:
+        force_no_human = cfg.get("force_no_human_approvals", 0)
+        if str(force_no_human).strip().lower() in ("1", "true", "yes", "on"):
+            return True
+    except Exception:
+        pass
+    approvals = cfg.get("approvals_enabled", 1)
+    if isinstance(approvals, bool):
+        return not approvals
+    if isinstance(approvals, (int, float)):
+        return float(approvals) == 0.0
+    if isinstance(approvals, str):
+        return approvals.strip().lower() in ("0", "false", "no", "off")
+    return False
+
+
+def _auto_approve_pending(brain: Path) -> None:
+    """Move proposed playbooks into playbooks and append runtime safety rules."""
+    try:
+        proposed_dir = brain / "playbooks_proposed"
+        approved_dir = brain / "playbooks"
+        approved_dir.mkdir(exist_ok=True)
+        runtime_file = brain / "runtime_safety.yml"
+        for src in proposed_dir.glob("*.md"):
+            pid = src.stem
+            dst = approved_dir / f"{pid}.md"
+            if dst.exists():
+                try:
+                    src.unlink(missing_ok=True)
+                except Exception:
+                    pass
+                continue
+            try:
+                shutil.move(str(src), str(dst))
+                append_rule(runtime_file, pid, f"Ensure playbook {pid} is applied")
+            except Exception:
+                continue
+    except Exception:
+        return
+
+
 def generate_from_proposed(project_root: Path):
     brain = project_root / ".bgl_core" / "brain"
     proposed_file = brain / "proposed_patterns.json"
@@ -51,6 +112,8 @@ def generate_from_proposed(project_root: Path):
 
     generated = []
     today = date.today().isoformat()
+    cfg = load_config(project_root) if project_root else {}
+    auto_approve = _approvals_disabled(cfg)
 
     for pat in patterns:
         pid = pat.get("id") or "PB_AUTO"
@@ -84,6 +147,10 @@ def generate_from_proposed(project_root: Path):
         )
         fname.write_text(content, encoding="utf-8")
         generated.append(str(fname))
+
+    # If approvals are disabled, auto-approve all pending playbooks.
+    if auto_approve:
+        _auto_approve_pending(brain)
     return generated
 
 

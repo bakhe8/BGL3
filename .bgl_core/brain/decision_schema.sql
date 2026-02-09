@@ -67,12 +67,32 @@ CREATE TABLE IF NOT EXISTS proposal_outcome_links (
   source TEXT
 );
 
+CREATE TABLE IF NOT EXISTS decision_traces (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  created_at REAL NOT NULL,
+  kind TEXT,
+  decision_id INTEGER,
+  outcome_id INTEGER,
+  intent_id INTEGER,
+  operation TEXT,
+  risk_level TEXT,
+  result TEXT,
+  failure_class TEXT,
+  source TEXT,
+  run_id TEXT,
+  scenario_id TEXT,
+  goal_id TEXT,
+  details_json TEXT
+);
+
 -- فهارس خفيفة
 CREATE INDEX IF NOT EXISTS idx_intents_ts ON intents(timestamp);
 CREATE INDEX IF NOT EXISTS idx_decisions_intent ON decisions(intent_id);
 CREATE INDEX IF NOT EXISTS idx_overrides_decision ON overrides(decision_id);
 CREATE INDEX IF NOT EXISTS idx_outcomes_decision ON outcomes(decision_id);
 CREATE INDEX IF NOT EXISTS idx_prop_outcome ON proposal_outcome_links(proposal_id);
+CREATE INDEX IF NOT EXISTS idx_decision_traces_decision ON decision_traces(decision_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_decision_traces_outcome ON decision_traces(outcome_id, created_at DESC);
 
 -- Knowledge DB: Exploration + Autonomy + Learning + Hypotheses
 

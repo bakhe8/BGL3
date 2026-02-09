@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_831",
+  "description": "Stabilize route http://localhost:8000/views/confidence-demo.php",
+  "created_at": 1770619647,
+  "metadata": {
+    "experience_id": 8631,
+    "exp_hash": "17fee03d7737356374e22cf9e7a7e35e3398b024",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 831,
+    "generated_at": 1770620212.514047
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_confidence_demo_php.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: gap_route_views_confidence_demo_php\nsteps:\n  - action: render_template\n    template_path: views/confidence-demo.php\n    context:\n      confidence: 0.85",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: gap_route_views_confidence_demo_php\nsteps:\n  - action: render_template\n    template_path: views/confidence-demo.php\n    context:\n      confidence: 0.85"
+      }
+    }
+  ]
+}

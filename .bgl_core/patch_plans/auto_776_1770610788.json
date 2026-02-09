@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_776",
+  "description": "Stabilize scenario goals/goal_1770610532.yaml",
+  "created_at": 1694083200,
+  "metadata": {
+    "proposal_id": 776,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770610788.3005779
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770610532.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_1770610532\ndescription: Stabilize scenario goals/goal_1770610532.yaml\ntargets:\n  - route: /api/v1/stabilize_goal\n    method: POST\n    parameters:\n      - name: goal_id\n        in: path\n        required: true\n        schema:\n          type: string\n    responses:\n      '200':\n        description: Goal stabilized successfully\n        content:\n          application/json:\n            schema:\n              type: object\n              properties:\n                status:\n                  type: string\n                  enum: [success]\n                message:\n                  type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_1770610532\ndescription: Stabilize scenario goals/goal_1770610532.yaml\ntargets:\n  - route: /api/v1/stabilize_goal\n    method: POST\n    parameters:\n      - name: goal_id\n        in: path\n        required: true\n        schema:\n          type: string\n    responses:\n      '200':\n        description: Goal stabilized successfully\n        content:\n          application/json:\n            schema:\n              type: object\n              properties:\n                status:\n                  type: string\n                  enum: [success]\n                message:\n                  type: string"
+      }
+    }
+  ]
+}

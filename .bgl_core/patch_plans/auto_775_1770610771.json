@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "775",
+  "description": "Stabilize route /api/export_suppliers.php",
+  "created_at": 1694083200,
+  "metadata": {
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 775,
+    "generated_at": 1770610771.0117276
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_flow_flow_export_suppliers_.yaml",
+      "mode": "overwrite",
+      "content": "api: /api/export_suppliers.php\nmethod: GET\nresponses:\n  '200':\n    description: Successful response",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "api: /api/export_suppliers.php\nmethod: GET\nresponses:\n  '200':\n    description: Successful response"
+      }
+    }
+  ]
+}

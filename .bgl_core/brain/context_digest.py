@@ -16,9 +16,13 @@ import json
 import subprocess
 import math
 from pathlib import Path
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Callable, Optional
 
 from embeddings import add_text
+try:
+    from .db_utils import connect_db  # type: ignore
+except Exception:
+    from db_utils import connect_db  # type: ignore
 
 try:
     from .config_loader import load_config  # type: ignore
@@ -30,6 +34,7 @@ except Exception:
 
 DB_PATH = Path(__file__).parent / "knowledge.db"
 ROOT_DIR = Path(__file__).resolve().parents[2]
+STATE_PATH = ROOT_DIR / ".bgl_core" / "logs" / "context_digest_state.json"
 _CONFIG = {}
 try:
     if load_config is not None:
@@ -65,6 +70,23 @@ def _cfg_number(env_key: str, cfg_key: str, default):
         return type(default)(cfg_val)
     except Exception:
         return default
+
+
+def _read_digest_state() -> Dict[str, Any]:
+    if not STATE_PATH.exists():
+        return {}
+    try:
+        return json.loads(STATE_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _write_digest_state(state: Dict[str, Any]) -> None:
+    try:
+        STATE_PATH.parent.mkdir(parents=True, exist_ok=True)
+        STATE_PATH.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception:
+        pass
 
 
 def _bucket_count(val: int) -> str:
@@ -447,6 +469,37 @@ def summarize_log_highlights(events: List[sqlite3.Row]) -> List[Dict]:
     return summaries
 
 
+def summarize_route_scan_meta(events: List[sqlite3.Row]) -> List[Dict]:
+    summaries: List[Dict] = []
+    for e in events:
+        if e["event_type"] != "route_scan_meta":
+            continue
+        ctx = _row_context(e)
+        payload = _safe_json(e["payload"])
+        route = str(payload.get("route") or e["route"] or "/")
+        sources = payload.get("sources") or []
+        if isinstance(sources, str):
+            sources = [sources]
+        source_label = ", ".join([s for s in sources if s]) or "route_indexer"
+        reason = str(payload.get("reason") or "health_scan")
+        file_path = str(payload.get("file_path") or "")
+        summary = f"Route {route} scanned during health audit. Sources: {source_label}. Reason: {reason}."
+        summaries.append(
+            {
+                "scenario": f"route_scan_meta:{route}",
+                "summary": summary,
+                "related_files": file_path or route,
+                "confidence": 0.65,
+                "evidence_count": 1,
+                "run_id": ctx.get("run_id"),
+                "scenario_id": ctx.get("scenario_id"),
+                "goal_id": ctx.get("goal_id"),
+                "source_type": "route_scan_meta",
+            }
+        )
+    return summaries
+
+
 def _extract_failure_class(note: str) -> str:
     if not note:
         return ""
@@ -708,7 +761,13 @@ def summarize_prod_ops(ops: List[sqlite3.Row]) -> List[Dict]:
     return summaries
 
 
-def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
+def upsert_experiences(
+    conn: sqlite3.Connection,
+    experiences: List[Dict],
+    *,
+    time_left_fn: Optional[Callable[[], float]] = None,
+    min_embed_budget: float = 8.0,
+):
     cur = conn.cursor()
     cur.execute(
         """
@@ -735,8 +794,26 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
     )
     _ensure_experience_columns(conn)
     now = time.time()
+    try:
+        max_items = int(
+            _cfg_number(
+                "BGL_CONTEXT_DIGEST_EXPERIENCE_LIMIT",
+                "context_digest_experience_limit",
+                len(experiences),
+            )
+        )
+    except Exception:
+        max_items = len(experiences)
+    if max_items > 0 and len(experiences) > max_items:
+        experiences = experiences[:max_items]
     upserted: List[Dict] = []
+    processed: List[Dict] = []
     for exp in experiences:
+        try:
+            if time_left_fn is not None and time_left_fn() < 3.0:
+                break
+        except Exception:
+            pass
         scenario = exp["scenario"]
         summary = exp["summary"]
         exp_run_id = exp.get("run_id") or None
@@ -827,13 +904,40 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                 "source_type": exp_source_type,
             }
         )
+        processed.append(exp)
 
     conn.commit()
 
     # Index into semantic memory AFTER commit to avoid locking
-    for exp in experiences:
-        if exp["confidence"] >= 0.3:
-            add_text(f"[Experience] {exp['scenario']}", exp["summary"])
+    skip_embeddings = False
+    try:
+        if time_left_fn is not None and time_left_fn() < float(min_embed_budget):
+            skip_embeddings = True
+    except Exception:
+        skip_embeddings = False
+    if not skip_embeddings:
+        try:
+            embed_limit = int(
+                _cfg_number(
+                    "BGL_CONTEXT_DIGEST_EMBED_LIMIT",
+                    "context_digest_embed_limit",
+                    160,
+                )
+            )
+        except Exception:
+            embed_limit = 160
+        embed_count = 0
+        for exp in processed:
+            if embed_limit > 0 and embed_count >= embed_limit:
+                break
+            try:
+                if time_left_fn is not None and time_left_fn() < float(min_embed_budget):
+                    break
+            except Exception:
+                pass
+            if exp["confidence"] >= 0.3:
+                add_text(f"[Experience] {exp['scenario']}", exp["summary"])
+                embed_count += 1
 
     # Unified memory index (best-effort, non-blocking)
     try:
@@ -844,7 +948,25 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
         except Exception:
             upsert_memory_item = None  # type: ignore
     if upsert_memory_item:
-        for exp in experiences:
+        try:
+            memory_limit = int(
+                _cfg_number(
+                    "BGL_CONTEXT_DIGEST_MEMORY_LIMIT",
+                    "context_digest_memory_limit",
+                    220,
+                )
+            )
+        except Exception:
+            memory_limit = 220
+        mem_count = 0
+        for exp in processed:
+            if memory_limit > 0 and mem_count >= memory_limit:
+                break
+            try:
+                if time_left_fn is not None and time_left_fn() < 5.0:
+                    break
+            except Exception:
+                pass
             scenario = str(exp.get("scenario") or "")
             kind = "log" if scenario.startswith("log_error:") else "experience"
             upsert_memory_item(
@@ -864,6 +986,7 @@ def upsert_experiences(conn: sqlite3.Connection, experiences: List[Dict]):
                 source_table="experiences",
                 source_id=None,
             )
+            mem_count += 1
     return upserted
 
 
@@ -1078,28 +1201,81 @@ def auto_promote_experiences(conn: sqlite3.Connection, experiences: List[Dict]) 
     return created
 
 
-def auto_apply_proposals(proposal_ids: List[int]) -> None:
+def auto_apply_proposals(proposal_ids: List[int], time_budget_sec: float | None = None) -> None:
     if not proposal_ids:
         return
     if not _cfg_flag("BGL_AUTO_APPLY", "auto_apply", True):
         return
     max_apply = _cfg_number("BGL_AUTO_APPLY_LIMIT", "auto_apply_limit", 3)
+    timeout_sec = _cfg_number("BGL_AUTO_APPLY_TIMEOUT_SEC", "auto_apply_timeout_sec", 300)
     exe = sys.executable or "python"
     root = Path(__file__).resolve().parents[2]
     script = root / ".bgl_core" / "brain" / "apply_proposal.py"
     if not script.exists():
         return
+    conn = None
+    try:
+        conn = connect_db(DB_PATH, timeout=30.0)
+    except Exception:
+        conn = None
+    time_budget = float(time_budget_sec) if time_budget_sec is not None else None
     for pid in proposal_ids[:max_apply]:
+        if time_budget is not None and time_budget < 8:
+            break
+        started = time.time()
         try:
-            subprocess.run(
+            eff_timeout = float(timeout_sec)
+            if time_budget is not None:
+                eff_timeout = max(5.0, min(eff_timeout, time_budget - 2))
+            result = subprocess.run(
                 [exe, str(script), "--proposal", str(pid)],
                 cwd=str(root),
                 capture_output=True,
                 text=True,
                 check=False,
+                timeout=float(eff_timeout),
             )
-        except Exception:
-            continue
+            duration = round(time.time() - started, 2)
+            if time_budget is not None:
+                time_budget = max(0.0, time_budget - duration)
+            if conn is not None:
+                payload = {
+                    "proposal_id": int(pid),
+                    "returncode": int(result.returncode or 0),
+                    "duration_s": duration,
+                }
+                if result.returncode != 0:
+                    err = (result.stderr or result.stdout or "").strip()
+                    if err:
+                        payload["error"] = err[:400]
+                    _log_runtime_event(conn, "auto_apply_failed", payload)
+                else:
+                    _log_runtime_event(conn, "auto_apply_done", payload)
+        except subprocess.TimeoutExpired:
+            if time_budget is not None:
+                time_budget = max(0.0, time_budget - float(timeout_sec))
+            if conn is not None:
+                _log_runtime_event(
+                    conn,
+                    "auto_apply_timeout",
+                    {
+                        "proposal_id": int(pid),
+                        "timeout_sec": float(timeout_sec),
+                        "duration_s": round(time.time() - started, 2),
+                    },
+                )
+        except Exception as e:
+            if conn is not None:
+                _log_runtime_event(
+                    conn,
+                    "auto_apply_error",
+                    {"proposal_id": int(pid), "error": str(e)},
+                )
+    try:
+        if conn is not None:
+            conn.close()
+    except Exception:
+        pass
 
 
 def main():
@@ -1108,59 +1284,200 @@ def main():
         "--hours", type=float, default=24, help="Lookback window in hours"
     )
     parser.add_argument("--limit", type=int, default=500, help="Max events to process")
+    parser.add_argument(
+        "--timeout",
+        type=float,
+        default=None,
+        help="Max runtime seconds for this digest (0 disables limit)",
+    )
     args = parser.parse_args()
+
+    start_ts = time.time()
+    stale_minutes = _cfg_number(
+        "BGL_CONTEXT_DIGEST_STALE_MINUTES",
+        "context_digest_stale_minutes",
+        30,
+    )
+    prev_state = _read_digest_state()
+    if prev_state.get("status") == "running":
+        try:
+            started_at = float(prev_state.get("started_at") or 0)
+        except Exception:
+            started_at = 0.0
+        if started_at and (time.time() - started_at) < (float(stale_minutes) * 60.0):
+            print("Context digest: already running (state guard).")
+            return
+
+    digest_id = f"{int(start_ts)}-{os.getpid()}"
+    state: Dict[str, Any] = {
+        "digest_id": digest_id,
+        "status": "running",
+        "started_at": start_ts,
+        "pid": os.getpid(),
+        "hours": float(args.hours),
+        "limit": int(args.limit),
+    }
+    _write_digest_state(state)
+    timeout_cfg = _cfg_number(
+        "BGL_CONTEXT_DIGEST_TIMEOUT_SEC", "context_digest_timeout_sec", 110
+    )
+    timeout_sec = (
+        float(args.timeout)
+        if args.timeout is not None
+        else float(timeout_cfg or 0)
+    )
+    deadline = (start_ts + timeout_sec) if timeout_sec and timeout_sec > 0 else None
+    time_budget_left = lambda: 1e9
+    if deadline is not None:
+        time_budget_left = lambda: max(0.0, float(deadline - time.time()))
+
+    def _time_left() -> float:
+        return time_budget_left()
+
+    def _expired() -> bool:
+        return bool(deadline is not None and time.time() >= deadline)
+
+    stats: Dict[str, Any] = {
+        "events": 0,
+        "outcomes": 0,
+        "prod_ops": 0,
+        "experiences": 0,
+        "auto_proposals": 0,
+    }
+
+    def _finalize_state(status: str, **extra: Any) -> None:
+        state.update(
+            {
+                "status": status,
+                "ended_at": time.time(),
+                "duration_sec": round(time.time() - start_ts, 2),
+                "stats": stats,
+            }
+        )
+        if extra:
+            state.update(extra)
+        _write_digest_state(state)
 
     cutoff = time.time() - args.hours * 3600
 
-    conn = sqlite3.connect(DB_PATH)
+    conn = connect_db(DB_PATH, timeout=30.0)
+    try:
+        conn.execute("PRAGMA journal_mode=WAL;")
+        conn.execute("PRAGMA busy_timeout=3000;")
+    except Exception:
+        pass
 
-    # Runtime events
-    events = fetch_events(conn, cutoff, args.limit)
+    def _budget_guard(stage: str) -> bool:
+        if not _expired():
+            return False
+        try:
+            _log_runtime_event(
+                conn,
+                "context_digest_timeout",
+                {"stage": stage, "remaining_sec": round(_time_left(), 2)},
+            )
+        except Exception:
+            pass
+        _finalize_state("timeout", stage=stage, remaining_sec=round(_time_left(), 2))
+        try:
+            conn.close()
+        except Exception:
+            pass
+        print(f"Context digest: time budget exhausted at {stage}.")
+        return True
+
+    # Runtime events (respect remaining time budget)
+    event_limit = int(args.limit)
+    try:
+        if _time_left() < 25:
+            event_limit = max(120, min(event_limit, int(_time_left() * 6)))
+    except Exception:
+        event_limit = int(args.limit)
+    events = fetch_events(conn, cutoff, event_limit)
+    stats["events"] = len(events or [])
     event_summaries: List[Dict] = []
     log_summaries: List[Dict] = []
+    route_meta_summaries: List[Dict] = []
     if events:
         route_map = load_route_map(conn)
         event_summaries = summarize(events, route_map)
         log_summaries = summarize_log_highlights(events)
+        route_meta_summaries = summarize_route_scan_meta(events)
+    if _budget_guard("events"):
+        return
 
     # Decision outcomes (intent/decision/outcome -> unified summaries)
-    outcomes = fetch_outcomes(conn, cutoff, args.limit)
+    outcome_limit = int(args.limit)
+    try:
+        if _time_left() < 20:
+            outcome_limit = max(80, min(outcome_limit, int(_time_left() * 4)))
+    except Exception:
+        outcome_limit = int(args.limit)
+    outcomes = fetch_outcomes(conn, cutoff, outcome_limit)
+    stats["outcomes"] = len(outcomes or [])
     outcome_summaries = summarize_outcomes(outcomes) if outcomes else []
+    if _budget_guard("outcomes"):
+        return
 
     # Prod operations (central log)
     prod_ops_full = _cfg_flag("BGL_PROD_OPS_FULL", "prod_ops_full", False)
     prod_ops_hours = _cfg_number("BGL_PROD_OPS_HOURS", "prod_ops_hours", args.hours)
     prod_ops_limit = _cfg_number("BGL_PROD_OPS_LIMIT", "prod_ops_limit", args.limit)
+    try:
+        if _time_left() < 18:
+            prod_ops_limit = max(80, min(int(prod_ops_limit), int(_time_left() * 4)))
+    except Exception:
+        pass
     prod_cutoff = 0.0 if prod_ops_full or prod_ops_hours <= 0 else (time.time() - prod_ops_hours * 3600)
     prod_ops = fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
+    stats["prod_ops"] = len(prod_ops or [])
     prod_summaries = summarize_prod_ops(prod_ops) if prod_ops else []
+    if _budget_guard("prod_ops"):
+        return
 
     runtime_contract_summaries: List[Dict[str, Any]] = []
     if _cfg_flag(
         "BGL_RUNTIME_CONTRACT_EXPERIENCES", "runtime_contract_experiences", True
     ):
-        runtime_contract_summaries = summarize_runtime_contracts(ROOT_DIR, limit=120)
+        # Skip heavy contract build when nearing timeout budget.
+        if _time_left() >= 25:
+            runtime_contract_summaries = summarize_runtime_contracts(ROOT_DIR, limit=120)
+    if _budget_guard("runtime_contracts"):
+        return
 
     experiences = (
         event_summaries
         + log_summaries
+        + route_meta_summaries
         + prod_summaries
         + outcome_summaries
         + runtime_contract_summaries
     )
     if not experiences:
         print("No events/prod operations/outcomes found in window.")
+        _finalize_state("no_data")
         return
 
-    inserted = upsert_experiences(conn, experiences)
+    inserted = upsert_experiences(conn, experiences, time_left_fn=_time_left)
+    stats["experiences"] = len(inserted or [])
+    if _budget_guard("experiences"):
+        return
 
     # Auto-promote experiences -> proposals and auto-apply in sandbox
     proposal_ids = auto_promote_experiences(conn, inserted)
+    stats["auto_proposals"] = len(proposal_ids or [])
     try:
         conn.close()
     except Exception:
         pass
-    auto_apply_proposals(proposal_ids)
+    # Only auto-apply when sufficient time budget remains.
+    if _time_left() >= 20:
+        auto_apply_proposals(
+            proposal_ids,
+            time_budget_sec=_time_left(),
+        )
+    else:
+        print("Context digest: skipping auto-apply due to time budget.")
     # Auto memory curation (merge/split/suppress) across all memory kinds
     try:
         from .memory_index import auto_curate_memory  # type: ignore
@@ -1171,19 +1488,22 @@ def main():
             auto_curate_memory = None  # type: ignore
     if auto_curate_memory and _cfg_flag("BGL_MEMORY_AUTO_CURATE", "memory_auto_curate", True):
         try:
-            stats = auto_curate_memory(
-                DB_PATH,
-                merge_limit=_cfg_number("BGL_MEMORY_MERGE_LIMIT", "memory_merge_limit", 240),
-                split_limit=_cfg_number("BGL_MEMORY_SPLIT_LIMIT", "memory_split_limit", 80),
-                min_group_size=_cfg_number("BGL_MEMORY_GROUP_MIN", "memory_group_min", 3),
-                suppress_threshold=_cfg_number(
-                    "BGL_MEMORY_SUPPRESS_THRESHOLD", "memory_suppress_threshold", 0.35
-                ),
-                split_min_len=_cfg_number("BGL_MEMORY_SPLIT_MIN_LEN", "memory_split_min_len", 180),
-                enable_split=_cfg_flag("BGL_MEMORY_AUTO_SPLIT", "memory_auto_split", True),
-                enable_merge=_cfg_flag("BGL_MEMORY_AUTO_MERGE", "memory_auto_merge", True),
-            )
-            print(f"Auto memory curation: {stats}")
+            if _time_left() >= 15:
+                stats = auto_curate_memory(
+                    DB_PATH,
+                    merge_limit=_cfg_number("BGL_MEMORY_MERGE_LIMIT", "memory_merge_limit", 240),
+                    split_limit=_cfg_number("BGL_MEMORY_SPLIT_LIMIT", "memory_split_limit", 80),
+                    min_group_size=_cfg_number("BGL_MEMORY_GROUP_MIN", "memory_group_min", 3),
+                    suppress_threshold=_cfg_number(
+                        "BGL_MEMORY_SUPPRESS_THRESHOLD", "memory_suppress_threshold", 0.35
+                    ),
+                    split_min_len=_cfg_number("BGL_MEMORY_SPLIT_MIN_LEN", "memory_split_min_len", 180),
+                    enable_split=_cfg_flag("BGL_MEMORY_AUTO_SPLIT", "memory_auto_split", True),
+                    enable_merge=_cfg_flag("BGL_MEMORY_AUTO_MERGE", "memory_auto_merge", True),
+                )
+                print(f"Auto memory curation: {stats}")
+            else:
+                print("Context digest: skipping auto memory curation due to time budget.")
         except Exception:
             pass
     print(
@@ -1191,6 +1511,7 @@ def main():
         f"+ {len(outcomes)} outcome(s) and {len(prod_ops)} prod op(s). "
         f"Auto proposals: {len(proposal_ids)}"
     )
+    _finalize_state("ok")
 
 
 if __name__ == "__main__":

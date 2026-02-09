@@ -34,6 +34,26 @@ class LaravelRouteIndexer:
             }
         )
 
+        # 1b. Index other root-level PHP files (agent-dashboard.php, etc.)
+        for php_file in self.root_dir.glob("*.php"):
+            if php_file.name == "index.php":
+                continue
+            rel_path = php_file.relative_to(self.root_dir)
+            uri = f"/{rel_path.as_posix()}"
+            try:
+                content = php_file.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                content = ""
+            http_method = self._infer_method(php_file.name, content)
+            routes.append(
+                {
+                    "uri": uri,
+                    "http_method": http_method,
+                    "action": str(rel_path.as_posix()),
+                    "file_path": str(php_file),
+                }
+            )
+
         # 2. Scan api directory (Recursive)
         api_dir = self.root_dir / "api"
         if api_dir.exists():
@@ -71,13 +91,41 @@ class LaravelRouteIndexer:
                     }
                 )
 
-        # 4. Enhanced Analysis: Look for primary Controllers/Services
+        # 4. Scan additional web-facing directories (if present)
+        extra_dirs = ["public", "agentfrontend", "partials", "templates"]
+        for dir_name in extra_dirs:
+            extra_dir = self.root_dir / dir_name
+            if not extra_dir.exists():
+                continue
+            for php_file in extra_dir.rglob("*.php"):
+                rel_path = php_file.relative_to(self.root_dir)
+                uri = f"/{rel_path.as_posix()}"
+                try:
+                    content = php_file.read_text(encoding="utf-8", errors="ignore")
+                except Exception:
+                    content = ""
+                http_method = self._infer_method(php_file.name, content)
+                routes.append(
+                    {
+                        "uri": uri,
+                        "http_method": http_method,
+                        "action": str(rel_path.as_posix()),
+                        "file_path": str(php_file),
+                    }
+                )
+
+        # 5. Parse routes definitions (if a routes directory exists)
+        routes_dir = self.root_dir / "routes"
+        if routes_dir.exists():
+            routes.extend(self._parse_route_definitions(routes_dir))
+
+        # 6. Enhanced Analysis: Look for primary Controllers/Services
         for route in routes:
             route["controller"], route["action_method"] = self._analyze_file(
                 Path(route["file_path"])
             )
 
-        # 5. Store in DB
+        # 7. Store in DB
         for route in routes:
             cursor.execute(
                 """
@@ -156,6 +204,34 @@ class LaravelRouteIndexer:
         ):
             return "POST"
         return "GET"
+
+    def _parse_route_definitions(self, routes_dir: Path):
+        """Parse simple Laravel-style Route::method('uri', ...) definitions."""
+        routes = []
+        pattern = re.compile(
+            r"Route::(get|post|put|delete|patch|options|any)\s*\(\s*['\"]([^'\"]+)['\"]",
+            re.IGNORECASE,
+        )
+        for php_file in routes_dir.rglob("*.php"):
+            try:
+                content = php_file.read_text(encoding="utf-8", errors="ignore")
+            except Exception:
+                continue
+            rel_path = php_file.relative_to(self.root_dir)
+            for match in pattern.finditer(content):
+                method = match.group(1).upper()
+                uri = match.group(2).strip()
+                if not uri.startswith("/"):
+                    uri = f"/{uri}"
+                routes.append(
+                    {
+                        "uri": uri,
+                        "http_method": method if method != "ANY" else "GET",
+                        "action": f"{rel_path.as_posix()}::{method} {uri}",
+                        "file_path": str(php_file),
+                    }
+                )
+        return routes
 
 
 if __name__ == "__main__":

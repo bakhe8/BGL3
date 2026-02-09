@@ -1,0 +1,11 @@
+name: gap_route_agent_dashboard_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agent-dashboard.php
+steps:
+- action: goto
+  url: /agent-dashboard.php
+- action: wait
+  ms: 400

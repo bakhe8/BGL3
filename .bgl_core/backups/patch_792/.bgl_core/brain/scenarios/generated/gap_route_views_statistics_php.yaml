@@ -1,0 +1,11 @@
+name: gap_route_views_statistics_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /views/statistics.php
+steps:
+- action: goto
+  url: /views/statistics.php
+- action: wait
+  ms: 400

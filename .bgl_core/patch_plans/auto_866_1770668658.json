@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "866",
+  "description": "Stabilize route /views/batches.php",
+  "created_at": 1704592800,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 866,
+    "generated_at": 1770668658.286011
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php.yaml",
+      "mode": null,
+      "content": "- /views/batches.php\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- /views/batches.php\n"
+      }
+    }
+  ]
+}

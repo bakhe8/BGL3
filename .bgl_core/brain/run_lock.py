@@ -4,7 +4,7 @@ import os
 import subprocess
 import time
 from pathlib import Path
-from typing import Tuple
+from typing import Tuple, Optional
 
 
 def _pid_alive(pid: int) -> bool:
@@ -25,6 +25,38 @@ def _pid_alive(pid: int) -> bool:
         return False
 
 
+def _parse_lock(raw: str) -> Tuple[int, float, str]:
+    parts = (raw or "").strip().split("|")
+    pid = int(parts[0]) if parts and parts[0].isdigit() else 0
+    ts = 0.0
+    if len(parts) > 1:
+        try:
+            ts = float(parts[1])
+        except Exception:
+            ts = 0.0
+    lbl = parts[2] if len(parts) > 2 else ""
+    return pid, ts, lbl
+
+
+def refresh_lock(lock_path: Path, label: str = "") -> bool:
+    """
+    Refresh an existing lock heartbeat if owned by this PID.
+    Returns True if refreshed, False otherwise.
+    """
+    if not lock_path.exists():
+        return False
+    try:
+        raw = lock_path.read_text(encoding="utf-8")
+        pid, _, lbl = _parse_lock(raw)
+        if pid != os.getpid():
+            return False
+        now = time.time()
+        lock_path.write_text(f"{pid}|{now}|{label or lbl}", encoding="utf-8")
+        return True
+    except Exception:
+        return False
+
+
 def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple[bool, str]:
     """
     Try to acquire a lock file.
@@ -34,11 +66,11 @@ def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple
     if lock_path.exists():
         try:
             raw = lock_path.read_text(encoding="utf-8").strip()
-            parts = raw.split("|")
-            pid = int(parts[0]) if parts and parts[0].isdigit() else 0
-            ts = float(parts[1]) if len(parts) > 1 else 0.0
+            pid, ts, _ = _parse_lock(raw)
             if pid and _pid_alive(pid):
-                return False, f"active_pid:{pid}"
+                # Treat as active only if heartbeat is fresh; otherwise allow takeover.
+                if ts and (now - ts) < ttl_sec:
+                    return False, f"active_pid:{pid}"
             if ts and (now - ts) < ttl_sec:
                 return False, "recent_lock"
         except Exception:
