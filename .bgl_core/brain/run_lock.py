@@ -67,10 +67,14 @@ def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple
         try:
             raw = lock_path.read_text(encoding="utf-8").strip()
             pid, ts, _ = _parse_lock(raw)
-            if pid and _pid_alive(pid):
+            pid_alive = bool(pid and _pid_alive(pid))
+            if pid_alive:
                 # Treat as active only if heartbeat is fresh; otherwise allow takeover.
                 if ts and (now - ts) < ttl_sec:
                     return False, f"active_pid:{pid}"
+            if not pid_alive and pid:
+                # Stale lock from dead PID: allow takeover regardless of timestamp.
+                ts = 0.0
             if ts and (now - ts) < ttl_sec:
                 return False, "recent_lock"
         except Exception:
@@ -79,7 +83,11 @@ def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple
         try:
             lock_path.unlink()
         except Exception:
-            return False, "lock_stale_unremovable"
+            try:
+                lock_path.write_text(f"{os.getpid()}|{now}|{label}", encoding="utf-8")
+                return True, "acquired_overwrite"
+            except Exception:
+                return False, "lock_stale_unremovable"
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
         lock_path.write_text(f"{os.getpid()}|{now}|{label}", encoding="utf-8")

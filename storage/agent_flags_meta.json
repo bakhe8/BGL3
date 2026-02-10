@@ -1,0 +1,46 @@
+{
+  "history": [
+    {
+      "timestamp": 1770669429.8154752,
+      "updates": {
+        "auto_digest_limit": 240,
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120,
+        "ui_action_sample_limit": 16
+      },
+      "reasons": {
+        "auto_digest_limit": "context_digest_timeout",
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout",
+        "ui_action_sample_limit": "low_ui_action_coverage"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770677938.4474082,
+      "updates": {
+        "auto_digest_limit": 200,
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120
+      },
+      "reasons": {
+        "auto_digest_limit": "context_digest_timeout",
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770699330.8267834,
+      "updates": {
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120
+      },
+      "reasons": {
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout"
+      },
+      "source": "auto_tune"
+    }
+  ]
+}

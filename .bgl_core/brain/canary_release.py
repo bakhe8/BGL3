@@ -373,11 +373,28 @@ def _should_rollback(
                 return True, "external_dependency"
     except Exception:
         pass
-    if health_drop >= 8:
+    # Adjust thresholds for higher-risk patches
+    health_drop_thr = 8
+    fail_delta_thr = 3
+    err_spike_thr = 0.5
+    try:
+        pr = (failure_signal or {}).get("patch_risk") or {}
+        risk_level = str(pr.get("risk_level") or "").lower()
+        if risk_level == "high":
+            health_drop_thr = 5
+            fail_delta_thr = 2
+            err_spike_thr = 0.3
+        elif risk_level == "medium":
+            health_drop_thr = 6
+            fail_delta_thr = 2
+            err_spike_thr = 0.4
+    except Exception:
+        pass
+    if health_drop >= health_drop_thr:
         return True, "health_drop"
-    if fail_delta >= 3:
+    if fail_delta >= fail_delta_thr:
         return True, "fail_delta"
-    if err_spike >= 0.5:
+    if err_spike >= err_spike_thr:
         return True, "error_spike"
     return False, "ok"
 
@@ -489,6 +506,13 @@ def evaluate_canary_releases(
             baseline = json.loads(row["baseline_json"] or "{}")
         except Exception:
             baseline = {}
+        release_notes: Dict[str, Any] = {}
+        try:
+            release_notes = json.loads(row["notes"] or "{}")
+            if not isinstance(release_notes, dict):
+                release_notes = {}
+        except Exception:
+            release_notes = {}
         current = _collect_metrics(db_path)
         change_scope = []
         try:
@@ -546,6 +570,61 @@ def evaluate_canary_releases(
                     failure_signal["runtime_contracts_threshold"] = runtime_contract_hotspots_thr
             except Exception:
                 pass
+        if release_notes:
+            try:
+                if isinstance(failure_signal, dict):
+                    failure_signal = dict(failure_signal)
+                    if release_notes.get("patch_risk"):
+                        failure_signal["patch_risk"] = release_notes.get("patch_risk")
+                    if release_notes.get("mode"):
+                        failure_signal["apply_mode"] = release_notes.get("mode")
+            except Exception:
+                pass
+        # High-risk patches require minimum runtime data before promotion.
+        hold_for_risk = False
+        try:
+            pr = release_notes.get("patch_risk") or {}
+            risk_level = str(pr.get("risk_level") or "").lower()
+        except Exception:
+            risk_level = ""
+        if risk_level in {"high", "medium"} and row["status"] == "monitoring":
+            routes_count = int((current.get("routes") or {}).get("routes_count") or 0)
+            outcomes_total = int((current.get("outcomes") or {}).get("total") or 0)
+            try:
+                min_routes = int(os.getenv("BGL_CANARY_MIN_ROUTES", "5") or "5")
+            except Exception:
+                min_routes = 5
+            try:
+                min_outcomes = int(os.getenv("BGL_CANARY_MIN_OUTCOMES", "8") or "8")
+            except Exception:
+                min_outcomes = 8
+            if risk_level == "high":
+                min_routes = max(min_routes, 8)
+                min_outcomes = max(min_outcomes, 12)
+            if routes_count < min_routes or outcomes_total < min_outcomes:
+                hold_for_risk = True
+        if hold_for_risk:
+            conn.execute(
+                "UPDATE canary_releases SET status=?, updated_at=?, current_json=? WHERE release_id=?",
+                ("monitoring", float(now), _safe_json(current), row["release_id"]),
+            )
+            conn.execute(
+                "INSERT INTO canary_release_events (release_id, created_at, event_type, detail_json) VALUES (?, ?, ?, ?)",
+                (
+                    row["release_id"],
+                    float(now),
+                    "evaluated",
+                    _safe_json(
+                        {
+                            "reason": "risk_data_insufficient",
+                            "status": "monitoring",
+                            "risk_level": risk_level,
+                        }
+                    ),
+                ),
+            )
+            evaluated += 1
+            continue
         should_rb, reason = _should_rollback(baseline, current, failure_signal)
         status = "rollback_required" if should_rb else "promoted"
         conn.execute(

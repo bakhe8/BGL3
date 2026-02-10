@@ -95,6 +95,48 @@ class BGLGuardian:
         Scans all indexed routes and provides a proactive health report.
         """
         print("[*] Guardian: Starting Full System Health Audit...")
+        fast_profile = (
+            str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "")).lower() == "fast"
+            or os.getenv("BGL_FAST_VERIFY", "0") == "1"
+        )
+        run_id = str(os.getenv("BGL_DIAGNOSTIC_RUN_ID") or f"diag_{int(time.time())}")
+        audit_started = time.time()
+        audit_status = "ok"
+        audit_reason = ""
+        audit_budget = 0.0
+        try:
+            self._log_runtime_event(
+                {
+                    "timestamp": audit_started,
+                    "run_id": run_id,
+                    "event_type": "diagnostic_run_started",
+                    "source": "guardian",
+                    "payload": {
+                        "base_url": str(self.config.get("base_url", self.base_url)),
+                        "agent_mode": self.agent_mode,
+                        "execution_mode": self.execution_mode,
+                        "route_scan_mode": str(self.config.get("route_scan_mode", "auto")).lower(),
+                        "route_scan_limit": int(self.config.get("route_scan_limit", 40) or 40),
+                        "run_scenarios": str(self.config.get("run_scenarios", 1)),
+                    },
+                }
+            )
+            self._log_runtime_event(
+                {
+                    "timestamp": audit_started,
+                    "run_id": run_id,
+                    "event_type": "diagnostic_checkpoint",
+                    "source": "guardian",
+                    "payload": {
+                        "stage": "profile",
+                        "fast_profile": fast_profile,
+                        "env_profile": str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "")),
+                        "fast_verify": str(os.getenv("BGL_FAST_VERIFY", "")),
+                    },
+                }
+            )
+        except Exception:
+            pass
         readiness = self._preflight_services()
         api_contract = self._load_api_contract()
         # Reduce permission spam and keep queue clean
@@ -157,11 +199,17 @@ class BGLGuardian:
             "policy_candidates": [],
             "policy_auto_promoted": [],
             "api_scan": {"mode": "safe", "checked": 0, "skipped": 0, "errors": 0},
+            "audit_status": audit_status,
+            "audit_reason": audit_reason,
+            "audit_budget_seconds": 0.0,
+            "audit_elapsed_seconds": 0.0,
         }
 
         # Autonomous re-indexing (closing the gap)
-        indexer = EntityIndexer(self.root_dir, self.db_path)
-        indexer.index_project()
+        # Skip on fast profile to avoid expensive rescans.
+        if not fast_profile:
+            indexer = EntityIndexer(self.root_dir, self.db_path)
+            indexer.index_project()
 
         # Optional: run predefined Playwright scenarios to populate runtime events
         run_scenarios = os.getenv(
@@ -411,115 +459,174 @@ class BGLGuardian:
                     scenario_run_stats["status"] = "fail"
                     scenario_run_stats["reason"] = str(e)
 
+        # Persist scenario run stats into runtime_events + decision traces for memory linkage.
+        try:
+            status_text = str(scenario_run_stats.get("status") or "")
+            attempted_flag = bool(scenario_run_stats.get("attempted"))
+            status_flag = 1 if status_text == "ok" else (0 if attempted_flag else None)
+            payload = dict(scenario_run_stats)
+            payload.update(
+                {
+                    "base_url": str(self.config.get("base_url", self.base_url)),
+                    "agent_mode": self.agent_mode,
+                    "execution_mode": self.execution_mode,
+                }
+            )
+            self._log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "run_id": run_id,
+                    "event_type": "diagnostic_checkpoint",
+                    "source": "guardian",
+                    "payload": {
+                        "stage": "scenarios",
+                        "elapsed_s": round(time.time() - audit_started, 2),
+                        "scenario_run_stats": payload,
+                    },
+                }
+            )
+            self._log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "run_id": run_id,
+                    "event_type": "scenario_run_stats",
+                    "source": "guardian",
+                    "payload": payload,
+                    "status": status_flag,
+                }
+            )
+            decision_id = int(scenario_run_stats.get("decision_id") or 0)
+            if record_decision_trace and decision_id:
+                record_decision_trace(
+                    self.decision_db_path,
+                    kind="scenario_run_stats",
+                    decision_id=decision_id,
+                    result=status_text or "unknown",
+                    failure_class=str(scenario_run_stats.get("reason") or ""),
+                    source="guardian",
+                    details=payload,
+                    run_id=run_id,
+                )
+        except Exception:
+            pass
+
         # 0. Maintenance (New in Phase 5)
         self.log_maintenance()
 
         # 0. Sync Knowledge (New in Phase 5)
-        try:
-            from .route_indexer import LaravelRouteIndexer  # type: ignore
-        except ImportError:
-            from route_indexer import LaravelRouteIndexer
+        if not fast_profile:
+            try:
+                from .route_indexer import LaravelRouteIndexer  # type: ignore
+            except ImportError:
+                from route_indexer import LaravelRouteIndexer
 
-        # Compute a "current" fingerprint cheaply and decide if we can skip expensive steps.
-        # This prevents re-running the same work when nothing relevant changed.
-        prev_diag = None
-        prev_fp = None
-        try:
-            prev_diag = latest_env_snapshot(self.db_path, kind="diagnostic")
-            prev_fp = latest_env_snapshot(self.db_path, kind="project_fingerprint")
-        except Exception:
+            # Compute a "current" fingerprint cheaply and decide if we can skip expensive steps.
+            # This prevents re-running the same work when nothing relevant changed.
             prev_diag = None
             prev_fp = None
+            try:
+                prev_diag = latest_env_snapshot(self.db_path, kind="diagnostic")
+                prev_fp = latest_env_snapshot(self.db_path, kind="project_fingerprint")
+            except Exception:
+                prev_diag = None
+                prev_fp = None
 
-        curr_fp = fingerprint_to_payload(compute_fingerprint(self.root_dir))
-        fp_same = False
-        try:
-            prev_fp_payload = prev_fp.get("payload") if prev_fp else None
-            # Treat fingerprints as "effectively same" within a short freshness window.
-            # master_verify generates/updates artifacts (reports, sqlite, etc.) which may
-            # touch mtimes; we don't want that to force full reruns every time.
-            if fingerprint_is_fresh(prev_fp_payload, max_age_s=float(os.getenv("BGL_FINGERPRINT_FRESH_S", "900") or 900)):
-                fp_same = True
-            else:
-                fp_same = fingerprint_equal(prev_fp_payload, curr_fp)
-        except Exception:
+            curr_fp = fingerprint_to_payload(compute_fingerprint(self.root_dir))
             fp_same = False
-
-        skip_advice = {"ok": False, "reasons": ["unknown"], "skip": {}}
-        try:
-            # We don't have the "current diagnostic payload" yet at this point in the run.
-            # So we conservatively decide skip based on:
-            # - fingerprint unchanged since last run
-            # - last diagnostic had no failing routes
-            # - last readiness was OK (or absent)
-            if not fp_same:
-                skip_advice = {"ok": False, "reasons": ["fingerprint_changed"], "skip": {}}
-            else:
-                last_payload = prev_diag.get("payload") if prev_diag else {}
-                failing = int(((last_payload.get("route_health") or {}).get("failing_routes_count") or 0))
-                ready_ok = None
-                try:
-                    ready_ok = bool((last_payload.get("readiness") or {}).get("ok"))
-                except Exception:
-                    ready_ok = None
-                if failing == 0 and ready_ok is not False:
-                    skip_advice = {"ok": True, "reasons": ["stable_since_last_run"], "skip": {"reindex": True}}
+            try:
+                prev_fp_payload = prev_fp.get("payload") if prev_fp else None
+                # Treat fingerprints as "effectively same" within a short freshness window.
+                # master_verify generates/updates artifacts (reports, sqlite, etc.) which may
+                # touch mtimes; we don't want that to force full reruns every time.
+                if fingerprint_is_fresh(
+                    prev_fp_payload,
+                    max_age_s=float(os.getenv("BGL_FINGERPRINT_FRESH_S", "900") or 900),
+                ):
+                    fp_same = True
                 else:
-                    skip_advice = {"ok": False, "reasons": ["last_run_unstable"], "skip": {}}
-        except Exception:
-            skip_advice = {"ok": False, "reasons": ["skip_advice_failed"], "skip": {}}
-
-        force_reindex = (
-            str(self.config.get("force_reindex", "0")) == "1"
-            or os.getenv("BGL_FORCE_REINDEX", "0") == "1"
-        )
-        if force_reindex:
-            skip_advice = {"ok": False, "reasons": ["force_reindex"], "skip": {}}
-
-        indexer = LaravelRouteIndexer(self.root_dir, self.db_path)
-        reindex_gate = self._gate_reindex(self.root_dir)
-        if not reindex_gate or not reindex_gate.allowed:
-            print("    [!] Guardian: full reindex blocked by decision gate.")
-        elif skip_advice.get("ok") and skip_advice.get("skip", {}).get("reindex"):
-            print("    [*] Guardian: skipping reindex (stable fingerprint/diagnostic).")
-            self.authority.record_outcome(int(reindex_gate.decision_id or 0), "skipped", "skip_advice=reindex")
-            # Still persist a fresh fingerprint so the next run can see it.
-            try:
-                out = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
-                self.authority  # ensure initialized
-                # Avoid circular imports by using observations API already imported.
-                from .observations import store_env_snapshot  # type: ignore
+                    fp_same = fingerprint_equal(prev_fp_payload, curr_fp)
             except Exception:
-                from observations import store_env_snapshot  # type: ignore
+                fp_same = False
+
+            skip_advice = {"ok": False, "reasons": ["unknown"], "skip": {}}
             try:
-                store_env_snapshot(
-                    self.db_path,
-                    run_id=str(int(time.time())),
-                    kind="project_fingerprint",
-                    payload=curr_fp,
-                    source="guardian",
-                    confidence=None,
-                    created_at=time.time(),
-                )
+                # We don't have the "current diagnostic payload" yet at this point in the run.
+                # So we conservatively decide skip based on:
+                # - fingerprint unchanged since last run
+                # - last diagnostic had no failing routes
+                # - last readiness was OK (or absent)
+                if not fp_same:
+                    skip_advice = {"ok": False, "reasons": ["fingerprint_changed"], "skip": {}}
+                else:
+                    last_payload = prev_diag.get("payload") if prev_diag else {}
+                    failing = int(
+                        ((last_payload.get("route_health") or {}).get("failing_routes_count") or 0)
+                    )
+                    ready_ok = None
+                    try:
+                        ready_ok = bool((last_payload.get("readiness") or {}).get("ok"))
+                    except Exception:
+                        ready_ok = None
+                    if failing == 0 and ready_ok is not False:
+                        skip_advice = {"ok": True, "reasons": ["stable_since_last_run"], "skip": {"reindex": True}}
+                    else:
+                        skip_advice = {"ok": False, "reasons": ["last_run_unstable"], "skip": {}}
             except Exception:
-                pass
-        else:
-            try:
-                # Prefer run(); fallback to index_project if available
-                method = getattr(indexer, "run", None)
-                if method is None:
-                    method = getattr(indexer, "index_project", None)
-                if method is None:
-                    raise AttributeError("LaravelRouteIndexer has no run/index_project")
-                method()
+                skip_advice = {"ok": False, "reasons": ["skip_advice_failed"], "skip": {}}
+
+            force_reindex = (
+                str(self.config.get("force_reindex", "0")) == "1"
+                or os.getenv("BGL_FORCE_REINDEX", "0") == "1"
+            )
+            if force_reindex:
+                skip_advice = {"ok": False, "reasons": ["force_reindex"], "skip": {}}
+
+            indexer = LaravelRouteIndexer(self.root_dir, self.db_path)
+            reindex_gate = self._gate_reindex(self.root_dir)
+            if not reindex_gate or not reindex_gate.allowed:
+                print("    [!] Guardian: full reindex blocked by decision gate.")
+            elif skip_advice.get("ok") and skip_advice.get("skip", {}).get("reindex"):
+                print("    [*] Guardian: skipping reindex (stable fingerprint/diagnostic).")
                 self.authority.record_outcome(
-                    int(reindex_gate.decision_id or 0), "success", "reindex_full completed"
+                    int(reindex_gate.decision_id or 0), "skipped", "skip_advice=reindex"
                 )
-            except Exception as e:
-                print(f"[!] Guardian: reindex failed: {e}")
-                self.authority.record_outcome(
-                    int(reindex_gate.decision_id or 0), "fail", str(e)
-                )
+                # Still persist a fresh fingerprint so the next run can see it.
+                try:
+                    out = self.root_dir / ".bgl_core" / "brain" / "knowledge.db"
+                    self.authority  # ensure initialized
+                    # Avoid circular imports by using observations API already imported.
+                    from .observations import store_env_snapshot  # type: ignore
+                except Exception:
+                    from observations import store_env_snapshot  # type: ignore
+                try:
+                    store_env_snapshot(
+                        self.db_path,
+                        run_id=str(int(time.time())),
+                        kind="project_fingerprint",
+                        payload=curr_fp,
+                        source="guardian",
+                        confidence=None,
+                        created_at=time.time(),
+                    )
+                except Exception:
+                    pass
+            else:
+                try:
+                    # Prefer run(); fallback to index_project if available
+                    method = getattr(indexer, "run", None)
+                    if method is None:
+                        method = getattr(indexer, "index_project", None)
+                    if method is None:
+                        raise AttributeError("LaravelRouteIndexer has no run/index_project")
+                    method()
+                    self.authority.record_outcome(
+                        int(reindex_gate.decision_id or 0), "success", "reindex_full completed"
+                    )
+                except Exception as e:
+                    print(f"[!] Guardian: reindex failed: {e}")
+                    self.authority.record_outcome(
+                        int(reindex_gate.decision_id or 0), "fail", str(e)
+                    )
 
         # 1. Ensure route index exists then fetch routes
         self._ensure_routes_indexed()
@@ -527,7 +634,13 @@ class BGLGuardian:
         limit_env = os.getenv("BGL_ROUTE_SCAN_LIMIT")
         limit_cfg = self.config.get("route_scan_limit")
         mode_cfg = str(self.config.get("route_scan_mode", "auto")).lower()
+        mode_env = os.getenv("BGL_ROUTE_SCAN_MODE")
+        if mode_env:
+            mode_cfg = str(mode_env).lower().strip() or mode_cfg
         api_scan_mode = str(self.config.get("api_scan_mode", "safe")).lower()
+        api_mode_env = os.getenv("BGL_API_SCAN_MODE")
+        if api_mode_env:
+            api_scan_mode = str(api_mode_env).lower().strip() or api_scan_mode
         if api_scan_mode in ("aggressive", "full", "unsafe", "all"):
             api_scan_mode = "all"
         if api_scan_mode not in ("safe", "skip", "all"):
@@ -560,6 +673,55 @@ class BGLGuardian:
                 "route_scan_max_seconds", os.getenv("BGL_ROUTE_SCAN_MAX_SECONDS", 60)
             )
         )
+        try:
+            diag_timeout = float(self.config.get("diagnostic_timeout_sec", 600) or 600)
+        except Exception:
+            diag_timeout = 600.0
+        try:
+            budget_env = os.getenv("BGL_DIAGNOSTIC_BUDGET_SECONDS")
+            if budget_env is not None and str(budget_env).strip():
+                budget_cfg = float(budget_env)
+            else:
+                budget_cfg = float(self.config.get("diagnostic_budget_seconds", 0) or 0)
+        except Exception:
+            budget_cfg = 0.0
+        if budget_cfg > 0:
+            audit_budget = budget_cfg
+        else:
+            # Soft budget: keep room for report generation, stay under global timeout.
+            audit_budget = max(25.0, min(diag_timeout * 0.6, max_seconds + 15.0))
+
+        def _budget_exceeded(stage: str) -> bool:
+            nonlocal audit_status, audit_reason
+            if audit_budget <= 0:
+                return False
+            elapsed = time.time() - audit_started
+            if elapsed <= audit_budget:
+                return False
+            audit_status = "partial"
+            audit_reason = f"budget_exceeded:{stage}"
+            report.setdefault("warnings", []).append(
+                f"Audit budget exceeded at {stage} (elapsed {elapsed:.1f}s > budget {audit_budget:.1f}s)."
+            )
+            try:
+                self._log_runtime_event(
+                    {
+                        "timestamp": time.time(),
+                        "run_id": run_id,
+                        "event_type": "diagnostic_checkpoint",
+                        "source": "guardian",
+                        "payload": {
+                            "stage": stage,
+                            "elapsed_s": round(elapsed, 2),
+                            "budget_s": round(audit_budget, 2),
+                            "status": audit_status,
+                            "reason": audit_reason,
+                        },
+                    }
+                )
+            except Exception:
+                pass
+            return True
 
         # Prioritize routes that recently appeared in experiential memory
         recent_exp = self._load_recent_experiences(hours=48, limit=50)
@@ -589,6 +751,13 @@ class BGLGuardian:
                 "recent_experiences": [],
                 "route_scan_limit": len(routes),
                 "route_scan_mode": mode_cfg,
+                "route_scan_stats": {
+                    "attempted": 0,
+                    "checked": 0,
+                    "skipped": 0,
+                    "errors": 0,
+                    "unknown": 0,
+                },
                 "permission_issues": [],
                 "agent_mode": self.agent_mode,
                 "tool_evidence": tool_evidence,
@@ -1175,6 +1344,22 @@ class BGLGuardian:
                     coverage_payload["flow"]["gaps"] = flow_cov.get("gaps") or []
                 except Exception:
                     pass
+                try:
+                    self._log_runtime_event(
+                        {
+                            "timestamp": time.time(),
+                            "run_id": run_id,
+                            "event_type": "gap_coverage_refresh",
+                            "source": "guardian",
+                            "payload": {
+                                "scenario_ratio": (coverage.get("coverage_ratio") if isinstance(coverage, dict) else None),
+                                "ui_action_ratio": (ui_cov.get("operational_coverage_ratio") if isinstance(ui_cov, dict) else None),
+                                "flow_ratio": (flow_cov.get("coverage_ratio") if isinstance(flow_cov, dict) else None),
+                            },
+                        }
+                    )
+                except Exception:
+                    pass
         except Exception:
             pass
 
@@ -1187,6 +1372,10 @@ class BGLGuardian:
             }
         except Exception:
             report["coverage_reliability"] = {}
+        try:
+            report["diagnostic_confidence"] = self._compute_diagnostic_confidence(report)
+        except Exception:
+            report["diagnostic_confidence"] = {}
 
         # UI flow model (phase 3: flow understanding)
         try:
@@ -1253,6 +1442,8 @@ class BGLGuardian:
         important_routes = routes
 
         for route in important_routes:
+            if _budget_exceeded("route_scan_loop"):
+                break
             if time.time() - scan_start > max_seconds:
                 print(
                     f"[WARN] Route scan reached max seconds ({max_seconds}s). Stopping early."
@@ -1260,6 +1451,10 @@ class BGLGuardian:
                 break
             uri = route["uri"]
             print(f"    - Checking: {uri}")
+            try:
+                report["route_scan_stats"]["attempted"] += 1
+            except Exception:
+                pass
             try:
                 meta = self._build_route_scan_meta(route, api_contract.get("paths", {}))
                 if meta.get("log_runtime"):
@@ -1291,8 +1486,48 @@ class BGLGuardian:
                     report["skipped_routes"].append(
                         {"uri": uri, "reason": api_res.get("reason", "skipped")}
                     )
+                    try:
+                        report["route_scan_stats"]["skipped"] += 1
+                    except Exception:
+                        pass
+                    try:
+                        self._log_runtime_event(
+                            {
+                                "event_type": "route_check_skipped",
+                                "route": uri,
+                                "method": route.get("http_method", "GET"),
+                                "target": uri,
+                                "status": api_res.get("status"),
+                                "latency_ms": api_res.get("latency_ms"),
+                                "error": api_res.get("reason"),
+                                "payload": {"mode": api_scan_mode, "api": True},
+                                "source": "guardian",
+                            }
+                        )
+                    except Exception:
+                        pass
                     continue
                 api_summary["checked"] += 1
+                try:
+                    report["route_scan_stats"]["checked"] += 1
+                except Exception:
+                    pass
+                try:
+                    self._log_runtime_event(
+                        {
+                            "event_type": "route_check_api",
+                            "route": uri,
+                            "method": api_res.get("method_used") or route.get("http_method", "GET"),
+                            "target": uri,
+                            "status": api_res.get("status"),
+                            "latency_ms": api_res.get("latency_ms"),
+                            "error": api_res.get("error"),
+                            "payload": {"mode": api_scan_mode, "valid": bool(api_res.get("valid", False))},
+                            "source": "guardian",
+                        }
+                    )
+                except Exception:
+                    pass
                 if not api_res.get("valid", False):
                     expected = self._classify_expected_failure(
                         uri,
@@ -1317,6 +1552,10 @@ class BGLGuardian:
                     if candidate:
                         report["policy_candidates"].append(candidate)
                     api_summary["errors"] += 1
+                    try:
+                        report["route_scan_stats"]["errors"] += 1
+                    except Exception:
+                        pass
                     report["failing_routes"].append(
                         {
                             "uri": uri,
@@ -1353,17 +1592,21 @@ class BGLGuardian:
                 except Exception:
                     scan_timeout = 15.0
                 try:
+                    ui_start = time.time()
                     scan_res = await asyncio.wait_for(
                         self.safety.browser.scan_url(uri, measure_perf=measure_perf),
                         timeout=scan_timeout,
                     )
+                    ui_latency_ms = round((time.time() - ui_start) * 1000, 1)
                 except asyncio.TimeoutError:
+                    ui_latency_ms = round((time.time() - ui_start) * 1000, 1)
                     scan_res = {
                         "status": "SKIPPED",
                         "skipped": True,
                         "reason": f"browser_timeout_{scan_timeout}s",
                     }
                 except Exception as e:
+                    ui_latency_ms = round((time.time() - ui_start) * 1000, 1)
                     scan_res = {"status": "SKIPPED", "skipped": True, "reason": str(e)}
 
             status_score = 100
@@ -1371,14 +1614,58 @@ class BGLGuardian:
                 report["skipped_routes"].append(
                     {"uri": uri, "reason": scan_res.get("reason", "skipped")}
                 )
+                try:
+                    report["route_scan_stats"]["skipped"] += 1
+                except Exception:
+                    pass
+                try:
+                    self._log_runtime_event(
+                        {
+                            "event_type": "route_check_skipped",
+                            "route": uri,
+                            "method": route.get("http_method", "GET"),
+                            "target": uri,
+                            "status": scan_res.get("status"),
+                            "latency_ms": scan_res.get("latency_ms") or locals().get("ui_latency_ms"),
+                            "error": scan_res.get("reason"),
+                            "payload": {"api": False},
+                            "source": "guardian",
+                        }
+                    )
+                except Exception:
+                    pass
                 continue
             status_val = scan_res.get("status", "SUCCESS")
+            try:
+                report["route_scan_stats"]["checked"] += 1
+            except Exception:
+                pass
+            try:
+                self._log_runtime_event(
+                    {
+                        "event_type": "route_check_ui",
+                        "route": uri,
+                        "method": route.get("http_method", "GET"),
+                        "target": uri,
+                        "status": scan_res.get("status"),
+                        "latency_ms": scan_res.get("latency_ms") or locals().get("ui_latency_ms"),
+                        "error": scan_res.get("error"),
+                        "payload": {"api": False},
+                        "source": "guardian",
+                    }
+                )
+            except Exception:
+                pass
             if (
                 status_val != "SUCCESS"
                 or scan_res.get("console_errors")
                 or scan_res.get("network_failures")
             ):
                 status_score = 0
+                try:
+                    report["route_scan_stats"]["errors"] += 1
+                except Exception:
+                    pass
                 res: Dict[str, Any] = cast(Dict[str, Any], scan_res)
                 c_errs: List[Any] = res.get("console_errors", [])  # type: ignore
                 n_errs: List[Any] = [
@@ -1397,8 +1684,40 @@ class BGLGuardian:
             # Phase 5: Update Knowledge Base
             self._update_route_health(route, status_score)
 
+        route_scan_elapsed = time.time() - scan_start
+        try:
+            self._log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "run_id": run_id,
+                    "event_type": "diagnostic_checkpoint",
+                    "source": "guardian",
+                    "payload": {
+                        "stage": "route_scan",
+                        "elapsed_s": round(route_scan_elapsed, 2),
+                        "route_scan_stats": report.get("route_scan_stats", {}),
+                        "route_scan_limit": report.get("route_scan_limit", 0),
+                        "route_scan_mode": report.get("route_scan_mode", "auto"),
+                    },
+                }
+            )
+        except Exception:
+            pass
+
+        if fast_profile:
+            report.setdefault("warnings", []).append(
+                "Fast diagnostic profile: skipped deep analyses after route scan."
+            )
+            report["audit_status"] = audit_status
+            report["audit_reason"] = audit_reason
+            report["audit_budget_seconds"] = round(audit_budget, 2)
+            report["audit_elapsed_seconds"] = round(time.time() - audit_started, 2)
+            return report
+
         # 3. Analyze Backend Logs for Anomalies
-        report["log_anomalies"] = self._detect_log_anomalies()
+        budget_hit = _budget_exceeded("route_scan")
+        if not budget_hit:
+            report["log_anomalies"] = self._detect_log_anomalies()
 
         # Auto-promote high-confidence policy candidates
         if report.get("policy_candidates"):
@@ -1407,28 +1726,43 @@ class BGLGuardian:
             )
 
         # 3b. Check Learning Confirmations (False Positives / Anomalies)
-        report["learning_confirmations"] = self._check_learning_confirmations()
+        if not budget_hit:
+            report["learning_confirmations"] = self._check_learning_confirmations()
 
         # 4. Check Business Logic Conflicts (Collaborative Integration)
         # Fetch actual recent candidates from guarantees table
-        report["business_conflicts"] = self._check_business_conflicts_real()
+        if not budget_hit:
+            report["business_conflicts"] = self._check_business_conflicts_real()
 
         # 4b. Permission watchdog (write access to critical files)
-        report["permission_issues"] = self._check_permissions()
+        if not budget_hit:
+            report["permission_issues"] = self._check_permissions()
 
         # 5. Load experiential memory and generate Suggestions
-        report["recent_experiences"] = self._load_recent_experiences()
-        report["suggestions"] = self._generate_suggestions(report)
-        report["worst_routes"] = self._worst_routes(report)
+        if not budget_hit:
+            report["recent_experiences"] = self._load_recent_experiences()
+            report["suggestions"] = self._generate_suggestions(report)
+            report["worst_routes"] = self._worst_routes(report)
+        else:
+            report.setdefault("warnings", []).append(
+                "Audit budget reached; skipped heavy analyses (logs/permissions/suggestions)."
+            )
 
         # 6. Timing safety check
-        scan_duration = time.time() - scan_start
+        scan_duration = route_scan_elapsed
         if scan_duration > max_seconds:
             report.setdefault("warnings", []).append(
                 f"Route scan exceeded safe time ({scan_duration:.1f}s > {max_seconds}s). Consider lowering limit or resources."
             )
         report["scan_duration_seconds"] = scan_duration
         report["target_duration_seconds"] = target_duration
+        try:
+            attempted = int(report.get("route_scan_stats", {}).get("attempted") or 0)
+            total = len(important_routes)
+            unknown = max(0, total - attempted)
+            report["route_scan_stats"]["unknown"] = unknown
+        except Exception:
+            pass
 
         # 7. Persist stats for next adaptive run
         self._persist_route_stats(stats_path, len(important_routes), scan_duration)
@@ -1441,10 +1775,26 @@ class BGLGuardian:
         report["dependency_graph"] = self._dependency_graph_summary()
         report["callgraph"] = self._callgraph_summary()
         report["runtime_profile"] = self._runtime_profile_summary()
+        try:
+            self._log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "run_id": run_id,
+                    "event_type": "runtime_profile_snapshot",
+                    "source": "guardian",
+                    "payload": report.get("runtime_profile") or {},
+                }
+            )
+        except Exception:
+            pass
         report["decision_explanations"] = self._decision_explanations(
             report.get("recent_outcomes") or []
         )
         report["unified_actions"] = self._unify_actions(report)
+        report["audit_status"] = audit_status
+        report["audit_reason"] = audit_reason
+        report["audit_budget_seconds"] = round(audit_budget, 2)
+        report["audit_elapsed_seconds"] = round(time.time() - audit_started, 2)
 
         return report
 
@@ -2197,6 +2547,9 @@ class BGLGuardian:
                 "ui_state_action",
                 "text_block_seen",
                 "semantic_shift",
+                "ui_action_snapshot",
+                "ui_semantic_snapshot",
+                "ui_semantic_change",
             }
             for r in rows:
                 route = r["route"] or ""
@@ -2235,6 +2588,54 @@ class BGLGuardian:
                         session_routes.setdefault(str(sess), []).append(norm)
                         route_event_types.setdefault(norm, set()).add("ui_flow_transition")
                     events_seen.add("ui_flow_transition")
+            except Exception:
+                pass
+            # Include UI semantic snapshots as operational evidence + semantic change tracking
+            try:
+                rows_sem = cur.execute(
+                    """
+                    SELECT url, digest, created_at
+                    FROM ui_semantic_snapshots
+                    WHERE created_at >= ?
+                    ORDER BY created_at ASC
+                    """,
+                    (cutoff,),
+                ).fetchall()
+                last_digest: Dict[str, str] = {}
+                for r in rows_sem:
+                    url = self._normalize_route(str(r["url"] or ""))
+                    if not url:
+                        continue
+                    digest = str(r["digest"] or "")
+                    if url in last_digest and last_digest[url] != digest:
+                        semantic_change_count += 1
+                        route_event_types.setdefault(url, set()).add("ui_semantic_change")
+                        events_seen.add("ui_semantic_change")
+                    last_digest[url] = digest
+                    route_seen.add(url)
+                    action_route_seen.add(url)
+                    route_event_types.setdefault(url, set()).add("ui_semantic_snapshot")
+                    events_seen.add("ui_semantic_snapshot")
+            except Exception:
+                pass
+            # Include UI action snapshots as operational evidence
+            try:
+                rows_action = cur.execute(
+                    """
+                    SELECT url, created_at
+                    FROM ui_action_snapshots
+                    WHERE created_at >= ?
+                    """,
+                    (cutoff,),
+                ).fetchall()
+                for r in rows_action:
+                    url = self._normalize_route(str(r["url"] or ""))
+                    if not url:
+                        continue
+                    route_seen.add(url)
+                    action_route_seen.add(url)
+                    route_event_types.setdefault(url, set()).add("ui_action_snapshot")
+                    events_seen.add("ui_action_snapshot")
             except Exception:
                 pass
             # Count semantic changes from UI flow transitions.
@@ -2708,6 +3109,29 @@ class BGLGuardian:
                         semantic_change_count += 1
             except Exception:
                 semantic_change_count = 0
+            # Fallback: detect semantic changes from ui_semantic_snapshots digests.
+            if semantic_change_count <= 0:
+                try:
+                    rows_sem = conn.execute(
+                        """
+                        SELECT url, digest, created_at
+                        FROM ui_semantic_snapshots
+                        WHERE created_at >= ?
+                        ORDER BY created_at ASC
+                        """,
+                        (cutoff,),
+                    ).fetchall()
+                    last_digest: Dict[str, str] = {}
+                    for r in rows_sem:
+                        url = self._normalize_route(str(r["url"] or ""))
+                        if not url:
+                            continue
+                        digest = str(r["digest"] or "")
+                        if url in last_digest and last_digest[url] != digest:
+                            semantic_change_count += 1
+                        last_digest[url] = digest
+                except Exception:
+                    pass
 
             gap_runs = 0
             gap_changed = 0
@@ -4196,7 +4620,7 @@ class BGLGuardian:
                 SELECT route, AVG(latency_ms) avg_latency, MAX(latency_ms) max_latency, COUNT(*) c
                 FROM runtime_events
                 WHERE timestamp >= ? AND latency_ms IS NOT NULL
-                  AND event_type IN ('api_call','http_error','route')
+                  AND event_type IN ('api_call','http_error','route','route_check_api','route_check_ui')
                 GROUP BY route
                 ORDER BY avg_latency DESC
                 LIMIT ?
@@ -4442,6 +4866,71 @@ class BGLGuardian:
             return 30.0
         p80_idx = int(0.8 * (len(durations) - 1))
         return max(15.0, durations[p80_idx])
+
+    def _compute_diagnostic_confidence(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        profile = str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "")).lower()
+        if not profile:
+            profile = str(self.config.get("diagnostic_profile", "auto") or "auto").lower()
+        cache_used = bool(report.get("cache_used"))
+        base = 0.6
+        if profile in ("full", "full-scan"):
+            base = 1.0
+        elif profile == "medium":
+            base = 0.75
+        elif profile in ("fast", "fast-stub"):
+            base = 0.45
+        elif profile.startswith("cache"):
+            base = 0.5
+        if cache_used:
+            base *= 0.85
+
+        notes: List[str] = []
+        audit_status = str(report.get("audit_status") or "")
+        if audit_status and audit_status != "ok":
+            base *= 0.7
+            notes.append(f"audit_status={audit_status}")
+
+        route_stats = report.get("route_scan_stats") or {}
+        attempted = int(route_stats.get("attempted") or 0)
+        checked = int(route_stats.get("checked") or 0)
+        route_ratio = (checked / attempted) if attempted > 0 else 0.0
+        if attempted > 0:
+            base *= (0.5 + 0.5 * min(1.0, max(0.0, route_ratio)))
+        else:
+            base *= 0.6
+            notes.append("route_scan:0")
+
+        scenario = report.get("scenario_run_stats") or {}
+        scen_status = str(scenario.get("status") or "")
+        if scenario.get("attempted"):
+            if scen_status in ("ok", "ok_after_retry"):
+                base *= 1.0
+            elif scen_status in ("low_events", "low_event_delta", "skipped_or_locked"):
+                base *= 0.85
+                notes.append(f"scenario={scen_status}")
+            else:
+                base *= 0.7
+                notes.append(f"scenario={scen_status or 'unknown'}")
+        else:
+            if scen_status and scen_status != "skipped":
+                notes.append(f"scenario={scen_status}")
+            base *= 0.9
+
+        reliability = report.get("coverage_reliability") or {}
+        if reliability and any(r is False for r in reliability.values()):
+            base *= 0.8
+            notes.append("coverage_reliability=false")
+
+        score = max(0.05, min(1.0, round(base, 3)))
+        return {
+            "score": score,
+            "profile": profile,
+            "route_scan_ratio": round(route_ratio, 3),
+            "scenario_status": scen_status or "skipped",
+            "audit_status": audit_status or "ok",
+            "coverage_reliability": reliability,
+            "notes": notes,
+        }
 
     def _compute_adaptive_limit(
         self,

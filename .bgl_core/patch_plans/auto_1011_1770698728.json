@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1011",
+  "description": "Stabilize scenario goals(goal_1770697830.yaml)",
+  "created_at": 1684356799,
+  "metadata": {
+    "proposal_id": 1011,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770698728.0742648
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770697830.yaml",
+      "mode": "overwrite",
+      "content": "version: 2\nid: goal_1770697830\ndescription: Stabilize scenario goals(goal_1770697830.yaml)\nimpact: medium\nsolution:\nexpectation:\nevidence: {}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 2\nid: goal_1770697830\ndescription: Stabilize scenario goals(goal_1770697830.yaml)\nimpact: medium\nsolution:\nexpectation:\nevidence: {}\n"
+      }
+    }
+  ]
+}

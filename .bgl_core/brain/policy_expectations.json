@@ -796,7 +796,7 @@
     "expected_statuses": [
       400
     ],
-    "reason": "Auto-promoted from evidence, updated to reflect actual expected status.",
+    "reason": "Expected status based on historical evidence and current behavior.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -806,7 +806,7 @@
     "expected_statuses": [
       400
     ],
-    "reason": "Auto-promoted from evidence, updated to reflect actual expected status.",
+    "reason": "Expected status based on historical evidence and current behavior.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -949,5 +949,33 @@
     "reason": "Auto-promoted from evidence",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
+  },
+  {
+    "uri": "/api/v1/data",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The POST request to /api/v1/data should return a 400 status code if the data is invalid.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/v1/data",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The endpoint returns a 400 status code for expected input errors.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/v1/status",
+    "method": "GET",
+    "expected_statuses": [
+      200,
+      503
+    ],
+    "reason": "Ensure the status endpoint returns expected HTTP statuses.",
+    "category": "policy_expected_auto"
   }
 ]

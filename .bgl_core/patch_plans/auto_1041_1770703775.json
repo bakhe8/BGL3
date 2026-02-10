@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "1041",
+  "description": "Runtime evidence for /api/import.php: events 1-3, errors 1-3 (rate 0.6+), latency low. last_error_present. suspect_deps=Alert,RuntimeException,Settings,RuntimeException.",
+  "created_at": 1689572800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1041,
+    "generated_at": 1770703775.775422
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/autonomous/auto_1770561848.yaml",
+      "mode": null,
+      "content": "runtime_contract:/api/import.php\n- events: [1, 2, 3]\n- errors: [1, 2, 3]\n- rate: 0.6+\n- latency: low\n- last_error_present: true\n- suspect_deps: [Alert, RuntimeException, Settings, RuntimeException]",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "runtime_contract:/api/import.php\n- events: [1, 2, 3]\n- errors: [1, 2, 3]\n- rate: 0.6+\n- latency: low\n- last_error_present: true\n- suspect_deps: [Alert, RuntimeException, Settings, RuntimeException]"
+      }
+    }
+  ]
+}

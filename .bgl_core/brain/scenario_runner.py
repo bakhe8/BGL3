@@ -320,6 +320,35 @@ async def _maybe_store_semantic_snapshot(
                 delta = compute_ui_semantic_delta(prev.get("summary"), summary)
     except Exception:
         pass
+    try:
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "ui_semantic_snapshot",
+                "route": url,
+                "method": "SNAPSHOT",
+                "payload": {"source": source, "changed": bool(delta.get("changed"))},
+                "status": 200,
+            },
+        )
+        if delta.get("changed"):
+            log_event(
+                db_path,
+                session,
+                {
+                    "event_type": "ui_semantic_change",
+                    "route": url,
+                    "method": "SNAPSHOT",
+                    "payload": {
+                        "source": source,
+                        "change_count": int(delta.get("change_count") or 0),
+                    },
+                    "status": 200,
+                },
+            )
+    except Exception:
+        pass
     return {"url": url, "summary": summary, "delta": delta, "session": session}
 
 
@@ -374,6 +403,20 @@ async def _maybe_store_action_snapshot(
             candidates=compact,
             source=source,
             created_at=time.time(),
+        )
+    except Exception:
+        pass
+    try:
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "ui_action_snapshot",
+                "route": url,
+                "method": "SNAPSHOT",
+                "payload": {"source": source, "count": len(compact)},
+                "status": 200,
+            },
         )
     except Exception:
         pass

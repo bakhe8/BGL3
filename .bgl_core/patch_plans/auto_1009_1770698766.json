@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1009",
+  "description": "Stabilize scenario goal_1770697879.yaml",
+  "created_at": 1684576800,
+  "metadata": {
+    "proposal_id": 1009,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770698766.2525406
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770697879.yaml",
+      "mode": "overwrite",
+      "content": "version: 2\nid: goal_1770697879\ndescription: Stabilize scenario goal_1770697879.yaml\ntags:\n  - stabilization\nsteps:\n  - name: Ensure stability\n    actions:\n      - type: run_script\n        script: .bgl_core/brain/run_stability_check.py\n        args:\n          - scenario_path: .bgl_core/brain/scenarios/goals/goal_1770697879.yaml",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 2\nid: goal_1770697879\ndescription: Stabilize scenario goal_1770697879.yaml\ntags:\n  - stabilization\nsteps:\n  - name: Ensure stability\n    actions:\n      - type: run_script\n        script: .bgl_core/brain/run_stability_check.py\n        args:\n          - scenario_path: .bgl_core/brain/scenarios/goals/goal_1770697879.yaml"
+      }
+    }
+  ]
+}

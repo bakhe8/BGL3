@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_command_center_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/command_center.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/command_center.php
+- action: wait
+  ms: 400

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1029",
+  "description": "Patch plan for stabilizing route http://localhost:8000/",
+  "created_at": 1683456789,
+  "metadata": {
+    "proposal_id": 1029,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770702137.7374892
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilize route http://localhost:8000/\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilize route http://localhost:8000/\n"
+      }
+    }
+  ]
+}

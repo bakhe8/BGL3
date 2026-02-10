@@ -24,6 +24,12 @@ SAFE_KEYS = {
     "auto_digest_limit",
     "auto_digest_timeout_sec",
     "context_digest_timeout_sec",
+    # diagnostic controls
+    "diagnostic_timeout_sec",
+    "diagnostic_budget_seconds",
+    "route_scan_limit",
+    "route_scan_max_seconds",
+    "scenario_batch_limit",
     # proposals / apply
     "auto_propose_min_conf",
     "auto_propose_min_evidence",
@@ -104,6 +110,7 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
         return {"status": "skipped", "reason": "auto_tune_disabled"}
 
     findings = (diagnostic_map or {}).get("findings") or {}
+    route_stats = (diagnostic_map or {}).get("route_scan_stats") or {}
     updates: Dict[str, Any] = {}
     reasons: Dict[str, str] = {}
 
@@ -174,6 +181,43 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
     if cfg.get("auto_run_gap_scenarios", 1) in (0, "0", False):
         updates["auto_run_gap_scenarios"] = 1
         reasons["auto_run_gap_scenarios"] = "ensure_gap_execution"
+
+    # Route scan reliability tuning (avoid 0% health due to no checked routes)
+    try:
+        checked = int(route_stats.get("checked") or 0)
+        attempted = int(route_stats.get("attempted") or 0)
+    except Exception:
+        checked = 0
+        attempted = 0
+    if attempted > 0 and checked == 0:
+        cur_limit = int(cfg.get("route_scan_limit", 0) or 0)
+        new_limit = _clamp(max(cur_limit, 25), 10, 120)
+        if new_limit != cur_limit:
+            updates["route_scan_limit"] = new_limit
+            reasons["route_scan_limit"] = "no_checked_routes"
+        cur_max = int(cfg.get("route_scan_max_seconds", 60) or 60)
+        new_max = _clamp(max(cur_max, 90), 60, 180)
+        if new_max != cur_max:
+            updates["route_scan_max_seconds"] = new_max
+            reasons["route_scan_max_seconds"] = "no_checked_routes"
+        cur_diag = int(cfg.get("diagnostic_timeout_sec", 600) or 600)
+        new_diag = _clamp(max(cur_diag, 900), 600, 1800)
+        if new_diag != cur_diag:
+            updates["diagnostic_timeout_sec"] = new_diag
+            reasons["diagnostic_timeout_sec"] = "no_checked_routes"
+
+    # Scenario batch sizing when coverage is very low
+    scen_cov = (findings.get("scenario_coverage") or {})
+    try:
+        cov_ratio = float(scen_cov.get("coverage_ratio") or 0.0)
+    except Exception:
+        cov_ratio = 0.0
+    if cov_ratio and cov_ratio < 30.0:
+        cur_batch = int(cfg.get("scenario_batch_limit", 40) or 40)
+        new_batch = _clamp(max(cur_batch, 50), 20, 80)
+        if new_batch != cur_batch:
+            updates["scenario_batch_limit"] = new_batch
+            reasons["scenario_batch_limit"] = "low_scenario_coverage"
 
     # Filter to safe keys only
     updates = {k: v for k, v in updates.items() if k in SAFE_KEYS}

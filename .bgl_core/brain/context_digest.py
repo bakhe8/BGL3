@@ -336,7 +336,18 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
     summaries = []
     grouped: Dict[str, Dict] = {}
     for e in events:
-        if e["event_type"] == "log_highlight":
+        etype = e["event_type"] or ""
+        skip_types = {
+            "log_highlight",
+            "route_scan_meta",
+            "diagnostic_run_started",
+            "diagnostic_checkpoint",
+            "diagnostic_run_complete",
+            "diagnostic_delta",
+            "scenario_run_stats",
+            "context_digest_timeout",
+        }
+        if etype in skip_types:
             continue
         route = e["route"] or "/"
         g = grouped.setdefault(
@@ -355,7 +366,6 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
             },
         )
         g["count"] += 1
-        etype = e["event_type"]
         status = e["status"] or 0
         if etype in ("api_call", "http_error", "route"):
             g["http_calls"] += 1
@@ -495,6 +505,86 @@ def summarize_route_scan_meta(events: List[sqlite3.Row]) -> List[Dict]:
                 "scenario_id": ctx.get("scenario_id"),
                 "goal_id": ctx.get("goal_id"),
                 "source_type": "route_scan_meta",
+            }
+        )
+    return summaries
+
+
+def summarize_diagnostic_events(events: List[sqlite3.Row]) -> List[Dict]:
+    summaries: List[Dict] = []
+    for e in events:
+        etype = e["event_type"] or ""
+        if etype not in {
+            "diagnostic_run_started",
+            "diagnostic_checkpoint",
+            "diagnostic_run_complete",
+            "diagnostic_delta",
+            "scenario_run_stats",
+        }:
+            continue
+        ctx = _row_context(e)
+        payload = _safe_json(e["payload"])
+        related = ".bgl_core/brain/master_verify.py"
+        scenario = f"diagnostic:{etype}"
+        summary = ""
+        confidence = 0.6
+        if etype == "diagnostic_run_started":
+            summary = (
+                "Diagnostic run started "
+                f"(mode={payload.get('execution_mode')}, scan={payload.get('route_scan_mode')}, "
+                f"limit={payload.get('route_scan_limit')}, run_scenarios={payload.get('run_scenarios')})."
+            )
+            related = ".bgl_core/brain/guardian.py"
+        elif etype == "diagnostic_checkpoint":
+            summary = f"Diagnostic checkpoint: {payload.get('stage') or 'checkpoint'}."
+        elif etype == "diagnostic_run_complete":
+            stats = payload.get("route_scan_stats") or {}
+            scenario_stats = payload.get("scenario_run_stats") or {}
+            diag_conf = payload.get("diagnostic_confidence") or {}
+            fault_count = 0
+            try:
+                fault_count = len(payload.get("diagnostic_faults") or [])
+            except Exception:
+                fault_count = 0
+            summary = (
+                "Diagnostic run complete "
+                f"(health={payload.get('health_score_status')}, "
+                f"checked={stats.get('checked')}, "
+                f"duration={payload.get('scan_duration_seconds')}s, "
+                f"scenario_status={scenario_stats.get('status')}, "
+                f"confidence={diag_conf.get('score')}, "
+                f"faults={fault_count})."
+            )
+        elif etype == "diagnostic_delta":
+            signals = payload.get("signals") or {}
+            summary = (
+                "Diagnostic delta: "
+                f"{payload.get('classification')} "
+                f"(changed_keys={signals.get('changed_keys')}, "
+                f"tests={signals.get('test_events')}, "
+                f"writes={signals.get('write_events')})."
+            )
+            confidence = 0.65
+        elif etype == "scenario_run_stats":
+            summary = (
+                "Scenario batch "
+                f"{payload.get('status')} "
+                f"(delta={payload.get('event_delta')}, "
+                f"duration={payload.get('duration_s')}s, "
+                f"reason={payload.get('reason')})."
+            )
+            related = ".bgl_core/brain/scenario_runner.py"
+        summaries.append(
+            {
+                "scenario": scenario,
+                "summary": summary,
+                "related_files": related,
+                "confidence": confidence,
+                "evidence_count": 1,
+                "run_id": ctx.get("run_id"),
+                "scenario_id": ctx.get("scenario_id"),
+                "goal_id": ctx.get("goal_id"),
+                "source_type": "diagnostic_event",
             }
         )
     return summaries
@@ -1398,11 +1488,13 @@ def main():
     event_summaries: List[Dict] = []
     log_summaries: List[Dict] = []
     route_meta_summaries: List[Dict] = []
+    diagnostic_summaries: List[Dict] = []
     if events:
         route_map = load_route_map(conn)
         event_summaries = summarize(events, route_map)
         log_summaries = summarize_log_highlights(events)
         route_meta_summaries = summarize_route_scan_meta(events)
+        diagnostic_summaries = summarize_diagnostic_events(events)
     if _budget_guard("events"):
         return
 
@@ -1449,6 +1541,7 @@ def main():
         event_summaries
         + log_summaries
         + route_meta_summaries
+        + diagnostic_summaries
         + prod_summaries
         + outcome_summaries
         + runtime_contract_summaries

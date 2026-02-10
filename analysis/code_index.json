@@ -1,6 +1,6 @@
 {
   "meta": {
-    "started_at": 1770668023.7275066,
+    "started_at": 1770705916.3663702,
     "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
     "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
     "ok": true
@@ -2535,6 +2535,7 @@
       },
       "imports": [
         "agent_verify",
+        "asyncio",
         "authority",
         "autonomous_policy",
         "brain_types",
@@ -2599,7 +2600,12 @@
     },
     ".bgl_core\\brain\\agent_verify.py": {
       "functions": [
-        "run_all_checks"
+        "_infer_scopes_from_files",
+        "_load_patterns",
+        "_normalize_path",
+        "_pattern_matches_scope",
+        "run_all_checks",
+        "run_contextual_checks"
       ],
       "classes": {},
       "imports": [
@@ -2646,6 +2652,7 @@
         "_resolve_plan_from_proposal",
         "_run_phpunit_tests",
         "_summarize_eval_failure",
+        "_summarize_eval_for_trace",
         "_try_parse_json",
         "_write_eval_artifact",
         "main"
@@ -3148,9 +3155,11 @@
         "load_route_map",
         "main",
         "summarize",
+        "summarize_diagnostic_events",
         "summarize_log_highlights",
         "summarize_outcomes",
         "summarize_prod_ops",
+        "summarize_route_scan_meta",
         "summarize_runtime_contracts",
         "upsert_experiences"
       ],
@@ -3477,6 +3486,7 @@
         "BGLGuardian": [
           "__init__",
           "_auto_promote_policy_candidates",
+          "_build_route_scan_meta",
           "_callgraph_summary",
           "_check_business_conflicts_real",
           "_check_domain_rule_violations",
@@ -3485,6 +3495,7 @@
           "_classify_expected_failure",
           "_cleanup_expected_failures",
           "_compute_adaptive_limit",
+          "_compute_diagnostic_confidence",
           "_compute_flow_coverage",
           "_compute_scenario_coverage",
           "_compute_ui_action_coverage",
@@ -3507,6 +3518,7 @@
           "_load_context_digest_state",
           "_load_recent_experiences",
           "_load_route_stats",
+          "_log_runtime_event",
           "_maybe_record_policy_candidate",
           "_normalize_route",
           "_parse_flow_docs",
@@ -3874,12 +3886,30 @@
     },
     ".bgl_core\\brain\\master_verify.py": {
       "functions": [
+        "_apply_profile_env",
+        "_classify_delta",
+        "_compare_reports",
+        "_compute_diagnostic_confidence",
+        "_compute_diagnostic_faults",
+        "_compute_diagnostic_self_check",
+        "_current_fingerprint_payload",
+        "_extract_metrics",
+        "_load_baseline_report",
+        "_mark_aborted_if_stale",
+        "_read_json",
         "_read_lock_status",
         "_run_with_timeout",
+        "_sanitize_baseline_report",
+        "_select_profile",
+        "_user_recent_activity",
+        "_write_json",
+        "_write_status",
         "log_activity",
         "master_assurance_diagnostic"
       ],
-      "classes": {},
+      "classes": {
+        "LASTINPUTINFO": []
+      },
       "imports": [
         "agency_core",
         "asyncio",
@@ -3887,6 +3917,8 @@
         "callgraph_builder",
         "config_loader",
         "contract_tests",
+        "ctypes",
+        "fingerprint",
         "generate_openapi",
         "generate_playbooks",
         "json",
@@ -5143,6 +5175,22 @@
         "time"
       ]
     },
+    "scripts\\diagnostic_daemon.py": {
+      "functions": [
+        "_preferred_python",
+        "_run_once",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "os",
+        "pathlib",
+        "subprocess",
+        "sys",
+        "time"
+      ]
+    },
     "scripts\\dream_mode.py": {
       "functions": [
         "discover_files",
@@ -5664,6 +5712,6 @@
   "risk_summary": {
     "high": 156,
     "medium": 172,
-    "low": 61
+    "low": 62
   }
 }

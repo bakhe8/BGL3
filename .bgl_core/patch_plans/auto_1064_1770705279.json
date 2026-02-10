@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1064",
+  "description": "Stabilize route /api/import.php",
+  "created_at": 1770704673,
+  "metadata": {
+    "proposal_id": 1064,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770705279.7366953
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_import_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: /api/import.php\n    events:\n      - event_type: http_request\n        url: /api/import.php\n        method: POST\n        status_code: 200\n      - event_type: http_request\n        url: /api/import.php\n        method: PUT\n        status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: /api/import.php\n    events:\n      - event_type: http_request\n        url: /api/import.php\n        method: POST\n        status_code: 200\n      - event_type: http_request\n        url: /api/import.php\n        method: PUT\n        status_code: 200"
+      }
+    }
+  ]
+}

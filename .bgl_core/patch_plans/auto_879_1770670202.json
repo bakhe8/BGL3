@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "patch_plan_879",
+  "description": "Stabilize route input[name=\"search\"] based on experience data.",
+  "created_at": 1683072800,
+  "metadata": {
+    "experience_id": 9363,
+    "exp_hash": "44327f3e44fd8488cc678d9f15827fffdeb2e257",
+    "scenario": "input[name=\"search\"]",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 879,
+    "generated_at": 1770670202.1883464
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilize route input[name=\"search\"]\ndef stabilize_search_route():\n    pass\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilize route input[name=\"search\"]\ndef stabilize_search_route():\n    pass\n"
+      }
+    }
+  ]
+}

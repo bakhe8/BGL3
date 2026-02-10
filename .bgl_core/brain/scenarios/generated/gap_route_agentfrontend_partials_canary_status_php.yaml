@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_canary_status_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/canary_status.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/canary_status.php
+- action: wait
+  ms: 400

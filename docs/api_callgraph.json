@@ -4222,5 +4222,699 @@
         "method": "getInstance"
       }
     ]
+  },
+  {
+    "uri": "/agent-dashboard.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agent-dashboard.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agent.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agent.php",
+    "dependencies": [
+      {
+        "name": "AgentConsole",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/server.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\server.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/bootstrap.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\bootstrap.php",
+    "dependencies": [
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RecursiveIteratorIterator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RecursiveDirectoryIterator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PremiumDashboard",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RecursiveIteratorIterator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "RecursiveDirectoryIterator",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PremiumDashboard",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/agentfrontend/layout.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\layout.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/activity.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\activity.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/agent_autonomy_state.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\agent_autonomy_state.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/agent_controls.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\agent_controls.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/autonomy_goals.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\autonomy_goals.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/blockers.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\blockers.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/canary_status.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\canary_status.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/command_center.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\command_center.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/copilot_chat.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\copilot_chat.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/decisions.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\decisions.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/decision_impact.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\decision_impact.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/domain_map.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\domain_map.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/effective_config.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\effective_config.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/events.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\events.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/experiences.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\experiences.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/external_checks.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\external_checks.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/extra_widget.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\extra_widget.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/flows.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\flows.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/gap_tests.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\gap_tests.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/hallucination_metrics.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\hallucination_metrics.php",
+    "dependencies": [
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/agentfrontend/partials/health.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\health.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/intents.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\intents.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/js_inventory.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\js_inventory.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/knowledge_curation.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\knowledge_curation.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/kpis.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\kpis.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/learning_feedback.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\learning_feedback.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/log_highlights.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\log_highlights.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/long_term_goals.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\long_term_goals.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/monitoring_widgets.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\monitoring_widgets.php",
+    "dependencies": [
+      {
+        "name": "App\\Services\\StatsService",
+        "layer": "service",
+        "type": "instantiation",
+        "method": null
+      },
+      {
+        "name": "App\\Support\\Alert",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getActiveAlerts"
+      }
+    ]
+  },
+  {
+    "uri": "/agentfrontend/partials/operator_goals.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\operator_goals.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/permissions.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\permissions.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/permission_queue.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\permission_queue.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/plan_library.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\plan_library.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/prod_operations.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\prod_operations.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/proposals_simple.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\proposals_simple.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/proposed_playbooks_simple.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\proposed_playbooks_simple.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/quick_actions.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\quick_actions.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/report_viewer.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\report_viewer.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/route_updates.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\route_updates.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/rules.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\rules.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/simple_mode.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\simple_mode.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/snapshot_delta.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\snapshot_delta.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/summary.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\summary.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/test_console.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\test_console.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/tool_evidence.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\tool_evidence.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/topbar.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\topbar.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/agentfrontend/partials/vector_db_status.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\vector_db_status.php",
+    "dependencies": [
+      {
+        "name": "PDO",
+        "layer": "other",
+        "type": "instantiation",
+        "method": null
+      }
+    ]
+  },
+  {
+    "uri": "/agentfrontend/partials/worst_routes.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\agentfrontend\\partials\\worst_routes.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/confirm-modal.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\confirm-modal.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/excel-import-modal.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\excel-import-modal.php",
+    "dependencies": [
+      {
+        "name": "App\\Support\\Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/partials/historical-banner.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\historical-banner.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/letter-renderer.php",
+    "controller": "LetterBuilder",
+    "action": "handle",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\letter-renderer.php",
+    "dependencies": [
+      {
+        "name": "LetterBuilder",
+        "layer": "other",
+        "type": "static_call",
+        "method": "prepare"
+      },
+      {
+        "name": "LetterBuilder",
+        "layer": "other",
+        "type": "static_call",
+        "method": "render"
+      }
+    ]
+  },
+  {
+    "uri": "/partials/manual-entry-modal.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\manual-entry-modal.php",
+    "dependencies": [
+      {
+        "name": "App\\Support\\Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/partials/paste-modal.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\paste-modal.php",
+    "dependencies": [
+      {
+        "name": "App\\Support\\Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/partials/preview-placeholder.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\preview-placeholder.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/record-form.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\record-form.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/suggestions.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\suggestions.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/supplier-suggestions.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\supplier-suggestions.php",
+    "dependencies": []
+  },
+  {
+    "uri": "/partials/timeline-section.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\timeline-section.php",
+    "dependencies": [
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getEventDisplayLabel"
+      },
+      {
+        "name": "App\\Services\\TimelineRecorder",
+        "layer": "service",
+        "type": "static_call",
+        "method": "getEventIcon"
+      }
+    ]
+  },
+  {
+    "uri": "/partials/unified-header.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\partials\\unified-header.php",
+    "dependencies": [
+      {
+        "name": "App\\Support\\Settings",
+        "layer": "other",
+        "type": "static_call",
+        "method": "getInstance"
+      }
+    ]
+  },
+  {
+    "uri": "/templates/letter-template.php",
+    "controller": "GenericHandler",
+    "action": "main",
+    "file_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\templates\\letter-template.php",
+    "dependencies": []
   }
 ]

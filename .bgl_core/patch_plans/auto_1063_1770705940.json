@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_1063",
+  "description": "Stabilize route http://localhost:8000/api/create-guarantee.php",
+  "created_at": 1770704673,
+  "metadata": {
+    "proposal_id": 1063,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770705940.992014
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_create_guarantee_.yaml",
+      "mode": null,
+      "content": "api:\n  create-guarantee:\n    url: /api/create-guarantee\n    method: POST\n    success_code: 200\n    failure_code: 500",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api:\n  create-guarantee:\n    url: /api/create-guarantee\n    method: POST\n    success_code: 200\n    failure_code: 500"
+      }
+    }
+  ]
+}

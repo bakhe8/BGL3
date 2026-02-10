@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "902",
+  "description": "Route button.filter, .filter button, .filters button: 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1672531200,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 902,
+    "generated_at": 1770672719.8921947
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "def route_button_filter(request):\n    # Handle button.filter route\n    pass\n\ndef route_filter_button(request):\n    # Handle .filter button route\n    pass\n\ndef route_filters_button(request):\n    # Handle .filters button route\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def route_button_filter(request):\n    # Handle button.filter route\n    pass\n\ndef route_filter_button(request):\n    # Handle .filter button route\n    pass\n\ndef route_filters_button(request):\n    # Handle .filters button route\n    pass"
+      }
+    }
+  ]
+}

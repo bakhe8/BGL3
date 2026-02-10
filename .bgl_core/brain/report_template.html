@@ -19,7 +19,17 @@
   <div class="section">
     <h2>Summary</h2>
     <p>Timestamp: {{ timestamp }}</p>
-    <p>Health Score: {{ health_score|round(1) }}%</p>
+    {% if health_score is not none %}
+      <p>Health Score: {{ health_score|round(1) }}%</p>
+    {% else %}
+      <p>Health Score: n/a (no checked routes)</p>
+    {% endif %}
+    {% if health_score_status %}
+      <p>Status: {{ health_score_status }}</p>
+    {% endif %}
+    {% if route_scan_stats %}
+      <p>Route Scan Stats: attempted={{ route_scan_stats.attempted|default(0) }}, checked={{ route_scan_stats.checked|default(0) }}, skipped={{ route_scan_stats.skipped|default(0) }}, errors={{ route_scan_stats.errors|default(0) }}, unknown={{ route_scan_stats.unknown|default(0) }}</p>
+    {% endif %}
     <p>Routes scanned: {{ route_scan_limit }} (mode: {{ route_scan_mode }})</p>
     {% if callgraph_meta %}
     <p>Route map: {{ callgraph_meta.total_routes|default(0) }} routes (mapped controllers: {{ callgraph_meta.mapped_controllers|default(0) }})</p>
@@ -29,6 +39,30 @@
     <p>Direct attempts recorded: {{ execution_stats.direct_attempts }}</p>
     {% endif %}
     <p>Scan duration: {{ scan_duration_seconds|round(2) }}s (target {{ target_duration_seconds|round(2) }}s)</p>
+    {% if audit_status %}
+    <p>Audit status: {{ audit_status }}{% if audit_reason %} ({{ audit_reason }}){% endif %}</p>
+    {% endif %}
+    {% if audit_budget_seconds %}
+    <p>Audit budget: {{ audit_budget_seconds|round(1) }}s (elapsed {{ audit_elapsed_seconds|round(1) }}s)</p>
+    {% endif %}
+    {% if diagnostic_profile %}
+    <p>Diagnostic profile: {{ diagnostic_profile }}{% if diagnostic_profile_reason %} ({{ diagnostic_profile_reason }}){% endif %}</p>
+    {% endif %}
+    {% if diagnostic_profile_overrides %}
+    <p>Profile overrides: {{ diagnostic_profile_overrides }}</p>
+    {% endif %}
+    {% if cache_used %}
+    <p>Cache used: {{ cache_used }}{% if cache_reason %} ({{ cache_reason }}){% endif %}</p>
+    {% endif %}
+    {% if diagnostic_confidence %}
+    <p>Diagnostic confidence: {{ diagnostic_confidence.score|default('n/a') }} (profile {{ diagnostic_confidence.profile|default('n/a') }}, route ratio {{ diagnostic_confidence.route_scan_ratio|default('n/a') }})</p>
+    {% if diagnostic_confidence.notes %}
+      <p class="warn">Confidence notes: {{ diagnostic_confidence.notes }}</p>
+    {% endif %}
+    {% endif %}
+    {% if diagnostic_baseline %}
+    <p>Baseline: {{ diagnostic_baseline.profile|default('n/a') }}{% if diagnostic_baseline.timestamp %} at {{ diagnostic_baseline.timestamp }}{% endif %}{% if diagnostic_baseline.age_sec %} (age {{ diagnostic_baseline.age_sec }}s){% endif %}</p>
+    {% endif %}
     {% if performance %}
     <p>Perf (home): {% if performance.home_error %}<span class="warn">{{ performance.home_error }}</span>{% else %}{{ performance.home_status|default('n/a') }} in {{ performance.home_load_ms|round(1) }} ms ({{ performance.home_bytes|default(0) }} bytes){% endif %}</p>
     {% endif %}
@@ -40,6 +74,27 @@
     {% endif %}
     {% if readiness %}
     <p>Readiness: {{ 'OK' if readiness.ok else 'WARN' }} ({{ readiness.duration_ms }} ms)</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Self Check</h2>
+    {% if diagnostic_self_check %}
+      <p>Status: <span class="{{ 'ok' if diagnostic_self_check.ok else 'warn' }}">{{ diagnostic_self_check.ok }}</span></p>
+      {% if diagnostic_self_check.missing %}
+        <p class="warn">Missing fields: {{ diagnostic_self_check.missing | join(', ') }}</p>
+      {% endif %}
+      {% if diagnostic_self_check.audit_status %}
+        <p>Audit status: {{ diagnostic_self_check.audit_status }}{% if diagnostic_self_check.audit_reason %} ({{ diagnostic_self_check.audit_reason }}){% endif %}</p>
+      {% endif %}
+      {% if diagnostic_self_check.route_scan_stats %}
+        <p>Route stats: attempted={{ diagnostic_self_check.route_scan_stats.attempted|default(0) }}, checked={{ diagnostic_self_check.route_scan_stats.checked|default(0) }}, skipped={{ diagnostic_self_check.route_scan_stats.skipped|default(0) }}, errors={{ diagnostic_self_check.route_scan_stats.errors|default(0) }}</p>
+      {% endif %}
+      {% if diagnostic_self_check.scan_duration_seconds is not none %}
+        <p>Scan duration: {{ diagnostic_self_check.scan_duration_seconds|round(2) }}s</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Diagnostic self check not recorded.</p>
     {% endif %}
   </div>
 
@@ -67,6 +122,19 @@
       <p>Flow coverage reliable: {{ coverage_reliability.flow }}</p>
     {% else %}
       <p class="warn">Coverage reliability not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Faults</h2>
+    {% if diagnostic_faults and diagnostic_faults|length > 0 %}
+      <ul>
+        {% for fault in diagnostic_faults %}
+          <li><strong>{{ fault.code }}</strong> ({{ fault.severity }}) — {{ fault.detail }}</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p>No diagnostic faults detected.</p>
     {% endif %}
   </div>
 
@@ -177,6 +245,53 @@
       {% endif %}
     {% else %}
       <p class="warn">Delta summary not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Baseline Comparison</h2>
+    {% if diagnostic_comparison_full and diagnostic_comparison_full.metrics %}
+      <ul>
+        {% for key, val in diagnostic_comparison_full.metrics.items() %}
+          <li><strong>{{ key }}</strong>: {{ val.from }} → {{ val.to }} (Δ {{ val.delta }}, {{ val.classification }})</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="warn">No baseline comparison available.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Status</h2>
+    {% if diagnostic_status %}
+      <p>Status: {{ diagnostic_status.status|default('n/a') }}</p>
+      {% if diagnostic_status.reason %}
+        <p>Reason: {{ diagnostic_status.reason }}</p>
+      {% endif %}
+      {% if diagnostic_status.started_at %}
+        <p>Started: {{ diagnostic_status.started_at }}</p>
+      {% endif %}
+      {% if diagnostic_status.finished_at %}
+        <p>Finished: {{ diagnostic_status.finished_at }}</p>
+      {% endif %}
+      {% if diagnostic_status.profile %}
+        <p>Profile: {{ diagnostic_status.profile }}</p>
+      {% endif %}
+    {% else %}
+      <p class="warn">Diagnostic status not available.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Comparison (Prev vs Current)</h2>
+    {% if diagnostic_comparison and diagnostic_comparison.metrics %}
+      <ul>
+        {% for k, v in diagnostic_comparison.metrics.items() %}
+          <li>{{ k }}: {{ v.from }} → {{ v.to }} ({{ v.classification }})</li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="warn">Comparison not recorded.</p>
     {% endif %}
   </div>
 

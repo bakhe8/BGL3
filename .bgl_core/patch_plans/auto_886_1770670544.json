@@ -1,0 +1,56 @@
+{
+  "version": 1,
+  "id": "patch_plan_886",
+  "description": "Stabilize route api by adding missing routes and fixing potential issues.",
+  "created_at": 1770670186,
+  "metadata": {
+    "proposal_id": 886,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770670544.0215771
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /api/delete/bank\n  method: DELETE\n  handler: handleDeleteBank",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /api/delete/bank\n  method: DELETE\n  handler: handleDeleteBank"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /api/delete/supplier\n  method: DELETE\n  handler: handleDeleteSupplier",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /api/delete/supplier\n  method: DELETE\n  handler: handleDeleteSupplier"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n- route: /api/extend\n  method: POST\n  handler: handleExtend",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: /api/extend\n  method: POST\n  handler: handleExtend"
+      }
+    }
+  ]
+}

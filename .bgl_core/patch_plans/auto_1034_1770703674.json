@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_1034",
+  "description": "Stabilize route /api/history.php",
+  "created_at": 1770703575,
+  "metadata": {
+    "experience_id": 9617,
+    "exp_hash": "c6e8056bc5f3957a786035ac263df015c9cf53bc",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1034,
+    "generated_at": 1770703674.00966
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_history_php.yaml",
+      "mode": null,
+      "content": "api_version: v1\npaths:\n  /history:\n    get:\n      summary: Get history data\n      responses:\n        '200':\n          description: Successful response\n          content:\n            application/json:\n              schema:\n                type: object",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api_version: v1\npaths:\n  /history:\n    get:\n      summary: Get history data\n      responses:\n        '200':\n          description: Successful response\n          content:\n            application/json:\n              schema:\n                type: object"
+      }
+    }
+  ]
+}

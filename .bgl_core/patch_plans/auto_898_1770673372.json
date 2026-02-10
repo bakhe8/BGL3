@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_898",
+  "description": "Stabilize scenario goal_1770672121.yaml",
+  "created_at": 1672531200,
+  "metadata": {
+    "proposal_id": 898,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770673372.8933225
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770672121.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_1770672121\nsteps:\n- name: Step 1\n  action: stabilize\n  parameters: {}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_1770672121\nsteps:\n- name: Step 1\n  action: stabilize\n  parameters: {}\n"
+      }
+    }
+  ]
+}

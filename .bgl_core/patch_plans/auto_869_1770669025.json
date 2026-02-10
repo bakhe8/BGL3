@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "869",
+  "description": "Route http://localhost:8000/agent.php: 6 events, 2 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1672531200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 869,
+    "generated_at": 1770669025.9663882
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agent.php",
+      "mode": "append",
+      "content": "\n# Stabilization for route http://localhost:8000/agent.php\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for route http://localhost:8000/agent.php\n"
+      }
+    }
+  ]
+}

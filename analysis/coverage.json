@@ -1,51 +1,16 @@
 {
-  "generated_at": 1770667946.8364294,
+  "generated_at": 1770705912.2614918,
   "scenario": {
     "summary": {
       "window_days": 7,
       "total_routes": 111,
-      "covered_routes": 47,
-      "coverage_ratio": 42.34,
-      "ui_snapshot_paths": 24,
-      "ui_coverage_ratio": 21.62,
+      "covered_routes": 54,
+      "coverage_ratio": 48.65,
+      "ui_snapshot_paths": 31,
+      "ui_coverage_ratio": 27.93,
       "uncovered_sample": [
         {
           "route": "/agent-dashboard.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/server.php",
-          "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/bootstrap.php",
-          "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/layout.php",
-          "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/activity.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/agent_autonomy_state.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/agent_controls.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/autonomy_goals.php",
           "method": "GET",
           "status_score": 100
         },
@@ -68,29 +33,173 @@
           "route": "/agentfrontend/partials/copilot_chat.php",
           "method": "GET",
           "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/decisions.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/decision_impact.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/domain_map.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/effective_config.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/events.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/experiences.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/external_checks.php",
+          "method": "GET",
+          "status_score": 100
         }
       ],
-      "events_total": 17441,
-      "ui_snapshot_count": 79,
-      "semantic_change_count": 23,
-      "gap_runs": 215,
-      "gap_changed": 33,
-      "gap_last_ts": 1770667952.1519291,
+      "events_total": 21786,
+      "ui_snapshot_count": 90,
+      "semantic_change_count": 27,
+      "gap_runs": 517,
+      "gap_changed": 78,
+      "gap_last_ts": 1770704629.2086442,
       "reliable": true,
       "reliability_reason": ""
     },
-    "gaps": []
+    "gaps": [
+      {
+        "route": "/agent-dashboard.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/blockers.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/canary_status.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/command_center.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/copilot_chat.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/decisions.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/decision_impact.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/domain_map.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/effective_config.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/events.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/experiences.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/external_checks.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      }
+    ]
   },
   "ui_actions": {
     "summary": {
       "window_days": 7,
-      "snapshot_count": 12,
-      "total_actions": 126,
-      "covered_actions": 21,
-      "coverage_ratio": 16.67,
-      "operational_coverage_ratio": 16.67,
-      "routes_with_actions": 2,
-      "routes_with_coverage": 2,
+      "snapshot_count": 16,
+      "total_actions": 144,
+      "covered_actions": 30,
+      "coverage_ratio": 20.83,
+      "operational_coverage_ratio": 20.83,
+      "routes_with_actions": 3,
+      "routes_with_coverage": 3,
       "uncovered_sample": [
         {
           "route": "/index.php",
@@ -130,6 +239,15 @@
         },
         {
           "route": "/index.php",
+          "selector": "a[href=\"./views/batches.php\"]",
+          "text": "📦 الدفعات",
+          "href": "./views/batches.php",
+          "tag": "a",
+          "risk": "safe",
+          "priority_score": 63.0
+        },
+        {
+          "route": "/index.php",
           "selector": "button.historical-banner-btn",
           "text": "↩️ العودة للوضع الحالي",
           "href": "",
@@ -140,7 +258,7 @@
         {
           "route": "/index.php",
           "selector": "#decisionStatus",
-          "text": "pending",
+          "text": "released",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -149,11 +267,11 @@
         {
           "route": "/index.php",
           "selector": "#activeAction",
-          "text": "",
+          "text": "release",
           "href": "",
           "tag": "input",
           "risk": "safe",
-          "priority_score": 60.0
+          "priority_score": 68.0
         },
         {
           "route": "/index.php",
@@ -175,8 +293,8 @@
         },
         {
           "route": "/index.php",
-          "selector": "#supplierInput",
-          "text": "—",
+          "selector": "#supplierIdHidden",
+          "text": "118",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -184,21 +302,48 @@
         },
         {
           "route": "/index.php",
-          "selector": "#supplierIdHidden",
-          "text": "",
+          "selector": "button.chip",
+          "text": "الشركة التعاونية للتأمين\n                        90%",
           "href": "",
-          "tag": "input",
+          "tag": "button",
           "risk": "safe",
-          "priority_score": 60.0
+          "priority_score": 68.0
         },
         {
           "route": "/index.php",
-          "selector": "a[href=\"/?filter=all\"]",
-          "text": "📊 53",
-          "href": "/?filter=all",
+          "selector": "a[href=\"/?search=supplier&include_test_data=1\"]",
+          "text": "🧪\nعرض التجريبية",
+          "href": "/?search=supplier&include_test_data=1",
           "tag": "a",
           "risk": "safe",
           "priority_score": 63.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#noteTextarea",
+          "text": "أضف ملاحظة...",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "button.note-cancel-btn",
+          "text": "إلغاء",
+          "href": "",
+          "tag": "button",
+          "risk": "danger",
+          "priority_score": 86.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "button.note-save-btn",
+          "text": "حفظ",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0
         }
       ],
       "gaps": [
@@ -312,6 +457,15 @@
         },
         {
           "route": "/index.php",
+          "selector": "#addNoteBtn",
+          "text": "+ إضافة ملاحظة",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0
+        },
+        {
+          "route": "/index.php",
           "selector": "#btnSaveManualEntry",
           "text": "✓ حفظ وإضافة",
           "href": "",
@@ -374,15 +528,6 @@
           "priority_score": 84.0
         },
         {
-          "route": "/",
-          "selector": "input[name=\"search\"]",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 80.0
-        },
-        {
           "route": "/index.php",
           "selector": "#bgl-confirm-yes",
           "text": "نعم، تابع",
@@ -403,7 +548,16 @@
         {
           "route": "/index.php",
           "selector": "#decisionStatus",
-          "text": "pending",
+          "text": "released",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#activeAction",
+          "text": "release",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -413,6 +567,69 @@
           "route": "/index.php",
           "selector": "#relatedTo",
           "text": "contract",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#supplierIdHidden",
+          "text": "118",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "button.chip",
+          "text": "الشركة التعاونية للتأمين\n                        90%",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#btnCloseManualEntry",
+          "text": "×",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#manualSupplier",
+          "text": "اسم المورد",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#manualBank",
+          "text": "اسم البنك",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#manualGuarantee",
+          "text": "رقم الضمان",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0
+        },
+        {
+          "route": "/index.php",
+          "selector": "#manualContract",
+          "text": "رقم العقد أو أمر الشراء",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -536,6 +753,15 @@
       },
       {
         "route": "/index.php",
+        "selector": "#addNoteBtn",
+        "text": "+ إضافة ملاحظة",
+        "href": "",
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0
+      },
+      {
+        "route": "/index.php",
         "selector": "#btnSaveManualEntry",
         "text": "✓ حفظ وإضافة",
         "href": "",
@@ -598,15 +824,6 @@
         "priority_score": 84.0
       },
       {
-        "route": "/",
-        "selector": "input[name=\"search\"]",
-        "text": "بحث برقم الضمان، المورد، أو البنك...",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 80.0
-      },
-      {
         "route": "/index.php",
         "selector": "#bgl-confirm-yes",
         "text": "نعم، تابع",
@@ -627,7 +844,16 @@
       {
         "route": "/index.php",
         "selector": "#decisionStatus",
-        "text": "pending",
+        "text": "released",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#activeAction",
+        "text": "release",
         "href": "",
         "tag": "input",
         "risk": "safe",
@@ -637,6 +863,69 @@
         "route": "/index.php",
         "selector": "#relatedTo",
         "text": "contract",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#supplierIdHidden",
+        "text": "118",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "button.chip",
+        "text": "الشركة التعاونية للتأمين\n                        90%",
+        "href": "",
+        "tag": "button",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCloseManualEntry",
+        "text": "×",
+        "href": "",
+        "tag": "button",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualSupplier",
+        "text": "اسم المورد",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualBank",
+        "text": "اسم البنك",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualGuarantee",
+        "text": "رقم الضمان",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualContract",
+        "text": "رقم العقد أو أمر الشراء",
         "href": "",
         "tag": "input",
         "risk": "safe",
@@ -778,7 +1067,9 @@
             "route_events": [
               "api_call",
               "autonomy_goal_result",
-              "http_error"
+              "http_error",
+              "network_fail",
+              "route_check_api"
             ],
             "missing_events": [
               "guarantee_created"
@@ -806,7 +1097,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 28
+          "gap_runs": 61
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -822,7 +1113,8 @@
               "api_call",
               "autonomy_goal_result",
               "network_fail",
-              "scenario_step_start"
+              "route_check_api",
+              "route_check_skipped"
             ],
             "missing_events": [
               "export_suppliers"
@@ -847,7 +1139,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 28
+          "gap_runs": 61
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -888,7 +1180,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 26
+          "gap_runs": 59
         }
       ],
       "details": [
@@ -905,7 +1197,9 @@
             "route_events": [
               "api_call",
               "autonomy_goal_result",
-              "http_error"
+              "http_error",
+              "network_fail",
+              "route_check_api"
             ],
             "missing_events": [
               "guarantee_created"
@@ -933,7 +1227,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 28
+          "gap_runs": 61
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -949,7 +1243,8 @@
               "api_call",
               "autonomy_goal_result",
               "network_fail",
-              "scenario_step_start"
+              "route_check_api",
+              "route_check_skipped"
             ],
             "missing_events": [
               "export_suppliers"
@@ -974,7 +1269,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 28
+          "gap_runs": 61
         },
         {
           "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1009,7 +1304,7 @@
           ],
           "sequence_covered": true,
           "sequence_session": "run_1770486170_12912|goal_flow_gap",
-          "gap_runs": 26
+          "gap_runs": 59
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1050,7 +1345,7 @@
           ],
           "sequence_covered": false,
           "sequence_session": "",
-          "gap_runs": 26
+          "gap_runs": 59
         },
         {
           "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1085,14 +1380,14 @@
           ],
           "sequence_covered": true,
           "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-          "gap_runs": 25
+          "gap_runs": 58
         }
       ],
-      "events_total": 18309,
-      "gap_runs": 133,
-      "gap_changed": 28,
-      "gap_last_ts": 1770667948.0959082,
-      "semantic_change_count": 23,
+      "events_total": 22694,
+      "gap_runs": 298,
+      "gap_changed": 60,
+      "gap_last_ts": 1770704513.1061392,
+      "semantic_change_count": 330,
       "schema_errors": [],
       "invalid_flows": 0,
       "reliable": true,
@@ -1112,7 +1407,9 @@
           "route_events": [
             "api_call",
             "autonomy_goal_result",
-            "http_error"
+            "http_error",
+            "network_fail",
+            "route_check_api"
           ],
           "missing_events": [
             "guarantee_created"
@@ -1140,7 +1437,7 @@
         ],
         "sequence_covered": false,
         "sequence_session": "",
-        "gap_runs": 27
+        "gap_runs": 61
       },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1156,7 +1453,8 @@
             "api_call",
             "autonomy_goal_result",
             "network_fail",
-            "scenario_step_start"
+            "route_check_api",
+            "route_check_skipped"
           ],
           "missing_events": [
             "export_suppliers"
@@ -1181,7 +1479,7 @@
         ],
         "sequence_covered": false,
         "sequence_session": "",
-        "gap_runs": 27
+        "gap_runs": 61
       },
       {
         "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1216,7 +1514,7 @@
         ],
         "sequence_covered": true,
         "sequence_session": "run_1770486170_12912|goal_flow_gap",
-        "gap_runs": 25
+        "gap_runs": 59
       },
       {
         "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1257,7 +1555,7 @@
         ],
         "sequence_covered": false,
         "sequence_session": "",
-        "gap_runs": 25
+        "gap_runs": 59
       },
       {
         "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1292,10 +1590,45 @@
         ],
         "sequence_covered": true,
         "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-        "gap_runs": 24
+        "gap_runs": 58
       }
     ],
-    "gaps": [],
+    "gaps": [
+      {
+        "flow": "Flow: إنشاء ضمان (create_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/create-guarantee.php",
+          "/supplier_id",
+          "/422",
+          "/422.",
+          "/currency"
+        ],
+        "priority_score": 110.0
+      },
+      {
+        "flow": "Flow: تصدير الموردين (export_suppliers)",
+        "status": "partial",
+        "endpoints": [
+          "/api/export_suppliers.php",
+          "/streaming",
+          "/XLSX",
+          "/indexing"
+        ],
+        "priority_score": 90.0
+      },
+      {
+        "flow": "Flow: استيراد الموردين (import_suppliers)",
+        "status": "partial",
+        "endpoints": [
+          "/api/import_suppliers.php",
+          "/XLSX",
+          "/Phone/Tax/",
+          "/Phone/Tax"
+        ],
+        "priority_score": 90.0
+      }
+    ],
     "prioritized_gaps": [
       {
         "flow": "Flow: إنشاء ضمان (create_guarantee)",
@@ -1333,9 +1666,6 @@
       }
     ]
   },
-  "generated_scenarios": [
-    "gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml"
-  ],
   "existing_generated_scenarios": [
     "gap_flow_flow_create_guarantee_.yaml",
     "gap_flow_flow_export_suppliers_.yaml",
@@ -1347,7 +1677,7 @@
     "gap_route_agentfrontend_bootstrap_php.yaml",
     "gap_route_agentfrontend_layout_php.yaml",
     "gap_route_agentfrontend_partials_activity_php.yaml",
-    "gap_route_api_delete_bank_php.yaml",
-    "gap_route_api_delete_supplier_php.yaml"
+    "gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml",
+    "gap_route_agentfrontend_partials_agent_controls_php.yaml"
   ]
 }

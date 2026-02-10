@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Manual Seed)
   version: '0.1'
-  x-bgl-last-refresh: '2026-02-09 23:06:44'
+  x-bgl-last-refresh: '2026-02-10 09:40:31'
 paths:
   /api/batches.php:
     get:
@@ -521,4 +521,141 @@ paths:
   /views/settings.php:
     get: {}
   /views/statistics.php:
+    get: {}
+  /agent-dashboard.php:
+    get: {}
+  /agent.php:
+    post: {}
+  /agentfrontend/bootstrap.php:
+    post: {}
+  /agentfrontend/layout.php:
+    post: {}
+  /agentfrontend/partials/activity.php:
+    get: {}
+  /agentfrontend/partials/agent_autonomy_state.php:
+    get: {}
+  /agentfrontend/partials/agent_controls.php:
+    get: {}
+  /agentfrontend/partials/autonomy_goals.php:
+    get: {}
+  /agentfrontend/partials/blockers.php:
+    get: {}
+  /agentfrontend/partials/canary_status.php:
+    get: {}
+  /agentfrontend/partials/command_center.php:
+    get: {}
+  /agentfrontend/partials/copilot_chat.php:
+    get: {}
+  /agentfrontend/partials/decision_impact.php:
+    get: {}
+  /agentfrontend/partials/decisions.php:
+    get: {}
+  /agentfrontend/partials/domain_map.php:
+    get: {}
+  /agentfrontend/partials/effective_config.php:
+    get: {}
+  /agentfrontend/partials/events.php:
+    get: {}
+  /agentfrontend/partials/experiences.php:
+    get: {}
+  /agentfrontend/partials/external_checks.php:
+    get: {}
+  /agentfrontend/partials/extra_widget.php:
+    get: {}
+  /agentfrontend/partials/flows.php:
+    get: {}
+  /agentfrontend/partials/gap_tests.php:
+    get: {}
+  /agentfrontend/partials/hallucination_metrics.php:
+    get: {}
+  /agentfrontend/partials/health.php:
+    get: {}
+  /agentfrontend/partials/intents.php:
+    get: {}
+  /agentfrontend/partials/js_inventory.php:
+    get: {}
+  /agentfrontend/partials/knowledge_curation.php:
+    get: {}
+  /agentfrontend/partials/kpis.php:
+    get: {}
+  /agentfrontend/partials/learning_feedback.php:
+    get: {}
+  /agentfrontend/partials/log_highlights.php:
+    get: {}
+  /agentfrontend/partials/long_term_goals.php:
+    get: {}
+  /agentfrontend/partials/monitoring_widgets.php:
+    get: {}
+  /agentfrontend/partials/operator_goals.php:
+    get: {}
+  /agentfrontend/partials/permission_queue.php:
+    get: {}
+  /agentfrontend/partials/permissions.php:
+    get: {}
+  /agentfrontend/partials/plan_library.php:
+    post: {}
+  /agentfrontend/partials/prod_operations.php:
+    get: {}
+  /agentfrontend/partials/proposals_simple.php:
+    get: {}
+  /agentfrontend/partials/proposed_playbooks_simple.php:
+    get: {}
+  /agentfrontend/partials/quick_actions.php:
+    get: {}
+  /agentfrontend/partials/report_viewer.php:
+    get: {}
+  /agentfrontend/partials/route_updates.php:
+    get: {}
+  /agentfrontend/partials/rules.php:
+    get: {}
+  /agentfrontend/partials/simple_mode.php:
+    get: {}
+  /agentfrontend/partials/snapshot_delta.php:
+    get: {}
+  /agentfrontend/partials/summary.php:
+    get: {}
+  /agentfrontend/partials/test_console.php:
+    get: {}
+  /agentfrontend/partials/tool_evidence.php:
+    get: {}
+  /agentfrontend/partials/topbar.php:
+    get: {}
+  /agentfrontend/partials/vector_db_status.php:
+    get: {}
+  /agentfrontend/partials/worst_routes.php:
+    get: {}
+  /partials/confirm-modal.php:
+    get: {}
+  /partials/excel-import-modal.php:
+    get: {}
+  /partials/historical-banner.php:
+    get: {}
+  /partials/letter-renderer.php:
+    get: {}
+  /partials/manual-entry-modal.php:
+    get: {}
+  /partials/paste-modal.php:
+    get: {}
+  /partials/preview-placeholder.php:
+    get: {}
+  /partials/record-form.php:
+    get: {}
+  /partials/suggestions.php:
+    get: {}
+  /partials/supplier-suggestions.php:
+    get: {}
+  /partials/timeline-section.php:
+    get: {}
+  /partials/unified-header.php:
+    get:
+      parameters:
+      - in: query
+        name: search
+        required: false
+        schema:
+          type: string
+        example: probe
+  /server.php:
+    post: {}
+  /templates/letter-template.php:
     get: {}

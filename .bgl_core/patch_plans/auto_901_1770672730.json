@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "901",
+  "description": "Route http://localhost:8000/?filter=pending: 17 events, 4 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1683456000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 901,
+    "generated_at": 1770672730.0534163
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilization fix for route http://localhost:8000/?filter=pending\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization fix for route http://localhost:8000/?filter=pending\n"
+      }
+    }
+  ]
+}

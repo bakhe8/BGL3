@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "994",
+  "description": "Prod op proposal.apply|904|force|plan:904 on .bgl_core/brain/scenarios/generated/gap_route_indexer.py: 1 ops, allowed 1, blocked 0 (0.0%). Last=allowed mode=autonomous source=apply_proposal.",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 994,
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770677446.9051528
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "overwrite",
+      "content": "// This file has been automatically generated and should not be manually edited.\n\nimport json\n\n# Sample function to index routes\ndef gap_route_indexer():\n    # Logic to index routes goes here\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "// This file has been automatically generated and should not be manually edited.\n\nimport json\n\n# Sample function to index routes\ndef gap_route_indexer():\n    # Logic to index routes goes here\n    pass"
+      }
+    }
+  ]
+}

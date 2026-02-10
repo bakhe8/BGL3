@@ -22,7 +22,7 @@ try:
     from .sandbox import BGLSandbox  # type: ignore
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
     from .canary_release import register_canary_release, evaluate_canary_releases, rollback_release  # type: ignore
-    from .agent_verify import run_all_checks  # type: ignore
+    from .agent_verify import run_all_checks, run_contextual_checks  # type: ignore
     from .test_gate import require_tests_enabled, collect_tests_for_files, evaluate_files  # type: ignore
     from .config_loader import load_config  # type: ignore
     from .decision_db import record_decision_trace  # type: ignore
@@ -34,7 +34,7 @@ except Exception:
     from sandbox import BGLSandbox
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
     from canary_release import register_canary_release, evaluate_canary_releases, rollback_release
-    from agent_verify import run_all_checks
+    from agent_verify import run_all_checks, run_contextual_checks
     from test_gate import require_tests_enabled, collect_tests_for_files, evaluate_files
     try:
         from config_loader import load_config  # type: ignore
@@ -268,7 +268,10 @@ def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_fi
         lint = _lint_files(root, changed_files, max_files=max_files)
         results["lint"] = lint
         try:
-            checks = run_all_checks(root)
+            if changed_files:
+                checks = run_contextual_checks(root, changed_files)
+            else:
+                checks = run_all_checks(root)
         except Exception as e:
             checks = {"passed": False, "error": str(e), "results": []}
         results["checks"] = checks
@@ -279,7 +282,10 @@ def _post_apply_evaluate(root: Path, changed_files: List[str], mode: str, max_fi
     lint = _lint_files(root, changed_files, max_files=max_files)
     results["lint"] = lint
     try:
-        checks = run_all_checks(root)
+        if changed_files:
+            checks = run_contextual_checks(root, changed_files)
+        else:
+            checks = run_all_checks(root)
     except Exception as e:
         checks = {"passed": False, "error": str(e), "results": []}
     results["checks"] = checks
@@ -336,6 +342,42 @@ def _summarize_eval_failure(eval_result: Dict[str, Any], max_items: int = 3) -> 
         else:
             parts.append("checks:failed")
     return " | ".join(parts)
+
+
+def _summarize_eval_for_trace(eval_result: Dict[str, Any]) -> Dict[str, Any]:
+    out: Dict[str, Any] = {
+        "mode": eval_result.get("mode"),
+        "ok": bool(eval_result.get("ok", True)),
+    }
+    try:
+        lint = eval_result.get("lint") or {}
+        if isinstance(lint, dict):
+            out["lint_ok"] = bool(lint.get("ok", True))
+    except Exception:
+        pass
+    try:
+        phpunit = eval_result.get("phpunit") or {}
+        if isinstance(phpunit, dict):
+            out["phpunit_ok"] = bool(phpunit.get("ok", True))
+            out["phpunit_tests"] = phpunit.get("tests") or []
+            out["phpunit_error"] = phpunit.get("error") or ""
+    except Exception:
+        pass
+    try:
+        gate = eval_result.get("tests_gate") or {}
+        if isinstance(gate, dict):
+            out["tests_gate_ok"] = bool(gate.get("ok", True))
+            out["tests_gate_errors"] = gate.get("errors") or []
+            out["tests_gate_require_tests"] = gate.get("require_tests")
+    except Exception:
+        pass
+    try:
+        checks = eval_result.get("checks") or {}
+        if isinstance(checks, dict):
+            out["checks_passed"] = bool(checks.get("passed", True))
+    except Exception:
+        pass
+    return out
 
 
 def _write_eval_artifact(proposal_id: Any, eval_result: Dict[str, Any]) -> Optional[Path]:
@@ -890,6 +932,23 @@ def main():
         if validate_enabled and (not args.force or validate_prod):
             eval_result = _post_apply_evaluate(Path(apply_root), changed_files, validate_mode, validate_max_files)
         eval_result["patch_risk"] = patch_risk
+        try:
+            if record_decision_trace is not None:
+                record_decision_trace(
+                    KNOWLEDGE_DB,
+                    kind="contextual_tests",
+                    decision_id=int(decision_id or 0),
+                    outcome_id=None,
+                    operation=f"proposal.apply|{target.get('id')}",
+                    result="ok" if eval_result.get("ok", True) else "fail",
+                    source="apply_proposal",
+                    details={
+                        "changed_files": changed_files,
+                        "eval": _summarize_eval_for_trace(eval_result),
+                    },
+                )
+        except Exception:
+            pass
 
         if args.force:
             post_status = _git_status_lines()
@@ -911,7 +970,13 @@ def main():
                     change_scope=change_scope,
                     source="apply_proposal",
                     backup_dir=backup_dir if backup_dir.exists() else None,
-                    notes=f"proposal_id={target.get('id')}",
+                    notes=json.dumps(
+                        {
+                            "proposal_id": target.get("id"),
+                            "patch_risk": patch_risk,
+                            "mode": "prod",
+                        }
+                    ),
                 )
                 if isinstance(canary, dict) and canary.get("release_id"):
                     release_id = str(canary.get("release_id"))
@@ -1056,7 +1121,13 @@ def main():
                     change_scope=change_scope,
                     source="apply_proposal_sandbox",
                     backup_dir=backup_dir if backup_dir.exists() else None,
-                    notes=f"sandbox proposal_id={target.get('id')}",
+                    notes=json.dumps(
+                        {
+                            "proposal_id": target.get("id"),
+                            "patch_risk": patch_risk,
+                            "mode": "sandbox",
+                        }
+                    ),
                 )
             except Exception:
                 pass

@@ -747,6 +747,7 @@ def diagnostic_to_snapshot(diagnostic_map: Dict[str, Any]) -> Dict[str, Any]:
 
     return {
         "health_score": diagnostic_map.get("health_score"),
+        "diagnostic_profile": diagnostic_map.get("diagnostic_profile"),
         "route_scan_mode": diagnostic_map.get("route_scan_mode"),
         "route_scan_limit": diagnostic_map.get("route_scan_limit"),
         "scan_duration_seconds": diagnostic_map.get("scan_duration_seconds"),
@@ -770,6 +771,13 @@ def diagnostic_to_snapshot(diagnostic_map: Dict[str, Any]) -> Dict[str, Any]:
         "runtime_events_meta": findings.get("runtime_events_meta") or {},
         "scenario_coverage": findings.get("scenario_coverage") or {},
         "flow_coverage": findings.get("flow_coverage") or {},
+        "coverage_reliability": findings.get("coverage_reliability") or {},
+        "diagnostic_confidence": findings.get("diagnostic_confidence") or diagnostic_map.get("diagnostic_confidence") or {},
+        "diagnostic_faults": [
+            f.get("code")
+            for f in (findings.get("diagnostic_faults") or diagnostic_map.get("diagnostic_faults") or [])
+            if isinstance(f, dict) and f.get("code")
+        ],
         "domain_rules": {
             "summary": findings.get("domain_rule_summary") or {},
             "violations_count": len(findings.get("domain_rule_violations") or []),

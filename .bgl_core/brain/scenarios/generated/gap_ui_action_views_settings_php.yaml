@@ -1,0 +1,18 @@
+name: gap_ui_action_views_settings_php
+kind: ui
+generated: true
+meta:
+  origin: ui_action_gap
+  route: /views/settings.php
+  selector: button.btn
+  risk: write
+steps:
+- action: goto
+  url: /views/settings.php
+- action: wait
+  ms: 400
+- action: click
+  selector: button.btn
+  danger: true
+- action: wait
+  ms: 400

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_1062",
+  "description": "Stabilize route http://localhost:8000/api/extend.php",
+  "created_at": 1770704673,
+  "metadata": {
+    "proposal_id": 1062,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770705950.0924976
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_extend_php.yaml",
+      "mode": "append",
+      "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Ensure successful HTTP call\n  assert:\n    - status_code: 200"
+      }
+    }
+  ]
+}

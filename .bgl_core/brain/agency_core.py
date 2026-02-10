@@ -1,4 +1,5 @@
 import time
+import asyncio
 import sqlite3
 import json
 import os
@@ -446,7 +447,11 @@ class AgencyCore:
         if ui_action_cov.get("reliable") is False:
             return []
         try:
-            ratio = float(ui_action_cov.get("coverage_ratio") or 0.0)
+            ratio = float(
+                ui_action_cov.get("operational_coverage_ratio")
+                or ui_action_cov.get("coverage_ratio")
+                or 0.0
+            )
         except Exception:
             ratio = 0.0
         try:
@@ -652,7 +657,11 @@ class AgencyCore:
             # Flow coverage gaps
             if flow_cov and flow_cov.get("reliable") is not False:
                 try:
-                    ratio = float(flow_cov.get("coverage_ratio") or 0.0)
+                    ratio = float(
+                        flow_cov.get("operational_coverage_ratio")
+                        or flow_cov.get("coverage_ratio")
+                        or 0.0
+                    )
                 except Exception:
                     ratio = 0.0
                 gaps = flow_cov.get("uncovered_sample") or []
@@ -1135,9 +1144,74 @@ class AgencyCore:
         Standardizes output to a DiagnosticMap.
         """
         print("[*] AgencyCore: Initiating Full System Diagnostic...")
+        fast_profile = (
+            str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "")).lower() == "fast"
+            or os.getenv("BGL_FAST_VERIFY", "0") == "1"
+        )
 
         # 1. Guardian Audit
-        health_report = await self.guardian.perform_full_audit()
+        guardian_timeout = 0.0
+        try:
+            guardian_timeout = float(os.getenv("BGL_GUARDIAN_TIMEOUT_SEC", "0") or 0)
+        except Exception:
+            guardian_timeout = 0.0
+        if guardian_timeout <= 0:
+            try:
+                diag_timeout = float(os.getenv("BGL_DIAGNOSTIC_TIMEOUT_SEC", "0") or 0)
+            except Exception:
+                diag_timeout = 0.0
+            if diag_timeout > 0:
+                guardian_timeout = max(60.0, diag_timeout * 0.7)
+        if guardian_timeout > 0:
+            try:
+                health_report = await asyncio.wait_for(
+                    self.guardian.perform_full_audit(), timeout=guardian_timeout
+                )
+            except asyncio.TimeoutError:
+                health_report = {
+                    "audit_status": "timeout",
+                    "audit_reason": "guardian_timeout",
+                    "route_scan_stats": {
+                        "attempted": 0,
+                        "checked": 0,
+                        "skipped": 0,
+                        "errors": 0,
+                        "unknown": 0,
+                    },
+                    "scan_duration_seconds": guardian_timeout,
+                    "target_duration_seconds": guardian_timeout,
+                    "route_scan_limit": 0,
+                    "route_scan_mode": "auto",
+                    "total_routes": 0,
+                    "healthy_routes": 0,
+                    "failing_routes": [],
+                    "permission_issues": [],
+                    "business_conflicts": [],
+                    "worst_routes": [],
+                    "recent_experiences": [],
+                    "learning_confirmations": [],
+                    "scenario_deps": {},
+                    "api_scan": {},
+                    "api_contract_missing": [],
+                    "api_contract_gaps": [],
+                    "expected_failures": [],
+                    "policy_candidates": [],
+                    "policy_auto_promoted": [],
+                    "domain_rule_violations": [],
+                    "domain_rule_summary": {},
+                    "scenario_coverage": {},
+                    "flow_coverage": {},
+                    "ui_action_coverage": {},
+                    "gap_scenarios": [],
+                    "gap_scenarios_existing": [],
+                    "scenario_run_stats": {"status": "timeout", "attempted": False},
+                    "coverage_reliability": {},
+                    "external_checks": [],
+                    "tool_evidence": {},
+                    "readiness": {"ok": False, "duration_ms": 0},
+                }
+        else:
+            health_report = await self.guardian.perform_full_audit()
 
         # 2. Safety Audit (Architecture & Integrity)
         # We pick a sample file for architectural validation (usually a controller)
@@ -1152,21 +1226,22 @@ class AgencyCore:
 
         # 3. Augment failing routes with diagnostic data
         failing_routes_details = []
-        for route_item in health_report.get("failing_routes", []):
-            if isinstance(route_item, dict):
-                route_url = route_item.get("uri") or route_item.get("url") or route_item
-                detail = self.locator.diagnose_fault(route_url)
-                detail["uri"] = route_url
-                if route_item.get("errors") is not None:
-                    detail["errors"] = route_item.get("errors")
-                if route_item.get("status") is not None:
-                    detail["status"] = route_item.get("status")
-                if route_item.get("latency_ms") is not None:
-                    detail["latency_ms"] = route_item.get("latency_ms")
-                failing_routes_details.append(detail)
-            else:
-                route_url = route_item
-                failing_routes_details.append(self.locator.diagnose_fault(route_url))
+        if not fast_profile:
+            for route_item in health_report.get("failing_routes", []):
+                if isinstance(route_item, dict):
+                    route_url = route_item.get("uri") or route_item.get("url") or route_item
+                    detail = self.locator.diagnose_fault(route_url)
+                    detail["uri"] = route_url
+                    if route_item.get("errors") is not None:
+                        detail["errors"] = route_item.get("errors")
+                    if route_item.get("status") is not None:
+                        detail["status"] = route_item.get("status")
+                    if route_item.get("latency_ms") is not None:
+                        detail["latency_ms"] = route_item.get("latency_ms")
+                    failing_routes_details.append(detail)
+                else:
+                    route_url = route_item
+                    failing_routes_details.append(self.locator.diagnose_fault(route_url))
 
         # 4. Unify into DiagnosticMap
         vitals = {
@@ -1211,35 +1286,37 @@ class AgencyCore:
         }
         # KPI metrics (operational signals)
         try:
-            findings["kpi_metrics"] = compute_kpi_metrics(self.root_dir, self.db_path)
+            if not fast_profile:
+                findings["kpi_metrics"] = compute_kpi_metrics(self.root_dir, self.db_path)
         except Exception:
             findings.setdefault("kpi_metrics", {})
         # Agent activity summary (stability/stall hints)
         try:
-            findings["activity_summary"] = summarize_agent_activity(self.db_path)
+            if not fast_profile:
+                findings["activity_summary"] = summarize_agent_activity(self.db_path)
         except Exception:
             findings.setdefault("activity_summary", {})
         # Code understanding snapshot (PHP + Python + JS) for safer edits
         try:
-            if str(os.getenv("BGL_CODE_INTEL", "1")) == "1":
+            if not fast_profile and str(os.getenv("BGL_CODE_INTEL", "1")) == "1":
                 findings["code_intel"] = build_code_intel(self.root_dir, self.db_path)
         except Exception:
             findings.setdefault("code_intel", {})
         # Code contracts + test linkage (trust for safe edits)
         try:
-            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+            if not fast_profile and str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
                 findings["code_contracts"] = build_code_contracts(self.root_dir)
         except Exception:
             findings.setdefault("code_contracts", {})
         # Code intent signals (variable/comment/test-driven intent hints)
         try:
-            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+            if not fast_profile and str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
                 findings["code_intent_signals"] = self._summarize_code_intent_signals()
         except Exception:
             findings.setdefault("code_intent_signals", {})
         # Code temporal signals (startup/first-request/state accumulation)
         try:
-            if str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
+            if not fast_profile and str(os.getenv("BGL_CODE_CONTRACTS", "1")) == "1":
                 findings["code_temporal_signals"] = self._summarize_code_temporal_signals()
         except Exception:
             findings.setdefault("code_temporal_signals", {})
@@ -1268,11 +1345,12 @@ class AgencyCore:
             findings.setdefault("ui_semantic", None)
         # Merge auto-run checks (if any) into external_checks for unified proposal channel.
         try:
-            auto_checks = self._auto_run_checks(findings)
-            findings["auto_checks"] = auto_checks
-            auto_results = (auto_checks.get("checks") or {}).get("results") or []
-            if auto_results:
-                findings["external_checks"].extend(auto_results)
+            if not fast_profile:
+                auto_checks = self._auto_run_checks(findings)
+                findings["auto_checks"] = auto_checks
+                auto_results = (auto_checks.get("checks") or {}).get("results") or []
+                if auto_results:
+                    findings["external_checks"].extend(auto_results)
         except Exception:
             findings.setdefault("auto_checks", {})
         # Convert failing external checks into actionable proposals so they share one channel
@@ -1328,16 +1406,39 @@ class AgencyCore:
             }
         )
 
+        route_stats = health_report.get("route_scan_stats") or {}
+        checked = 0
+        try:
+            checked = int(route_stats.get("checked") or 0)
+        except Exception:
+            checked = 0
+        total_routes = int(health_report.get("total_routes", 0) or 0)
+        healthy_routes = int(health_report.get("healthy_routes", 0) or 0)
+        if checked <= 0:
+            health_score = None
+            health_score_status = "unknown_no_checked_routes"
+        else:
+            health_score = healthy_routes / max(1, checked) * 100
+            health_score_status = "ok"
+        audit_status = str(health_report.get("audit_status") or "ok")
+        audit_reason = str(health_report.get("audit_reason") or "")
+        audit_budget_seconds = float(health_report.get("audit_budget_seconds") or 0.0)
+        audit_elapsed_seconds = float(health_report.get("audit_elapsed_seconds") or 0.0)
+
         diagnostic_map: Dict[str, Any] = {
             "version": "1.0.0-gold",
             "timestamp": time.time(),
-            "health_score": health_report.get("healthy_routes", 0)
-            / max(1, health_report.get("total_routes", 1))
-            * 100,
+            "health_score": health_score,
+            "health_score_status": health_score_status,
             "route_scan_limit": health_report.get("route_scan_limit", 0),
             "route_scan_mode": health_report.get("route_scan_mode", "auto"),
+            "route_scan_stats": route_stats,
             "scan_duration_seconds": health_report.get("scan_duration_seconds", 0),
             "target_duration_seconds": health_report.get("target_duration_seconds", 0),
+            "audit_status": audit_status,
+            "audit_reason": audit_reason,
+            "audit_budget_seconds": audit_budget_seconds,
+            "audit_elapsed_seconds": audit_elapsed_seconds,
             "vitals": vitals,
             "findings": findings,
             "readiness": health_report.get("readiness", {}),
@@ -1346,6 +1447,10 @@ class AgencyCore:
             "execution_stats": self._execution_stats(),
             "tool_evidence": health_report.get("tool_evidence", {}),
         }
+        findings["audit_status"] = audit_status
+        findings["audit_reason"] = audit_reason
+        findings["audit_budget_seconds"] = audit_budget_seconds
+        findings["audit_elapsed_seconds"] = audit_elapsed_seconds
 
         # Learning ingestion (unifies learned events into knowledge.db)
         try:
@@ -1759,9 +1864,13 @@ class AgencyCore:
                 "INFO",
             )
 
+        run_id = str(
+            os.getenv("BGL_DIAGNOSTIC_RUN_ID")
+            or int(diagnostic_map.get("timestamp") or time.time())
+        )
+
         # Persist a compact environment snapshot in knowledge.db (unifies observations across subsystems).
         try:
-            run_id = str(os.getenv("BGL_DIAGNOSTIC_RUN_ID") or int(diagnostic_map.get("timestamp") or time.time()))
             snapshot = diagnostic_to_snapshot(diagnostic_map)
             store_env_snapshot(
                 self.db_path,
@@ -1782,6 +1891,23 @@ class AgencyCore:
             if isinstance(attribution, dict):
                 diagnostic_map["findings"]["diagnostic_attribution"] = attribution
                 diagnostic_map["diagnostic_attribution"] = attribution
+                try:
+                    self.guardian._log_runtime_event(
+                        {
+                            "timestamp": time.time(),
+                            "run_id": run_id,
+                            "event_type": "diagnostic_delta",
+                            "source": "agency_core",
+                            "payload": {
+                                "classification": attribution.get("classification"),
+                                "confidence": attribution.get("confidence"),
+                                "signals": attribution.get("signals"),
+                                "window": attribution.get("window"),
+                            },
+                        }
+                    )
+                except Exception:
+                    pass
             # If changes are detected without internal test/write activity, prompt exploration.
             try:
                 if (
@@ -1895,6 +2021,33 @@ class AgencyCore:
                     )
             except Exception:
                 pass
+
+        try:
+            scenario_stats = diagnostic_map.get("findings", {}).get("scenario_run_stats", {})
+            self.guardian._log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "run_id": run_id,
+                    "event_type": "diagnostic_run_complete",
+                    "source": "agency_core",
+                    "payload": {
+                        "health_score": diagnostic_map.get("health_score"),
+                        "health_score_status": diagnostic_map.get("health_score_status"),
+                        "route_scan_stats": diagnostic_map.get("route_scan_stats", {}),
+                        "scan_duration_seconds": diagnostic_map.get("scan_duration_seconds"),
+                        "target_duration_seconds": diagnostic_map.get("target_duration_seconds"),
+                        "scenario_run_stats": scenario_stats,
+                        "diagnostic_confidence": diagnostic_map.get("diagnostic_confidence")
+                        or (diagnostic_map.get("findings") or {}).get("diagnostic_confidence"),
+                        "diagnostic_faults": diagnostic_map.get("diagnostic_faults")
+                        or (diagnostic_map.get("findings") or {}).get("diagnostic_faults"),
+                        "execution_mode": diagnostic_map.get("execution_mode"),
+                    },
+                    "status": 1 if diagnostic_map.get("health_score") is not None else 0,
+                }
+            )
+        except Exception:
+            pass
 
         return diagnostic_map
 
