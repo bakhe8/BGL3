@@ -775,9 +775,37 @@ class AgencyCore:
         except Exception:
             state = {}
         try:
+            last_success_at = float(state.get("last_success_at") or 0)
+        except Exception:
+            last_success_at = 0.0
+        try:
             last_timeout_at = float(state.get("last_timeout_at") or 0)
         except Exception:
             last_timeout_at = 0.0
+        try:
+            last_duration = float(state.get("duration_sec") or 0)
+        except Exception:
+            last_duration = 0.0
+        # If we have a very recent successful digest, skip re-running to avoid redundant load.
+        try:
+            recent_ok_window = float(
+                os.getenv(
+                    "BGL_AUTO_DIGEST_MIN_INTERVAL_SEC",
+                    str(self.config.get("auto_digest_min_interval_sec", 300)),
+                )
+                or 300
+            )
+        except Exception:
+            recent_ok_window = 300.0
+        if last_success_at and (time.time() - last_success_at) < recent_ok_window:
+            return {
+                "ok": True,
+                "skipped": True,
+                "reason": "recent_success",
+                "hours": hours,
+                "limit": limit,
+                "last_duration_sec": last_duration or None,
+            }
         if last_timeout_at and (time.time() - last_timeout_at) < 6 * 3600:
             # Back off to avoid repeated timeouts.
             hours = min(hours, float(state.get("fallback_hours") or max(1.0, hours / 2)))
@@ -801,9 +829,42 @@ class AgencyCore:
             )
         except Exception:
             timeout_sec = 120.0
+        # Adapt timeout/limits based on last successful duration to prevent near-timeout failures.
         try:
+            base_timeout = float(timeout_sec)
+        except Exception:
+            base_timeout = timeout_sec
+        if last_duration and base_timeout > 0:
+            if last_duration > (base_timeout * 0.85):
+                hours = min(hours, max(1.0, hours * 0.7))
+                limit = min(limit, max(120, int(limit * 0.7)))
+            timeout_sec = max(base_timeout, min(300.0, (last_duration * 1.4) + 10.0))
+        try:
+            digest_timeout = None
+            try:
+                digest_timeout = float(
+                    os.getenv(
+                        "BGL_CONTEXT_DIGEST_TIMEOUT_SEC",
+                        str(self.config.get("context_digest_timeout_sec", timeout_sec - 5)),
+                    )
+                )
+            except Exception:
+                digest_timeout = None
+            if digest_timeout is None or digest_timeout <= 0:
+                digest_timeout = max(5.0, float(timeout_sec - 5))
+            else:
+                digest_timeout = max(5.0, min(float(digest_timeout), float(timeout_sec - 5)))
             proc = subprocess.run(
-                [exe, str(script), "--hours", str(hours), "--limit", str(limit)],
+                [
+                    exe,
+                    str(script),
+                    "--hours",
+                    str(hours),
+                    "--limit",
+                    str(limit),
+                    "--timeout",
+                    str(round(float(digest_timeout), 2)),
+                ],
                 cwd=str(self.root_dir),
                 capture_output=True,
                 text=True,
@@ -837,6 +898,33 @@ class AgencyCore:
                 "limit": limit,
                 "timeout_sec": timeout_sec,
             }
+        except subprocess.TimeoutExpired as e:
+            # Mark timeout and suggest fallback scope for next run.
+            try:
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                state = state if isinstance(state, dict) else {}
+                state.update(
+                    {
+                        "status": "timeout",
+                        "last_timeout_at": time.time(),
+                        "last_hours": hours,
+                        "last_limit": limit,
+                        "timeout_sec": timeout_sec,
+                        "fallback_hours": max(1.0, hours / 2),
+                        "fallback_limit": max(100, int(limit / 2)),
+                    }
+                )
+                state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+            return {
+                "ok": False,
+                "error": f"context_digest_timeout:{timeout_sec}",
+                "hours": hours,
+                "limit": limit,
+                "timeout_sec": timeout_sec,
+                "timed_out": True,
+            }
         except Exception as e:
             # Mark timeout and suggest fallback scope for next run.
             try:
@@ -844,6 +932,7 @@ class AgencyCore:
                 state = state if isinstance(state, dict) else {}
                 state.update(
                     {
+                        "status": "error",
                         "last_timeout_at": time.time(),
                         "last_hours": hours,
                         "last_limit": limit,
@@ -1408,6 +1497,42 @@ class AgencyCore:
                         delta["reason"] = "new_url"
                         delta["change_count"] = max(1, int(delta.get("change_count") or 0))
                         delta["prev_url"] = str(prev_sem.get("url") or "")
+                    # Fallback: if still unchanged, look for recent semantic deltas in flow transitions.
+                    if not delta.get("changed"):
+                        try:
+                            db = connect_db(str(self.db_path), timeout=5.0)
+                            row = db.execute(
+                                """
+                                SELECT COUNT(*)
+                                FROM ui_flow_transitions
+                                WHERE semantic_delta_json LIKE '%\"changed\": true%' COLLATE NOCASE
+                                """
+                            ).fetchone()
+                            db.close()
+                            if row and int(row[0] or 0) > 0:
+                                delta["changed"] = True
+                                delta["reason"] = "ui_flow_transitions"
+                                delta["change_count"] = max(int(delta.get("change_count") or 0), int(row[0] or 0))
+                        except Exception:
+                            pass
+                    # Fallback: runtime_events semantic change signal.
+                    if not delta.get("changed"):
+                        try:
+                            db = connect_db(str(self.db_path), timeout=5.0)
+                            row = db.execute(
+                                """
+                                SELECT COUNT(*)
+                                FROM runtime_events
+                                WHERE event_type='ui_semantic_change'
+                                """
+                            ).fetchone()
+                            db.close()
+                            if row and int(row[0] or 0) > 0:
+                                delta["changed"] = True
+                                delta["reason"] = "runtime_events"
+                                delta["change_count"] = max(int(delta.get("change_count") or 0), int(row[0] or 0))
+                        except Exception:
+                            pass
                     findings["ui_semantic_delta"] = delta
         except Exception:
             findings.setdefault("ui_semantic", None)

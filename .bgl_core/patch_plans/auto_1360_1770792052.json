@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_1360",
+  "description": "Stabilize route http://localhost:8000/agentfrontend/partials/canary_status.php",
+  "created_at": 1770791358,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1360,
+    "generated_at": 1770792052.0309248
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_canary_status_php.yaml",
+      "mode": "append",
+      "content": "\n- stabilize: true",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- stabilize: true"
+      }
+    }
+  ]
+}

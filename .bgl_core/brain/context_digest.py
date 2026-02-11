@@ -89,6 +89,29 @@ def _write_digest_state(state: Dict[str, Any]) -> None:
         pass
 
 
+def _ensure_digest_indexes(conn: sqlite3.Connection) -> None:
+    """
+    Best-effort index creation to keep digest queries fast.
+    """
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runtime_events_ts ON runtime_events(timestamp)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_runtime_events_type ON runtime_events(event_type)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_outcomes_ts ON outcomes(timestamp)"
+        )
+        cur.execute(
+            "CREATE INDEX IF NOT EXISTS idx_prod_ops_ts ON prod_operations(timestamp)"
+        )
+        conn.commit()
+    except Exception:
+        pass
+
+
 def _bucket_count(val: int) -> str:
     if val <= 0:
         return "0"
@@ -1389,6 +1412,11 @@ def main():
         30,
     )
     prev_state = _read_digest_state()
+    prev_last_ts = None
+    try:
+        prev_last_ts = float(prev_state.get("last_event_ts") or 0)
+    except Exception:
+        prev_last_ts = None
     if prev_state.get("status") == "running":
         try:
             started_at = float(prev_state.get("started_at") or 0)
@@ -1449,6 +1477,20 @@ def main():
         _write_digest_state(state)
 
     cutoff = time.time() - args.hours * 3600
+    try:
+        overlap_sec = float(
+            _cfg_number(
+                "BGL_CONTEXT_DIGEST_OVERLAP_SEC",
+                "context_digest_overlap_sec",
+                120,
+            )
+            or 0
+        )
+    except Exception:
+        overlap_sec = 120.0
+    if prev_last_ts and overlap_sec >= 0:
+        # Prefer incremental window (with overlap) to reduce heavy scans.
+        cutoff = max(float(cutoff), float(prev_last_ts) - float(overlap_sec))
 
     conn = connect_db(DB_PATH, timeout=30.0)
     try:
@@ -1456,6 +1498,7 @@ def main():
         conn.execute("PRAGMA busy_timeout=3000;")
     except Exception:
         pass
+    _ensure_digest_indexes(conn)
 
     def _budget_guard(stage: str) -> bool:
         if not _expired():
@@ -1476,6 +1519,43 @@ def main():
         print(f"Context digest: time budget exhausted at {stage}.")
         return True
 
+    def _guarded_fetch(stage: str, fn: Callable[[], Any]):
+        """
+        Run a DB query with a progress guard so long queries don't exceed the time budget.
+        Returns (result, aborted).
+        """
+        if deadline is None:
+            return fn(), False
+        try:
+            conn.set_progress_handler(lambda: 1 if _expired() else 0, 10000)
+        except Exception:
+            pass
+        try:
+            return fn(), False
+        except sqlite3.OperationalError as e:
+            if "interrupted" in str(e).lower() or _expired():
+                try:
+                    _log_runtime_event(
+                        conn,
+                        "context_digest_timeout",
+                        {"stage": stage, "remaining_sec": round(_time_left(), 2)},
+                    )
+                except Exception:
+                    pass
+                _finalize_state("timeout", stage=stage, remaining_sec=round(_time_left(), 2))
+                try:
+                    conn.close()
+                except Exception:
+                    pass
+                print(f"Context digest: query budget exhausted at {stage}.")
+                return None, True
+            raise
+        finally:
+            try:
+                conn.set_progress_handler(None, 0)
+            except Exception:
+                pass
+
     # Runtime events (respect remaining time budget)
     event_limit = int(args.limit)
     try:
@@ -1483,8 +1563,20 @@ def main():
             event_limit = max(120, min(event_limit, int(_time_left() * 6)))
     except Exception:
         event_limit = int(args.limit)
-    events = fetch_events(conn, cutoff, event_limit)
+    events, aborted = _guarded_fetch(
+        "events_query", lambda: fetch_events(conn, cutoff, event_limit)
+    )
+    if aborted:
+        return
+    if events is None:
+        events = []
     stats["events"] = len(events or [])
+    latest_ts = 0.0
+    try:
+        if events:
+            latest_ts = max(latest_ts, float(events[0]["timestamp"] or 0))
+    except Exception:
+        pass
     event_summaries: List[Dict] = []
     log_summaries: List[Dict] = []
     route_meta_summaries: List[Dict] = []
@@ -1505,8 +1597,19 @@ def main():
             outcome_limit = max(80, min(outcome_limit, int(_time_left() * 4)))
     except Exception:
         outcome_limit = int(args.limit)
-    outcomes = fetch_outcomes(conn, cutoff, outcome_limit)
+    outcomes, aborted = _guarded_fetch(
+        "outcomes_query", lambda: fetch_outcomes(conn, cutoff, outcome_limit)
+    )
+    if aborted:
+        return
+    if outcomes is None:
+        outcomes = []
     stats["outcomes"] = len(outcomes or [])
+    try:
+        if outcomes:
+            latest_ts = max(latest_ts, float(outcomes[0]["timestamp"] or 0))
+    except Exception:
+        pass
     outcome_summaries = summarize_outcomes(outcomes) if outcomes else []
     if _budget_guard("outcomes"):
         return
@@ -1521,8 +1624,19 @@ def main():
     except Exception:
         pass
     prod_cutoff = 0.0 if prod_ops_full or prod_ops_hours <= 0 else (time.time() - prod_ops_hours * 3600)
-    prod_ops = fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
+    prod_ops, aborted = _guarded_fetch(
+        "prod_ops_query", lambda: fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
+    )
+    if aborted:
+        return
+    if prod_ops is None:
+        prod_ops = []
     stats["prod_ops"] = len(prod_ops or [])
+    try:
+        if prod_ops:
+            latest_ts = max(latest_ts, float(prod_ops[0]["timestamp"] or 0))
+    except Exception:
+        pass
     prod_summaries = summarize_prod_ops(prod_ops) if prod_ops else []
     if _budget_guard("prod_ops"):
         return
@@ -1548,7 +1662,10 @@ def main():
     )
     if not experiences:
         print("No events/prod operations/outcomes found in window.")
-        _finalize_state("no_data")
+        extra_state = {}
+        if latest_ts:
+            extra_state["last_event_ts"] = latest_ts
+        _finalize_state("no_data", **extra_state)
         return
 
     inserted = upsert_experiences(conn, experiences, time_left_fn=_time_left)
@@ -1604,7 +1721,10 @@ def main():
         f"+ {len(outcomes)} outcome(s) and {len(prod_ops)} prod op(s). "
         f"Auto proposals: {len(proposal_ids)}"
     )
-    _finalize_state("ok")
+    extra_state = {}
+    if latest_ts:
+        extra_state["last_event_ts"] = latest_ts
+    _finalize_state("ok", **extra_state)
 
 
 if __name__ == "__main__":

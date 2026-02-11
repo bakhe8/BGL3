@@ -1,0 +1,42 @@
+name: autonomous_1770800468
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/api/settings.php
+  optional: true
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: click
+  selector: '#btnCancelExcel'
+  optional: true
+- action: click
+  selector: '#manualType'
+  optional: true
+- action: scroll
+  dy: 400
+- action: click
+  selector: '#bgl-confirm-yes'
+- action: click
+  selector: '#supplierIdHidden'
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: ضمان
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true
+- action: click
+  selector: '#manualType'
+  optional: true
+- action: scroll
+  dy: 400

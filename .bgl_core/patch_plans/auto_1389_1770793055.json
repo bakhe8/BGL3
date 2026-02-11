@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "patch_plan_1389",
+  "description": "Patch Plan for route http://localhost:8000/index.php?search=conflict",
+  "created_at": 1770792997,
+  "metadata": {
+    "proposal_id": 1389,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770793055.3475747
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add code to handle conflict scenario\nif 'conflict' in request.args:\n    return handle_conflict(request)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add code to handle conflict scenario\nif 'conflict' in request.args:\n    return handle_conflict(request)\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_index_php",
+      "mode": "append",
+      "content": "\n<!-- Add HTML to display conflict scenario -->\n{% if 'conflict' in request.args %}\n<div>Conflict Scenario</div>\n{% endif %}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n<!-- Add HTML to display conflict scenario -->\n{% if 'conflict' in request.args %}\n<div>Conflict Scenario</div>\n{% endif %}\n"
+      }
+    }
+  ]
+}

@@ -7,12 +7,12 @@
       "params": {
         "mode": "analysis"
       },
-      "priority": 60,
+      "priority": 85,
       "enabled": true
     }
   ],
   "overrides": {},
-  "last_updated": 1770544565.7307568,
+  "last_updated": 1770778300.1887016,
   "history": [
     {
       "ts": 1770544565.7307568,
@@ -24,6 +24,18 @@
         "change_count": 0,
         "false_positive": 0,
         "blocked": 9
+      }
+    },
+    {
+      "ts": 1770778300.1887016,
+      "changes": [
+        "UI Semantic Change -> Analysis.priority:60->85"
+      ],
+      "context": {
+        "ui_changed": true,
+        "change_count": 48,
+        "false_positive": 0,
+        "blocked": 0
       }
     }
   ]

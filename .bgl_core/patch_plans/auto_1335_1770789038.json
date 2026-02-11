@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "1335",
+  "description": "Patch Plan for /api/import_suppliers.php to improve stability based on runtime evidence.",
+  "created_at": 1770788913,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1335,
+    "generated_at": 1770789038.1368277
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_import_suppliers_.yaml",
+      "mode": null,
+      "content": "\n- action: stabilize\n  impact: medium\n  solution: \"Implement error handling and logging for /api/import_suppliers.php to manage exceptions and database issues effectively.\"\n  expectation: \"Reduce error rate below 0.5 and improve latency.\"\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "\n- action: stabilize\n  impact: medium\n  solution: \"Implement error handling and logging for /api/import_suppliers.php to manage exceptions and database issues effectively.\"\n  expectation: \"Reduce error rate below 0.5 and improve latency.\"\n"
+      }
+    }
+  ]
+}

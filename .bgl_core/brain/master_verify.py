@@ -3,6 +3,7 @@ import sys
 import subprocess
 import os
 import threading
+import atexit
 from pathlib import Path
 import json
 import sqlite3
@@ -26,7 +27,11 @@ from scenario_deps import check_scenario_deps_async  # noqa: E402
 from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
 from schema_check import check_schema  # noqa: E402
 from run_ledger import start_run, finish_run  # noqa: E402
-from run_lock import acquire_lock, release_lock, describe_lock  # noqa: E402
+from run_lock import acquire_lock, release_lock, describe_lock, refresh_lock  # noqa: E402
+try:
+    from priority_loop import run_priority_loop  # noqa: E402
+except Exception:
+    run_priority_loop = None  # type: ignore
 try:
     from fingerprint import compute_fingerprint, fingerprint_to_payload, fingerprint_equal, fingerprint_is_fresh  # noqa: E402
 except Exception:
@@ -177,6 +182,41 @@ def _read_lock_status(lock_path: Path) -> dict:
         except Exception:
             status["error"] = "unreadable"
         return status
+
+
+def _start_lock_heartbeat(
+    lock_path: Path,
+    *,
+    label: str,
+    interval_sec: int,
+    run_id: str | None = None,
+) -> threading.Event | None:
+    if refresh_lock is None or interval_sec <= 0:
+        return None
+    stop = threading.Event()
+
+    def _beat() -> None:
+        while not stop.is_set():
+            ok = refresh_lock(lock_path, label=label)
+            if not ok:
+                try:
+                    _log_runtime_event(
+                        ROOT,
+                        {
+                            "timestamp": time.time(),
+                            "run_id": run_id or "",
+                            "session": "lock",
+                            "event_type": "lock_heartbeat_failed",
+                            "route": str(lock_path),
+                            "target": label,
+                        },
+                    )
+                except Exception:
+                    pass
+            stop.wait(interval_sec)
+
+    threading.Thread(target=_beat, name="master_verify_lock_heartbeat", daemon=True).start()
+    return stop
 
 
 def _read_json(path: Path) -> dict:
@@ -491,6 +531,281 @@ def _compare_reports(prev: dict, curr: dict) -> dict:
         [m for m in comparison["metrics"].values() if m.get("classification") not in ("noise", "unknown")]
     )
     return comparison
+
+
+def _count_fallback_events(root: Path) -> int:
+    path = root / ".bgl_core" / "logs" / "runtime_events_fallback.jsonl"
+    if not path.exists():
+        return 0
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            return sum(1 for _ in handle)
+    except Exception:
+        return 0
+
+
+def _load_scenario_selection(root: Path) -> dict:
+    return _read_json(root / ".bgl_core" / "logs" / "scenario_selection.json")
+
+
+def _compute_integrity_gate(root: Path, data: dict) -> dict:
+    now = time.time()
+    gate = {
+        "run_integrity": {"status": "pass", "decision": "ok", "signals": []},
+        "event_integrity": {"status": "pass", "decision": "ok", "signals": []},
+        "exploration_integrity": {"status": "pass", "decision": "ok", "signals": []},
+        "understanding_integrity": {"status": "pass", "decision": "ok", "signals": []},
+        "overall": {"status": "ok", "decision": "ok", "failed_layers": []},
+        "timestamp": now,
+    }
+
+    def _flag(layer: dict, key: str, detail: str, value=None, *, hard: bool = False, decision: str = "") -> None:
+        layer["signals"].append({"key": key, "detail": detail, "value": value})
+        if hard:
+            layer["status"] = "fail"
+            layer["decision"] = decision or layer.get("decision") or "stop_reading"
+        else:
+            layer["status"] = "warn"
+            layer["decision"] = decision or layer.get("decision") or "caution"
+
+    diag_status = data.get("diagnostic_status") or {}
+    diag_state = str(diag_status.get("status") or "")
+    report_ts = data.get("timestamp") or 0
+    run_locks = data.get("run_locks") or {}
+    scenario = data.get("scenario_run_stats") or {}
+    exec_stats = data.get("execution_stats") or {}
+
+    # Run Integrity
+    if diag_state in ("running", "deferred_user_active") and report_ts:
+        _flag(
+            gate["run_integrity"],
+            "diagnostic_status_running",
+            "diagnostic_status still indicates running despite report timestamp",
+            {"status": diag_state, "report_ts": report_ts, "status_ts": diag_status.get("timestamp")},
+            hard=True,
+            decision="stop_reading",
+        )
+    # stale locks
+    stale_lock_hits = []
+    for name, lock in run_locks.items():
+        status = str((lock or {}).get("status") or "")
+        if status in ("stale_dead_pid", "active_stale"):
+            stale_lock_hits.append({"lock": name, "status": status, "age_sec": lock.get("age_sec")})
+    if stale_lock_hits:
+        _flag(
+            gate["run_integrity"],
+            "stale_locks",
+            "detected stale locks",
+            stale_lock_hits,
+            hard=True,
+            decision="stop_reading",
+        )
+    # stage history no progress (only if status indicates running)
+    if diag_state == "running":
+        history = diag_status.get("stage_history") or []
+        if history:
+            last = history[-1]
+            last_ts = float(last.get("ts") or 0)
+            idle = (now - last_ts) if last_ts else 0
+            try:
+                idle_threshold = int((data.get("diagnostic_timeout_sec") or 0) or 600)
+            except Exception:
+                idle_threshold = 600
+            if last_ts and idle > idle_threshold:
+                _flag(
+                    gate["run_integrity"],
+                    "stage_no_progress",
+                    "stage history indicates no progress",
+                    {"last_stage": last.get("stage"), "idle_sec": round(idle, 2)},
+                    hard=True,
+                    decision="stop_reading",
+                )
+    # missing success_rate
+    if exec_stats.get("success_rate") is None:
+        _flag(
+            gate["run_integrity"],
+            "missing_success_rate",
+            "execution_stats.success_rate missing",
+            None,
+            hard=True,
+            decision="stop_reading",
+        )
+    # scenario duration zero with attempted
+    if scenario.get("attempted") and float(scenario.get("duration_s") or 0) <= 0:
+        _flag(
+            gate["run_integrity"],
+            "scenario_duration_zero",
+            "scenario_run_stats.duration_s=0 while attempted",
+            {"status": scenario.get("status"), "reason": scenario.get("reason")},
+            hard=True,
+            decision="stop_reading",
+        )
+
+    # Event Integrity
+    event_delta = scenario.get("event_delta_total")
+    if event_delta is None:
+        event_delta = scenario.get("event_delta")
+    try:
+        event_delta = int(event_delta or 0)
+    except Exception:
+        event_delta = 0
+    if scenario.get("attempted") and event_delta == 0:
+        _flag(
+            gate["event_integrity"],
+            "event_delta_zero",
+            "event_delta is zero despite attempted run",
+            {"status": scenario.get("status"), "reason": scenario.get("reason")},
+            hard=False,
+            decision="read_carefully",
+        )
+    fallback_count = _count_fallback_events(root)
+    if fallback_count and fallback_count >= max(3, event_delta or 0):
+        _flag(
+            gate["event_integrity"],
+            "fallback_dominant",
+            "fallback events dominate runtime events",
+            {"fallback_count": fallback_count, "event_delta": event_delta},
+            hard=False,
+            decision="read_carefully",
+        )
+    if diag_status.get("mismatch_scenario_run_id") or diag_status.get("stage") == "run_id_mismatch":
+        _flag(
+            gate["event_integrity"],
+            "run_id_mismatch",
+            "scenario run_id mismatch with diagnostic",
+            {"mismatch": diag_status.get("mismatch_scenario_run_id")},
+            hard=False,
+            decision="read_carefully",
+        )
+    if "locked" in str(diag_status.get("db_write_last_error") or "").lower():
+        _flag(
+            gate["event_integrity"],
+            "db_write_locked",
+            "database locked during event write",
+            diag_status.get("db_write_last_error"),
+            hard=False,
+            decision="read_carefully",
+        )
+
+    # Exploration Integrity
+    selection = _load_scenario_selection(root)
+    selected = selection.get("selected") or []
+    has_ui = any(str(s.get("kind") or "").lower().startswith("ui") for s in selected)
+    if selected and not has_ui:
+        _flag(
+            gate["exploration_integrity"],
+            "no_ui_scenario",
+            "scenario selection has no UI scenarios",
+            {"selected_count": len(selected)},
+            hard=False,
+            decision="low_coverage",
+        )
+    route_scan_limit = data.get("route_scan_limit")
+    try:
+        route_scan_limit = int(route_scan_limit) if route_scan_limit is not None else None
+    except Exception:
+        route_scan_limit = None
+    if route_scan_limit is not None and route_scan_limit < 20:
+        _flag(
+            gate["exploration_integrity"],
+            "route_scan_limit_low",
+            "route_scan_limit is low for coverage",
+            route_scan_limit,
+            hard=False,
+            decision="low_coverage",
+        )
+    ui_cov = data.get("ui_action_coverage") or {}
+    try:
+        ui_ratio = float(ui_cov.get("coverage_ratio") or 0)
+    except Exception:
+        ui_ratio = 0.0
+    if ui_ratio and ui_ratio < 30:
+        _flag(
+            gate["exploration_integrity"],
+            "ui_coverage_low",
+            "ui_action_coverage below target",
+            ui_ratio,
+            hard=False,
+            decision="low_coverage",
+        )
+    gap_runs = ui_cov.get("gap_runs")
+    gap_changed = ui_cov.get("gap_changed")
+    try:
+        gap_runs = int(gap_runs or 0)
+        gap_changed = int(gap_changed or 0)
+    except Exception:
+        gap_runs = 0
+        gap_changed = 0
+    if gap_runs and gap_changed == 0:
+        _flag(
+            gate["exploration_integrity"],
+            "gap_no_change",
+            "gap runs observed without coverage change",
+            {"gap_runs": gap_runs, "gap_changed": gap_changed},
+            hard=False,
+            decision="low_coverage",
+        )
+
+    # Understanding Integrity
+    digest = data.get("context_digest") or {}
+    if str(digest.get("ok")).lower() in ("false", "0") or digest.get("ok") is False:
+        _flag(
+            gate["understanding_integrity"],
+            "context_digest_failed",
+            "context_digest failed or timed out",
+            {"status": digest.get("status"), "reason": digest.get("reason")},
+            hard=False,
+            decision="skip_memory_update",
+        )
+    sem = data.get("ui_semantic_delta") or {}
+    if sem and not sem.get("changed"):
+        _flag(
+            gate["understanding_integrity"],
+            "semantic_delta_missing",
+            "ui_semantic_delta did not change",
+            {"change_count": sem.get("change_count")},
+            hard=False,
+            decision="skip_memory_update",
+        )
+    flow = data.get("flow_coverage") or {}
+    try:
+        seq_ratio = float(flow.get("sequence_coverage_ratio") or 0)
+    except Exception:
+        seq_ratio = 0.0
+    if seq_ratio and seq_ratio < 60:
+        _flag(
+            gate["understanding_integrity"],
+            "flow_sequence_low",
+            "flow sequence coverage below target",
+            seq_ratio,
+            hard=False,
+            decision="skip_memory_update",
+        )
+    gaps = ui_cov.get("gaps") or []
+    if isinstance(gaps, list) and len(gaps) > 0 and gap_changed == 0:
+        _flag(
+            gate["understanding_integrity"],
+            "selectors_unstable",
+            "gaps present without change; selector stability questionable",
+            {"gap_count": len(gaps), "gap_changed": gap_changed},
+            hard=False,
+            decision="skip_memory_update",
+        )
+
+    # Overall decision
+    failed_layers = []
+    for key in ("run_integrity", "event_integrity", "exploration_integrity", "understanding_integrity"):
+        if gate[key]["status"] in ("fail", "warn"):
+            failed_layers.append(key)
+    gate["overall"]["failed_layers"] = failed_layers
+    if gate["run_integrity"]["status"] == "fail":
+        gate["overall"]["status"] = "fail"
+        gate["overall"]["decision"] = "stop_reading"
+    elif any(gate[k]["status"] == "warn" for k in ("event_integrity", "exploration_integrity", "understanding_integrity")):
+        gate["overall"]["status"] = "warn"
+        gate["overall"]["decision"] = "caution"
+
+    return gate
 
 
 def _load_baseline_report(root: Path) -> tuple[dict, dict]:
@@ -859,6 +1174,20 @@ async def master_assurance_diagnostic():
     lock_path = ROOT / ".bgl_core" / "logs" / "master_verify.lock"
     status_path = ROOT / ".bgl_core" / "logs" / "diagnostic_status.json"
     hb_stop: threading.Event | None = None
+    lock_heartbeat_stop: threading.Event | None = None
+
+    def _release_master_lock() -> None:
+        nonlocal lock_heartbeat_stop
+        try:
+            if lock_heartbeat_stop is not None:
+                lock_heartbeat_stop.set()
+                lock_heartbeat_stop = None
+        except Exception:
+            pass
+        try:
+            release_lock(lock_path)
+        except Exception:
+            pass
     try:
         _mark_aborted_if_stale(lock_path, status_path)
     except Exception:
@@ -916,6 +1245,26 @@ async def master_assurance_diagnostic():
         return
 
     try:
+        # Ensure we always release the master lock on process exit.
+        atexit.register(_release_master_lock)
+    except Exception:
+        pass
+
+    try:
+        heartbeat_sec = int(cfg.get("master_verify_lock_heartbeat_sec", 30) or 30)
+    except Exception:
+        heartbeat_sec = 30
+    try:
+        lock_heartbeat_stop = _start_lock_heartbeat(
+            lock_path,
+            label="master_verify",
+            interval_sec=heartbeat_sec,
+            run_id=os.getenv("BGL_DIAGNOSTIC_RUN_ID"),
+        )
+    except Exception:
+        lock_heartbeat_stop = None
+
+    try:
         _write_status(
             status_path,
             "running",
@@ -945,10 +1294,7 @@ async def master_assurance_diagnostic():
         min_interval = 60.0
     if not force and age is not None and age < min_interval:
         print(f"[!] Diagnostic cooldown active ({age:.1f}s < {min_interval}s); skipping.")
-        try:
-            release_lock(lock_path)
-        except Exception:
-            pass
+        _release_master_lock()
         return
 
     try:
@@ -980,10 +1326,7 @@ async def master_assurance_diagnostic():
             _update_status_stage(status_path, "cache_used")
         except Exception:
             pass
-        try:
-            release_lock(lock_path)
-        except Exception:
-            pass
+        _release_master_lock()
         return
 
     # Optional fast mode (skip heavy/side-effect stages).
@@ -1071,10 +1414,7 @@ async def master_assurance_diagnostic():
             )
         except Exception:
             pass
-        try:
-            release_lock(lock_path)
-        except Exception:
-            pass
+        _release_master_lock()
         return
     fast_strategy = str(cfg.get("diagnostic_fast_strategy", "scan") or "scan").strip().lower()
     if profile == "fast" and not force and fast_strategy in ("cache", "stub", "skip"):
@@ -1113,10 +1453,7 @@ async def master_assurance_diagnostic():
             )
         except Exception:
             pass
-        try:
-            release_lock(lock_path)
-        except Exception:
-            pass
+        _release_master_lock()
         return
     try:
         scen_lock_path = ROOT / ".bgl_core" / "logs" / "scenario_runner.lock"
@@ -1124,6 +1461,11 @@ async def master_assurance_diagnostic():
         scen_age = scen_lock.get("age_sec")
         scen_status = str(scen_lock.get("status") or "")
         scen_pid_alive = bool(scen_lock.get("pid_alive")) if "pid_alive" in scen_lock else None
+        run_lock_path = ROOT / ".bgl_core" / "logs" / "run_scenarios.lock"
+        run_lock = _read_lock_status(run_lock_path)
+        run_age = run_lock.get("age_sec")
+        run_status = str(run_lock.get("status") or "")
+        run_pid_alive = bool(run_lock.get("pid_alive")) if "pid_alive" in run_lock else None
         try:
             skip_age = int(cfg.get("scenario_lock_skip_age_sec", 600) or 600)
         except Exception:
@@ -1135,10 +1477,17 @@ async def master_assurance_diagnostic():
                     should_skip = True
             elif scen_pid_alive is True and float(scen_age) < skip_age:
                 should_skip = True
+        if run_lock.get("exists") and run_age is not None:
+            if run_status in ("active_fresh", "recent_lock"):
+                if float(run_age) < skip_age:
+                    should_skip = True
+            elif run_pid_alive is True and float(run_age) < skip_age:
+                should_skip = True
         if should_skip:
             os.environ["BGL_RUN_SCENARIOS"] = "0"
             profile_overrides.setdefault("BGL_RUN_SCENARIOS", "0")
             profile_overrides.setdefault("scenario_lock_skip", scen_lock)
+            profile_overrides.setdefault("run_scenarios_lock_skip", run_lock)
         else:
             # If lock looks stale, try to clear it so scenarios can proceed.
             if scen_lock.get("exists") and scen_status in ("stale_dead_pid", "active_stale"):
@@ -1146,6 +1495,13 @@ async def master_assurance_diagnostic():
                     release_lock(scen_lock_path)
                     scen_lock["cleared"] = True
                     profile_overrides.setdefault("scenario_lock_override", scen_lock)
+                except Exception:
+                    pass
+            if run_lock.get("exists") and run_status in ("stale_dead_pid", "active_stale"):
+                try:
+                    release_lock(run_lock_path)
+                    run_lock["cleared"] = True
+                    profile_overrides.setdefault("run_scenarios_lock_override", run_lock)
                 except Exception:
                     pass
     except Exception:
@@ -1183,6 +1539,36 @@ async def master_assurance_diagnostic():
     # Run Full Diagnostic with bounded timeout to avoid hanging browser runs
     run_id = f"diag_{int(time.time())}"
     os.environ["BGL_DIAGNOSTIC_RUN_ID"] = run_id
+    # دائم: تنفيذ أول 3 أولويات قبل التشخيص (سلامة التشغيل -> الأحداث -> digest)
+    if run_priority_loop:
+        try:
+            _update_status_stage(status_path, "priority_loop", run_id=run_id)
+        except Exception:
+            pass
+        try:
+            run_priority_loop(ROOT, cfg=cfg, run_id=run_id)
+            try:
+                _update_status_stage(status_path, "priority_loop_done", run_id=run_id)
+            except Exception:
+                pass
+        except Exception as exc:
+            try:
+                _update_status_stage(status_path, "priority_loop_error", run_id=run_id)
+            except Exception:
+                pass
+            try:
+                _log_runtime_event(
+                    ROOT,
+                    {
+                        "timestamp": time.time(),
+                        "run_id": run_id,
+                        "event_type": "priority_loop_error",
+                        "source": "master_verify",
+                        "payload": {"error": str(exc)},
+                    },
+                )
+            except Exception:
+                pass
     phase_timings: list[dict] = []
     try:
         _update_status_stage(status_path, "full_diagnostic", run_id=run_id)
@@ -1271,10 +1657,7 @@ async def master_assurance_diagnostic():
             pass
         return
     finally:
-        try:
-            release_lock(lock_path)
-        except Exception:
-            pass
+        _release_master_lock()
         try:
             if hb_stop is not None:
                 hb_stop.set()
@@ -1687,6 +2070,12 @@ async def master_assurance_diagnostic():
             "agent_mode": auto_cfg.get("agent_mode") or (auto_cfg.get("decision") or {}).get("mode"),
         }
         try:
+            exec_stats = data.get("execution_stats") or {}
+            if exec_stats and exec_stats.get("success_rate") is not None:
+                data["success_rate"] = exec_stats.get("success_rate")
+        except Exception:
+            pass
+        try:
             data["run_locks"] = {
                 "master_verify": _read_lock_status(ROOT / ".bgl_core" / "logs" / "master_verify.lock"),
                 "run_scenarios": _read_lock_status(ROOT / ".bgl_core" / "logs" / "run_scenarios.lock"),
@@ -1730,6 +2119,24 @@ async def master_assurance_diagnostic():
             data["diagnostic_comparison"] = _compare_reports(last_report, data)
         except Exception:
             data["diagnostic_comparison"] = {}
+        try:
+            data["integrity_gate"] = _compute_integrity_gate(ROOT, data)
+        except Exception:
+            data["integrity_gate"] = {}
+        try:
+            if data.get("integrity_gate"):
+                _log_runtime_event(
+                    ROOT,
+                    {
+                        "timestamp": time.time(),
+                        "session": "diagnostic",
+                        "run_id": data.get("diagnostic_run_id") or "",
+                        "event_type": "integrity_gate",
+                        "payload": data.get("integrity_gate"),
+                    },
+                )
+        except Exception:
+            pass
         data["diagnostic_phase_timings"] = diagnostic.get("diagnostic_phase_timings", [])
         try:
             scen_run_id = (data.get("scenario_run_stats") or {}).get("run_id")

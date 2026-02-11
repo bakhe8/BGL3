@@ -126,11 +126,11 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
                 reasons["auto_digest_limit"] = "context_digest_timeout"
             # Ensure digest has an explicit internal timeout
             cur_timeout = int(cfg.get("context_digest_timeout_sec", 110) or 110)
-            updates["context_digest_timeout_sec"] = _clamp(cur_timeout, 90, 140)
+            updates["context_digest_timeout_sec"] = _clamp(cur_timeout, 90, 240)
             reasons["context_digest_timeout_sec"] = "context_digest_timeout"
             # Align subprocess timeout for auto digest
             auto_timeout = int(cfg.get("auto_digest_timeout_sec", 120) or 120)
-            updates["auto_digest_timeout_sec"] = _clamp(auto_timeout, 90, 160)
+            updates["auto_digest_timeout_sec"] = _clamp(auto_timeout, 90, 300)
             reasons["auto_digest_timeout_sec"] = "context_digest_timeout"
 
     # UI action coverage tuning

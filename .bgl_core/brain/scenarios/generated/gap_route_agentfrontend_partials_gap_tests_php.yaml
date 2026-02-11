@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_gap_tests_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/gap_tests.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/gap_tests.php
+- action: wait
+  ms: 400

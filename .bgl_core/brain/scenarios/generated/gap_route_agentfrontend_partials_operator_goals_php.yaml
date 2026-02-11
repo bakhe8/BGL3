@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_operator_goals_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/operator_goals.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/operator_goals.php
+- action: wait
+  ms: 400

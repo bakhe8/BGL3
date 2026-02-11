@@ -2,12 +2,13 @@ import asyncio
 import json
 import os
 import sqlite3
+import threading
 import time
 from pathlib import Path
 
 from config_loader import load_config
 from scenario_deps import check_scenario_deps
-from run_lock import acquire_lock, release_lock, describe_lock
+from run_lock import acquire_lock, release_lock, describe_lock, refresh_lock
 
 
 ROOT = Path(__file__).parent.parent.parent
@@ -155,6 +156,47 @@ def _log_runtime_event(event: dict) -> None:
                 _update_diagnostic_status_stage("db_write_locked")
         except Exception:
             pass
+
+
+def _start_lock_heartbeat(
+    lock_path: Path, label: str, interval_sec: int, run_id: str
+) -> threading.Event | None:
+    """
+    Periodically refresh the lock heartbeat so long-running runs don't go stale.
+    Returns a stop Event to terminate the heartbeat, or None if disabled.
+    """
+    if interval_sec <= 0:
+        return None
+    stop_event = threading.Event()
+
+    def _beat() -> None:
+        while not stop_event.wait(interval_sec):
+            ok = refresh_lock(lock_path, label=label)
+            if not ok:
+                _update_diagnostic_status_stage(
+                    "run_scenarios_lock_refresh_failed", run_id=run_id
+                )
+                _log_runtime_event(
+                    {
+                        "timestamp": time.time(),
+                        "session": "lock",
+                        "run_id": run_id,
+                        "event_type": "lock_refresh_failed",
+                        "route": str(lock_path),
+                        "target": "run_scenarios",
+                        "payload": {
+                            "label": label,
+                            "interval_sec": interval_sec,
+                        },
+                    }
+                )
+                break
+
+    thread = threading.Thread(
+        target=_beat, name="run_scenarios_lock_heartbeat", daemon=True
+    )
+    thread.start()
+    return stop_event
 
 
 def _ensure_env(cfg: dict):
@@ -306,8 +348,16 @@ def main():
     }
     _update_diagnostic_status_stage("run_scenarios_start", run_id=run_id)
     lock_ttl = int(cfg.get("run_scenarios_lock_ttl_sec", 7200))
+    try:
+        max_age = cfg.get("run_scenarios_lock_max_age_sec")
+        if max_age is not None:
+            os.environ.setdefault("BGL_SCENARIO_LOCK_MAX_AGE_SEC", str(int(max_age)))
+    except Exception:
+        pass
     ok, reason = acquire_lock(LOCK_PATH, ttl_sec=lock_ttl, label="run_scenarios")
+    lock_heartbeat_stop: threading.Event | None = None
     if not ok:
+        lock_info: dict = {}
         try:
             lock_info = describe_lock(LOCK_PATH, ttl_sec=lock_ttl)
             lock_info["reason"] = reason
@@ -325,14 +375,39 @@ def main():
             )
         except Exception:
             pass
-        print(f"[!] Scenario run already in progress ({reason}); skipping.")
-        _update_diagnostic_status_stage("run_scenarios_blocked", run_id=run_id)
-        return
+        # If the lock looks stale, attempt one safe takeover before skipping.
+        try:
+            lock_status = (lock_info or {}).get("status")
+            if lock_status in ("stale_dead_pid", "active_stale"):
+                if release_lock is not None:
+                    release_lock(LOCK_PATH)
+                ok, reason = acquire_lock(LOCK_PATH, ttl_sec=lock_ttl, label="run_scenarios")
+                if ok:
+                    _update_diagnostic_status_stage("run_scenarios_lock_recovered", run_id=run_id)
+                else:
+                    try:
+                        lock_info = describe_lock(LOCK_PATH, ttl_sec=lock_ttl)
+                    except Exception:
+                        lock_info = lock_info or {}
+        except Exception:
+            pass
+        if ok:
+            pass
+        else:
+            print(f"[!] Scenario run already in progress ({reason}); skipping.")
+            _update_diagnostic_status_stage("run_scenarios_blocked", run_id=run_id)
+            return
+    heartbeat_sec = int(cfg.get("run_scenarios_lock_heartbeat_sec", 30))
+    lock_heartbeat_stop = _start_lock_heartbeat(
+        LOCK_PATH, "run_scenarios", heartbeat_sec, run_id
+    )
 
     if os.getenv("BGL_SIMULATE_SCENARIOS", "0") == "1":
         try:
             simulate_traffic()
         finally:
+            if lock_heartbeat_stop:
+                lock_heartbeat_stop.set()
             release_lock(LOCK_PATH)
         return
 
@@ -364,6 +439,8 @@ def main():
         _log_activity("scenario_run_completed", {"run_id": run_id})
     finally:
         _update_diagnostic_status_stage("run_scenarios_exit", run_id=run_id)
+        if lock_heartbeat_stop:
+            lock_heartbeat_stop.set()
         release_lock(LOCK_PATH)
 
 

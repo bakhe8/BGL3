@@ -1,0 +1,126 @@
+{
+  "version": 1,
+  "id": "patch_plan_1300",
+  "description": "Patch Plan for Prod Op Proposal Apply on Scenarios",
+  "created_at": 1694728800,
+  "metadata": {
+    "proposal_id": 1300,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770787445.2563512
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_bootstrap_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_layout_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_activity_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_controls_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_autonomy_goals_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_blockers_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_canary_status_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\""
+      }
+    }
+  ]
+}

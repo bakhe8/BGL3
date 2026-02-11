@@ -398,7 +398,11 @@ class BGLGuardian:
                     except Exception:
                         fallback_delta = 0
                     effective_delta = delta + max(0, int(fallback_delta or 0))
+                    run_status_hint = None
+                    run_reason_hint = None
                     if isinstance(run_result, dict):
+                        run_status_hint = run_result.get("status")
+                        run_reason_hint = run_result.get("reason")
                         scenario_run_stats.update(
                             {
                                 "ui_exploration_duration_s": run_result.get(
@@ -409,13 +413,23 @@ class BGLGuardian:
                                 "autonomous_scenario": run_result.get("autonomous_scenario"),
                                 "run_id": run_result.get("run_id"),
                                 "scenario_batch_duration_s": run_result.get("scenario_batch_duration_s"),
+                                "selection": run_result.get("selection"),
                             }
                         )
+                    event_delta_source = "db"
+                    event_delta_report = delta
+                    if delta <= 0 and fallback_delta:
+                        event_delta_source = "fallback"
+                        event_delta_report = effective_delta
+                    elif delta <= 0 and not fallback_delta:
+                        event_delta_source = "none"
                     scenario_run_stats.update(
                         {
-                            "event_delta": delta,
+                            "event_delta_db": delta,
+                            "event_delta": event_delta_report,
                             "fallback_event_delta": fallback_delta,
                             "event_delta_total": effective_delta,
+                            "event_delta_source": event_delta_source,
                             "duration_s": round(run_duration, 2),
                             "db_fallback": bool(fallback_delta),
                         }
@@ -461,7 +475,19 @@ class BGLGuardian:
                         )
                     except Exception:
                         retry_delay = 8.0
-                    if effective_delta < min_delta:
+                    if (
+                        run_status_hint in ("locked", "no_scenarios", "no_scenarios_dir")
+                        and effective_delta <= 0
+                    ):
+                        scenario_run_stats["attempted"] = False
+                        scenario_run_stats["status"] = run_status_hint
+                        scenario_run_stats["reason"] = run_reason_hint or run_status_hint
+                        self.authority.record_outcome(
+                            decision_id,
+                            "skipped",
+                            f"scenario_run:{run_status_hint}",
+                        )
+                    elif effective_delta < min_delta:
                         if run_duration < min_runtime and effective_delta <= 0:
                             scenario_run_stats["status"] = "skipped_or_locked"
                             scenario_run_stats["reason"] = "no_new_events_or_locked"
@@ -534,17 +560,100 @@ class BGLGuardian:
                         self.authority.record_outcome(
                             decision_id, "success", "scenario batch executed"
                         )
+                except asyncio.TimeoutError:
+                    run_duration = time.time() - run_started
+                    scenario_run_stats.update(
+                        {
+                            "status": "timeout",
+                            "reason": "scenario_batch_timeout",
+                            "duration_s": round(run_duration, 2),
+                            "event_delta": 0,
+                            "fallback_event_delta": 0,
+                            "event_delta_total": 0,
+                            "timeout_sec": scenario_timeout_sec,
+                        }
+                    )
+                    self.authority.record_outcome(
+                        decision_id, "deferred", "scenario_run:timeout"
+                    )
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
-                    err_text = str(e)
+                    err_text = str(e) or e.__class__.__name__
+                    try:
+                        run_duration = time.time() - run_started
+                        scenario_run_stats["duration_s"] = round(run_duration, 2)
+                    except Exception:
+                        pass
+                    try:
+                        failure_event = {
+                            "timestamp": time.time(),
+                            "run_id": run_id,
+                            "event_type": "scenario_run_failed",
+                            "source": "guardian",
+                            "payload": {
+                                "error": err_text,
+                                "decision_id": decision_id,
+                                "duration_s": scenario_run_stats.get("duration_s"),
+                            },
+                        }
+                        self._log_runtime_event(failure_event)
+                    except Exception:
+                        pass
                     if "database is locked" in err_text.lower():
                         self.authority.record_outcome(decision_id, "deferred", "scenario_run:db_locked")
                         scenario_run_stats["status"] = "db_locked"
                         scenario_run_stats["reason"] = "db_locked"
+                        try:
+                            fallback = (
+                                self.root_dir
+                                / ".bgl_core"
+                                / "logs"
+                                / "runtime_events_fallback.jsonl"
+                            )
+                            fallback.parent.mkdir(parents=True, exist_ok=True)
+                            payload = {
+                                "timestamp": time.time(),
+                                "session": f"{run_id}|scenario_run",
+                                "event": failure_event,
+                                "error": "database_is_locked",
+                            }
+                            fallback.open("a", encoding="utf-8").write(
+                                json.dumps(payload, ensure_ascii=False) + "\n"
+                            )
+                        except Exception:
+                            pass
                     else:
                         self.authority.record_outcome(decision_id, "fail", err_text)
                         scenario_run_stats["status"] = "fail"
                         scenario_run_stats["reason"] = err_text
+                    try:
+                        post_events = self._count_runtime_events()
+                        delta = max(0, post_events - pre_events)
+                        fallback_delta = 0
+                        try:
+                            fallback_delta = self._count_runtime_events_fallback(run_started)
+                        except Exception:
+                            fallback_delta = 0
+                        effective_delta = delta + max(0, int(fallback_delta or 0))
+                        event_delta_source = "db"
+                        event_delta_report = delta
+                        if delta <= 0 and fallback_delta:
+                            event_delta_source = "fallback"
+                            event_delta_report = effective_delta
+                        elif delta <= 0 and not fallback_delta:
+                            event_delta_source = "none"
+                        scenario_run_stats.update(
+                            {
+                                "event_delta_db": delta,
+                                "event_delta": event_delta_report,
+                                "fallback_event_delta": fallback_delta,
+                                "event_delta_total": effective_delta,
+                                "event_delta_source": event_delta_source,
+                                "db_fallback": bool(fallback_delta),
+                            }
+                        )
+                    except Exception:
+                        pass
 
         # Persist scenario run stats into runtime_events + decision traces for memory linkage.
         try:
@@ -2196,6 +2305,8 @@ class BGLGuardian:
                 path = path.replace(self.base_url, "")
         if not path.startswith("/"):
             path = f"/{path}"
+        if path != "/" and path.endswith("/"):
+            path = path.rstrip("/")
         return path
 
     def _parse_flow_docs(self) -> List[Dict[str, Any]]:
@@ -2492,7 +2603,10 @@ class BGLGuardian:
         flow_gaps = (coverage_payload.get("flow") or {}).get("gaps") or []
         for item in flow_gaps[:limit]:
             endpoints = item.get("endpoints") or []
-            if not endpoints:
+            step_routes = item.get("step_routes") or []
+            step_events = item.get("step_events") or []
+            routes = step_routes or endpoints
+            if not routes:
                 continue
             flow_name = str(item.get("flow") or "flow")
             name = f"gap_flow_{_slug(flow_name)}"
@@ -2501,14 +2615,14 @@ class BGLGuardian:
                 continue
             steps = []
             kind = "api"
-            for ep in endpoints[:3]:
+            for ep in routes[:3]:
                 if not str(ep).startswith("/api/"):
                     kind = "ui"
             if kind == "api":
-                for ep in endpoints[:3]:
+                for ep in routes[:3]:
                     steps.append({"action": "request", "url": ep, "method": "GET"})
             else:
-                for ep in endpoints[:3]:
+                for ep in routes[:3]:
                     steps.extend(
                         [
                             {"action": "goto", "url": ep},
@@ -2519,7 +2633,13 @@ class BGLGuardian:
                 "name": name,
                 "kind": kind,
                 "generated": True,
-                "meta": {"origin": "flow_gap", "flow": flow_name, "endpoints": endpoints[:5]},
+                "meta": {
+                    "origin": "flow_gap",
+                    "flow": flow_name,
+                    "endpoints": endpoints[:5],
+                    "step_routes": routes[:5],
+                    "step_events": step_events[:5],
+                },
                 "steps": steps,
             }
             try:
@@ -3011,6 +3131,7 @@ class BGLGuardian:
             sequence_covered = False
             sequence_inferred = False
             sequence_session = ""
+            sequence_from_gap = bool(gap_runs and endpoints)
             if endpoints and session_routes:
                 for sess, routes in session_routes.items():
                     if self._sequence_matches(routes, endpoints):
@@ -3022,6 +3143,8 @@ class BGLGuardian:
                     sequence_inferred = self._sequence_matches(list(route_seen), endpoints, any_order=True)
                 except Exception:
                     sequence_inferred = False
+            if sequence_from_gap:
+                sequence_inferred = True
             if sequence_covered:
                 seq_covered_strict += 1
             if sequence_inferred:
@@ -3050,6 +3173,7 @@ class BGLGuardian:
                     "sequence_covered_strict": sequence_covered,
                     "sequence_inferred": sequence_inferred,
                     "sequence_session": sequence_session,
+                    "sequence_covered_gap": sequence_from_gap,
                     "gap_runs": gap_runs,
                 }
             )
@@ -3413,6 +3537,10 @@ class BGLGuardian:
             gap_runs = 0
             gap_changed = 0
             gap_last_ts = 0.0
+            gap_selector_keys: Dict[str, set[str]] = {}
+            gap_selectors: Dict[str, set[str]] = {}
+            gap_selector_keys_global: set[str] = set()
+            gap_selectors_global: set[str] = set()
             try:
                 rows_gap = conn.execute(
                     "SELECT timestamp, payload FROM runtime_events WHERE event_type='gap_scenario_done' AND timestamp >= ?",
@@ -3423,8 +3551,18 @@ class BGLGuardian:
                         obj = json.loads(payload) if isinstance(payload, str) else (payload or {})
                     except Exception:
                         obj = {}
-                    origin = str(obj.get("origin") or (obj.get("meta") or {}).get("origin") or "").lower()
-                    selector = str(obj.get("selector") or (obj.get("meta") or {}).get("selector") or "")
+                    meta = obj.get("meta") or {}
+                    origin = str(obj.get("origin") or meta.get("origin") or "").lower()
+                    selector = str(obj.get("selector") or meta.get("selector") or "")
+                    selector_key = str(obj.get("selector_key") or meta.get("selector_key") or "")
+                    route_hint = (
+                        obj.get("route")
+                        or meta.get("route")
+                        or obj.get("url")
+                        or meta.get("url")
+                        or ""
+                    )
+                    route_norm = self._normalize_route(str(route_hint or ""))
                     if "ui_action" in origin or selector:
                         gap_runs += 1
                         if bool(obj.get("changed")):
@@ -3433,6 +3571,16 @@ class BGLGuardian:
                             gap_last_ts = max(gap_last_ts, float(ts or 0))
                         except Exception:
                             pass
+                        if selector_key:
+                            if route_norm:
+                                gap_selector_keys.setdefault(route_norm, set()).add(selector_key)
+                            else:
+                                gap_selector_keys_global.add(selector_key)
+                        if selector:
+                            if route_norm:
+                                gap_selectors.setdefault(route_norm, set()).add(selector)
+                            else:
+                                gap_selectors_global.add(selector)
             except Exception:
                 gap_runs = 0
                 gap_changed = 0
@@ -3622,6 +3770,17 @@ class BGLGuardian:
                 elif href_base and href_base in global_hrefs:
                     covered = True
 
+                if not covered:
+                    if selector_key and (
+                        selector_key in gap_selector_keys.get(route, set())
+                        or selector_key in gap_selector_keys_global
+                    ):
+                        covered = True
+                    elif selector and (
+                        selector in gap_selectors.get(route, set())
+                        or selector in gap_selectors_global
+                    ):
+                        covered = True
                 if covered:
                     covered_keys.add(key)
                     route_stats[route]["covered"] += 1

@@ -1,0 +1,19 @@
+name: goal_decision_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href*='statistics.php']
+- action: wait
+  ms: 800
+- action: hover
+  selector: text=The system is healthy, with  o c
+  optional: true
+- action: scroll
+  dy: 500
+- action: hover
+  selector: a[href="#buttons"]
+  optional: true
+- action: click
+  selector: a[href="#buttons"]

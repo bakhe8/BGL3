@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_1424",
+  "description": "Route #manualSupplier: 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1683072800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1424,
+    "generated_at": 1770796033.0280957
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add stabilization logic for #manualSupplier route\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add stabilization logic for #manualSupplier route\n"
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_extra_widget_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/extra_widget.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/extra_widget.php
+- action: wait
+  ms: 400

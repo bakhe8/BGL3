@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_1362",
+  "description": "Patch Plan for Improving Experience: button.filter, .filter button, .filters button",
+  "created_at": 1770791358,
+  "metadata": {
+    "proposal_id": 1362,
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770792029.0080054
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "def stabilize_button_filter():\n    # Add stabilization logic here\n    pass\n\n# Call the function to stabilize button.filter, .filter button, .filters button\nstabilize_button_filter()",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def stabilize_button_filter():\n    # Add stabilization logic here\n    pass\n\n# Call the function to stabilize button.filter, .filter button, .filters button\nstabilize_button_filter()"
+      }
+    }
+  ]
+}

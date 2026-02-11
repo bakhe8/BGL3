@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_external_checks_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/external_checks.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/external_checks.php
+- action: wait
+  ms: 400

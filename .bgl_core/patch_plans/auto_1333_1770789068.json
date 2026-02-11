@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "1333",
+  "description": "Patch plan for stabilizing /api/delete_bank.php based on runtime evidence.",
+  "created_at": 1694080000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1333,
+    "generated_at": 1770789068.3509958
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "version: 1\nid: gap_route_api_delete_bank_php\ndescription: Runtime evidence for /api/delete_bank.php: events 10-49, errors 10-49 (rate 0.6+), latency low. last_error_present. suspect_deps=Input,Exception,Database,Exception.\nimpact: medium\nsolution: \"Implement error handling and logging for database operations in /api/delete_bank.php to prevent exceptions from propagating.\nexpectation: Reduce error rate below 0.5 within the next 24 hours.\nevidence:\n  experience_id: 9072\n  exp_hash: bb2d331ac5a29b404ed53acc1c6ca1edd3ccde7c\n  scenario: runtime_contract:/api/delete_bank.php\n  summary: Runtime evidence for /api/delete_bank.php: events 10-49, errors 10-49 (rate 0.6+), latency low. last_error_present. suspect_deps=Input,Exception,Database,Exception.\n  confidence: 0.85\nevidence_count: 48\nrelated_files:\n  - api/delete_bank.php\nsource: auto_experience",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 1\nid: gap_route_api_delete_bank_php\ndescription: Runtime evidence for /api/delete_bank.php: events 10-49, errors 10-49 (rate 0.6+), latency low. last_error_present. suspect_deps=Input,Exception,Database,Exception.\nimpact: medium\nsolution: \"Implement error handling and logging for database operations in /api/delete_bank.php to prevent exceptions from propagating.\nexpectation: Reduce error rate below 0.5 within the next 24 hours.\nevidence:\n  experience_id: 9072\n  exp_hash: bb2d331ac5a29b404ed53acc1c6ca1edd3ccde7c\n  scenario: runtime_contract:/api/delete_bank.php\n  summary: Runtime evidence for /api/delete_bank.php: events 10-49, errors 10-49 (rate 0.6+), latency low. last_error_present. suspect_deps=Input,Exception,Database,Exception.\n  confidence: 0.85\nevidence_count: 48\nrelated_files:\n  - api/delete_bank.php\nsource: auto_experience"
+      }
+    }
+  ]
+}

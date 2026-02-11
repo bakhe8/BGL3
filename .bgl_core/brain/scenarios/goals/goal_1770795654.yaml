@@ -1,0 +1,21 @@
+name: goal_flow_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: a[href*='supplier_id']
+- action: wait
+  ms: 800
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: supplier
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

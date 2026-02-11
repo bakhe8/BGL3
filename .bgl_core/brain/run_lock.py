@@ -38,6 +38,55 @@ def _parse_lock(raw: str) -> Tuple[int, float, str]:
     return pid, ts, lbl
 
 
+def _parse_lock_extended(raw: str) -> Tuple[int, float, str, Optional[float], Optional[int]]:
+    """
+    Extended lock format (backward compatible):
+        pid|last_heartbeat|label|created_at|ttl_sec
+    Older 3-part locks are still supported.
+    """
+    pid, ts, lbl = _parse_lock(raw)
+    parts = (raw or "").strip().split("|")
+    created_at = None
+    ttl_recorded = None
+    if len(parts) > 3:
+        try:
+            created_at = float(parts[3])
+        except Exception:
+            created_at = None
+    if len(parts) > 4:
+        try:
+            ttl_recorded = int(float(parts[4]))
+        except Exception:
+            ttl_recorded = None
+    return pid, ts, lbl, created_at, ttl_recorded
+
+
+def _atomic_write_lock(lock_path: Path, content: str) -> Tuple[bool, str]:
+    flags = os.O_CREAT | os.O_EXCL | os.O_WRONLY
+    if hasattr(os, "O_NOINHERIT"):
+        flags |= os.O_NOINHERIT
+    try:
+        fd = os.open(str(lock_path), flags)
+    except FileExistsError:
+        return False, "exists"
+    except Exception as e:
+        return False, f"error:{e}"
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            fh.write(content)
+        return True, "created"
+    except Exception as e:
+        try:
+            os.close(fd)
+        except Exception:
+            pass
+        try:
+            lock_path.unlink()
+        except Exception:
+            pass
+        return False, f"error:{e}"
+
+
 def describe_lock(lock_path: Path, ttl_sec: int = 7200) -> dict:
     """
     Return a structured snapshot of the lock state for diagnostics.
@@ -57,7 +106,7 @@ def describe_lock(lock_path: Path, ttl_sec: int = 7200) -> dict:
         return info
     try:
         raw = lock_path.read_text(encoding="utf-8").strip()
-        pid, ts, lbl = _parse_lock(raw)
+        pid, ts, lbl, created_at, ttl_recorded = _parse_lock_extended(raw)
         pid_alive = bool(pid and _pid_alive(pid))
         age = None
         if ts:
@@ -82,6 +131,8 @@ def describe_lock(lock_path: Path, ttl_sec: int = 7200) -> dict:
                 "pid": pid,
                 "pid_alive": pid_alive,
                 "timestamp": ts or None,
+                "created_at": created_at or None,
+                "ttl_recorded": ttl_recorded or None,
                 "age_sec": round(age, 2) if age is not None else None,
                 "label": lbl,
                 "status": status,
@@ -101,11 +152,16 @@ def refresh_lock(lock_path: Path, label: str = "") -> bool:
         return False
     try:
         raw = lock_path.read_text(encoding="utf-8")
-        pid, _, lbl = _parse_lock(raw)
+        pid, ts, lbl, created_at, ttl_recorded = _parse_lock_extended(raw)
         if pid != os.getpid():
             return False
         now = time.time()
-        lock_path.write_text(f"{pid}|{now}|{label or lbl}", encoding="utf-8")
+        created_at_val = created_at or ts or now
+        ttl_part = f"|{ttl_recorded}" if ttl_recorded is not None else ""
+        lock_path.write_text(
+            f"{pid}|{now}|{label or lbl}|{created_at_val}{ttl_part}",
+            encoding="utf-8",
+        )
         return True
     except Exception:
         return False
@@ -144,18 +200,18 @@ def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple
         try:
             lock_path.unlink()
         except Exception:
-            try:
-                lock_path.write_text(f"{os.getpid()}|{now}|{label}", encoding="utf-8")
-                return True, "acquired_overwrite"
-            except Exception:
-                return False, "lock_stale_unremovable"
+            return False, "lock_stale_unremovable"
     try:
         lock_path.parent.mkdir(parents=True, exist_ok=True)
-        lock_path.write_text(f"{os.getpid()}|{now}|{label}", encoding="utf-8")
-        return True, "acquired"
     except Exception:
-        # Best-effort: proceed without lock but warn caller.
-        return True, "acquired_without_lock"
+        return False, "lock_parent_unwritable"
+    content = f"{os.getpid()}|{now}|{label}|{now}|{ttl_sec}"
+    ok, reason = _atomic_write_lock(lock_path, content)
+    if ok:
+        return True, "acquired"
+    if reason == "exists":
+        return False, "active_race"
+    return False, f"lock_create_failed:{reason}"
 
 
 def release_lock(lock_path: Path) -> None:

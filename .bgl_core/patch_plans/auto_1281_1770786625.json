@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "1281",
+  "description": "Patch Plan for improving /api/parse-paste-v2.php based on runtime evidence",
+  "created_at": 1690475200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1281,
+    "generated_at": 1770786625.9818323
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_parse_paste_v2_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: runtime_contract:/api/parse-paste-v2.php\n    events: 10-49\n    errors: 10-49\n    rate: 0.6+\n    latency: low\n    last_error_present: true\n    suspect_deps:\n      - Input\n      - RuntimeException\n      - Database\n      - Input",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: runtime_contract:/api/parse-paste-v2.php\n    events: 10-49\n    errors: 10-49\n    rate: 0.6+\n    latency: low\n    last_error_present: true\n    suspect_deps:\n      - Input\n      - RuntimeException\n      - Database\n      - Input"
+      }
+    }
+  ]
+}

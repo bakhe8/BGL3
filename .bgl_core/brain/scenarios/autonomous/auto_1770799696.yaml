@@ -1,0 +1,42 @@
+name: autonomous_1770799696
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/api/settings.php
+  optional: true
+- action: goto
+  url: http://localhost:8000/index.php?search=%D8%A7%D9%84%D8%AA%D8%B9%D8%A7%D9%88%D9%86%D9%8A%D8%A9
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: click
+  selector: '#bgl-confirm-yes'
+  optional: true
+- action: click
+  selector: '#manualAmount'
+  optional: true
+- action: scroll
+  dy: 400
+- action: click
+  selector: '#btnCancelManualEntry'
+- action: click
+  selector: '#supplierIdHidden'
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: batch
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true
+- action: click
+  selector: '#manualAmount'
+  optional: true
+- action: scroll
+  dy: 400

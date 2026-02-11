@@ -8,6 +8,7 @@ import subprocess
 import shutil
 import os
 import sys
+import atexit
 from typing import Any, Optional, Tuple, Dict, List
 try:
     from .db_utils import connect_db  # type: ignore
@@ -26,6 +27,7 @@ try:
     from .test_gate import require_tests_enabled, collect_tests_for_files, evaluate_files  # type: ignore
     from .config_loader import load_config  # type: ignore
     from .decision_db import record_decision_trace  # type: ignore
+    from .run_lock import acquire_lock, release_lock, describe_lock  # type: ignore
 except Exception:
     from authority import Authority
     from brain_types import ActionRequest, ActionKind
@@ -44,11 +46,49 @@ except Exception:
         from decision_db import record_decision_trace  # type: ignore
     except Exception:
         record_decision_trace = None  # type: ignore
+    try:
+        from run_lock import acquire_lock, release_lock, describe_lock  # type: ignore
+    except Exception:
+        acquire_lock = None  # type: ignore
+        release_lock = None  # type: ignore
+        describe_lock = None  # type: ignore
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 KNOWLEDGE_DB = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOG_FILE = ROOT / ".bgl_core" / "logs" / "proposal_actions.log"
 CHANGE_LOG = ROOT / ".bgl_core" / "logs" / "proposal_changes.jsonl"
+APPLY_LOCK_PATH = ROOT / ".bgl_core" / "logs" / "apply_proposal.lock"
+MASTER_LOCK_PATH = ROOT / ".bgl_core" / "logs" / "master_verify.lock"
+DIAG_STATUS_PATH = ROOT / ".bgl_core" / "logs" / "diagnostic_status.json"
+
+
+def _read_json(path: Path) -> Dict[str, Any]:
+    try:
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+
+def _diagnostic_running(cfg: Dict[str, Any]) -> Tuple[bool, str]:
+    status = _read_json(DIAG_STATUS_PATH)
+    if str(status.get("status") or "").lower().strip() == "running":
+        return True, "diagnostic_status=running"
+    if describe_lock is None:
+        if MASTER_LOCK_PATH.exists():
+            return True, "master_verify_lock=unknown"
+        return False, ""
+    try:
+        ttl = int(cfg.get("master_verify_lock_ttl_sec", 7200) or 7200)
+    except Exception:
+        ttl = 7200
+    lock_info = describe_lock(MASTER_LOCK_PATH, ttl_sec=ttl) or {}
+    if lock_info.get("exists"):
+        status = str(lock_info.get("status") or "")
+        if status in ("active_fresh", "active_stale", "recent_lock"):
+            return True, f"master_verify_lock={status}"
+    return False, ""
 
 
 def _load_cfg() -> Dict[str, Any]:
@@ -709,6 +749,33 @@ def main():
         return
 
     cfg = _load_cfg()
+
+    guard_apply = _cfg_flag(
+        "BGL_GUARD_APPLY_WHILE_DIAGNOSTIC",
+        cfg,
+        "guard_apply_while_diagnostic",
+        True,
+    )
+    if guard_apply:
+        active, reason = _diagnostic_running(cfg)
+        if active:
+            print(f"[!] apply_proposal deferred: {reason}")
+            return
+
+    apply_lock_ttl = int(
+        _cfg_number(
+            "BGL_APPLY_PROPOSAL_LOCK_TTL_SEC",
+            cfg,
+            "apply_proposal_lock_ttl_sec",
+            3600,
+        )
+    )
+    if acquire_lock is not None and release_lock is not None:
+        ok, reason = acquire_lock(APPLY_LOCK_PATH, ttl_sec=apply_lock_ttl, label="apply_proposal")
+        if not ok:
+            print(f"[!] apply_proposal locked: {reason}")
+            return
+        atexit.register(lambda: release_lock(APPLY_LOCK_PATH))
 
     pre_status = _git_status_lines()
     auth = Authority(ROOT)

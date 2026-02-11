@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_knowledge_curation_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/knowledge_curation.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/knowledge_curation.php
+- action: wait
+  ms: 400

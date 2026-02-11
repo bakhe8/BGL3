@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1298",
+  "description": "Stabilize scenario goals/goal_1770787159.yaml",
+  "created_at": 1677036000,
+  "metadata": {
+    "proposal_id": 1298,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770787461.0164611
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770787159.yaml",
+      "mode": null,
+      "content": "Ensure the scenario is stable and meets all requirements.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the scenario is stable and meets all requirements."
+      }
+    }
+  ]
+}

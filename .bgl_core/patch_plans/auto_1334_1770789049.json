@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "1334",
+  "description": "Runtime evidence for /api/delete_bank.php: events 10-49, errors 10-49 (rate 0.6+), latency low. last_error_present. suspect_deps=Input,Exception,Database,Exception.",
+  "created_at": 1770788913,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1334,
+    "generated_at": 1770789049.639591
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"C:\\\\Users\\\\Bakheet\\\\Documents\\\\Projects\\\\BGL3\\\\api\\\\delete_bank.php\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- action: stabilize\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"C:\\\\Users\\\\Bakheet\\\\Documents\\\\Projects\\\\BGL3\\\\api\\\\delete_bank.php\""
+      }
+    }
+  ]
+}

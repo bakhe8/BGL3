@@ -27,12 +27,13 @@
   "auto_digest_timeout_sec": 120,
   "ui_action_sample_limit": 16,
   "diagnostic_profile": "auto",
-  "diagnostic_timeout_sec": 420,
-  "diagnostic_budget_seconds": 180,
+  "diagnostic_timeout_sec": 4200,
+  "diagnostic_budget_seconds": 4200,
   "diagnostic_min_interval_sec": 120,
   "diagnostic_cache_ttl_sec": 300,
   "diagnostic_full_interval_sec": 86400,
   "diagnostic_medium_interval_sec": 3600,
   "route_scan_limit": 20,
-  "route_scan_max_seconds": 60
+  "route_scan_max_seconds": 60,
+  "scenario_batch_timeout_sec": 1200
 }

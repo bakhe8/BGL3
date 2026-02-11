@@ -27,6 +27,7 @@ class ScenarioMeta:
     is_generated: bool
     is_goal: bool
     is_autonomous: bool
+    kind: str
 
 
 def _cfg_number(cfg: Dict[str, Any], key: str, default: float) -> float:
@@ -63,6 +64,15 @@ def _safe_yaml(path: Path) -> Dict[str, Any]:
         return {}
 
 
+def _read_json(path: Path) -> Dict[str, Any]:
+    try:
+        if not path.exists():
+            return {}
+        return json.loads(path.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return {}
+
+
 def _extract_meta(path: Path) -> ScenarioMeta:
     data = _safe_yaml(path)
     name = str(data.get("name") or path.stem)
@@ -79,6 +89,29 @@ def _extract_meta(path: Path) -> ScenarioMeta:
     )
     is_goal = name.startswith("goal_") or "/goals/" in path_norm
     is_autonomous = name.startswith("autonomous_") or "/autonomous/" in path_norm
+    kind = str(meta.get("kind") or data.get("kind") or "").strip().lower()
+    if not kind:
+        steps = data.get("steps") or []
+        has_request = False
+        has_ui = False
+        if isinstance(steps, list):
+            for step in steps:
+                if not isinstance(step, dict):
+                    continue
+                action = str(step.get("action") or "").strip().lower()
+                url = str(step.get("url") or "").strip().lower()
+                if action == "request" or url.startswith("/api/") or "/api/" in url:
+                    has_request = True
+                if action in ("click", "type", "press", "hover", "scroll", "upload"):
+                    has_ui = True
+                if action == "goto" and url and not url.startswith("/api/"):
+                    has_ui = True
+        if has_ui:
+            kind = "ui"
+        elif has_request:
+            kind = "api"
+        else:
+            kind = "other"
     return ScenarioMeta(
         path=path,
         name=name,
@@ -88,6 +121,7 @@ def _extract_meta(path: Path) -> ScenarioMeta:
         is_generated=is_generated,
         is_goal=is_goal,
         is_autonomous=is_autonomous,
+        kind=kind,
     )
 
 
@@ -185,6 +219,8 @@ def _score_scenario(
     weights: Dict[str, float],
     max_timeouts: int,
     max_errors: int,
+    ui_boost: float = 0.0,
+    flow_boost: float = 0.0,
 ) -> Tuple[float, List[str], bool]:
     reasons: List[str] = []
     score = 0.0
@@ -202,6 +238,12 @@ def _score_scenario(
     if meta.is_autonomous:
         score += weights.get("autonomous", 5.0)
         reasons.append("autonomous")
+    if ui_boost and meta.kind == "ui":
+        score += ui_boost
+        reasons.append("ui_boost")
+    if flow_boost and meta.is_gap and str(meta.name or "").startswith("gap_flow_"):
+        score += flow_boost
+        reasons.append("flow_boost")
 
     if not stat:
         score += weights.get("never_run", 40.0)
@@ -456,6 +498,29 @@ def select_scenarios(
     base_weights = _base_weights(cfg)
     weights, tuning_payload = _auto_tune(cfg, base_weights, global_stats, avg_duration_s, state)
 
+    # UI/Flow coverage boosts: prioritize scenarios when coverage is below target.
+    ui_boost = 0.0
+    flow_boost = 0.0
+    try:
+        report = _read_json(ROOT / ".bgl_core" / "logs" / "latest_report.json")
+        ui_cov = report.get("ui_action_coverage") or {}
+        ratio = float(ui_cov.get("coverage_ratio") or 0.0)
+        target = float(_cfg_number(cfg, "ui_action_coverage_target", 30.0))
+        base_boost = float(_cfg_number(cfg, "scenario_scheduler_weight_ui_boost", 12.0))
+        if target > 0 and ratio < target:
+            deficit = max(0.0, target - ratio)
+            ui_boost = min(base_boost * (deficit / target), base_boost * 2.0)
+        flow_cov = report.get("flow_coverage") or {}
+        flow_ratio = float(flow_cov.get("sequence_coverage_ratio") or 0.0)
+        flow_target = float(_cfg_number(cfg, "flow_sequence_coverage_target", 60.0))
+        flow_base = float(_cfg_number(cfg, "scenario_scheduler_weight_flow_boost", 10.0))
+        if flow_target > 0 and flow_ratio < flow_target:
+            deficit = max(0.0, flow_target - flow_ratio)
+            flow_boost = min(flow_base * (deficit / flow_target), flow_base * 2.0)
+    except Exception:
+        ui_boost = 0.0
+        flow_boost = 0.0
+
     cooldown_minutes = float(tuning_payload["tuning"].get("cooldown_minutes") or _cfg_number(cfg, "scenario_scheduler_cooldown_minutes", 45.0))
     cooldown_cutoff = now_ts - (cooldown_minutes * 60.0)
     max_timeouts = int(tuning_payload["tuning"].get("max_timeouts") or _cfg_number(cfg, "scenario_scheduler_cooldown_max_timeouts", 3))
@@ -478,12 +543,15 @@ def select_scenarios(
             weights,
             max_timeouts,
             max_errors,
+            ui_boost,
+            flow_boost,
         )
         expected_duration = durations.get(key) or default_duration_s
         ranked.append(
             {
                 "path": meta.path,
                 "name": meta.name,
+                "kind": meta.kind,
                 "score": round(score, 2),
                 "reasons": reasons,
                 "cooldown": cooldown,
@@ -523,6 +591,22 @@ def select_scenarios(
     if not selected:
         selected = ranked[: min(limit or len(ranked), len(ranked))]
 
+    # Ensure at least one UI scenario is present when available.
+    ui_in_selected = any(str(item.get("kind") or "") == "ui" for item in selected)
+    if not ui_in_selected:
+        ui_candidates = [i for i in ranked if str(i.get("kind") or "") == "ui" and not i.get("cooldown")]
+        if ui_candidates:
+            ui_pick = ui_candidates[0]
+            replaced = False
+            for idx in range(len(selected) - 1, -1, -1):
+                if str(selected[idx].get("kind") or "") != "ui":
+                    selected[idx] = ui_pick
+                    replaced = True
+                    break
+            if not replaced:
+                if limit <= 0 or len(selected) < limit:
+                    selected.append(ui_pick)
+
     summary = {
         "enabled": True,
         "mode": "smart",
@@ -535,14 +619,28 @@ def select_scenarios(
         "limit": limit,
         "budget_minutes": round(budget_minutes, 2),
         "budget_seconds_used": round(elapsed_budget, 2),
+        "ui_boost": round(float(ui_boost), 2),
+        "flow_boost": round(float(flow_boost), 2),
     }
+    kind_counts: Dict[str, int] = {"ui": 0, "api": 0, "other": 0}
+    for item in selected:
+        k = str(item.get("kind") or "other")
+        if k not in kind_counts:
+            k = "other"
+        kind_counts[k] += 1
+    summary["selected_kinds"] = kind_counts
     reason_counts: Dict[str, int] = {}
     for item in selected:
         for reason in item.get("reasons") or []:
             reason_counts[reason] = reason_counts.get(reason, 0) + 1
     summary["top_reasons"] = reason_counts
     summary["top_selected"] = [
-        {"name": i.get("name"), "score": i.get("score"), "reasons": i.get("reasons")}
+        {
+            "name": i.get("name"),
+            "score": i.get("score"),
+            "reasons": i.get("reasons"),
+            "kind": i.get("kind"),
+        }
         for i in selected[:10]
     ]
     summary["weights"] = {k: round(float(v), 2) for k, v in weights.items()}

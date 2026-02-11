@@ -125,6 +125,42 @@
         "auto_digest_timeout_sec": "context_digest_timeout"
       },
       "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770778966.5482273,
+      "updates": {
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120
+      },
+      "reasons": {
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770784762.38282,
+      "updates": {
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120
+      },
+      "reasons": {
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770786057.6374376,
+      "updates": {
+        "context_digest_timeout_sec": 110,
+        "auto_digest_timeout_sec": 120
+      },
+      "reasons": {
+        "context_digest_timeout_sec": "context_digest_timeout",
+        "auto_digest_timeout_sec": "context_digest_timeout"
+      },
+      "source": "auto_tune"
     }
   ]
 }

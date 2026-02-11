@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "1395",
+  "description": "Patch Plan for /api/create-bank.php to improve stability based on runtime evidence.",
+  "created_at": 1684027200,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1395,
+    "generated_at": 1770793096.9652822
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_create_bank_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: api_create_bank\n    description: Runtime evidence for /api/create-bank.php\n    events: 10-49\n    errors: 4-9\n    latency: low\n    last_error_present: true\n    suspect_deps:\n      - CreateBankRequest\n      - Validation\n      - Database\n      - BankManagementService",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: api_create_bank\n    description: Runtime evidence for /api/create-bank.php\n    events: 10-49\n    errors: 4-9\n    latency: low\n    last_error_present: true\n    suspect_deps:\n      - CreateBankRequest\n      - Validation\n      - Database\n      - BankManagementService"
+      }
+    }
+  ]
+}

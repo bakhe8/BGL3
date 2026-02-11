@@ -1,13 +1,13 @@
 {
-  "generated_at": 1770770767.4182534,
+  "generated_at": 1770800556.304854,
   "scenario": {
     "summary": {
       "window_days": 7,
       "total_routes": 111,
-      "covered_routes": 59,
-      "coverage_ratio": 53.15,
-      "ui_snapshot_paths": 39,
-      "ui_coverage_ratio": 35.14,
+      "covered_routes": 79,
+      "coverage_ratio": 71.17,
+      "ui_snapshot_paths": 59,
+      "ui_coverage_ratio": 53.15,
       "uncovered_sample": [
         {
           "route": "/agent-dashboard.php",
@@ -15,67 +15,67 @@
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/decision_impact.php",
+          "route": "/agentfrontend/partials/permissions.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/domain_map.php",
+          "route": "/agentfrontend/partials/permission_queue.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/effective_config.php",
+          "route": "/agentfrontend/partials/plan_library.php",
+          "method": "POST",
+          "status_score": 100
+        },
+        {
+          "route": "/agentfrontend/partials/prod_operations.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/events.php",
+          "route": "/agentfrontend/partials/proposals_simple.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/experiences.php",
+          "route": "/agentfrontend/partials/proposed_playbooks_simple.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/external_checks.php",
+          "route": "/agentfrontend/partials/quick_actions.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/extra_widget.php",
+          "route": "/agentfrontend/partials/report_viewer.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/flows.php",
+          "route": "/agentfrontend/partials/route_updates.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/gap_tests.php",
+          "route": "/agentfrontend/partials/rules.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/hallucination_metrics.php",
-          "method": "GET",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/health.php",
+          "route": "/agentfrontend/partials/simple_mode.php",
           "method": "GET",
           "status_score": 100
         }
       ],
-      "events_total": 27836,
-      "ui_snapshot_count": 105,
-      "semantic_change_count": 48,
-      "gap_runs": 719,
-      "gap_changed": 97,
-      "gap_last_ts": 1770770782.8222446,
+      "events_total": 34815,
+      "ui_snapshot_count": 129,
+      "semantic_change_count": 108,
+      "gap_runs": 979,
+      "gap_changed": 115,
+      "gap_last_ts": 1770800738.1578534,
       "reliable": true,
       "reliability_reason": ""
     },
@@ -85,28 +85,17 @@
     "summary": {
       "window_days": 7,
       "snapshot_count": 16,
-      "total_actions": 133,
+      "total_actions": 132,
       "covered_actions": 32,
-      "coverage_ratio": 24.06,
-      "operational_coverage_ratio": 24.06,
+      "coverage_ratio": 24.24,
+      "operational_coverage_ratio": 24.24,
       "routes_with_actions": 3,
       "routes_with_coverage": 3,
       "uncovered_sample": [
         {
           "route": "/index.php",
-          "selector": "#bgl-confirm-no",
-          "selector_key": "",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
           "selector": "#hiddenFileInput",
-          "selector_key": "",
+          "selector_key": "id=hiddenFileInput",
           "text": "",
           "href": "",
           "tag": "input",
@@ -117,7 +106,7 @@
         {
           "route": "/index.php",
           "selector": "a[href=\"./index.php\"]",
-          "selector_key": "",
+          "selector_key": "href=index.php",
           "text": "✕",
           "href": "./index.php",
           "tag": "a",
@@ -128,7 +117,7 @@
         {
           "route": "/index.php",
           "selector": "a[href=\"./views/batches.php\"]",
-          "selector_key": "",
+          "selector_key": "href=batches.php",
           "text": "📦 الدفعات",
           "href": "./views/batches.php",
           "tag": "a",
@@ -138,8 +127,30 @@
         },
         {
           "route": "/index.php",
+          "selector": "a[href=\"./views/settings.php\"]",
+          "selector_key": "href=settings.php",
+          "text": "⚙ إعدادات",
+          "href": "./views/settings.php",
+          "tag": "a",
+          "risk": "safe",
+          "priority_score": 63.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/index.php",
+          "selector": "a[href=\"./views/maintenance.php\"]",
+          "selector_key": "href=maintenance.php",
+          "text": "🛠️ صيانة",
+          "href": "./views/maintenance.php",
+          "tag": "a",
+          "risk": "safe",
+          "priority_score": 63.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/index.php",
           "selector": "button.historical-banner-btn",
-          "selector_key": "",
+          "selector_key": "text=↩️ العودة للوضع الحالي",
           "text": "↩️ العودة للوضع الحالي",
           "href": "",
           "tag": "button",
@@ -150,7 +161,7 @@
         {
           "route": "/index.php",
           "selector": "#decisionStatus",
-          "selector_key": "",
+          "selector_key": "id=decisionStatus",
           "text": "pending",
           "href": "",
           "tag": "input",
@@ -161,7 +172,7 @@
         {
           "route": "/index.php",
           "selector": "#activeAction",
-          "selector_key": "",
+          "selector_key": "id=activeAction",
           "text": "",
           "href": "",
           "tag": "input",
@@ -172,7 +183,7 @@
         {
           "route": "/index.php",
           "selector": "#relatedTo",
-          "selector_key": "",
+          "selector_key": "id=relatedTo",
           "text": "contract",
           "href": "",
           "tag": "input",
@@ -183,7 +194,7 @@
         {
           "route": "/index.php",
           "selector": "#eventSubtype",
-          "selector_key": "",
+          "selector_key": "id=eventSubtype",
           "text": "",
           "href": "",
           "tag": "input",
@@ -194,7 +205,7 @@
         {
           "route": "/index.php",
           "selector": "#supplierIdHidden",
-          "selector_key": "",
+          "selector_key": "id=supplierIdHidden",
           "text": "",
           "href": "",
           "tag": "input",
@@ -204,19 +215,8 @@
         },
         {
           "route": "/index.php",
-          "selector": "a[href=\"/?filter=ready\"]",
-          "selector_key": "",
-          "text": "✅ 30",
-          "href": "/?filter=ready",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
           "selector": "#noteTextarea",
-          "selector_key": "",
+          "selector_key": "id=noteTextarea",
           "text": "أضف ملاحظة...",
           "href": "",
           "tag": "textarea",
@@ -227,7 +227,7 @@
         {
           "route": "/index.php",
           "selector": "button.note-cancel-btn",
-          "selector_key": "",
+          "selector_key": "text=إلغاء",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -238,7 +238,7 @@
         {
           "route": "/index.php",
           "selector": "button.note-save-btn",
-          "selector_key": "",
+          "selector_key": "text=حفظ",
           "text": "حفظ",
           "href": "",
           "tag": "button",
@@ -249,7 +249,7 @@
         {
           "route": "/index.php",
           "selector": "#fileInput",
-          "selector_key": "",
+          "selector_key": "id=fileInput",
           "text": "",
           "href": "",
           "tag": "input",
@@ -260,7 +260,7 @@
         {
           "route": "/index.php",
           "selector": "#btnCloseManualEntry",
-          "selector_key": "",
+          "selector_key": "id=btnCloseManualEntry",
           "text": "×",
           "href": "",
           "tag": "button",
@@ -272,19 +272,8 @@
       "gaps": [
         {
           "route": "/index.php",
-          "selector": "#bgl-confirm-no",
-          "selector_key": "",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
           "selector": "button.note-cancel-btn",
-          "selector_key": "",
+          "selector_key": "text=إلغاء",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -295,7 +284,7 @@
         {
           "route": "/index.php",
           "selector": "#manualTestBatchId",
-          "selector_key": "",
+          "selector_key": "id=manualTestBatchId",
           "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
           "href": "",
           "tag": "input",
@@ -305,19 +294,8 @@
         },
         {
           "route": "/index.php",
-          "selector": "#btnCancelManualEntry",
-          "selector_key": "",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
           "selector": "#btnCancelPaste",
-          "selector_key": "",
+          "selector_key": "id=btnCancelPaste",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -328,7 +306,7 @@
         {
           "route": "/",
           "selector": "button.note-cancel-btn",
-          "selector_key": "",
+          "selector_key": "text=إلغاء",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -339,7 +317,7 @@
         {
           "route": "/",
           "selector": "#manualTestBatchId",
-          "selector_key": "",
+          "selector_key": "id=manualTestBatchId",
           "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
           "href": "",
           "tag": "input",
@@ -350,7 +328,7 @@
         {
           "route": "/",
           "selector": "#btnCancelManualEntry",
-          "selector_key": "",
+          "selector_key": "id=btnCancelManualEntry",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -361,7 +339,7 @@
         {
           "route": "/",
           "selector": "#btnCancelPaste",
-          "selector_key": "",
+          "selector_key": "id=btnCancelPaste",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -372,7 +350,7 @@
         {
           "route": "/",
           "selector": "#btnCancelExcel",
-          "selector_key": "",
+          "selector_key": "id=btnCancelExcel",
           "text": "إلغاء",
           "href": "",
           "tag": "button",
@@ -383,7 +361,7 @@
         {
           "route": "/index.php",
           "selector": "button.note-save-btn",
-          "selector_key": "",
+          "selector_key": "text=حفظ",
           "text": "حفظ",
           "href": "",
           "tag": "button",
@@ -394,7 +372,7 @@
         {
           "route": "/index.php",
           "selector": "#btnSaveManualEntry",
-          "selector_key": "",
+          "selector_key": "id=btnSaveManualEntry",
           "text": "✓ حفظ وإضافة",
           "href": "",
           "tag": "button",
@@ -405,7 +383,7 @@
         {
           "route": "/index.php",
           "selector": "#btnProcessPaste",
-          "selector_key": "",
+          "selector_key": "id=btnProcessPaste",
           "text": "✨ تحليل وإضافة",
           "href": "",
           "tag": "button",
@@ -416,7 +394,7 @@
         {
           "route": "/index.php",
           "selector": "#excelTestNote",
-          "selector_key": "",
+          "selector_key": "id=excelTestNote",
           "text": "مثل: اختبار استيراد Excel",
           "href": "",
           "tag": "input",
@@ -427,7 +405,7 @@
         {
           "route": "/",
           "selector": "button.note-save-btn",
-          "selector_key": "",
+          "selector_key": "text=حفظ",
           "text": "حفظ",
           "href": "",
           "tag": "button",
@@ -438,7 +416,7 @@
         {
           "route": "/",
           "selector": "#btnSaveManualEntry",
-          "selector_key": "",
+          "selector_key": "id=btnSaveManualEntry",
           "text": "✓ حفظ وإضافة",
           "href": "",
           "tag": "button",
@@ -449,7 +427,7 @@
         {
           "route": "/",
           "selector": "#btnProcessPaste",
-          "selector_key": "",
+          "selector_key": "id=btnProcessPaste",
           "text": "✨ تحليل وإضافة",
           "href": "",
           "tag": "button",
@@ -460,7 +438,7 @@
         {
           "route": "/",
           "selector": "#excelTestNote",
-          "selector_key": "",
+          "selector_key": "id=excelTestNote",
           "text": "مثل: اختبار استيراد Excel",
           "href": "",
           "tag": "input",
@@ -469,9 +447,20 @@
           "needs_hover": false
         },
         {
+          "route": "/views/batches.php",
+          "selector": "input[name=\"search\"]",
+          "selector_key": "name=search",
+          "text": "بحث برقم الضمان، المورد، أو البنك...",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 80.0,
+          "needs_hover": false
+        },
+        {
           "route": "/",
           "selector": "input[name=\"search\"]",
-          "selector_key": "",
+          "selector_key": "name=search",
           "text": "بحث برقم الضمان، المورد، أو البنك...",
           "href": "",
           "tag": "input",
@@ -482,7 +471,7 @@
         {
           "route": "/index.php",
           "selector": "button.historical-banner-btn",
-          "selector_key": "",
+          "selector_key": "text=↩️ العودة للوضع الحالي",
           "text": "↩️ العودة للوضع الحالي",
           "href": "",
           "tag": "button",
@@ -493,7 +482,7 @@
         {
           "route": "/index.php",
           "selector": "#decisionStatus",
-          "selector_key": "",
+          "selector_key": "id=decisionStatus",
           "text": "pending",
           "href": "",
           "tag": "input",
@@ -504,7 +493,7 @@
         {
           "route": "/index.php",
           "selector": "#relatedTo",
-          "selector_key": "",
+          "selector_key": "id=relatedTo",
           "text": "contract",
           "href": "",
           "tag": "input",
@@ -515,7 +504,7 @@
         {
           "route": "/index.php",
           "selector": "#btnCloseManualEntry",
-          "selector_key": "",
+          "selector_key": "id=btnCloseManualEntry",
           "text": "×",
           "href": "",
           "tag": "button",
@@ -526,7 +515,7 @@
         {
           "route": "/index.php",
           "selector": "#manualSupplier",
-          "selector_key": "",
+          "selector_key": "id=manualSupplier",
           "text": "اسم المورد",
           "href": "",
           "tag": "input",
@@ -537,7 +526,7 @@
         {
           "route": "/index.php",
           "selector": "#manualBank",
-          "selector_key": "",
+          "selector_key": "id=manualBank",
           "text": "اسم البنك",
           "href": "",
           "tag": "input",
@@ -548,7 +537,7 @@
         {
           "route": "/index.php",
           "selector": "#manualGuarantee",
-          "selector_key": "",
+          "selector_key": "id=manualGuarantee",
           "text": "رقم الضمان",
           "href": "",
           "tag": "input",
@@ -559,7 +548,7 @@
         {
           "route": "/index.php",
           "selector": "#manualContract",
-          "selector_key": "",
+          "selector_key": "id=manualContract",
           "text": "رقم العقد أو أمر الشراء",
           "href": "",
           "tag": "input",
@@ -570,7 +559,7 @@
         {
           "route": "/index.php",
           "selector": "input[name=\"relatedTo\"]",
-          "selector_key": "",
+          "selector_key": "name=relatedTo",
           "text": "contract",
           "href": "",
           "tag": "input",
@@ -581,7 +570,7 @@
         {
           "route": "/index.php",
           "selector": "#manualAmount",
-          "selector_key": "",
+          "selector_key": "id=manualAmount",
           "text": "50000.00",
           "href": "",
           "tag": "input",
@@ -592,7 +581,7 @@
         {
           "route": "/index.php",
           "selector": "#manualIsTestData",
-          "selector_key": "",
+          "selector_key": "id=manualIsTestData",
           "text": "1",
           "href": "",
           "tag": "input",
@@ -603,7 +592,7 @@
         {
           "route": "/index.php",
           "selector": "#btnClosePasteModal",
-          "selector_key": "",
+          "selector_key": "id=btnClosePasteModal",
           "text": "×",
           "href": "",
           "tag": "button",
@@ -614,8 +603,19 @@
         {
           "route": "/index.php",
           "selector": "#pasteIsTestData",
-          "selector_key": "",
+          "selector_key": "id=pasteIsTestData",
           "text": "on",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/index.php",
+          "selector": "#pasteTestBatchId",
+          "selector_key": "id=pasteTestBatchId",
+          "text": "مثل: TEST-BATCH-001",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -632,19 +632,8 @@
     "gaps": [
       {
         "route": "/index.php",
-        "selector": "#bgl-confirm-no",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
         "selector": "button.note-cancel-btn",
-        "selector_key": "",
+        "selector_key": "text=إلغاء",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -655,7 +644,7 @@
       {
         "route": "/index.php",
         "selector": "#manualTestBatchId",
-        "selector_key": "",
+        "selector_key": "id=manualTestBatchId",
         "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
@@ -665,19 +654,8 @@
       },
       {
         "route": "/index.php",
-        "selector": "#btnCancelManualEntry",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
         "selector": "#btnCancelPaste",
-        "selector_key": "",
+        "selector_key": "id=btnCancelPaste",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -688,7 +666,7 @@
       {
         "route": "/",
         "selector": "button.note-cancel-btn",
-        "selector_key": "",
+        "selector_key": "text=إلغاء",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -699,7 +677,7 @@
       {
         "route": "/",
         "selector": "#manualTestBatchId",
-        "selector_key": "",
+        "selector_key": "id=manualTestBatchId",
         "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
@@ -710,7 +688,7 @@
       {
         "route": "/",
         "selector": "#btnCancelManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnCancelManualEntry",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -721,7 +699,7 @@
       {
         "route": "/",
         "selector": "#btnCancelPaste",
-        "selector_key": "",
+        "selector_key": "id=btnCancelPaste",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -732,7 +710,7 @@
       {
         "route": "/",
         "selector": "#btnCancelExcel",
-        "selector_key": "",
+        "selector_key": "id=btnCancelExcel",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -743,7 +721,7 @@
       {
         "route": "/index.php",
         "selector": "button.note-save-btn",
-        "selector_key": "",
+        "selector_key": "text=حفظ",
         "text": "حفظ",
         "href": "",
         "tag": "button",
@@ -754,7 +732,7 @@
       {
         "route": "/index.php",
         "selector": "#btnSaveManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnSaveManualEntry",
         "text": "✓ حفظ وإضافة",
         "href": "",
         "tag": "button",
@@ -765,7 +743,7 @@
       {
         "route": "/index.php",
         "selector": "#btnProcessPaste",
-        "selector_key": "",
+        "selector_key": "id=btnProcessPaste",
         "text": "✨ تحليل وإضافة",
         "href": "",
         "tag": "button",
@@ -776,7 +754,7 @@
       {
         "route": "/index.php",
         "selector": "#excelTestNote",
-        "selector_key": "",
+        "selector_key": "id=excelTestNote",
         "text": "مثل: اختبار استيراد Excel",
         "href": "",
         "tag": "input",
@@ -787,7 +765,7 @@
       {
         "route": "/",
         "selector": "button.note-save-btn",
-        "selector_key": "",
+        "selector_key": "text=حفظ",
         "text": "حفظ",
         "href": "",
         "tag": "button",
@@ -798,7 +776,7 @@
       {
         "route": "/",
         "selector": "#btnSaveManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnSaveManualEntry",
         "text": "✓ حفظ وإضافة",
         "href": "",
         "tag": "button",
@@ -809,7 +787,7 @@
       {
         "route": "/",
         "selector": "#btnProcessPaste",
-        "selector_key": "",
+        "selector_key": "id=btnProcessPaste",
         "text": "✨ تحليل وإضافة",
         "href": "",
         "tag": "button",
@@ -820,7 +798,7 @@
       {
         "route": "/",
         "selector": "#excelTestNote",
-        "selector_key": "",
+        "selector_key": "id=excelTestNote",
         "text": "مثل: اختبار استيراد Excel",
         "href": "",
         "tag": "input",
@@ -829,9 +807,20 @@
         "needs_hover": false
       },
       {
+        "route": "/views/batches.php",
+        "selector": "input[name=\"search\"]",
+        "selector_key": "name=search",
+        "text": "بحث برقم الضمان، المورد، أو البنك...",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 80.0,
+        "needs_hover": false
+      },
+      {
         "route": "/",
         "selector": "input[name=\"search\"]",
-        "selector_key": "",
+        "selector_key": "name=search",
         "text": "بحث برقم الضمان، المورد، أو البنك...",
         "href": "",
         "tag": "input",
@@ -842,7 +831,7 @@
       {
         "route": "/index.php",
         "selector": "button.historical-banner-btn",
-        "selector_key": "",
+        "selector_key": "text=↩️ العودة للوضع الحالي",
         "text": "↩️ العودة للوضع الحالي",
         "href": "",
         "tag": "button",
@@ -853,7 +842,7 @@
       {
         "route": "/index.php",
         "selector": "#decisionStatus",
-        "selector_key": "",
+        "selector_key": "id=decisionStatus",
         "text": "pending",
         "href": "",
         "tag": "input",
@@ -864,7 +853,7 @@
       {
         "route": "/index.php",
         "selector": "#relatedTo",
-        "selector_key": "",
+        "selector_key": "id=relatedTo",
         "text": "contract",
         "href": "",
         "tag": "input",
@@ -875,7 +864,7 @@
       {
         "route": "/index.php",
         "selector": "#btnCloseManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnCloseManualEntry",
         "text": "×",
         "href": "",
         "tag": "button",
@@ -886,7 +875,7 @@
       {
         "route": "/index.php",
         "selector": "#manualSupplier",
-        "selector_key": "",
+        "selector_key": "id=manualSupplier",
         "text": "اسم المورد",
         "href": "",
         "tag": "input",
@@ -897,7 +886,7 @@
       {
         "route": "/index.php",
         "selector": "#manualBank",
-        "selector_key": "",
+        "selector_key": "id=manualBank",
         "text": "اسم البنك",
         "href": "",
         "tag": "input",
@@ -908,7 +897,7 @@
       {
         "route": "/index.php",
         "selector": "#manualGuarantee",
-        "selector_key": "",
+        "selector_key": "id=manualGuarantee",
         "text": "رقم الضمان",
         "href": "",
         "tag": "input",
@@ -919,7 +908,7 @@
       {
         "route": "/index.php",
         "selector": "#manualContract",
-        "selector_key": "",
+        "selector_key": "id=manualContract",
         "text": "رقم العقد أو أمر الشراء",
         "href": "",
         "tag": "input",
@@ -930,7 +919,7 @@
       {
         "route": "/index.php",
         "selector": "input[name=\"relatedTo\"]",
-        "selector_key": "",
+        "selector_key": "name=relatedTo",
         "text": "contract",
         "href": "",
         "tag": "input",
@@ -941,7 +930,7 @@
       {
         "route": "/index.php",
         "selector": "#manualAmount",
-        "selector_key": "",
+        "selector_key": "id=manualAmount",
         "text": "50000.00",
         "href": "",
         "tag": "input",
@@ -952,7 +941,7 @@
       {
         "route": "/index.php",
         "selector": "#manualIsTestData",
-        "selector_key": "",
+        "selector_key": "id=manualIsTestData",
         "text": "1",
         "href": "",
         "tag": "input",
@@ -963,7 +952,7 @@
       {
         "route": "/index.php",
         "selector": "#btnClosePasteModal",
-        "selector_key": "",
+        "selector_key": "id=btnClosePasteModal",
         "text": "×",
         "href": "",
         "tag": "button",
@@ -974,8 +963,19 @@
       {
         "route": "/index.php",
         "selector": "#pasteIsTestData",
-        "selector_key": "",
+        "selector_key": "id=pasteIsTestData",
         "text": "on",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/index.php",
+        "selector": "#pasteTestBatchId",
+        "selector_key": "id=pasteTestBatchId",
+        "text": "مثل: TEST-BATCH-001",
         "href": "",
         "tag": "input",
         "risk": "safe",
@@ -985,64 +985,9 @@
     ],
     "prioritized_gaps": [
       {
-        "route": "/index.php",
-        "selector": "#bgl-confirm-no",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#manualTestBatchId",
-        "selector_key": "",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelManualEntry",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelPaste",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
         "route": "/",
         "selector": "button.note-cancel-btn",
-        "selector_key": "",
+        "selector_key": "text=إلغاء",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -1053,7 +998,7 @@
       {
         "route": "/",
         "selector": "#manualTestBatchId",
-        "selector_key": "",
+        "selector_key": "id=manualTestBatchId",
         "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
@@ -1064,7 +1009,7 @@
       {
         "route": "/",
         "selector": "#btnCancelManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnCancelManualEntry",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -1075,7 +1020,7 @@
       {
         "route": "/",
         "selector": "#btnCancelPaste",
-        "selector_key": "",
+        "selector_key": "id=btnCancelPaste",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -1086,7 +1031,7 @@
       {
         "route": "/",
         "selector": "#btnCancelExcel",
-        "selector_key": "",
+        "selector_key": "id=btnCancelExcel",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -1096,8 +1041,41 @@
       },
       {
         "route": "/index.php",
+        "selector": "button.note-cancel-btn",
+        "selector_key": "text=إلغاء",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/index.php",
+        "selector": "#manualTestBatchId",
+        "selector_key": "id=manualTestBatchId",
+        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "href": "",
+        "tag": "input",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/index.php",
+        "selector": "#btnCancelPaste",
+        "selector_key": "id=btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
         "selector": "button.note-save-btn",
-        "selector_key": "",
+        "selector_key": "text=حفظ",
         "text": "حفظ",
         "href": "",
         "tag": "button",
@@ -1106,12 +1084,34 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#btnSaveManualEntry",
-        "selector_key": "",
+        "selector_key": "id=btnSaveManualEntry",
         "text": "✓ حفظ وإضافة",
         "href": "",
         "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#btnProcessPaste",
+        "selector_key": "id=btnProcessPaste",
+        "text": "✨ تحليل وإضافة",
+        "href": "",
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#excelTestNote",
+        "selector_key": "id=excelTestNote",
+        "text": "مثل: اختبار استيراد Excel",
+        "href": "",
+        "tag": "input",
         "risk": "write",
         "priority_score": 84.0,
         "needs_hover": false
@@ -1126,12 +1126,12 @@
       "coverage_ratio": 40.0,
       "operational_covered_flows": 5,
       "operational_coverage_ratio": 100.0,
-      "sequence_covered_flows": 2,
-      "sequence_coverage_ratio": 40.0,
+      "sequence_covered_flows": 5,
+      "sequence_coverage_ratio": 100.0,
       "sequence_covered_flows_strict": 2,
       "sequence_coverage_ratio_strict": 40.0,
-      "sequence_covered_flows_inferred": 2,
-      "sequence_coverage_ratio_inferred": 40.0,
+      "sequence_covered_flows_inferred": 5,
+      "sequence_coverage_ratio_inferred": 100.0,
       "sequence_infer_enabled": true,
       "uncovered_sample": [
         {
@@ -1175,11 +1175,16 @@
             "الإنشاء:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/create-guarantee.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 72
+          "sequence_covered_gap": true,
+          "gap_runs": 82
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1219,11 +1224,16 @@
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/export_suppliers.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 72
+          "sequence_covered_gap": true,
+          "gap_runs": 82
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1239,7 +1249,8 @@
               "autonomy_goal_result",
               "http_error",
               "import_banks",
-              "log_highlight"
+              "log_highlight",
+              "network_fail"
             ],
             "missing_events": [
               "import_suppliers"
@@ -1248,12 +1259,10 @@
           "endpoints": [
             "/api/import_suppliers.php",
             "/XLSX",
-            "/Phone/Tax/",
             "/Phone/Tax"
           ],
           "missing_steps": [
             "/XLSX",
-            "/Phone/Tax/",
             "/Phone/Tax"
           ],
           "steps_sample": [
@@ -1262,11 +1271,16 @@
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/import_suppliers.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 70
+          "sequence_covered_gap": true,
+          "gap_runs": 80
         }
       ],
       "details": [
@@ -1311,11 +1325,16 @@
             "الإنشاء:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/create-guarantee.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 72
+          "sequence_covered_gap": true,
+          "gap_runs": 82
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1355,11 +1374,16 @@
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/export_suppliers.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 72
+          "sequence_covered_gap": true,
+          "gap_runs": 82
         },
         {
           "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1392,11 +1416,16 @@
             "التنفيذ:",
             "المخرجات:"
           ],
+          "step_routes": [
+            "/api/extend.php"
+          ],
+          "step_events": [],
           "sequence_covered": true,
           "sequence_covered_strict": true,
           "sequence_inferred": true,
           "sequence_session": "run_1770486170_12912|goal_flow_gap",
-          "gap_runs": 70
+          "sequence_covered_gap": true,
+          "gap_runs": 80
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1412,7 +1441,8 @@
               "autonomy_goal_result",
               "http_error",
               "import_banks",
-              "log_highlight"
+              "log_highlight",
+              "network_fail"
             ],
             "missing_events": [
               "import_suppliers"
@@ -1421,12 +1451,10 @@
           "endpoints": [
             "/api/import_suppliers.php",
             "/XLSX",
-            "/Phone/Tax/",
             "/Phone/Tax"
           ],
           "missing_steps": [
             "/XLSX",
-            "/Phone/Tax/",
             "/Phone/Tax"
           ],
           "steps_sample": [
@@ -1435,11 +1463,16 @@
             "التنفيذ:",
             "المخرجات:"
           ],
-          "sequence_covered": false,
+          "step_routes": [
+            "/api/import_suppliers.php"
+          ],
+          "step_events": [],
+          "sequence_covered": true,
           "sequence_covered_strict": false,
-          "sequence_inferred": false,
+          "sequence_inferred": true,
           "sequence_session": "",
-          "gap_runs": 70
+          "sequence_covered_gap": true,
+          "gap_runs": 80
         },
         {
           "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1456,7 +1489,7 @@
               "dom_no_change",
               "http_error",
               "log_highlight",
-              "scenario_step_done"
+              "network_fail"
             ],
             "missing_events": [
               "guarantee_released"
@@ -1472,18 +1505,23 @@
             "التنفيذ:",
             "المخرجات:"
           ],
+          "step_routes": [
+            "/api/release.php"
+          ],
+          "step_events": [],
           "sequence_covered": true,
           "sequence_covered_strict": true,
           "sequence_inferred": true,
           "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-          "gap_runs": 69
+          "sequence_covered_gap": true,
+          "gap_runs": 79
         }
       ],
-      "events_total": 29529,
-      "gap_runs": 353,
-      "gap_changed": 71,
-      "gap_last_ts": 1770770468.4771216,
-      "semantic_change_count": 455,
+      "events_total": 36954,
+      "gap_runs": 403,
+      "gap_changed": 80,
+      "gap_last_ts": 1770799905.6226323,
+      "semantic_change_count": 636,
       "schema_errors": [],
       "invalid_flows": 0,
       "reliable": true,
@@ -1531,11 +1569,16 @@
           "الإنشاء:",
           "المخرجات:"
         ],
-        "sequence_covered": false,
+        "step_routes": [
+          "/api/create-guarantee.php"
+        ],
+        "step_events": [],
+        "sequence_covered": true,
         "sequence_covered_strict": false,
-        "sequence_inferred": false,
+        "sequence_inferred": true,
         "sequence_session": "",
-        "gap_runs": 72
+        "sequence_covered_gap": true,
+        "gap_runs": 82
       },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1575,11 +1618,16 @@
           "التنفيذ:",
           "المخرجات:"
         ],
-        "sequence_covered": false,
+        "step_routes": [
+          "/api/export_suppliers.php"
+        ],
+        "step_events": [],
+        "sequence_covered": true,
         "sequence_covered_strict": false,
-        "sequence_inferred": false,
+        "sequence_inferred": true,
         "sequence_session": "",
-        "gap_runs": 72
+        "sequence_covered_gap": true,
+        "gap_runs": 82
       },
       {
         "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1612,11 +1660,16 @@
           "التنفيذ:",
           "المخرجات:"
         ],
+        "step_routes": [
+          "/api/extend.php"
+        ],
+        "step_events": [],
         "sequence_covered": true,
         "sequence_covered_strict": true,
         "sequence_inferred": true,
         "sequence_session": "run_1770486170_12912|goal_flow_gap",
-        "gap_runs": 70
+        "sequence_covered_gap": true,
+        "gap_runs": 80
       },
       {
         "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1632,7 +1685,8 @@
             "autonomy_goal_result",
             "http_error",
             "import_banks",
-            "log_highlight"
+            "log_highlight",
+            "network_fail"
           ],
           "missing_events": [
             "import_suppliers"
@@ -1641,12 +1695,10 @@
         "endpoints": [
           "/api/import_suppliers.php",
           "/XLSX",
-          "/Phone/Tax/",
           "/Phone/Tax"
         ],
         "missing_steps": [
           "/XLSX",
-          "/Phone/Tax/",
           "/Phone/Tax"
         ],
         "steps_sample": [
@@ -1655,11 +1707,16 @@
           "التنفيذ:",
           "المخرجات:"
         ],
-        "sequence_covered": false,
+        "step_routes": [
+          "/api/import_suppliers.php"
+        ],
+        "step_events": [],
+        "sequence_covered": true,
         "sequence_covered_strict": false,
-        "sequence_inferred": false,
+        "sequence_inferred": true,
         "sequence_session": "",
-        "gap_runs": 70
+        "sequence_covered_gap": true,
+        "gap_runs": 80
       },
       {
         "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1676,7 +1733,7 @@
             "dom_no_change",
             "http_error",
             "log_highlight",
-            "scenario_step_done"
+            "network_fail"
           ],
           "missing_events": [
             "guarantee_released"
@@ -1692,11 +1749,16 @@
           "التنفيذ:",
           "المخرجات:"
         ],
+        "step_routes": [
+          "/api/release.php"
+        ],
+        "step_events": [],
         "sequence_covered": true,
         "sequence_covered_strict": true,
         "sequence_inferred": true,
         "sequence_session": "run_1770487186_9028|goal_purpose_focus",
-        "gap_runs": 69
+        "sequence_covered_gap": true,
+        "gap_runs": 79
       }
     ],
     "gaps": [],
@@ -1711,6 +1773,10 @@
           "/422.",
           "/currency"
         ],
+        "step_routes": [
+          "/api/create-guarantee.php"
+        ],
+        "step_events": [],
         "priority_score": 110.0
       },
       {
@@ -1722,6 +1788,10 @@
           "/XLSX",
           "/indexing"
         ],
+        "step_routes": [
+          "/api/export_suppliers.php"
+        ],
+        "step_events": [],
         "priority_score": 90.0
       },
       {
@@ -1730,13 +1800,23 @@
         "endpoints": [
           "/api/import_suppliers.php",
           "/XLSX",
-          "/Phone/Tax/",
           "/Phone/Tax"
         ],
-        "priority_score": 90.0
+        "step_routes": [
+          "/api/import_suppliers.php"
+        ],
+        "step_events": [],
+        "priority_score": 80.0
       }
     ]
   },
+  "generated_scenarios": [
+    "gap_route_agentfrontend_partials_permissions_php.yaml",
+    "gap_route_agentfrontend_partials_permission_queue_php.yaml",
+    "gap_route_agentfrontend_partials_plan_library_php.yaml",
+    "gap_route_agentfrontend_partials_prod_operations_php.yaml",
+    "gap_route_agentfrontend_partials_proposals_simple_php.yaml"
+  ],
   "existing_generated_scenarios": [
     "gap_flow_flow_create_guarantee_.yaml",
     "gap_flow_flow_export_suppliers_.yaml",

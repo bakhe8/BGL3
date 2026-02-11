@@ -287,6 +287,17 @@ def _refresh_scenario_lock() -> None:
         _LAST_LOCK_HEARTBEAT = now
 
 
+def _release_scenario_lock() -> None:
+    global _SCENARIO_LOCKED
+    if not _SCENARIO_LOCKED or release_lock is None:
+        return
+    try:
+        release_lock(SCENARIO_LOCK_PATH)
+    except Exception:
+        pass
+    _SCENARIO_LOCKED = False
+
+
 def _decorate_session(session: str) -> str:
     global _CURRENT_RUN_ID
     rid = str(_CURRENT_RUN_ID or "")
@@ -2004,6 +2015,23 @@ async def run_step(
     }
 
 
+def _write_runtime_fallback(session: str, event: Dict[str, Any], error: str) -> None:
+    try:
+        fallback = ROOT_DIR / ".bgl_core" / "logs" / "runtime_events_fallback.jsonl"
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        payload = {
+            "timestamp": time.time(),
+            "session": _decorate_session(session),
+            "event": event,
+            "error": str(error),
+        }
+        fallback.open("a", encoding="utf-8").write(
+            json.dumps(payload, ensure_ascii=False, default=str) + "\n"
+        )
+    except Exception:
+        pass
+
+
 def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     try:
         timeout = float(os.getenv("BGL_EVENT_DB_TIMEOUT", "5"))
@@ -2021,6 +2049,7 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     except Exception as e:
         if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
             _trace(f"log_event: db open error {e}")
+        _write_runtime_fallback(session, event, f"db_open_failed:{e}")
         return
     try:
         db.execute(
@@ -2103,22 +2132,11 @@ def log_event(db_path: Path, session: str, event: Dict[str, Any]):
     except Exception as e:
         if os.getenv("BGL_TRACE_SCENARIO", "0") == "1":
             _trace(f"log_event: insert error {e}")
-        # Fallback: append to jsonl if DB is locked, to avoid stalling scenarios
-        try:
-            if "database is locked" in str(e).lower():
-                fallback = ROOT_DIR / ".bgl_core" / "logs" / "runtime_events_fallback.jsonl"
-                fallback.parent.mkdir(parents=True, exist_ok=True)
-                payload = {
-                    "timestamp": time.time(),
-                    "session": _decorate_session(session),
-                    "event": event,
-                    "error": "database_is_locked",
-                }
-                fallback.open("a", encoding="utf-8").write(
-                    json.dumps(payload, ensure_ascii=False) + "\n"
-                )
-        except Exception:
-            pass
+        err_text = str(e) or e.__class__.__name__
+        if "database is locked" in err_text.lower():
+            _write_runtime_fallback(session, event, "database_is_locked")
+        else:
+            _write_runtime_fallback(session, event, f"db_insert_failed:{err_text}")
     finally:
         try:
             db.close()
@@ -8298,7 +8316,7 @@ async def main(
     if not ok:
         print(f"[!] Scenario runner already active ({reason}); skipping.")
         _update_diagnostic_status_stage("scenario_runner_blocked")
-        return
+        return {"status": "locked", "reason": reason, "run_id": _CURRENT_RUN_ID}
     _trace("main: lock acquired")
     # Apply config defaults for exploration/novelty if env not set
     os.environ.setdefault("BGL_EXPLORATION", str(cfg.get("scenario_exploration", "1")))
@@ -8315,7 +8333,12 @@ async def main(
 
     if not SCENARIOS_DIR.exists():
         print("[!] Scenarios directory missing; nothing to run.")
-        return
+        _release_scenario_lock()
+        return {
+            "status": "no_scenarios_dir",
+            "reason": "scenarios_dir_missing",
+            "run_id": _CURRENT_RUN_ID,
+        }
 
     scenario_files = sorted(SCENARIOS_DIR.rglob("*.yaml"))
     _trace(f"main: found scenarios={len(scenario_files)}")
@@ -8500,7 +8523,16 @@ async def main(
     autonomous_scenario = _autonomous_enabled() and str(auto_scenario_flag) == "1"
     if not scenario_files and not autonomous_scenario:
         print("[!] No scenario files found.")
-        return
+        _release_scenario_lock()
+        return {
+            "status": "no_scenarios",
+            "reason": "no_scenario_files",
+            "run_id": _CURRENT_RUN_ID,
+            "ui_scenarios_count": 0,
+            "api_scenarios_count": 0,
+            "autonomous_scenario": False,
+            "selection": selection_summary or {},
+        }
     _trace(f"main: autonomous_only={autonomous_only} autonomous_scenario={autonomous_scenario}")
 
     slow_mo = int(os.getenv("BGL_SLOW_MO_MS", str(cfg.get("slow_mo_ms", 0))))
@@ -8743,11 +8775,29 @@ async def main(
         digest_env.setdefault("BGL_AUTO_PROMOTE_TO_PROD", "0")
         digest_hours = str(_cfg_value("auto_digest_hours", 12))
         digest_limit = str(_cfg_value("auto_digest_limit", 200))
+        try:
+            digest_timeout_cfg = float(_cfg_value("auto_digest_timeout_sec", 120))
+        except Exception:
+            digest_timeout_cfg = 120.0
+        try:
+            digest_timeout_cap = float(_cfg_value("context_digest_timeout_sec", 110))
+        except Exception:
+            digest_timeout_cap = 110.0
+        digest_timeout = max(30.0, min(digest_timeout_cfg, max(30.0, digest_timeout_cap)))
         subprocess.run(
-            [sys.executable, str(digest_path), "--hours", digest_hours, "--limit", digest_limit],
+            [
+                sys.executable,
+                str(digest_path),
+                "--hours",
+                digest_hours,
+                "--limit",
+                digest_limit,
+                "--timeout",
+                str(round(float(digest_timeout), 2)),
+            ],
             cwd=ROOT_DIR,
             env=digest_env,
-            timeout=30,
+            timeout=float(digest_timeout) + 5.0,
         )
         _trace("post: context_digest done")
         _update_diagnostic_status_stage("context_digest_done")
@@ -8846,6 +8896,8 @@ async def main(
     except Exception:
         pass
 
+    ui_exploration_stats["status"] = "ok"
+    _release_scenario_lock()
     return ui_exploration_stats
 
 

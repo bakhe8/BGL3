@@ -1,0 +1,14 @@
+name: goal_ui_action_gap
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: '#details-button'
+- action: wait
+  ms: 600
+- action: hover
+  selector: a[href="#buttons"]
+  optional: true
+- action: click
+  selector: a[href="#buttons"]

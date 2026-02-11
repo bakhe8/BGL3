@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "patch_plan_1264",
+  "description": "Fix for proposal.apply|869|plan:869 (propose_fix/low) x1. Last note: Write engine errors: ['Path not in allowed scopes: .bgl_core/brain/scenarios/generated/gap_route_agent.php'] failure_class=write_engine",
+  "created_at": 1672531200,
+  "metadata": {
+    "proposal_id": 1264,
+    "action": "stabilize",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770778900.153934
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Fix for proposal.apply|869|plan:869 (propose_fix/low) x1. Last note: Write engine errors: ['Path not in allowed scopes: .bgl_core/brain/scenarios/generated/gap_route_agent.php'] failure_class=write_engine",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Fix for proposal.apply|869|plan:869 (propose_fix/low) x1. Last note: Write engine errors: ['Path not in allowed scopes: .bgl_core/brain/scenarios/generated/gap_route_agent.php'] failure_class=write_engine"
+      }
+    }
+  ]
+}

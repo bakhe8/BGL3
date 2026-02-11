@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "1265",
+  "description": "Patch Plan for /api/create-guarantee.php to improve runtime stability",
+  "created_at": 1770778306,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1265,
+    "generated_at": 1770778886.4413538
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_create_guarantee_.yaml",
+      "mode": null,
+      "content": "runtime_safety:\n  - check: Settings\n  - check: RuntimeException\n  - check: Database\n  - check: GuaranteeRepository",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "runtime_safety:\n  - check: Settings\n  - check: RuntimeException\n  - check: Database\n  - check: GuaranteeRepository"
+      }
+    }
+  ]
+}

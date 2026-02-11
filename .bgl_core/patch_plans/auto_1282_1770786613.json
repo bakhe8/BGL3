@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "id": "1282",
+  "description": "Patch plan for stabilizing /api/parse-paste-v2.php based on runtime evidence.",
+  "created_at": 1770786504,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1282,
+    "generated_at": 1770786613.7338874
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "api/agent-event.php",
+      "mode": null,
+      "content": "// Add necessary error handling and logging\ntry {\n    // Existing code\n} catch (RuntimeException $e) {\n    log_error($e);\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Add necessary error handling and logging\ntry {\n    // Existing code\n} catch (RuntimeException $e) {\n    log_error($e);\n}\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": "api/parse-paste-v2.php",
+      "mode": "append",
+      "content": "\n// Add necessary error handling and logging\ntry {\n    // Existing code\n} catch (RuntimeException $e) {\n    log_error($e);\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n// Add necessary error handling and logging\ntry {\n    // Existing code\n} catch (RuntimeException $e) {\n    log_error($e);\n}\n"
+      }
+    }
+  ]
+}

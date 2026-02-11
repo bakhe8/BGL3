@@ -46,6 +46,8 @@ diagnostic_fast_strategy: scan
 diagnostic_idle_guard_sec: 120
 fast_verify: 0
 master_verify_lock_ttl_sec: 7200
+# Refresh master_verify lock heartbeat while diagnostic is running.
+master_verify_lock_heartbeat_sec: 30
 agent_mode: autonomous
 agent_mode_bypass_env: BGL_LIGHT_MODE
 browser_enabled: 1
@@ -53,6 +55,10 @@ browser_mode: visible
 max_pages: 3
 page_idle_timeout: 120
 run_scenarios_lock_ttl_sec: 7200
+# Allow takeover of run_scenarios lock when heartbeat exceeds this age.
+run_scenarios_lock_max_age_sec: 600
+# Refresh lock heartbeat while scenarios are running.
+run_scenarios_lock_heartbeat_sec: 30
 browser_cpu_max: null
 browser_ram_min_gb: null
 run_gap_tests: 1

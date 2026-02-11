@@ -1,0 +1,11 @@
+name: gap_route_server_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /server.php
+steps:
+- action: goto
+  url: /server.php
+- action: wait
+  ms: 400

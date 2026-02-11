@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_plan_library_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/plan_library.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/plan_library.php
+- action: wait
+  ms: 400

@@ -404,3 +404,66 @@ rules:
   - '*'
   origin: auto_generated
   created: '2026-02-11'
+- id: RS_1257
+  name: Auto rule for 1257
+  description: Ensure playbook 1257 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1274
+  name: Auto rule for 1274
+  description: Ensure playbook 1274 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1327
+  name: Auto rule for 1327
+  description: Ensure playbook 1327 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1354
+  name: Auto rule for 1354
+  description: Ensure playbook 1354 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1387
+  name: Auto rule for 1387
+  description: Ensure playbook 1387 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1414
+  name: Auto rule for 1414
+  description: Ensure playbook 1414 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1489
+  name: Auto rule for 1489
+  description: Ensure playbook 1489 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'

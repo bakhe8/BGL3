@@ -1,0 +1,120 @@
+{
+  "version": 1,
+  "id": "1284",
+  "description": "Route input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']: 7 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1690352800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1284,
+    "generated_at": 1770786726.785983
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_bootstrap_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_layout_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_activity_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_controls_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_autonomy_goals_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_blockers_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_canary_status_php.yaml",
+      "mode": null,
+      "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']"
+      }
+    }
+  ]
+}

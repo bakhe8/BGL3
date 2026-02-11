@@ -1,6 +1,6 @@
 {
   "meta": {
-    "started_at": 1770770854.7429035,
+    "started_at": 1770800748.2990813,
     "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
     "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
     "ok": true
@@ -2636,6 +2636,7 @@
         "_cfg_flag",
         "_cfg_number",
         "_cfg_str",
+        "_diagnostic_running",
         "_ensure_learning_events",
         "_ensure_proposal_links",
         "_extract_plan_from_text",
@@ -2649,6 +2650,7 @@
         "_parse_status",
         "_patch_risk_summary",
         "_post_apply_evaluate",
+        "_read_json",
         "_resolve_plan_from_proposal",
         "_run_phpunit_tests",
         "_summarize_eval_failure",
@@ -2661,6 +2663,7 @@
       "imports": [
         "agent_verify",
         "argparse",
+        "atexit",
         "authority",
         "brain_types",
         "canary_release",
@@ -2673,6 +2676,7 @@
         "patch_plan",
         "pathlib",
         "plan_generator",
+        "run_lock",
         "sandbox",
         "shutil",
         "sqlite3",
@@ -3133,6 +3137,7 @@
         "_bucket_rate",
         "_cfg_flag",
         "_cfg_number",
+        "_ensure_digest_indexes",
         "_ensure_experience_actions",
         "_ensure_experience_columns",
         "_ensure_experience_links",
@@ -3899,13 +3904,16 @@
         "_compute_diagnostic_confidence",
         "_compute_diagnostic_faults",
         "_compute_diagnostic_self_check",
+        "_compute_integrity_gate",
         "_compute_slow_phases",
         "_compute_stage_durations",
+        "_count_fallback_events",
         "_current_fingerprint_payload",
         "_extract_metrics",
         "_heartbeat_status",
         "_last_input_age_sec",
         "_load_baseline_report",
+        "_load_scenario_selection",
         "_log_runtime_event",
         "_mark_aborted_if_stale",
         "_read_json",
@@ -3913,6 +3921,7 @@
         "_run_with_timeout",
         "_sanitize_baseline_report",
         "_select_profile",
+        "_start_lock_heartbeat",
         "_update_status_stage",
         "_user_recent_activity",
         "_write_json",
@@ -3926,6 +3935,7 @@
       "imports": [
         "agency_core",
         "asyncio",
+        "atexit",
         "auto_insights",
         "callgraph_builder",
         "config_loader",
@@ -3937,6 +3947,7 @@
         "json",
         "os",
         "pathlib",
+        "priority_loop",
         "report_builder",
         "run_ledger",
         "run_lock",
@@ -4295,6 +4306,32 @@
         "typing"
       ]
     },
+    ".bgl_core\\brain\\priority_loop.py": {
+      "functions": [
+        "_cleanup_lock",
+        "_digest_integrity",
+        "_event_integrity",
+        "_log_runtime_event",
+        "_read_json",
+        "_run_integrity",
+        "_update_diagnostic_status",
+        "_write_json",
+        "run_priority_loop"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "config_loader",
+        "config_tuner",
+        "json",
+        "os",
+        "pathlib",
+        "run_lock",
+        "sqlite3",
+        "time",
+        "typing"
+      ]
+    },
     ".bgl_core\\brain\\readiness_gate.py": {
       "functions": [
         "_http_check",
@@ -4374,7 +4411,9 @@
     },
     ".bgl_core\\brain\\run_lock.py": {
       "functions": [
+        "_atomic_write_lock",
         "_parse_lock",
+        "_parse_lock_extended",
         "_pid_alive",
         "acquire_lock",
         "describe_lock",
@@ -4398,6 +4437,7 @@
         "_log_activity",
         "_log_runtime_event",
         "_run_real_scenarios",
+        "_start_lock_heartbeat",
         "_update_diagnostic_status_stage",
         "main",
         "simulate_traffic"
@@ -4415,6 +4455,7 @@
         "scenario_deps",
         "scenario_runner",
         "sqlite3",
+        "threading",
         "time"
       ]
     },
@@ -4604,6 +4645,7 @@
         "_record_selector_failure",
         "_record_selector_success",
         "_refresh_scenario_lock",
+        "_release_scenario_lock",
         "_resolve_route_to_file",
         "_reward_exploration_from_outcomes",
         "_route_key_from_url",
@@ -4638,6 +4680,7 @@
         "_unknown_routes_from_runtime",
         "_update_diagnostic_status_stage",
         "_write_autonomy_goal",
+        "_write_runtime_fallback",
         "ensure_cursor",
         "ensure_dev_mode",
         "exploratory_action",
@@ -4705,6 +4748,7 @@
         "_extract_meta",
         "_load_state",
         "_normalize_scenario_key",
+        "_read_json",
         "_safe_yaml",
         "_save_state",
         "_score_scenario",
@@ -5770,7 +5814,7 @@
     }
   },
   "risk_summary": {
-    "high": 157,
+    "high": 158,
     "medium": 172,
     "low": 62
   }

@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_blockers_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/blockers.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/blockers.php
+- action: wait
+  ms: 400

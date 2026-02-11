@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_health_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/health.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/health.php
+- action: wait
+  ms: 400

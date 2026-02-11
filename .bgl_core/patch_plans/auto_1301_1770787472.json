@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_1301",
+  "description": "Route [data-filter]: 5 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1689472800,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1301,
+    "generated_at": 1770787472.3080893
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilization for route [data-filter]\ndef stabilize_data_filter():\n    pass\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization for route [data-filter]\ndef stabilize_data_filter():\n    pass\n"
+      }
+    }
+  ]
+}

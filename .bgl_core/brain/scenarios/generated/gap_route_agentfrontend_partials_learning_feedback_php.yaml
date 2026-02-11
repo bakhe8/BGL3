@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_learning_feedback_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/learning_feedback.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/learning_feedback.php
+- action: wait
+  ms: 400

@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "1422",
+  "description": "Patch Plan for Improving Runtime Contract /api/release.php",
+  "created_at": 1690758000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1422,
+    "generated_at": 1770795945.264338
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_release_php.yaml",
+      "mode": null,
+      "content": "runtime_contract:/api/release.php:\n  events: 50+\n  errors: 50+\n  rate: 0.6+\n  latency: low\n  last_error_present: true\n  suspect_deps:\n    - Input\n    - Input\n    - Input\n    - RuntimeException",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "runtime_contract:/api/release.php:\n  events: 50+\n  errors: 50+\n  rate: 0.6+\n  latency: low\n  last_error_present: true\n  suspect_deps:\n    - Input\n    - Input\n    - Input\n    - RuntimeException"
+      }
+    }
+  ]
+}

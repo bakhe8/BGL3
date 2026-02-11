@@ -1,0 +1,28 @@
+name: goal_text_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  optional: true
+- action: type
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  text: canary
+  optional: true
+- action: press
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  key: Enter
+  optional: true
+- action: wait
+  ms: 800
+- action: scroll
+  dy: 600
+- action: hover
+  selector: a[href="#buttons"]
+  optional: true
+- action: click
+  selector: a[href="#buttons"]

@@ -1,24 +1,13 @@
 [
   {
-    "id": "1240",
+    "id": "1489",
     "check": "ui_action_gap",
     "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
     "evidence": [
       {
         "route": "/index.php",
-        "selector": "#bgl-confirm-no",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
         "selector": "button.note-cancel-btn",
-        "selector_key": "",
+        "selector_key": "text=إلغاء",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -29,7 +18,7 @@
       {
         "route": "/index.php",
         "selector": "#manualTestBatchId",
-        "selector_key": "",
+        "selector_key": "id=manualTestBatchId",
         "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
@@ -39,19 +28,8 @@
       },
       {
         "route": "/index.php",
-        "selector": "#btnCancelManualEntry",
-        "selector_key": "",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
         "selector": "#btnCancelPaste",
-        "selector_key": "",
+        "selector_key": "id=btnCancelPaste",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
@@ -62,7 +40,29 @@
       {
         "route": "/",
         "selector": "button.note-cancel-btn",
-        "selector_key": "",
+        "selector_key": "text=إلغاء",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#manualTestBatchId",
+        "selector_key": "id=manualTestBatchId",
+        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "href": "",
+        "tag": "input",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelManualEntry",
+        "selector_key": "id=btnCancelManualEntry",
         "text": "إلغاء",
         "href": "",
         "tag": "button",

@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_permission_queue_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/permission_queue.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/permission_queue.php
+- action: wait
+  ms: 400

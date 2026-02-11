@@ -4,32 +4,32 @@
   "transition_count": 30,
   "nodes": {
     "/": {
-      "out": 491,
-      "in": 509
+      "out": 627,
+      "in": 648
     },
     "/index.php": {
-      "out": 365,
-      "in": 387
+      "out": 471,
+      "in": 486
     },
     "/about:blank": {
-      "out": 50,
+      "out": 52,
       "in": 0
     },
     "/views/batches.php": {
-      "out": 41,
-      "in": 21
+      "out": 51,
+      "in": 31
     },
     "/agent.php": {
+      "out": 0,
+      "in": 18
+    },
+    "/api/settings.php": {
       "out": 0,
       "in": 18
     },
     "/views/settings.php": {
       "out": 18,
       "in": 18
-    },
-    "/api/settings.php": {
-      "out": 0,
-      "in": 12
     }
   },
   "transitions": [
@@ -38,56 +38,84 @@
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 252
+      "count": 324
     },
     {
       "from": "/",
       "to": "/",
       "action": "click",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 92
+      "count": 108
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "click",
       "selector": "input[name=\"search\"]",
-      "count": 68
+      "count": 91
     },
     {
       "from": "/",
       "to": "/",
       "action": "hover",
       "selector": "a[href=\"./views/batches.php\"]",
-      "count": 52
+      "count": 74
     },
     {
       "from": "/index.php",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 49
+      "count": 51
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "hover",
+      "selector": "button.btn",
+      "count": 36
     },
     {
       "from": "/about:blank",
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 32
+      "count": 34
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "goto",
       "selector": "",
-      "count": 32
+      "count": 33
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 33
     },
     {
       "from": "/",
       "to": "/index.php",
       "action": "type",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 28
+      "count": 31
+    },
+    {
+      "from": "/views/batches.php",
+      "to": "/views/batches.php",
+      "action": "click",
+      "selector": "input[name=\"search\"]",
+      "count": 31
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "count": 29
     },
     {
       "from": "/index.php",
@@ -99,30 +127,37 @@
     {
       "from": "/index.php",
       "to": "/index.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "action": "press",
+      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
       "count": 25
     },
     {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 24
+      "from": "/",
+      "to": "/",
+      "action": "ui_state_recovery",
+      "selector": "recover:button:has-text('Reload')",
+      "count": 23
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "press",
       "selector": "input[name=\"search\"]",
-      "count": 21
+      "count": 22
     },
     {
-      "from": "/views/batches.php",
-      "to": "/views/batches.php",
-      "action": "click",
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
       "selector": "input[name=\"search\"]",
-      "count": 21
+      "count": 20
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 20
     },
     {
       "from": "/views/batches.php",
@@ -132,10 +167,31 @@
       "count": 20
     },
     {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 19
+    },
+    {
       "from": "/about:blank",
       "to": "/agent.php",
       "action": "goto",
       "selector": "",
+      "count": 18
+    },
+    {
+      "from": "/",
+      "to": "/api/settings.php",
+      "action": "goto",
+      "selector": "",
+      "count": 18
+    },
+    {
+      "from": "/",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "a[href*='create-guarantee.php']",
       "count": 18
     },
     {
@@ -157,96 +213,40 @@
       "to": "/index.php",
       "action": "press",
       "selector": "input[name=\"search\"]",
+      "count": 17
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
       "count": 16
     },
     {
-      "from": "/",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "a[href*='create-guarantee.php']",
-      "count": 14
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 14
-    },
-    {
       "from": "/index.php",
       "to": "/index.php",
       "action": "press",
       "selector": "input[name=\"search\"]",
-      "count": 14
+      "count": 16
     },
     {
       "from": "/index.php",
       "to": "/index.php",
-      "action": "hover",
-      "selector": "button.btn",
-      "count": 13
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
+      "action": "type",
       "selector": "input[name=\"search\"]",
-      "count": 13
+      "count": 15
     },
     {
       "from": "/",
       "to": "/",
       "action": "hover",
       "selector": "button.btn",
-      "count": 12
-    },
-    {
-      "from": "/",
-      "to": "/api/settings.php",
-      "action": "goto",
-      "selector": "",
-      "count": 12
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "a[href*='export_suppliers.php']",
-      "count": 12
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[name=\"search\"]",
-      "count": 12
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[name=\"search\"]",
-      "count": 12
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[name=\"search\"]",
-      "count": 12
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "press",
-      "selector": "input[name=\"search\"]",
-      "count": 12
+      "count": 14
     }
   ],
   "priority_routes": [
-    "/api/settings.php",
     "/agent.php",
+    "/api/settings.php",
     "/views/settings.php",
     "/about:blank",
     "/views/batches.php",
