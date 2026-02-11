@@ -38,6 +38,60 @@ def _parse_lock(raw: str) -> Tuple[int, float, str]:
     return pid, ts, lbl
 
 
+def describe_lock(lock_path: Path, ttl_sec: int = 7200) -> dict:
+    """
+    Return a structured snapshot of the lock state for diagnostics.
+    """
+    now = time.time()
+    try:
+        max_age = int(os.getenv("BGL_SCENARIO_LOCK_MAX_AGE_SEC", "0") or 0)
+    except Exception:
+        max_age = 0
+    info = {
+        "path": str(lock_path),
+        "exists": lock_path.exists(),
+        "ttl_sec": ttl_sec,
+        "max_age_sec": max_age or None,
+    }
+    if not lock_path.exists():
+        return info
+    try:
+        raw = lock_path.read_text(encoding="utf-8").strip()
+        pid, ts, lbl = _parse_lock(raw)
+        pid_alive = bool(pid and _pid_alive(pid))
+        age = None
+        if ts:
+            try:
+                age = max(0.0, now - ts)
+            except Exception:
+                age = None
+        status = "unknown"
+        if pid and pid_alive and age is not None:
+            if max_age and age > max_age:
+                status = "active_stale"
+            elif age < ttl_sec:
+                status = "active_fresh"
+            else:
+                status = "active_stale"
+        elif pid and not pid_alive:
+            status = "stale_dead_pid"
+        elif ts and age is not None and age < ttl_sec:
+            status = "recent_lock"
+        info.update(
+            {
+                "pid": pid,
+                "pid_alive": pid_alive,
+                "timestamp": ts or None,
+                "age_sec": round(age, 2) if age is not None else None,
+                "label": lbl,
+                "status": status,
+            }
+        )
+    except Exception:
+        info["status"] = "unreadable"
+    return info
+
+
 def refresh_lock(lock_path: Path, label: str = "") -> bool:
     """
     Refresh an existing lock heartbeat if owned by this PID.
@@ -63,11 +117,18 @@ def acquire_lock(lock_path: Path, ttl_sec: int = 7200, label: str = "") -> Tuple
     Returns (ok, reason). If ok is False, reason explains the active/stale lock.
     """
     now = time.time()
+    try:
+        max_age = int(os.getenv("BGL_SCENARIO_LOCK_MAX_AGE_SEC", "0") or 0)
+    except Exception:
+        max_age = 0
     if lock_path.exists():
         try:
             raw = lock_path.read_text(encoding="utf-8").strip()
             pid, ts, _ = _parse_lock(raw)
             pid_alive = bool(pid and _pid_alive(pid))
+            if pid_alive and ts and max_age and (now - ts) > max_age:
+                # Treat as stale even if PID is alive (PID reuse or hung process).
+                pid_alive = False
             if pid_alive:
                 # Treat as active only if heartbeat is fresh; otherwise allow takeover.
                 if ts and (now - ts) < ttl_sec:

@@ -323,3 +323,84 @@ rules:
   - '*'
   origin: auto_generated
   created: '2026-02-10'
+- id: RS_1076
+  name: Auto rule for 1076
+  description: Ensure playbook 1076 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1119
+  name: Auto rule for 1119
+  description: Ensure playbook 1119 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1154
+  name: Auto rule for 1154
+  description: Ensure playbook 1154 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1171
+  name: Auto rule for 1171
+  description: Ensure playbook 1171 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1188
+  name: Auto rule for 1188
+  description: Ensure playbook 1188 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1205
+  name: Auto rule for 1205
+  description: Ensure playbook 1205 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1214
+  name: Auto rule for 1214
+  description: Ensure playbook 1214 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-10'
+- id: RS_1223
+  name: Auto rule for 1223
+  description: Ensure playbook 1223 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1240
+  name: Auto rule for 1240
+  description: Ensure playbook 1240 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'

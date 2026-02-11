@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_1126",
+  "description": "Stabilize route /api/batches.php",
+  "created_at": 1770717571,
+  "metadata": {
+    "proposal_id": 1126,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770717694.798702
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_batches_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: /api/batches.php\n    events:\n      - event_id: 1\n        type: http_request\n        url: /api/batches.php\n        method: GET\n        status_code: 200\n        latency: 0ms",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: /api/batches.php\n    events:\n      - event_id: 1\n        type: http_request\n        url: /api/batches.php\n        method: GET\n        status_code: 200\n        latency: 0ms"
+      }
+    }
+  ]
+}

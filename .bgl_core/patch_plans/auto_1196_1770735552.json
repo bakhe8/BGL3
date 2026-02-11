@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "id": "patch_plan_1196",
+  "description": "Patch Plan for Prod Op Proposal 1196",
+  "created_at": 1704832800,
+  "metadata": {
+    "proposal_id": 1196,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770735552.7951274
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "version: '3.8'\n\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3.8'\n\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+      "mode": null,
+      "content": "version: '3.8'\n\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3.8'\n\nservices:\n  web:\n    image: nginx:latest\n    ports:\n      - \"80:80\"\n    volumes:\n      - ./app:/usr/share/nginx/html"
+      }
+    }
+  ]
+}

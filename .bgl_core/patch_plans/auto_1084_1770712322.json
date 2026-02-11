@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_1084",
+  "description": "Patch Plan for Prod Op Proposal Apply on goal_1770704517.yaml",
+  "created_at": 1692345600,
+  "metadata": {
+    "proposal_id": 1084,
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770712322.248349
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770704517.yaml",
+      "mode": null,
+      "content": "version: 2\nname: goal_1770704517\ndescription: Updated goal for stabilization\nsteps:\n- step_id: 1\n  description: Step 1 for stabilization\n  commands:\n  - command_id: 1\n    description: Command 1 for stabilization\n    command: echo 'Stabilization completed'\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 2\nname: goal_1770704517\ndescription: Updated goal for stabilization\nsteps:\n- step_id: 1\n  description: Step 1 for stabilization\n  commands:\n  - command_id: 1\n    description: Command 1 for stabilization\n    command: echo 'Stabilization completed'\n"
+      }
+    }
+  ]
+}

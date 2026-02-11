@@ -1,0 +1,29 @@
+{
+  "version": 2,
+  "id": "1125",
+  "description": "Route /api/convert-to-real.php: 1 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1770717571,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1125,
+    "generated_at": 1770717705.268082
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_convert_to_real_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nscenarios:\n  - name: /api/convert-to-real.php\n    steps:\n      - action: convert_to_real\n        input: request_body\n        output: response_body",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nscenarios:\n  - name: /api/convert-to-real.php\n    steps:\n      - action: convert_to_real\n        input: request_body\n        output: response_body"
+      }
+    }
+  ]
+}

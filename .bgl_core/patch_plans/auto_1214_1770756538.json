@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1214",
+  "description": "Patch Plan for Proposal ID 1214 - Improve UI Interaction Coverage",
+  "created_at": 1695738800,
+  "metadata": {
+    "proposal_id": 1214,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770756538.6651037
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/ui_interaction_tests.py",
+      "mode": "append",
+      "content": "\n\n# Test cases for new UI elements\n\ndef test_cancel_button():\n    assert ui_element_exists('#bgl-confirm-no')\n    click_ui_element('#bgl-confirm-no')\n    assert not ui_element_exists('#bgl-confirm-no')\n\ndef test_manual_test_batch_id_input():\n    assert ui_element_exists('#manualTestBatchId')\n    input_text('#manualTestBatchId', '12345')\n    assert get_ui_element_value('#manualTestBatchId') == '12345'\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n# Test cases for new UI elements\n\ndef test_cancel_button():\n    assert ui_element_exists('#bgl-confirm-no')\n    click_ui_element('#bgl-confirm-no')\n    assert not ui_element_exists('#bgl-confirm-no')\n\ndef test_manual_test_batch_id_input():\n    assert ui_element_exists('#manualTestBatchId')\n    input_text('#manualTestBatchId', '12345')\n    assert get_ui_element_value('#manualTestBatchId') == '12345'\n"
+      }
+    }
+  ]
+}

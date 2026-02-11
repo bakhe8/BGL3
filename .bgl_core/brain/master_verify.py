@@ -26,7 +26,7 @@ from scenario_deps import check_scenario_deps_async  # noqa: E402
 from auto_insights import audit_auto_insights, write_auto_insights_status  # noqa: E402
 from schema_check import check_schema  # noqa: E402
 from run_ledger import start_run, finish_run  # noqa: E402
-from run_lock import acquire_lock, release_lock  # noqa: E402
+from run_lock import acquire_lock, release_lock, describe_lock  # noqa: E402
 try:
     from fingerprint import compute_fingerprint, fingerprint_to_payload, fingerprint_equal, fingerprint_is_fresh  # noqa: E402
 except Exception:
@@ -36,18 +36,99 @@ except Exception:
     fingerprint_is_fresh = None  # type: ignore
 
 
-def log_activity(root_path: Path, message: str):
+def log_activity(root_path: Path, message: str, details: str | dict = "{}"):
     """Logs an event to the agent_activity table for dashboard visibility."""
     db_path = root_path / ".bgl_core" / "brain" / "knowledge.db"
     try:
+        if isinstance(details, dict):
+            details = json.dumps(details, ensure_ascii=False)
         with sqlite3.connect(str(db_path), timeout=30.0) as conn:
             conn.execute("PRAGMA journal_mode=WAL;")
             conn.execute(
                 "INSERT INTO agent_activity (timestamp, activity, source, details) VALUES (?, ?, ?, ?)",
-                (time.time(), message, "master_verify", "{}"),
+                (time.time(), message, "master_verify", details),
             )
     except Exception as e:
+        try:
+            if "locked" in str(e).lower():
+                _write_status(
+                    root_path / ".bgl_core" / "logs" / "diagnostic_status.json",
+                    "running",
+                    stage="db_write_locked",
+                    db_write_last_error=str(e),
+                )
+        except Exception:
+            pass
         print(f"[WARN] Failed to log activity: {e}")
+
+
+def _log_runtime_event(root_path: Path, event: dict) -> None:
+    db_path = root_path / ".bgl_core" / "brain" / "knowledge.db"
+    try:
+        if not db_path.exists():
+            return
+        with sqlite3.connect(str(db_path), timeout=5.0) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS runtime_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp REAL NOT NULL,
+                    session TEXT,
+                    run_id TEXT,
+                    scenario_id TEXT,
+                    goal_id TEXT,
+                    source TEXT,
+                    event_type TEXT NOT NULL,
+                    route TEXT,
+                    method TEXT,
+                    target TEXT,
+                    step_id TEXT,
+                    payload TEXT,
+                    status INTEGER,
+                    latency_ms REAL,
+                    error TEXT
+                )
+                """
+            )
+            payload = event.get("payload")
+            if isinstance(payload, dict):
+                payload = json.dumps(payload, ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT INTO runtime_events (timestamp, session, run_id, scenario_id, goal_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event.get("timestamp", time.time()),
+                    event.get("session", ""),
+                    event.get("run_id", ""),
+                    event.get("scenario_id", ""),
+                    event.get("goal_id", ""),
+                    event.get("source", "master_verify"),
+                    event.get("event_type"),
+                    event.get("route"),
+                    event.get("method"),
+                    event.get("target"),
+                    event.get("step_id"),
+                    payload,
+                    event.get("status"),
+                    event.get("latency_ms"),
+                    event.get("error"),
+                ),
+            )
+            conn.commit()
+    except Exception as e:
+        try:
+            if "locked" in str(e).lower():
+                _write_status(
+                    root_path / ".bgl_core" / "logs" / "diagnostic_status.json",
+                    "running",
+                    stage="db_write_locked",
+                    db_write_last_error=str(e),
+                )
+        except Exception:
+            pass
 
 
 def _run_with_timeout(label: str, func, timeout: int, default):
@@ -73,26 +154,29 @@ def _run_with_timeout(label: str, func, timeout: int, default):
 
 
 def _read_lock_status(lock_path: Path) -> dict:
-    status = {"path": str(lock_path), "exists": lock_path.exists()}
-    if not lock_path.exists():
-        return status
     try:
-        raw = lock_path.read_text(encoding="utf-8").strip()
-        parts = raw.split("|")
-        pid = int(parts[0]) if parts and parts[0].isdigit() else 0
-        ts = float(parts[1]) if len(parts) > 1 else 0.0
-        label = parts[2] if len(parts) > 2 else ""
-        status.update(
-            {
-                "pid": pid,
-                "timestamp": ts,
-                "age_sec": round(max(0.0, time.time() - ts), 2) if ts else None,
-                "label": label,
-            }
-        )
+        return describe_lock(lock_path)
     except Exception:
-        status["error"] = "unreadable"
-    return status
+        status = {"path": str(lock_path), "exists": lock_path.exists()}
+        if not lock_path.exists():
+            return status
+        try:
+            raw = lock_path.read_text(encoding="utf-8").strip()
+            parts = raw.split("|")
+            pid = int(parts[0]) if parts and parts[0].isdigit() else 0
+            ts = float(parts[1]) if len(parts) > 1 else 0.0
+            label = parts[2] if len(parts) > 2 else ""
+            status.update(
+                {
+                    "pid": pid,
+                    "timestamp": ts,
+                    "age_sec": round(max(0.0, time.time() - ts), 2) if ts else None,
+                    "label": label,
+                }
+            )
+        except Exception:
+            status["error"] = "unreadable"
+        return status
 
 
 def _read_json(path: Path) -> dict:
@@ -112,10 +196,239 @@ def _write_json(path: Path, payload: dict) -> None:
         pass
 
 
+def _append_stage_history(
+    payload: dict,
+    stage: str,
+    *,
+    run_id: str | None = None,
+    source: str | None = None,
+) -> None:
+    try:
+        history = payload.get("stage_history")
+        if not isinstance(history, list):
+            history = []
+        entry = {
+            "stage": stage,
+            "ts": time.time(),
+        }
+        entry["run_id"] = run_id or payload.get("run_id")
+        if payload.get("scenario_run_id"):
+            entry["scenario_run_id"] = payload.get("scenario_run_id")
+        if source:
+            entry["source"] = source
+        history.append(entry)
+        if len(history) > 200:
+            history = history[-200:]
+        payload["stage_history"] = history
+    except Exception:
+        pass
+
+
 def _write_status(path: Path, status: str, **kwargs) -> None:
     payload = {"status": status, "timestamp": time.time()}
+    reset_history = bool(kwargs.pop("reset_stage_history", False))
+    prev = _read_json(path)
+    if isinstance(prev, dict) and prev.get("stage_history") and not reset_history:
+        payload["stage_history"] = prev.get("stage_history")
     payload.update(kwargs)
+    stage = payload.get("stage")
+    if stage:
+        _append_stage_history(
+            payload,
+            str(stage),
+            run_id=payload.get("run_id"),
+            source="master_verify",
+        )
     _write_json(path, payload)
+
+
+def _update_status_stage(path: Path, stage: str, run_id: str | None = None) -> None:
+    try:
+        payload = _read_json(path)
+        if not isinstance(payload, dict):
+            payload = {}
+    except Exception:
+        payload = {}
+    payload["status"] = payload.get("status") or "running"
+    payload["stage"] = stage
+    payload["stage_timestamp"] = time.time()
+    payload["last_stage_change"] = payload["stage_timestamp"]
+    if run_id:
+        payload["run_id"] = run_id
+    payload["timestamp"] = time.time()
+    _append_stage_history(payload, stage, run_id=run_id, source="master_verify")
+    _write_json(path, payload)
+
+
+def _compute_stage_durations(status_payload: dict, run_id: str | None) -> tuple[list[dict], dict]:
+    history = status_payload.get("stage_history")
+    if not isinstance(history, list) or not history:
+        return [], {}
+    filtered = []
+    for entry in history:
+        if not isinstance(entry, dict):
+            continue
+        if run_id and entry.get("run_id") and entry.get("run_id") != run_id:
+            continue
+        if entry.get("stage") is None:
+            continue
+        filtered.append(entry)
+    if not filtered:
+        return [], {}
+    filtered.sort(key=lambda x: float(x.get("ts") or 0))
+    finished_at = status_payload.get("finished_at")
+    end_fallback = float(finished_at) if finished_at else time.time()
+    timings = []
+    totals: dict[str, float] = {}
+    for idx, entry in enumerate(filtered):
+        start_ts = float(entry.get("ts") or 0)
+        if idx + 1 < len(filtered):
+            end_ts = float(filtered[idx + 1].get("ts") or start_ts)
+        else:
+            end_ts = end_fallback
+        duration = max(0.0, end_ts - start_ts)
+        stage = str(entry.get("stage"))
+        item = {
+            "stage": stage,
+            "start_ts": start_ts,
+            "duration_s": round(duration, 3),
+        }
+        if entry.get("source"):
+            item["source"] = entry.get("source")
+        if entry.get("scenario_run_id"):
+            item["scenario_run_id"] = entry.get("scenario_run_id")
+        timings.append(item)
+        totals[stage] = totals.get(stage, 0.0) + duration
+    totals = {k: round(v, 3) for k, v in totals.items()}
+    return timings, totals
+
+
+def _compute_slow_phases(stage_totals: dict) -> list[dict]:
+    slow: list[dict] = []
+    try:
+        threshold = float(os.getenv("BGL_DIAGNOSTIC_SLOW_STAGE_SEC", "90") or 90)
+    except Exception:
+        threshold = 90.0
+    try:
+        ordered = sorted(stage_totals.items(), key=lambda kv: kv[1], reverse=True)
+    except Exception:
+        ordered = []
+    for stage, duration in ordered:
+        try:
+            dur = float(duration or 0)
+        except Exception:
+            dur = 0.0
+        if dur < threshold:
+            continue
+        slow.append({"stage": stage, "duration_s": round(dur, 3)})
+    return slow
+
+
+def _collect_timeout_ledger(root: Path, status_payload: dict) -> list[dict]:
+    db_path = root / ".bgl_core" / "brain" / "knowledge.db"
+    if not db_path.exists():
+        return []
+    start_ts = status_payload.get("started_at")
+    end_ts = status_payload.get("finished_at") or time.time()
+    try:
+        if start_ts is None:
+            history = status_payload.get("stage_history") or []
+            if isinstance(history, list) and history:
+                start_ts = min(float(h.get("ts") or end_ts) for h in history)
+    except Exception:
+        start_ts = None
+    if start_ts is None:
+        start_ts = max(0.0, end_ts - 7200.0)
+    try:
+        import sqlite3
+    except Exception:
+        return []
+    entries: list[dict] = []
+    try:
+        with sqlite3.connect(str(db_path), timeout=5.0) as conn:
+            conn.row_factory = sqlite3.Row
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT timestamp, session, run_id, scenario_id, source, event_type, route, method, target, step_id, payload, error
+                FROM runtime_events
+                WHERE timestamp BETWEEN ? AND ?
+                  AND event_type IN ('scenario_step_timeout', 'route_check_skipped', 'route_check_ui', 'route_check_api', 'scenario_step_error')
+                ORDER BY timestamp ASC
+                """,
+                (float(start_ts), float(end_ts)),
+            )
+            rows = cur.fetchall()
+            for r in rows:
+                payload = r["payload"]
+                payload_obj = None
+                if payload:
+                    try:
+                        payload_obj = json.loads(payload)
+                    except Exception:
+                        payload_obj = None
+                reason = None
+                if r["event_type"] == "scenario_step_timeout":
+                    if isinstance(payload_obj, dict):
+                        reason = payload_obj.get("timeout_reason") or payload_obj.get("precheck") or None
+                elif r["event_type"] == "route_check_skipped":
+                    reason = r["error"] or (payload_obj.get("reason") if isinstance(payload_obj, dict) else None)
+                elif r["event_type"] in ("route_check_ui", "route_check_api"):
+                    if r["error"]:
+                        reason = r["error"]
+                elif r["event_type"] == "scenario_step_error":
+                    if isinstance(payload_obj, dict):
+                        reason = payload_obj.get("error")
+                    reason = reason or r["error"]
+                entry = {
+                    "timestamp": r["timestamp"],
+                    "event_type": r["event_type"],
+                    "run_id": r["run_id"],
+                    "scenario_id": r["scenario_id"],
+                    "source": r["source"],
+                    "route": r["route"],
+                    "method": r["method"],
+                    "target": r["target"],
+                    "step_id": r["step_id"],
+                    "reason": reason,
+                }
+                if isinstance(payload_obj, dict):
+                    entry["details"] = payload_obj
+                entries.append(entry)
+    except Exception:
+        return []
+    return entries
+
+
+def _heartbeat_status(path: Path, run_id: str | None = None) -> None:
+    try:
+        payload = _read_json(path)
+        if not isinstance(payload, dict):
+            payload = {}
+    except Exception:
+        payload = {}
+    payload.setdefault("status", "running")
+    payload["last_heartbeat"] = time.time()
+    if run_id:
+        payload.setdefault("run_id", run_id)
+    _write_json(path, payload)
+
+
+def _last_input_age_sec() -> float | None:
+    if os.name != "nt":
+        return None
+    try:
+        class LASTINPUTINFO(ctypes.Structure):
+            _fields_ = [("cbSize", ctypes.c_uint), ("dwTime", ctypes.c_uint)]
+
+        li = LASTINPUTINFO()
+        li.cbSize = ctypes.sizeof(LASTINPUTINFO)
+        if ctypes.windll.user32.GetLastInputInfo(ctypes.byref(li)):
+            millis = ctypes.windll.kernel32.GetTickCount() - li.dwTime
+            return float(millis) / 1000.0
+    except Exception:
+        return None
+    return None
 
 
 def _extract_metrics(report: dict) -> dict:
@@ -314,6 +627,15 @@ def _compute_diagnostic_faults(data: dict) -> list:
                 "detail": coverage_rel,
             }
         )
+    slow_phases = data.get("diagnostic_slow_phases") or []
+    if isinstance(slow_phases, list) and slow_phases:
+        faults.append(
+            {
+                "code": "diagnostic_slow_phases",
+                "severity": "medium",
+                "detail": slow_phases,
+            }
+        )
     conf = (data.get("diagnostic_confidence") or {}).get("score")
     if conf is not None:
         try:
@@ -395,16 +717,42 @@ def _mark_aborted_if_stale(lock_path: Path, status_path: Path) -> None:
             alive = True
     except Exception:
         alive = False
+    try:
+        prev = _read_json(status_path)
+    except Exception:
+        prev = {}
+    try:
+        hb_timeout = float(prev.get("heartbeat_timeout_sec") or 180)
+    except Exception:
+        hb_timeout = 180.0
+    last_hb = None
+    try:
+        last_hb = float(prev.get("last_heartbeat") or 0)
+    except Exception:
+        last_hb = None
+    now = time.time()
+    hb_stale = bool(last_hb and (now - last_hb) > hb_timeout)
+    if alive and hb_stale and str(prev.get("status") or "") == "running":
+        _write_status(
+            status_path,
+            "aborted",
+            reason="heartbeat_stale_pid_alive",
+            stale_pid=pid,
+            last_heartbeat=last_hb,
+            heartbeat_timeout_sec=hb_timeout,
+        )
+        return
     if alive:
         return
     try:
-        prev = _read_json(status_path)
         if str(prev.get("status") or "") == "running":
             _write_status(
                 status_path,
                 "aborted",
                 reason="stale_lock_pid_dead",
                 stale_pid=pid,
+                last_heartbeat=last_hb,
+                heartbeat_timeout_sec=hb_timeout,
             )
     except Exception:
         pass
@@ -510,6 +858,7 @@ async def master_assurance_diagnostic():
         pass
     lock_path = ROOT / ".bgl_core" / "logs" / "master_verify.lock"
     status_path = ROOT / ".bgl_core" / "logs" / "diagnostic_status.json"
+    hb_stop: threading.Event | None = None
     try:
         _mark_aborted_if_stale(lock_path, status_path)
     except Exception:
@@ -524,11 +873,13 @@ async def master_assurance_diagnostic():
         and _user_recent_activity(idle_guard)
     ):
         try:
+            last_input_age_sec = _last_input_age_sec()
             _write_status(
                 status_path,
                 "deferred_user_active",
                 reason="recent_input",
                 idle_guard_sec=idle_guard,
+                last_input_age_sec=last_input_age_sec,
             )
         except Exception:
             pass
@@ -538,17 +889,43 @@ async def master_assurance_diagnostic():
     if not ok:
         print(f"[!] master_verify already running ({reason}); skipping.")
         try:
+            lock_info = describe_lock(lock_path, ttl_sec=lock_ttl)
+            lock_info["reason"] = reason
+            _log_runtime_event(
+                ROOT,
+                {
+                    "timestamp": time.time(),
+                    "session": "lock",
+                    "event_type": "lock_blocked",
+                    "route": str(lock_path),
+                    "target": "master_verify",
+                    "payload": lock_info,
+                },
+            )
+        except Exception:
+            pass
+        try:
             _write_status(
                 ROOT / ".bgl_core" / "logs" / "diagnostic_status.json",
                 "skipped",
                 reason=reason,
+                stage="lock_blocked",
             )
         except Exception:
             pass
         return
 
     try:
-        _write_status(status_path, "running", started_at=time.time(), profile="pending")
+        _write_status(
+            status_path,
+            "running",
+            started_at=time.time(),
+            profile="pending",
+            stage="init",
+            run_id=None,
+            reset_stage_history=True,
+            heartbeat_timeout_sec=float(cfg.get("diagnostic_heartbeat_timeout_sec", 180) or 180),
+        )
     except Exception:
         pass
 
@@ -600,6 +977,7 @@ async def master_assurance_diagnostic():
             _write_json(report_path, last_report)
             meta["cached_at"] = now
             _write_json(meta_path, meta)
+            _update_status_stage(status_path, "cache_used")
         except Exception:
             pass
         try:
@@ -630,9 +1008,36 @@ async def master_assurance_diagnostic():
             profile=profile,
             profile_reason=profile_reason,
             overrides=profile_overrides,
+            heartbeat_timeout_sec=float(cfg.get("diagnostic_heartbeat_timeout_sec", 180) or 180),
         )
     except Exception:
         pass
+    try:
+        lock_snapshot = {
+            "master_verify": _read_lock_status(lock_path),
+            "run_scenarios": _read_lock_status(ROOT / ".bgl_core" / "logs" / "run_scenarios.lock"),
+            "scenario_runner": _read_lock_status(ROOT / ".bgl_core" / "logs" / "scenario_runner.lock"),
+        }
+        _write_status(
+            status_path,
+            "running",
+            stage="lock_snapshot",
+            locks=lock_snapshot,
+        )
+    except Exception:
+        pass
+    try:
+        hb_stop = threading.Event()
+
+        def _hb_loop():
+            while not hb_stop.is_set():
+                _heartbeat_status(status_path, run_id=os.getenv("BGL_DIAGNOSTIC_RUN_ID"))
+                hb_stop.wait(15)
+
+        hb_thread = threading.Thread(target=_hb_loop, daemon=True)
+        hb_thread.start()
+    except Exception:
+        hb_stop = None
     # Fast-profile cache shortcut (skip full run even if fingerprint drifted).
     try:
         fast_cache_ttl = float(cfg.get("diagnostic_fast_cache_ttl_sec", 1800) or 1800)
@@ -714,12 +1119,35 @@ async def master_assurance_diagnostic():
             pass
         return
     try:
-        scen_lock = _read_lock_status(ROOT / ".bgl_core" / "logs" / "scenario_runner.lock")
+        scen_lock_path = ROOT / ".bgl_core" / "logs" / "scenario_runner.lock"
+        scen_lock = _read_lock_status(scen_lock_path)
         scen_age = scen_lock.get("age_sec")
-        if scen_lock.get("exists") and scen_age is not None and float(scen_age) < 1800:
+        scen_status = str(scen_lock.get("status") or "")
+        scen_pid_alive = bool(scen_lock.get("pid_alive")) if "pid_alive" in scen_lock else None
+        try:
+            skip_age = int(cfg.get("scenario_lock_skip_age_sec", 600) or 600)
+        except Exception:
+            skip_age = 600
+        should_skip = False
+        if scen_lock.get("exists") and scen_age is not None:
+            if scen_status in ("active_fresh", "recent_lock"):
+                if float(scen_age) < skip_age:
+                    should_skip = True
+            elif scen_pid_alive is True and float(scen_age) < skip_age:
+                should_skip = True
+        if should_skip:
             os.environ["BGL_RUN_SCENARIOS"] = "0"
             profile_overrides.setdefault("BGL_RUN_SCENARIOS", "0")
             profile_overrides.setdefault("scenario_lock_skip", scen_lock)
+        else:
+            # If lock looks stale, try to clear it so scenarios can proceed.
+            if scen_lock.get("exists") and scen_status in ("stale_dead_pid", "active_stale"):
+                try:
+                    release_lock(scen_lock_path)
+                    scen_lock["cleared"] = True
+                    profile_overrides.setdefault("scenario_lock_override", scen_lock)
+                except Exception:
+                    pass
     except Exception:
         pass
 
@@ -755,22 +1183,71 @@ async def master_assurance_diagnostic():
     # Run Full Diagnostic with bounded timeout to avoid hanging browser runs
     run_id = f"diag_{int(time.time())}"
     os.environ["BGL_DIAGNOSTIC_RUN_ID"] = run_id
+    phase_timings: list[dict] = []
+    try:
+        _update_status_stage(status_path, "full_diagnostic", run_id=run_id)
+    except Exception:
+        pass
+
+    def _phase_start(name: str, extra: dict | None = None) -> float:
+        ts = time.time()
+        payload = {"phase": name}
+        if extra:
+            payload.update(extra)
+        _log_runtime_event(
+            ROOT,
+            {
+                "timestamp": ts,
+                "run_id": run_id,
+                "event_type": "diagnostic_phase_start",
+                "source": "master_verify",
+                "payload": payload,
+            },
+        )
+        return ts
+
+    def _phase_end(name: str, start_ts: float, status: str = "ok", reason: str = "", extra: dict | None = None) -> None:
+        end_ts = time.time()
+        duration = max(0.0, end_ts - start_ts)
+        payload = {"phase": name, "duration_s": round(duration, 3), "status": status}
+        if reason:
+            payload["reason"] = reason
+        if extra:
+            payload.update(extra)
+        phase_timings.append(payload)
+        _log_runtime_event(
+            ROOT,
+            {
+                "timestamp": end_ts,
+                "run_id": run_id,
+                "event_type": "diagnostic_phase_end",
+                "source": "master_verify",
+                "payload": payload,
+            },
+        )
     try:
         start_run(ROOT / ".bgl_core" / "brain" / "knowledge.db", run_id=run_id, mode="master_verify")
     except Exception:
         pass
     try:
+        phase_ts = _phase_start("full_diagnostic")
         diagnostic = await asyncio.wait_for(core.run_full_diagnostic(), timeout=timeout)
+        _phase_end("full_diagnostic", phase_ts)
         try:
             diagnostic["diagnostic_profile"] = profile
             diagnostic["diagnostic_profile_reason"] = profile_reason
             diagnostic["diagnostic_profile_overrides"] = profile_overrides
             diagnostic.setdefault("cache_used", False)
             diagnostic.setdefault("cache_reason", "")
+            diagnostic["diagnostic_phase_timings"] = phase_timings
         except Exception:
             pass
     except asyncio.TimeoutError:
         print(f"[CRITICAL] Diagnostic timed out after {timeout}s.")
+        try:
+            _phase_end("full_diagnostic", phase_ts, status="timeout", reason="diagnostic_timeout")
+        except Exception:
+            pass
         # Fallback to cached report to keep pipeline responsive.
         if profile == "fast" and last_report:
             try:
@@ -788,6 +1265,7 @@ async def master_assurance_diagnostic():
                 finished_at=time.time(),
                 profile=profile,
                 reason="diagnostic_timeout",
+                stage="timeout",
             )
         except Exception:
             pass
@@ -795,6 +1273,11 @@ async def master_assurance_diagnostic():
     finally:
         try:
             release_lock(lock_path)
+        except Exception:
+            pass
+        try:
+            if hb_stop is not None:
+                hb_stop.set()
         except Exception:
             pass
         try:
@@ -840,23 +1323,29 @@ async def master_assurance_diagnostic():
     else:
         # Build callgraph for reporting/reference
         callgraph_timeout = _scaled_timeout(cfg.get("callgraph_timeout_sec", 60) or 60, floor=15)
+        _cg_start = _phase_start("callgraph_builder")
         diagnostic["findings"]["callgraph_meta"] = _run_with_timeout(
             "callgraph_builder", lambda: build_callgraph(ROOT), callgraph_timeout, {}
         )
+        _phase_end("callgraph_builder", _cg_start)
 
         # Generate OpenAPI (merged) for contract tests and reference
         openapi_timeout = _scaled_timeout(cfg.get("openapi_timeout_sec", 60) or 60, floor=15)
+        _oa_start = _phase_start("openapi_generate")
         openapi_path = _run_with_timeout(
             "openapi_generate", lambda: generate_openapi(ROOT), openapi_timeout, None
         )
+        _phase_end("openapi_generate", _oa_start)
         diagnostic["openapi_path"] = str(openapi_path) if openapi_path else ""
 
         # Optional: run API contract/property tests (Schemathesis/Dredd) if enabled
         if cfg.get("run_api_contract", 0):
             contract_timeout = _scaled_timeout(cfg.get("contract_timeout_sec", 120) or 120, floor=30)
+            _ct_start = _phase_start("contract_suite")
             contract_results = _run_with_timeout(
                 "contract_suite", lambda: run_contract_suite(ROOT), contract_timeout, []
             )
+            _phase_end("contract_suite", _ct_start)
             diagnostic.setdefault("gap_tests", []).extend(contract_results)
             diagnostic.setdefault("findings", {}).setdefault("gap_tests", []).extend(contract_results)
 
@@ -913,6 +1402,11 @@ async def master_assurance_diagnostic():
             insights_timeout = _scaled_timeout(
                 cfg.get("auto_insights_timeout_sec", 60) or 60, floor=15
             )
+            try:
+                _update_status_stage(status_path, "auto_insights", run_id=run_id)
+            except Exception:
+                pass
+            _ai_start = _phase_start("auto_insights")
             auto_insights_status = _run_with_timeout(
                 "auto_insights",
                 lambda: audit_auto_insights(
@@ -921,8 +1415,13 @@ async def master_assurance_diagnostic():
                 insights_timeout,
                 {},
             )
+            _phase_end("auto_insights", _ai_start)
             diagnostic["findings"]["auto_insights_status"] = auto_insights_status
             write_auto_insights_status(ROOT, auto_insights_status)
+            try:
+                _update_status_stage(status_path, "auto_insights_done", run_id=run_id)
+            except Exception:
+                pass
         except Exception:
             diagnostic["findings"]["auto_insights_status"] = {}
 
@@ -989,6 +1488,7 @@ async def master_assurance_diagnostic():
         output = Path(".bgl_core/logs/latest_report.html")
         data = {
             "timestamp": diagnostic.get("timestamp"),
+            "diagnostic_run_id": diagnostic.get("diagnostic_run_id", run_id),
             "health_score": diagnostic.get("health_score", 0),
             "health_score_status": diagnostic.get("health_score_status", ""),
             "route_scan_limit": diagnostic.get("route_scan_limit", 0),
@@ -1201,6 +1701,23 @@ async def master_assurance_diagnostic():
         except Exception:
             data["diagnostic_status"] = {}
         try:
+            stage_timings, stage_totals = _compute_stage_durations(
+                data.get("diagnostic_status") or {}, data.get("diagnostic_run_id")
+            )
+            data["diagnostic_stage_timings"] = stage_timings
+            data["diagnostic_stage_totals"] = stage_totals
+            data["diagnostic_slow_phases"] = _compute_slow_phases(stage_totals)
+        except Exception:
+            data["diagnostic_stage_timings"] = []
+            data["diagnostic_stage_totals"] = {}
+            data["diagnostic_slow_phases"] = []
+        try:
+            data["diagnostic_timeout_ledger"] = _collect_timeout_ledger(
+                ROOT, data.get("diagnostic_status") or {}
+            )
+        except Exception:
+            data["diagnostic_timeout_ledger"] = []
+        try:
             data["schema_drift"] = check_schema(ROOT / ".bgl_core" / "brain" / "knowledge.db")
         except Exception:
             data["schema_drift"] = {"ok": False, "error": "schema_check_failed"}
@@ -1213,7 +1730,41 @@ async def master_assurance_diagnostic():
             data["diagnostic_comparison"] = _compare_reports(last_report, data)
         except Exception:
             data["diagnostic_comparison"] = {}
+        data["diagnostic_phase_timings"] = diagnostic.get("diagnostic_phase_timings", [])
+        try:
+            scen_run_id = (data.get("scenario_run_stats") or {}).get("run_id")
+            diag_run_id = data.get("diagnostic_run_id")
+            if scen_run_id and diag_run_id and str(scen_run_id) != str(diag_run_id):
+                _write_status(
+                    status_path,
+                    "running",
+                    stage="run_id_mismatch",
+                    run_id=diag_run_id,
+                    mismatch_scenario_run_id=scen_run_id,
+                )
+        except Exception:
+            pass
+        try:
+            _update_status_stage(status_path, "report_render", run_id=run_id)
+        except Exception:
+            pass
+        _br_start = _phase_start("build_report")
         build_report(data, template, output)
+        _phase_end("build_report", _br_start)
+        try:
+            if (
+                phase_timings
+                and isinstance(phase_timings[-1], dict)
+                and phase_timings[-1].get("phase") == "build_report"
+            ):
+                data["report_render_duration_s"] = phase_timings[-1].get("duration_s")
+        except Exception:
+            pass
+        try:
+            data["diagnostic_phase_timings"] = phase_timings
+            build_report(data, template, output)
+        except Exception:
+            pass
         # Write JSON alongside HTML for dashboard consumption
         json_out = Path(".bgl_core/logs/latest_report.json")
         json_out.write_text(
@@ -1267,6 +1818,7 @@ async def master_assurance_diagnostic():
                 finished_at=time.time(),
                 profile=diagnostic.get("diagnostic_profile"),
                 cache_used=bool(diagnostic.get("cache_used")),
+                stage="complete",
             )
         except Exception:
             pass
@@ -1279,6 +1831,7 @@ async def master_assurance_diagnostic():
                 finished_at=time.time(),
                 reason=str(e),
                 profile=diagnostic.get("diagnostic_profile"),
+                stage="error",
             )
         except Exception:
             pass
@@ -1288,7 +1841,7 @@ async def master_assurance_diagnostic():
     print("=" * 70 + "\n")
 
     # Log completion for dashboard
-    log_activity(ROOT, "master_verify_complete")
+    log_activity(ROOT, "master_verify_complete", {"run_id": run_id})
 
 
 if __name__ == "__main__":

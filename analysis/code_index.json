@@ -1,6 +1,6 @@
 {
   "meta": {
-    "started_at": 1770705916.3663702,
+    "started_at": 1770770854.7429035,
     "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
     "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
     "ok": true
@@ -3226,8 +3226,11 @@
       ],
       "classes": {},
       "imports": [
+        "importlib.util",
         "pathlib",
+        "shutil",
         "subprocess",
+        "sys",
         "typing"
       ]
     },
@@ -3503,6 +3506,7 @@
           "_contract_missing_routes",
           "_contract_quality_gaps",
           "_count_runtime_events",
+          "_count_runtime_events_fallback",
           "_decision_explanations",
           "_dedupe_permissions",
           "_dependency_graph_summary",
@@ -3536,6 +3540,7 @@
           "_sequence_matches",
           "_target_duration",
           "_unify_actions",
+          "_update_diagnostic_status",
           "_update_route_health",
           "_worst_routes",
           "_write_autonomy_goal",
@@ -3886,21 +3891,29 @@
     },
     ".bgl_core\\brain\\master_verify.py": {
       "functions": [
+        "_append_stage_history",
         "_apply_profile_env",
         "_classify_delta",
+        "_collect_timeout_ledger",
         "_compare_reports",
         "_compute_diagnostic_confidence",
         "_compute_diagnostic_faults",
         "_compute_diagnostic_self_check",
+        "_compute_slow_phases",
+        "_compute_stage_durations",
         "_current_fingerprint_payload",
         "_extract_metrics",
+        "_heartbeat_status",
+        "_last_input_age_sec",
         "_load_baseline_report",
+        "_log_runtime_event",
         "_mark_aborted_if_stale",
         "_read_json",
         "_read_lock_status",
         "_run_with_timeout",
         "_sanitize_baseline_report",
         "_select_profile",
+        "_update_status_stage",
         "_user_recent_activity",
         "_write_json",
         "_write_status",
@@ -4345,6 +4358,7 @@
         "_ensure_table",
         "_has_column",
         "_load_attribution",
+        "_log_runtime_event",
         "finish_run",
         "start_run"
       ],
@@ -4363,6 +4377,7 @@
         "_parse_lock",
         "_pid_alive",
         "acquire_lock",
+        "describe_lock",
         "refresh_lock",
         "release_lock"
       ],
@@ -4378,9 +4393,12 @@
     },
     ".bgl_core\\brain\\run_scenarios.py": {
       "functions": [
+        "_detect_trigger_source",
         "_ensure_env",
         "_log_activity",
+        "_log_runtime_event",
         "_run_real_scenarios",
+        "_update_diagnostic_status_stage",
         "main",
         "simulate_traffic"
       ],
@@ -4522,6 +4540,7 @@
         "_ensure_exploration_table",
         "_ensure_goal_strategy_table",
         "_ensure_outcomes_tables",
+        "_ensure_selector_cooldown_table",
         "_ensure_semantic_steps",
         "_escape_has_text",
         "_external_dependency_patterns",
@@ -4531,6 +4550,7 @@
         "_fallback_autonomous_steps",
         "_flag_truthy",
         "_generate_autonomous_plan",
+        "_get_selector_cooldown",
         "_goal_flow_priority",
         "_goal_route_kind",
         "_goal_to_scenario",
@@ -4581,9 +4601,12 @@
         "_record_exploration_outcome",
         "_record_explored_selector",
         "_record_goal_strategy_result",
+        "_record_selector_failure",
+        "_record_selector_success",
         "_refresh_scenario_lock",
         "_resolve_route_to_file",
         "_reward_exploration_from_outcomes",
+        "_route_key_from_url",
         "_route_source_files",
         "_routes_for_file",
         "_routes_last_index_ts",
@@ -4613,6 +4636,7 @@
         "_try_click_search_button",
         "_unique_order",
         "_unknown_routes_from_runtime",
+        "_update_diagnostic_status_stage",
         "_write_autonomy_goal",
         "ensure_cursor",
         "ensure_dev_mode",
@@ -4656,6 +4680,7 @@
         "route_indexer",
         "run_ledger",
         "run_lock",
+        "scenario_scheduler",
         "sqlite3",
         "subprocess",
         "sys",
@@ -4664,6 +4689,41 @@
         "urllib.error",
         "urllib.parse",
         "urllib.request",
+        "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\scenario_scheduler.py": {
+      "functions": [
+        "_auto_tune",
+        "_base_weights",
+        "_build_key_map",
+        "_cfg_bool",
+        "_cfg_number",
+        "_collect_durations",
+        "_collect_global_stats",
+        "_collect_runtime_stats",
+        "_extract_meta",
+        "_load_state",
+        "_normalize_scenario_key",
+        "_safe_yaml",
+        "_save_state",
+        "_score_scenario",
+        "main",
+        "select_scenarios",
+        "write_selection_report"
+      ],
+      "classes": {
+        "ScenarioMeta": []
+      },
+      "imports": [
+        "config_loader",
+        "dataclasses",
+        "json",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "typing",
         "yaml"
       ]
     },
@@ -5710,7 +5770,7 @@
     }
   },
   "risk_summary": {
-    "high": 156,
+    "high": 157,
     "medium": 172,
     "low": 62
   }

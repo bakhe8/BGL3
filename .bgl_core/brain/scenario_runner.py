@@ -109,14 +109,15 @@ except Exception:
         start_run = None  # type: ignore
         finish_run = None  # type: ignore
 try:
-    from .run_lock import acquire_lock, release_lock, refresh_lock  # type: ignore
+    from .run_lock import acquire_lock, release_lock, refresh_lock, describe_lock  # type: ignore
 except Exception:
     try:
-        from run_lock import acquire_lock, release_lock, refresh_lock  # type: ignore
+        from run_lock import acquire_lock, release_lock, refresh_lock, describe_lock  # type: ignore
     except Exception:
         acquire_lock = None  # type: ignore
         release_lock = None  # type: ignore
         refresh_lock = None  # type: ignore
+        describe_lock = None  # type: ignore
 
 try:
     from .long_term_goals import pick_long_term_goals, record_long_term_goal_result  # type: ignore
@@ -135,6 +136,7 @@ from route_indexer import LaravelRouteIndexer  # type: ignore
 
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 ROOT_DIR = Path(__file__).resolve().parents[2]
+DB_PATH = ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
 SCENARIO_LOCK_PATH = ROOT_DIR / ".bgl_core" / "logs" / "scenario_runner.lock"
 _SCENARIO_LOCKED = False
 _LAST_LOCK_HEARTBEAT = 0.0
@@ -233,6 +235,13 @@ def _acquire_scenario_lock(cfg: dict) -> tuple[bool, str]:
         ttl = int(os.getenv("BGL_SCENARIO_LOCK_TTL", str(cfg.get("scenario_lock_ttl_sec", 7200))))
     except Exception:
         ttl = 7200
+    # Optional: force-takeover after shorter max age (protects from stale locks observed in reports).
+    try:
+        max_age = cfg.get("scenario_lock_max_age_sec")
+        if max_age is not None:
+            os.environ.setdefault("BGL_SCENARIO_LOCK_MAX_AGE_SEC", str(int(max_age)))
+    except Exception:
+        pass
     ok, reason = acquire_lock(SCENARIO_LOCK_PATH, ttl_sec=ttl, label="scenario_runner")
     if ok:
         _SCENARIO_LOCKED = True
@@ -240,6 +249,26 @@ def _acquire_scenario_lock(cfg: dict) -> tuple[bool, str]:
         _LAST_LOCK_HEARTBEAT = time.time()
         if release_lock is not None:
             atexit.register(lambda: release_lock(SCENARIO_LOCK_PATH))
+    else:
+        try:
+            lock_info = {"path": str(SCENARIO_LOCK_PATH), "reason": reason}
+            if describe_lock is not None:
+                lock_info = describe_lock(SCENARIO_LOCK_PATH, ttl_sec=ttl)
+                lock_info["reason"] = reason
+            log_event(
+                DB_PATH,
+                session="lock",
+                event={
+                    "timestamp": time.time(),
+                    "event_type": "lock_blocked",
+                    "source": "scenario_runner",
+                    "route": str(SCENARIO_LOCK_PATH),
+                    "target": "scenario_runner",
+                    "payload": lock_info,
+                },
+            )
+        except Exception:
+            pass
     return ok, reason
 
 
@@ -318,6 +347,20 @@ async def _maybe_store_semantic_snapshot(
             prev = previous_ui_semantic_snapshot(db_path, url=url, before_ts=created_at)
             if prev and prev.get("summary"):
                 delta = compute_ui_semantic_delta(prev.get("summary"), summary)
+            else:
+                prev_any = previous_ui_semantic_snapshot(db_path, url=None, before_ts=created_at)
+                if prev_any and prev_any.get("summary"):
+                    delta = compute_ui_semantic_delta(prev_any.get("summary"), summary)
+                    if not delta.get("changed"):
+                        try:
+                            prev_url = str(prev_any.get("url") or "")
+                        except Exception:
+                            prev_url = ""
+                        if prev_url and prev_url != url:
+                            delta["changed"] = True
+                            delta["reason"] = "new_url"
+                            delta["change_count"] = max(1, int(delta.get("change_count") or 0))
+                            delta["prev_url"] = prev_url
     except Exception:
         pass
     try:
@@ -386,9 +429,16 @@ async def _maybe_store_action_snapshot(
     for c in candidates:
         if not isinstance(c, dict):
             continue
+        selector_key = str(c.get("selector_key") or "")
+        if not selector_key:
+            try:
+                selector_key = _selector_key_from_selector(str(c.get("selector") or ""))
+            except Exception:
+                selector_key = ""
         compact.append(
             {
                 "selector": c.get("selector") or "",
+                "selector_key": selector_key,
                 "href": c.get("href") or "",
                 "text": c.get("text") or "",
                 "tag": c.get("tag") or "",
@@ -1673,6 +1723,23 @@ async def run_step(
                         "status": None,
                     },
                 )
+                try:
+                    if action in ("click", "press", "type"):
+                        selector = str(step.get("selector") or "")
+                        href = str(step.get("href") or "")
+                        if selector:
+                            selector_key = str(step.get("selector_key") or "") or _selector_key_from_selector(selector)
+                            _record_exploration_outcome(
+                                db_path,
+                                selector=selector,
+                                href=href,
+                                route=page.url if hasattr(page, "url") else "",
+                                result="no_change",
+                                delta_score=-0.6,
+                                selector_key=selector_key,
+                            )
+                except Exception:
+                    pass
                 if action == "hover":
                     log_event(
                         db_path,
@@ -2922,6 +2989,49 @@ def _cfg_value(key: str, default: Any = None) -> Any:
         return cfg.get(key, default)
     except Exception:
         return default
+
+
+def _update_diagnostic_status_stage(stage: str) -> None:
+    if not os.getenv("BGL_DIAGNOSTIC_RUN_ID"):
+        return
+    try:
+        status_path = ROOT_DIR / ".bgl_core" / "logs" / "diagnostic_status.json"
+        payload = {}
+        if status_path.exists():
+            try:
+                payload = json.loads(status_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                payload = {}
+        payload["status"] = payload.get("status") or "running"
+        payload["stage"] = stage
+        payload["stage_timestamp"] = time.time()
+        payload["last_stage_change"] = payload["stage_timestamp"]
+        payload["run_id"] = os.getenv("BGL_DIAGNOSTIC_RUN_ID") or payload.get("run_id")
+        try:
+            history = payload.get("stage_history")
+            if not isinstance(history, list):
+                history = []
+            entry = {
+                "stage": stage,
+                "ts": payload["stage_timestamp"],
+                "run_id": payload.get("run_id"),
+                "source": "scenario_runner",
+            }
+            if payload.get("scenario_run_id"):
+                entry["scenario_run_id"] = payload.get("scenario_run_id")
+            history.append(entry)
+            if len(history) > 200:
+                history = history[-200:]
+            payload["stage_history"] = history
+        except Exception:
+            pass
+        payload["timestamp"] = time.time()
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+        status_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
+    except Exception:
+        pass
 
 
 def _recent_runtime_routes(db_path: Path, limit: int = 200) -> List[str]:
@@ -6177,6 +6287,170 @@ def _selector_key_from_selector(selector: str) -> str:
     return ""
 
 
+def _route_key_from_url(url: str) -> str:
+    try:
+        parsed = urlparse(url or "")
+        return str(parsed.path or "") or ""
+    except Exception:
+        return ""
+
+
+def _ensure_selector_cooldown_table(db: sqlite3.Connection) -> None:
+    try:
+        db.execute(
+            """
+            CREATE TABLE IF NOT EXISTS selector_cooldowns (
+                selector_key TEXT NOT NULL,
+                route_key TEXT NOT NULL,
+                fail_count INTEGER DEFAULT 0,
+                last_seen REAL,
+                cooldown_until REAL DEFAULT 0,
+                last_reason TEXT,
+                last_run_id TEXT,
+                PRIMARY KEY (selector_key, route_key)
+            )
+            """
+        )
+    except Exception:
+        pass
+
+
+def _get_selector_cooldown(db_path: Path, selector_key: str, route_key: str) -> Optional[Dict[str, Any]]:
+    if not selector_key or not route_key or not db_path.exists():
+        return None
+    try:
+        db = connect_db(str(db_path), timeout=3.0)
+        _ensure_selector_cooldown_table(db)
+        row = db.execute(
+            """
+            SELECT fail_count, cooldown_until, last_reason, last_seen
+            FROM selector_cooldowns
+            WHERE selector_key=? AND route_key=?
+            """,
+            (selector_key, route_key),
+        ).fetchone()
+        db.close()
+        if not row:
+            return None
+        return {
+            "fail_count": int(row[0] or 0),
+            "cooldown_until": float(row[1] or 0),
+            "last_reason": str(row[2] or ""),
+            "last_seen": float(row[3] or 0),
+        }
+    except Exception:
+        return None
+
+
+def _record_selector_failure(
+    db_path: Path,
+    selector_key: str,
+    route_key: str,
+    *,
+    reason: str,
+    run_id: str,
+) -> Optional[Dict[str, Any]]:
+    if not selector_key or not route_key or not db_path.exists():
+        return None
+    now = time.time()
+    try:
+        db = connect_db(str(db_path), timeout=3.0)
+        _ensure_selector_cooldown_table(db)
+        row = db.execute(
+            """
+            SELECT fail_count, cooldown_until
+            FROM selector_cooldowns
+            WHERE selector_key=? AND route_key=?
+            """,
+            (selector_key, route_key),
+        ).fetchone()
+        fail_count = int(row[0] or 0) if row else 0
+        fail_count += 1
+        try:
+            threshold = int(_cfg_value("selector_cooldown_threshold", 3) or 3)
+        except Exception:
+            threshold = 3
+        try:
+            base_minutes = float(_cfg_value("selector_cooldown_minutes", 10) or 10)
+        except Exception:
+            base_minutes = 10.0
+        try:
+            max_minutes = float(_cfg_value("selector_cooldown_max_minutes", 120) or 120)
+        except Exception:
+            max_minutes = 120.0
+        cooldown_until = float(row[1] or 0) if row else 0.0
+        if fail_count >= threshold:
+            backoff_factor = 1.0 + max(0, fail_count - threshold)
+            cooldown_sec = min(max_minutes * 60.0, base_minutes * 60.0 * backoff_factor)
+            cooldown_until = max(cooldown_until, now + cooldown_sec)
+        db.execute(
+            """
+            INSERT INTO selector_cooldowns (selector_key, route_key, fail_count, last_seen, cooldown_until, last_reason, last_run_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(selector_key, route_key) DO UPDATE SET
+                fail_count=excluded.fail_count,
+                last_seen=excluded.last_seen,
+                cooldown_until=excluded.cooldown_until,
+                last_reason=excluded.last_reason,
+                last_run_id=excluded.last_run_id
+            """,
+            (selector_key, route_key, fail_count, now, cooldown_until, reason, run_id),
+        )
+        db.commit()
+        db.close()
+        return {
+            "fail_count": fail_count,
+            "cooldown_until": cooldown_until,
+        }
+    except Exception:
+        return None
+
+
+def _record_selector_success(db_path: Path, selector_key: str, route_key: str) -> None:
+    if not selector_key or not route_key or not db_path.exists():
+        return
+    try:
+        db = connect_db(str(db_path), timeout=3.0)
+        _ensure_selector_cooldown_table(db)
+        row = db.execute(
+            """
+            SELECT fail_count
+            FROM selector_cooldowns
+            WHERE selector_key=? AND route_key=?
+            """,
+            (selector_key, route_key),
+        ).fetchone()
+        if row:
+            fail_count = max(0, int(row[0] or 0) - 1)
+            try:
+                threshold = int(_cfg_value("selector_cooldown_threshold", 3) or 3)
+            except Exception:
+                threshold = 3
+            cooldown_until = 0.0 if fail_count < threshold else None
+            if cooldown_until is not None:
+                db.execute(
+                    """
+                    UPDATE selector_cooldowns
+                    SET fail_count=?, cooldown_until=?, last_seen=?
+                    WHERE selector_key=? AND route_key=?
+                    """,
+                    (fail_count, cooldown_until, time.time(), selector_key, route_key),
+                )
+            else:
+                db.execute(
+                    """
+                    UPDATE selector_cooldowns
+                    SET fail_count=?, last_seen=?
+                    WHERE selector_key=? AND route_key=?
+                    """,
+                    (fail_count, time.time(), selector_key, route_key),
+                )
+            db.commit()
+        db.close()
+    except Exception:
+        return
+
+
 def _build_selector_candidates(ui_map: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     seen = set()
     out: List[Dict[str, Any]] = []
@@ -6959,6 +7233,25 @@ async def _run_scenario_impl(
     idle_recovery_enabled = bool(
         int(os.getenv("BGL_IDLE_RECOVERY", str(_cfg_value("idle_recovery_enabled", 1))))
     )
+    cooldown_state = getattr(manager, "_bgl_selector_cooldown_state", None)
+    if cooldown_state is None:
+        cooldown_state = {
+            "run_failures": {},
+            "cooldowns": {},
+            "state_bypass": False,
+        }
+        manager._bgl_selector_cooldown_state = cooldown_state  # type: ignore
+    try:
+        run_fail_limit = int(_cfg_value("selector_run_fail_limit", 2) or 2)
+    except Exception:
+        run_fail_limit = 2
+
+    def _clear_run_failures_for_route(route_key: str) -> None:
+        if not route_key:
+            return
+        keys = [k for k in cooldown_state["run_failures"].keys() if k.startswith(route_key + "|")]
+        for k in keys:
+            cooldown_state["run_failures"].pop(k, None)
 
     async def _idle_recovery(reason: str) -> None:
         nonlocal last_change_ts
@@ -7167,6 +7460,13 @@ async def _run_scenario_impl(
         step_id = f"{name}:{idx}"
         attempt = 0
         state_retries = 0
+        selector = str(step.get("selector", ""))
+        action = str(step.get("action", ""))
+        selector_key_base = (
+            str(step.get("selector_key") or "")
+            or _selector_key_from_selector(selector)
+            or selector
+        )
         while True:
             try:
                 if page.is_closed():
@@ -7180,6 +7480,15 @@ async def _run_scenario_impl(
                         ui_state_result = await _handle_ui_states(
                             page, db_path, name, reason="before_step"
                         )
+                        try:
+                            if ui_state_result and (ui_state_result.get("actions") or ui_state_result.get("retry")):
+                                cooldown_state["state_bypass"] = True
+                                route_key = _route_key_from_url(
+                                    page.url if hasattr(page, "url") else ""
+                                )
+                                _clear_run_failures_for_route(route_key)
+                        except Exception:
+                            pass
                         if ui_state_result and ui_state_result.get("retry") and state_retries < 1:
                             state_retries += 1
                             await page.wait_for_timeout(180)
@@ -7198,8 +7507,71 @@ async def _run_scenario_impl(
                     steps_since_explore = 0
                 # Precheck target element state for clearer failure reasons
                 try:
-                    selector = str(step.get("selector", ""))
-                    action = str(step.get("action", ""))
+                    selector_key = ""
+                    route_key = _route_key_from_url(page.url if hasattr(page, "url") else "")
+                    if selector and action in ("click", "type", "press", "hover"):
+                        selector_key = selector_key_base
+                        if not route_key:
+                            route_key = "unknown"
+                        run_key = f"{route_key}|{selector_key}"
+                        state_bypass = bool(cooldown_state.pop("state_bypass", False))
+                        if state_bypass:
+                            _clear_run_failures_for_route(route_key)
+                        else:
+                            run_failures = cooldown_state["run_failures"]
+                            if run_failures.get(run_key, 0) >= run_fail_limit:
+                                log_event(
+                                    db_path,
+                                    name,
+                                    {
+                                        "event_type": "selector_backoff",
+                                        "route": selector,
+                                        "method": action.upper(),
+                                        "payload": json.dumps(
+                                            {
+                                                "level": "run",
+                                                "selector_key": selector_key,
+                                                "route_key": route_key,
+                                                "run_failures": run_failures.get(run_key, 0),
+                                                "reason": "run_fail_limit",
+                                            },
+                                            ensure_ascii=False,
+                                        ),
+                                        "status": None,
+                                    },
+                                )
+                                break
+                            cooldown_entry = cooldown_state["cooldowns"].get(run_key)
+                            if cooldown_entry is None:
+                                cooldown_entry = _get_selector_cooldown(
+                                    db_path, selector_key, route_key
+                                )
+                                if cooldown_entry:
+                                    cooldown_state["cooldowns"][run_key] = cooldown_entry
+                            if cooldown_entry and float(cooldown_entry.get("cooldown_until") or 0) > time.time():
+                                remaining = round(float(cooldown_entry.get("cooldown_until") or 0) - time.time(), 2)
+                                log_event(
+                                    db_path,
+                                    name,
+                                    {
+                                        "event_type": "selector_backoff",
+                                        "route": selector,
+                                        "method": action.upper(),
+                                        "payload": json.dumps(
+                                            {
+                                                "level": "cooldown",
+                                                "selector_key": selector_key,
+                                                "route_key": route_key,
+                                                "cooldown_until": cooldown_entry.get("cooldown_until"),
+                                                "remaining_s": remaining,
+                                                "reason": cooldown_entry.get("last_reason") or "cooldown_active",
+                                            },
+                                            ensure_ascii=False,
+                                        ),
+                                        "status": None,
+                                    },
+                                )
+                                break
                     if selector and action in ("click", "type", "press"):
                         precheck = await _probe_element_state(page, action, selector)
                         step["_precheck"] = precheck
@@ -7260,6 +7632,7 @@ async def _run_scenario_impl(
                     pass
 
                 # Log step start for attribution
+                step_started_at = time.time()
                 try:
                     log_event(
                         db_path,
@@ -7270,7 +7643,11 @@ async def _run_scenario_impl(
                             "method": str(step.get("action", "")).upper(),
                             "step_id": step_id,
                             "source": "scenario",
-                            "payload": {"step_index": idx, "step": step},
+                            "payload": {
+                                "step_index": idx,
+                                "step": step,
+                                "started_at": step_started_at,
+                            },
                         },
                     )
                 except Exception:
@@ -7317,6 +7694,25 @@ async def _run_scenario_impl(
                             _run_step_guarded(), timeout=step_timeout
                         )
                     except asyncio.TimeoutError:
+                        duration_s = round(time.time() - step_started_at, 3)
+                        timeout_reason = "unknown"
+                        try:
+                            precheck = step.get("_precheck") or {}
+                            if precheck:
+                                if not precheck.get("found"):
+                                    timeout_reason = "selector_not_found"
+                                elif precheck.get("visible") is False:
+                                    timeout_reason = "not_visible"
+                                elif precheck.get("enabled") is False:
+                                    timeout_reason = "not_enabled"
+                                elif precheck.get("obscured") is True:
+                                    timeout_reason = "obscured"
+                                elif precheck.get("disabled") is True:
+                                    timeout_reason = "disabled"
+                                elif precheck.get("readonly") is True:
+                                    timeout_reason = "readonly"
+                        except Exception:
+                            pass
                         log_event(
                             db_path,
                             name,
@@ -7329,22 +7725,103 @@ async def _run_scenario_impl(
                                     {
                                         "step_index": idx,
                                         "timeout_sec": step_timeout,
+                                        "duration_s": duration_s,
+                                        "timeout_reason": timeout_reason,
                                         "step": step,
                                         "precheck": step.get("_precheck"),
+                                        "page_url": getattr(page, "url", None),
                                     },
                                     ensure_ascii=False,
                                 ),
                             },
                         )
+                        try:
+                            if selector_key_base and action in ("click", "type", "press", "hover"):
+                                route_key = _route_key_from_url(
+                                    page.url if hasattr(page, "url") else ""
+                                )
+                                if not route_key:
+                                    route_key = "unknown"
+                                run_key = f"{route_key}|{selector_key_base}"
+                                run_failures = cooldown_state["run_failures"]
+                                run_failures[run_key] = run_failures.get(run_key, 0) + 1
+                                cooldown_info = _record_selector_failure(
+                                    db_path,
+                                    selector_key_base,
+                                    route_key,
+                                    reason="scenario_step_timeout",
+                                    run_id=_CURRENT_RUN_ID,
+                                )
+                                if cooldown_info:
+                                    cooldown_state["cooldowns"][run_key] = {
+                                        **cooldown_info,
+                                        "last_reason": "scenario_step_timeout",
+                                    }
+                        except Exception:
+                            pass
                         # If optional, skip; otherwise abort scenario early.
                         if step.get("optional"):
                             break
                         return
+                    except Exception as e:
+                        duration_s = round(time.time() - step_started_at, 3)
+                        try:
+                            log_event(
+                                db_path,
+                                name,
+                                {
+                                    "event_type": "scenario_step_error",
+                                    "route": step.get("url", "") or step.get("selector", ""),
+                                    "method": str(step.get("action", "")).upper(),
+                                    "status": None,
+                                    "payload": json.dumps(
+                                        {
+                                            "step_index": idx,
+                                            "duration_s": duration_s,
+                                            "error": str(e),
+                                            "step": step,
+                                            "page_url": getattr(page, "url", None),
+                                        },
+                                        ensure_ascii=False,
+                                    ),
+                                },
+                            )
+                        except Exception:
+                            pass
+                        raise
                 else:
-                    step_result = await _run_step_guarded()
+                    try:
+                        step_result = await _run_step_guarded()
+                    except Exception as e:
+                        duration_s = round(time.time() - step_started_at, 3)
+                        try:
+                            log_event(
+                                db_path,
+                                name,
+                                {
+                                    "event_type": "scenario_step_error",
+                                    "route": step.get("url", "") or step.get("selector", ""),
+                                    "method": str(step.get("action", "")).upper(),
+                                    "status": None,
+                                    "payload": json.dumps(
+                                        {
+                                            "step_index": idx,
+                                            "duration_s": duration_s,
+                                            "error": str(e),
+                                            "step": step,
+                                            "page_url": getattr(page, "url", None),
+                                        },
+                                        ensure_ascii=False,
+                                    ),
+                                },
+                            )
+                        except Exception:
+                            pass
+                        raise
 
                 # Log step completion
                 try:
+                    duration_s = round(time.time() - step_started_at, 3)
                     log_event(
                         db_path,
                         name,
@@ -7354,7 +7831,11 @@ async def _run_scenario_impl(
                             "method": str(step.get("action", "")).upper(),
                             "step_id": step_id,
                             "source": "scenario",
-                            "payload": {"step_index": idx},
+                            "payload": {
+                                "step_index": idx,
+                                "duration_s": duration_s,
+                                "page_url": getattr(page, "url", None),
+                            },
                         },
                     )
                 except Exception:
@@ -7365,6 +7846,18 @@ async def _run_scenario_impl(
                         scenario_changed = True
                         stall_count = 0
                         last_change_ts = time.time()
+                        try:
+                            if selector_key_base and action in ("click", "type", "press", "hover"):
+                                route_key = _route_key_from_url(
+                                    step_result.get("url", "") or (page.url if hasattr(page, "url") else "")
+                                )
+                                if not route_key:
+                                    route_key = "unknown"
+                                _record_selector_success(db_path, selector_key_base, route_key)
+                                cooldown_state["state_bypass"] = True
+                                _clear_run_failures_for_route(route_key)
+                        except Exception:
+                            pass
                     elif step_result.get("unchanged"):
                         stall_count += 1
                         if (
@@ -7383,6 +7876,13 @@ async def _run_scenario_impl(
                         page, motor, explored, name, learn_log, db_path
                     )
                     steps_since_explore = 0
+                    try:
+                        route_key = _route_key_from_url(page.url if hasattr(page, "url") else "")
+                        if route_key:
+                            cooldown_state["state_bypass"] = True
+                            _clear_run_failures_for_route(route_key)
+                    except Exception:
+                        pass
                 break
             except Exception as e:
                 attempt += 1
@@ -7777,8 +8277,19 @@ async def main(
     run_started = time.time()
     _trace("main: start")
     global _CURRENT_RUN_ID
-    _CURRENT_RUN_ID = f"run_{int(run_started)}_{os.getpid()}"
-    os.environ["BGL_RUN_ID"] = _CURRENT_RUN_ID
+    existing_run_id = str(os.getenv("BGL_RUN_ID") or "").strip()
+    if existing_run_id:
+        _CURRENT_RUN_ID = existing_run_id
+    else:
+        _CURRENT_RUN_ID = f"run_{int(run_started)}_{os.getpid()}"
+        os.environ["BGL_RUN_ID"] = _CURRENT_RUN_ID
+    ui_exploration_stats = {
+        "ui_exploration_duration_s": 0.0,
+        "ui_scenarios_count": 0,
+        "api_scenarios_count": 0,
+        "autonomous_scenario": False,
+        "run_id": _CURRENT_RUN_ID,
+    }
     # Guard: لا تُشغّل السيناريوهات إذا كان Production Mode مفعّل
     ensure_dev_mode()
     _trace("main: dev mode ok")
@@ -7786,6 +8297,7 @@ async def main(
     ok, reason = _acquire_scenario_lock(cfg)
     if not ok:
         print(f"[!] Scenario runner already active ({reason}); skipping.")
+        _update_diagnostic_status_stage("scenario_runner_blocked")
         return
     _trace("main: lock acquired")
     # Apply config defaults for exploration/novelty if env not set
@@ -7907,21 +8419,75 @@ async def main(
         )
     except Exception:
         scenario_batch_limit = 40
-    if scenario_batch_limit > 0 and len(scenario_files) > scenario_batch_limit:
-        gap_first = []
-        rest = []
-        for p in scenario_files:
+
+    db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
+    _trace(f"main: db_path={db_path}")
+
+    # Smart scenario scheduler (uses historical runtime signals to avoid wasteful retries)
+    selection_summary = None
+    scheduler_enabled = str(
+        os.getenv(
+            "BGL_SCENARIO_SCHEDULER_ENABLED",
+            str(cfg.get("scenario_scheduler_enabled", "1")),
+        )
+    ) == "1"
+    if scheduler_enabled:
+        try:
+            from scenario_scheduler import select_scenarios, write_selection_report
+
+            selection = select_scenarios(
+                scenario_files, db_path, cfg, limit=scenario_batch_limit
+            )
+            scenario_files = selection.get("selected_paths") or scenario_files
+            selection_summary = selection.get("summary") or {}
+            if selection_summary:
+                ui_exploration_stats["selection"] = selection_summary
             try:
-                p_norm = str(p).replace("\\", "/").lower()
-                if "/generated/" in p_norm or p.stem.startswith("gap_"):
-                    gap_first.append(p)
-                else:
-                    rest.append(p)
+                write_selection_report(
+                    {
+                        "summary": selection_summary,
+                        "selected": selection_summary.get("top_selected", []),
+                        "skipped_cooldown": int(selection_summary.get("skipped_cooldown") or 0),
+                    },
+                    ROOT_DIR / ".bgl_core" / "logs" / "scenario_selection.json",
+                )
             except Exception:
-                rest.append(p)
-        scenario_files = gap_first + rest
-        scenario_files = scenario_files[:scenario_batch_limit]
-        _trace(f"main: scenario_batch_limit={scenario_batch_limit} => {len(scenario_files)}")
+                pass
+            try:
+                log_event(
+                    db_path,
+                    "scenario_selection",
+                    {
+                        "event_type": "scenario_selection",
+                        "payload": json.dumps(selection_summary, ensure_ascii=False),
+                    },
+                )
+            except Exception:
+                pass
+            _trace(
+                f"main: scenario_scheduler selected={len(scenario_files)} limit={scenario_batch_limit}"
+            )
+        except Exception as e:
+            _trace(f"main: scenario_scheduler failed: {e}")
+
+    if not scheduler_enabled or selection_summary is None:
+        if scenario_batch_limit > 0 and len(scenario_files) > scenario_batch_limit:
+            gap_first = []
+            rest = []
+            for p in scenario_files:
+                try:
+                    p_norm = str(p).replace("\\", "/").lower()
+                    if "/generated/" in p_norm or p.stem.startswith("gap_"):
+                        gap_first.append(p)
+                    else:
+                        rest.append(p)
+                except Exception:
+                    rest.append(p)
+            scenario_files = gap_first + rest
+            scenario_files = scenario_files[:scenario_batch_limit]
+            _trace(
+                f"main: scenario_batch_limit={scenario_batch_limit} => {len(scenario_files)}"
+            )
 
     auto_only_flag = os.getenv("BGL_AUTONOMOUS_ONLY")
     if auto_only_flag is None:
@@ -7941,8 +8507,28 @@ async def main(
 
     extra_headers = {"X-Shadow-Mode": "true"} if shadow_mode else None
 
-    db_path = Path(os.getenv("BGL_SANDBOX_DB", Path(".bgl_core/brain/knowledge.db")))
-    _trace(f"main: db_path={db_path}")
+    batch_started = time.time()
+    try:
+        log_event(
+            db_path,
+            "scenario_batch",
+            {
+                "event_type": "scenario_batch_start",
+                "payload": json.dumps(
+                    {
+                        "run_id": _CURRENT_RUN_ID,
+                        "candidates": len(scenario_files),
+                        "autonomous": bool(autonomous_scenario),
+                        "include_api": bool(include_api),
+                        "selection": selection_summary or {},
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        )
+    except Exception:
+        pass
+
     try:
         if start_run:
             start_run(db_path, run_id=_CURRENT_RUN_ID, mode="scenario_runner", started_at=run_started)
@@ -7985,6 +8571,7 @@ async def main(
             ui_scenarios = []
 
         # Run API scenarios (no browser)
+        ui_exploration_stats["api_scenarios_count"] = len(api_scenarios)
         for path in api_scenarios:
             _trace(f"api: run {path}")
             try:
@@ -8000,106 +8587,154 @@ async def main(
 
         # Run UI scenarios (browser)
         if ui_scenarios or autonomous_scenario:
-            manager = BrowserManager(
-                base_url=base_url,
-                headless=headless,
-                max_pages=max_pages,
-                idle_timeout=idle_timeout,
-                persist=True,
-                slow_mo_ms=slow_mo,
-                extra_http_headers=extra_headers,
-            )
-            _trace("ui: browser manager created")
-            # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
-            shared_page = await manager.new_page()
-            _trace("ui: new page created")
-            await ensure_cursor(shared_page)
-            _trace("ui: cursor ensured")
-            # Seed long-term goals into short-term autonomy queue
+            ui_exploration_stats["ui_scenarios_count"] = len(ui_scenarios)
+            ui_exploration_stats["autonomous_scenario"] = bool(autonomous_scenario)
+            _update_diagnostic_status_stage("ui")
+            ui_started = time.time()
             try:
-                if pick_long_term_goals:
-                    lt_limit = int(_cfg_value("long_term_goal_limit", 3) or 3)
-                    min_pri = float(_cfg_value("long_term_min_priority", 0.25) or 0.25)
-                    lt_goals = pick_long_term_goals(
-                        db_path, limit=lt_limit, min_priority=min_pri
-                    )
-                    for g in lt_goals:
-                        payload = dict(g.get("payload") or {})
-                        if g.get("title") and not payload.get("term"):
-                            payload["term"] = g.get("title")
-                        payload["long_term_key"] = g.get("goal_key")
-                        payload["goal_type"] = g.get("goal")
-                        _write_autonomy_goal(
-                            db_path,
-                            goal="long_term_focus",
-                            payload=payload,
-                            source="long_term",
-                            ttl_days=7,
-                        )
-                _trace(f"ui: long_term_goals seeded={len(lt_goals) if 'lt_goals' in locals() else 0}")
+                log_event(
+                    db_path,
+                    "ui_exploration",
+                    {
+                        "event_type": "ui_exploration_start",
+                        "payload": json.dumps(
+                            {
+                                "run_id": _CURRENT_RUN_ID,
+                                "ui_scenarios": len(ui_scenarios),
+                                "autonomous": bool(autonomous_scenario),
+                            },
+                            ensure_ascii=False,
+                        ),
+                    },
+                )
             except Exception:
                 pass
-            # Run goal-driven scenarios first (if any)
-            goal_limit = int(_cfg_value("autonomy_goal_limit", 6) or 6)
-            goals = _read_autonomy_goals(db_path, limit=goal_limit)
-            goals = _prioritize_autonomy_goals(goals)
-            _trace(f"ui: goals loaded={len(goals)}")
-            seen_goal_keys = set()
-            seen_goal_types = set()
-            single_run_goals = {"ui_self_heal_gap"}
-            for g in goals:
-                key = (
-                    (g.get("goal") or "")
-                    + "|"
-                    + json.dumps(g.get("payload") or {}, sort_keys=True)
+            try:
+                manager = BrowserManager(
+                    base_url=base_url,
+                    headless=headless,
+                    max_pages=max_pages,
+                    idle_timeout=idle_timeout,
+                    persist=True,
+                    slow_mo_ms=slow_mo,
+                    extra_http_headers=extra_headers,
                 )
-                if key in seen_goal_keys:
-                    continue
-                seen_goal_keys.add(key)
-                goal_name = str(g.get("goal") or "").strip()
-                if goal_name in single_run_goals:
-                    if goal_name in seen_goal_types:
-                        _trace(f"ui: skip goal {goal_name} (already run this cycle)")
+                _trace("ui: browser manager created")
+                # إنشاء صفحة واحدة يعاد استخدامها لكل السيناريوهات لمنع فتح نوافذ متعددة
+                shared_page = await manager.new_page()
+                _trace("ui: new page created")
+                await ensure_cursor(shared_page)
+                _trace("ui: cursor ensured")
+                # Seed long-term goals into short-term autonomy queue
+                try:
+                    if pick_long_term_goals:
+                        lt_limit = int(_cfg_value("long_term_goal_limit", 3) or 3)
+                        min_pri = float(_cfg_value("long_term_min_priority", 0.25) or 0.25)
+                        lt_goals = pick_long_term_goals(
+                            db_path, limit=lt_limit, min_priority=min_pri
+                        )
+                        for g in lt_goals:
+                            payload = dict(g.get("payload") or {})
+                            if g.get("title") and not payload.get("term"):
+                                payload["term"] = g.get("title")
+                            payload["long_term_key"] = g.get("goal_key")
+                            payload["goal_type"] = g.get("goal")
+                            _write_autonomy_goal(
+                                db_path,
+                                goal="long_term_focus",
+                                payload=payload,
+                                source="long_term",
+                                ttl_days=7,
+                            )
+                    _trace(f"ui: long_term_goals seeded={len(lt_goals) if 'lt_goals' in locals() else 0}")
+                except Exception:
+                    pass
+                # Run goal-driven scenarios first (if any)
+                goal_limit = int(_cfg_value("autonomy_goal_limit", 6) or 6)
+                goals = _read_autonomy_goals(db_path, limit=goal_limit)
+                goals = _prioritize_autonomy_goals(goals)
+                _trace(f"ui: goals loaded={len(goals)}")
+                seen_goal_keys = set()
+                seen_goal_types = set()
+                single_run_goals = {"ui_self_heal_gap"}
+                for g in goals:
+                    key = (
+                        (g.get("goal") or "")
+                        + "|"
+                        + json.dumps(g.get("payload") or {}, sort_keys=True)
+                    )
+                    if key in seen_goal_keys:
                         continue
-                    seen_goal_types.add(goal_name)
-                _trace(f"ui: run_goal_scenario {g.get('goal')}")
-                await run_goal_scenario(manager, shared_page, base_url, db_path, g)
-            for idx, path in enumerate(ui_scenarios):
-                _trace(f"ui: run_scenario {path}")
-                try:
-                    _refresh_scenario_lock()
-                except Exception:
-                    pass
-                await run_scenario(
-                    manager,
-                    shared_page,
-                    base_url,
-                    path,
-                    keep_open if idx == len(ui_scenarios) - 1 else False,
-                    db_path,
-                    is_last=(idx == len(ui_scenarios) - 1),
+                    seen_goal_keys.add(key)
+                    goal_name = str(g.get("goal") or "").strip()
+                    if goal_name in single_run_goals:
+                        if goal_name in seen_goal_types:
+                            _trace(f"ui: skip goal {goal_name} (already run this cycle)")
+                            continue
+                        seen_goal_types.add(goal_name)
+                    _trace(f"ui: run_goal_scenario {g.get('goal')}")
+                    await run_goal_scenario(manager, shared_page, base_url, db_path, g)
+                for idx, path in enumerate(ui_scenarios):
+                    _trace(f"ui: run_scenario {path}")
+                    try:
+                        _refresh_scenario_lock()
+                    except Exception:
+                        pass
+                    await run_scenario(
+                        manager,
+                        shared_page,
+                        base_url,
+                        path,
+                        keep_open if idx == len(ui_scenarios) - 1 else False,
+                        db_path,
+                        is_last=(idx == len(ui_scenarios) - 1),
+                    )
+                    try:
+                        _refresh_scenario_lock()
+                    except Exception:
+                        pass
+                if autonomous_scenario:
+                    _trace("ui: run_autonomous_scenario")
+                    await run_autonomous_scenario(manager, shared_page, base_url, db_path)
+                # One novel, safe navigation per run (read-only).
+                _trace("ui: run_novel_probe")
+                await run_novel_probe(shared_page, base_url, db_path)
+                if not keep_open:
+                    _trace("ui: closing browser manager")
+                    await manager.close()
+                _trace("ui: done")
+            finally:
+                ui_exploration_stats["ui_exploration_duration_s"] = round(
+                    max(0.0, time.time() - ui_started), 2
                 )
                 try:
-                    _refresh_scenario_lock()
+                    log_event(
+                        db_path,
+                        "ui_exploration",
+                        {
+                            "event_type": "ui_exploration_end",
+                            "payload": json.dumps(
+                                {
+                                    "run_id": _CURRENT_RUN_ID,
+                                    "duration_s": ui_exploration_stats["ui_exploration_duration_s"],
+                                    "ui_scenarios": len(ui_scenarios),
+                                    "autonomous": bool(autonomous_scenario),
+                                },
+                                ensure_ascii=False,
+                            ),
+                        },
+                    )
                 except Exception:
                     pass
-            if autonomous_scenario:
-                _trace("ui: run_autonomous_scenario")
-                await run_autonomous_scenario(manager, shared_page, base_url, db_path)
-            # One novel, safe navigation per run (read-only).
-            _trace("ui: run_novel_probe")
-            await run_novel_probe(shared_page, base_url, db_path)
-            if not keep_open:
-                _trace("ui: closing browser manager")
-                await manager.close()
-            _trace("ui: done")
     finally:
         pass
+    _update_diagnostic_status_stage("post_scenario_cleanup")
     # After scenarios, summarize runtime events into experiences
     try:
         import sys
 
         digest_path = ROOT_DIR / ".bgl_core" / "brain" / "context_digest.py"
+        _update_diagnostic_status_stage("context_digest")
         # Avoid cmd.exe quoting pitfalls on Windows; also prevents noisy "filename syntax" errors.
         digest_env = os.environ.copy()
         # Keep post-run digest fast: never auto-apply during scenario execution.
@@ -8115,6 +8750,9 @@ async def main(
             timeout=30,
         )
         _trace("post: context_digest done")
+        _update_diagnostic_status_stage("context_digest_done")
+    except subprocess.TimeoutExpired:
+        _update_diagnostic_status_stage("context_digest_timeout")
     except Exception:
         pass
 
@@ -8157,11 +8795,36 @@ async def main(
 
     # After exploration, generate targeted insights (Dream Mode subset)
     try:
+        _update_diagnostic_status_stage("dream_mode")
         _trigger_dream_from_exploration(db_path)
         _trace("post: dream trigger done")
+        _update_diagnostic_status_stage("dream_mode_done")
     except Exception:
         pass
 
+    _update_diagnostic_status_stage("scenario_batch_complete")
+    try:
+        batch_duration = max(0.0, time.time() - batch_started)
+        ui_exploration_stats["scenario_batch_duration_s"] = round(batch_duration, 2)
+        log_event(
+            db_path,
+            "scenario_batch",
+            {
+                "event_type": "scenario_batch_complete",
+                "payload": json.dumps(
+                    {
+                        "run_id": _CURRENT_RUN_ID,
+                        "duration_s": round(batch_duration, 2),
+                        "ui_scenarios": ui_exploration_stats.get("ui_scenarios_count"),
+                        "api_scenarios": ui_exploration_stats.get("api_scenarios_count"),
+                        "autonomous": ui_exploration_stats.get("autonomous_scenario"),
+                    },
+                    ensure_ascii=False,
+                ),
+            },
+        )
+    except Exception:
+        pass
     try:
         log_event(
             db_path,
@@ -8182,6 +8845,8 @@ async def main(
             finish_run(db_path, run_id=_CURRENT_RUN_ID, ended_at=time.time())
     except Exception:
         pass
+
+    return ui_exploration_stats
 
 
 if __name__ == "__main__":

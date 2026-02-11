@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_domain_map_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/domain_map.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/domain_map.php
+- action: wait
+  ms: 400

@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "patch_plan_879",
+  "description": "Prod op proposal.apply|879|force|plan:patch_plan_879 on .bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+  "created_at": 1694032800,
+  "metadata": {
+    "experience_id": 9397,
+    "exp_hash": "311ab6a8fedb4cfdb60aedb9aa9d177ba57a7ac1",
+    "scenario": "prod_op:proposal.apply|879|force|plan:patch_plan_879:.bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+    "confidence": 0.85,
+    "evidence_count": 1,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1162,
+    "generated_at": 1770724549.8044875
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "def improved_function():\n    # Improved logic here\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def improved_function():\n    # Improved logic here\n    pass"
+      }
+    }
+  ]
+}

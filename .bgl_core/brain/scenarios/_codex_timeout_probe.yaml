@@ -1,0 +1,8 @@
+name: codex_timeout_probe
+steps:
+  - action: goto
+    url: "data:text/html,<html><body><div id=hidden style=display:none>hidden</div></body></html>"
+  - action: click
+    selector: "#hidden"
+    timeout_sec: 0.2
+    optional: true

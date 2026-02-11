@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_1106",
+  "description": "Stabilize route http://localhost:8000/api/export_suppliers.php",
+  "created_at": 1770714714,
+  "metadata": {
+    "proposal_id": 1106,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770715241.5777874
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_export_suppliers_.yaml",
+      "mode": null,
+      "content": "api:\n  export_suppliers:\n    endpoint: /api/export_suppliers.php\n    method: GET\n    parameters:\n      - name: supplier_id\n        in: query\n        required: true\n        type: string\n    responses:\n      '200':\n        description: Successful response\n        schema:\n          type: object\n          properties:\n            data:\n              type: array\n              items:\n                $ref: '#/definitions/supplier'\n      '404':\n        description: Supplier not found\n    definitions:\n      supplier:\n        type: object\n        properties:\n          id:\n            type: string\n          name:\n            type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "api:\n  export_suppliers:\n    endpoint: /api/export_suppliers.php\n    method: GET\n    parameters:\n      - name: supplier_id\n        in: query\n        required: true\n        type: string\n    responses:\n      '200':\n        description: Successful response\n        schema:\n          type: object\n          properties:\n            data:\n              type: array\n              items:\n                $ref: '#/definitions/supplier'\n      '404':\n        description: Supplier not found\n    definitions:\n      supplier:\n        type: object\n        properties:\n          id:\n            type: string\n          name:\n            type: string"
+      }
+    }
+  ]
+}

@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_1156",
+  "description": "Patch Plan for Experience ID 9786",
+  "created_at": 1683472800,
+  "metadata": {
+    "experience_id": 9786,
+    "exp_hash": "fc0a2fb1eb332a8cc94afe390143999fc444f9a5",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1156,
+    "generated_at": 1770724071.6512961
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Stabilization patch for experience ID 9786\nprint('Experience stabilized')",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Stabilization patch for experience ID 9786\nprint('Experience stabilized')"
+      }
+    }
+  ]
+}

@@ -1,39 +1,35 @@
 {
   "window_days": 7,
-  "node_count": 8,
+  "node_count": 7,
   "transition_count": 30,
   "nodes": {
     "/": {
-      "out": 379,
-      "in": 403
+      "out": 491,
+      "in": 509
     },
     "/index.php": {
-      "out": 259,
-      "in": 276
+      "out": 365,
+      "in": 387
     },
     "/about:blank": {
-      "out": 59,
+      "out": 50,
       "in": 0
     },
     "/views/batches.php": {
-      "out": 43,
-      "in": 23
+      "out": 41,
+      "in": 21
     },
     "/agent.php": {
       "out": 0,
-      "in": 16
+      "in": 18
     },
     "/views/settings.php": {
-      "out": 13,
-      "in": 13
+      "out": 18,
+      "in": 18
     },
     "/api/settings.php": {
       "out": 0,
       "in": 12
-    },
-    "/views/statistics.php": {
-      "out": 0,
-      "in": 10
     }
   },
   "transitions": [
@@ -42,28 +38,35 @@
       "to": "/",
       "action": "goto",
       "selector": "",
-      "count": 175
+      "count": 252
     },
     {
       "from": "/",
       "to": "/",
       "action": "click",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
-      "count": 85
-    },
-    {
-      "from": "/index.php",
-      "to": "/",
-      "action": "goto",
-      "selector": "",
-      "count": 48
+      "count": 92
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "click",
       "selector": "input[name=\"search\"]",
-      "count": 38
+      "count": 68
+    },
+    {
+      "from": "/",
+      "to": "/",
+      "action": "hover",
+      "selector": "a[href=\"./views/batches.php\"]",
+      "count": 52
+    },
+    {
+      "from": "/index.php",
+      "to": "/",
+      "action": "goto",
+      "selector": "",
+      "count": 49
     },
     {
       "from": "/about:blank",
@@ -73,18 +76,11 @@
       "count": 32
     },
     {
-      "from": "/",
-      "to": "/",
-      "action": "hover",
-      "selector": "a[href=\"./views/batches.php\"]",
-      "count": 32
-    },
-    {
       "from": "/index.php",
       "to": "/index.php",
       "action": "goto",
       "selector": "",
-      "count": 29
+      "count": 32
     },
     {
       "from": "/",
@@ -96,6 +92,20 @@
     {
       "from": "/index.php",
       "to": "/index.php",
+      "action": "hover",
+      "selector": "input[name=\"search\"]",
+      "count": 28
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
+      "count": 25
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
       "action": "press",
       "selector": "input[type='search'], input[name*='search'], input[placeholder*='بحث'], input[placeholder*='search']",
       "count": 24
@@ -103,9 +113,16 @@
     {
       "from": "/index.php",
       "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 21
+    },
+    {
+      "from": "/views/batches.php",
+      "to": "/views/batches.php",
       "action": "click",
-      "selector": "[data-bs-toggle='collapse'], [data-toggle='collapse']",
-      "count": 22
+      "selector": "input[name=\"search\"]",
+      "count": 21
     },
     {
       "from": "/views/batches.php",
@@ -115,6 +132,20 @@
       "count": 20
     },
     {
+      "from": "/about:blank",
+      "to": "/agent.php",
+      "action": "goto",
+      "selector": "",
+      "count": 18
+    },
+    {
+      "from": "/views/settings.php",
+      "to": "/views/settings.php",
+      "action": "ui_state_recovery",
+      "selector": "press_escape",
+      "count": 18
+    },
+    {
       "from": "/",
       "to": "/index.php",
       "action": "type",
@@ -122,11 +153,18 @@
       "count": 17
     },
     {
-      "from": "/about:blank",
-      "to": "/agent.php",
-      "action": "goto",
-      "selector": "",
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
       "count": 16
+    },
+    {
+      "from": "/",
+      "to": "/index.php",
+      "action": "click",
+      "selector": "a[href*='create-guarantee.php']",
+      "count": 14
     },
     {
       "from": "/index.php",
@@ -143,11 +181,25 @@
       "count": 14
     },
     {
-      "from": "/views/settings.php",
-      "to": "/views/settings.php",
-      "action": "ui_state_recovery",
-      "selector": "press_escape",
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "hover",
+      "selector": "button.btn",
       "count": 13
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 13
+    },
+    {
+      "from": "/",
+      "to": "/",
+      "action": "hover",
+      "selector": "button.btn",
+      "count": 12
     },
     {
       "from": "/",
@@ -157,99 +209,42 @@
       "count": 12
     },
     {
-      "from": "/views/batches.php",
-      "to": "/views/batches.php",
+      "from": "/",
+      "to": "/index.php",
       "action": "click",
+      "selector": "a[href*='export_suppliers.php']",
+      "count": 12
+    },
+    {
+      "from": "/index.php",
+      "to": "/index.php",
+      "action": "press",
       "selector": "input[name=\"search\"]",
       "count": 12
     },
     {
-      "from": "/about:blank",
-      "to": "/index.php",
-      "action": "goto",
-      "selector": "",
-      "count": 11
-    },
-    {
       "from": "/index.php",
       "to": "/index.php",
-      "action": "click",
-      "selector": "[data-bs-toggle='offcanvas'], [data-toggle='offcanvas']",
-      "count": 11
-    },
-    {
-      "from": "/index.php",
-      "to": "/",
-      "action": "goto",
-      "selector": "",
-      "count": 11
-    },
-    {
-      "from": "/views/batches.php",
-      "to": "/views/batches.php",
-      "action": "goto",
-      "selector": "",
-      "count": 11
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "a[href*='release.php']",
-      "count": 10
-    },
-    {
-      "from": "/",
-      "to": "/index.php",
-      "action": "goto",
-      "selector": "",
-      "count": 10
-    },
-    {
-      "from": "/",
-      "to": "/views/statistics.php",
-      "action": "click",
-      "selector": "a[href*='statistics.php']",
-      "count": 10
+      "action": "press",
+      "selector": "input[name=\"search\"]",
+      "count": 12
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "press",
       "selector": "input[name=\"search\"]",
-      "count": 10
+      "count": 12
     },
     {
       "from": "/index.php",
       "to": "/index.php",
       "action": "press",
       "selector": "input[name=\"search\"]",
-      "count": 10
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "click",
-      "selector": "input[name=\"search\"]",
-      "count": 10
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "hover",
-      "selector": "button.btn",
-      "count": 9
-    },
-    {
-      "from": "/index.php",
-      "to": "/index.php",
-      "action": "hover",
-      "selector": "input[name=\"search\"]",
-      "count": 9
+      "count": 12
     }
   ],
   "priority_routes": [
-    "/views/statistics.php",
     "/api/settings.php",
     "/agent.php",
     "/views/settings.php",
@@ -265,7 +260,6 @@
     "/about:blank",
     "/views/settings.php",
     "/agent.php",
-    "/api/settings.php",
-    "/views/statistics.php"
+    "/api/settings.php"
   ]
 }

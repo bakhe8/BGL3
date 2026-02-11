@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "patch_plan_1230",
+  "description": "Patch plan for improving automated experience: outcome:run_scenarios:success",
+  "created_at": 1694784000,
+  "metadata": {
+    "proposal_id": 1230,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770764317.548483
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Add new signal for outcome:run_scenarios:success\noutcome_signals['run_scenarios_success'] = 'success'",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add new signal for outcome:run_scenarios:success\noutcome_signals['run_scenarios_success'] = 'success'"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/run_scenarios.py",
+      "mode": "append",
+      "content": "\n# Handle success scenario\ndef handle_run_scenarios_success():\n    print('Handling run scenarios success')\n\nhandle_run_scenarios_success()",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle success scenario\ndef handle_run_scenarios_success():\n    print('Handling run scenarios success')\n\nhandle_run_scenarios_success()"
+      }
+    }
+  ]
+}

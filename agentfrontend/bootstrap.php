@@ -464,7 +464,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_scenarios') {
     $runner = '.bgl_core/brain/run_scenarios.py';
     if (file_exists($projectRoot . '/' . $runner)) {
-        $cmd = "{$pythonEsc} " . escapeshellarg($projectRoot . "/" . $runner);
+        $runnerPath = $projectRoot . "/" . $runner;
+        $ps = '$env:BGL_TRIGGER_SOURCE="dashboard_run_scenarios"; ' .
+            'Start-Process -WindowStyle Hidden -FilePath ' . escapeshellarg($pythonBin) .
+            ' -ArgumentList ' . escapeshellarg($runnerPath);
+        $cmd = 'powershell -NoProfile -Command ' . escapeshellarg($ps);
         bgl_start_bg($cmd);
     } else {
         putenv("BGL_RUN_SCENARIOS=1");
@@ -561,7 +565,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['
 // Run autonomous scenario only (no predefined scenarios)
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'run_autonomous_now') {
     $runner = escapeshellarg($projectRoot . "/.bgl_core/brain/scenario_runner.py");
-    $env = 'BGL_AUTONOMOUS_ONLY=1;BGL_AUTONOMOUS_SCENARIO=1';
+    $env = 'BGL_AUTONOMOUS_ONLY=1;BGL_AUTONOMOUS_SCENARIO=1;BGL_TRIGGER_SOURCE=dashboard_autonomous';
     $args = $projectRoot . "/.bgl_core/brain/scenario_runner.py";
     $ps = '$env:' . $env . '; ' .
         'Start-Process -WindowStyle Hidden -FilePath ' . escapeshellarg($pythonBin) .

@@ -7,7 +7,7 @@ from pathlib import Path
 
 from config_loader import load_config
 from scenario_deps import check_scenario_deps
-from run_lock import acquire_lock, release_lock
+from run_lock import acquire_lock, release_lock, describe_lock
 
 
 ROOT = Path(__file__).parent.parent.parent
@@ -15,17 +15,146 @@ DB_PATH = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 LOCK_PATH = ROOT / ".bgl_core" / "logs" / "run_scenarios.lock"
 
 
-def _log_activity(message: str, details: str = "{}"):
+def _log_activity(message: str, details: str | dict = "{}"):
     if not DB_PATH.exists():
         return
     try:
+        if isinstance(details, dict):
+            details = json.dumps(details, ensure_ascii=False)
         with sqlite3.connect(str(DB_PATH)) as conn:
             conn.execute(
                 "INSERT INTO agent_activity (timestamp, activity, source, details) VALUES (?, ?, ?, ?)",
                 (time.time(), message, "run_scenarios", details),
             )
+    except Exception as e:
+        try:
+            if "locked" in str(e).lower():
+                _update_diagnostic_status_stage("db_write_locked")
+        except Exception:
+            pass
+
+
+def _detect_trigger_source() -> str:
+    explicit = os.getenv("BGL_TRIGGER_SOURCE")
+    if explicit:
+        return explicit
+    if os.getenv("BGL_RUN_AFTER_APPLY") == "1":
+        return "auto_apply"
+    if os.getenv("BGL_DIAGNOSTIC_RUN_ID"):
+        return "master_verify"
+    if os.getenv("BGL_AUTONOMOUS_ONLY") == "1":
+        return "autonomous_only"
+    if os.getenv("BGL_AUTONOMOUS_SCENARIO") == "1":
+        return "autonomous_scenario"
+    return "manual"
+
+
+def _update_diagnostic_status_stage(stage: str, run_id: str | None = None) -> None:
+    if not os.getenv("BGL_DIAGNOSTIC_RUN_ID"):
+        return
+    try:
+        status_path = ROOT / ".bgl_core" / "logs" / "diagnostic_status.json"
+        payload = {}
+        if status_path.exists():
+            try:
+                payload = json.loads(status_path.read_text(encoding="utf-8")) or {}
+            except Exception:
+                payload = {}
+        payload["status"] = payload.get("status") or "running"
+        payload["stage"] = stage
+        payload["stage_timestamp"] = time.time()
+        payload["last_stage_change"] = payload["stage_timestamp"]
+        payload["run_id"] = os.getenv("BGL_DIAGNOSTIC_RUN_ID") or payload.get("run_id")
+        if run_id:
+            payload["scenario_run_id"] = run_id
+        try:
+            history = payload.get("stage_history")
+            if not isinstance(history, list):
+                history = []
+            entry = {
+                "stage": stage,
+                "ts": payload["stage_timestamp"],
+                "run_id": payload.get("run_id"),
+                "source": "run_scenarios",
+            }
+            if payload.get("scenario_run_id"):
+                entry["scenario_run_id"] = payload.get("scenario_run_id")
+            history.append(entry)
+            if len(history) > 200:
+                history = history[-200:]
+            payload["stage_history"] = history
+        except Exception:
+            pass
+        payload["timestamp"] = time.time()
+        status_path.parent.mkdir(parents=True, exist_ok=True)
+        status_path.write_text(
+            json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+        )
     except Exception:
         pass
+
+
+def _log_runtime_event(event: dict) -> None:
+    if not DB_PATH.exists():
+        return
+    try:
+        with sqlite3.connect(str(DB_PATH), timeout=5.0) as conn:
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS runtime_events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp REAL NOT NULL,
+                    session TEXT,
+                    run_id TEXT,
+                    scenario_id TEXT,
+                    goal_id TEXT,
+                    source TEXT,
+                    event_type TEXT NOT NULL,
+                    route TEXT,
+                    method TEXT,
+                    target TEXT,
+                    step_id TEXT,
+                    payload TEXT,
+                    status INTEGER,
+                    latency_ms REAL,
+                    error TEXT
+                )
+                """
+            )
+            payload = event.get("payload")
+            if isinstance(payload, dict):
+                payload = json.dumps(payload, ensure_ascii=False)
+            conn.execute(
+                """
+                INSERT INTO runtime_events (timestamp, session, run_id, scenario_id, goal_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    event.get("timestamp", time.time()),
+                    event.get("session", ""),
+                    event.get("run_id", ""),
+                    event.get("scenario_id", ""),
+                    event.get("goal_id", ""),
+                    event.get("source", "run_scenarios"),
+                    event.get("event_type"),
+                    event.get("route"),
+                    event.get("method"),
+                    event.get("target"),
+                    event.get("step_id"),
+                    payload,
+                    event.get("status"),
+                    event.get("latency_ms"),
+                    event.get("error"),
+                ),
+            )
+            conn.commit()
+    except Exception as e:
+        try:
+            if "locked" in str(e).lower():
+                _update_diagnostic_status_stage("db_write_locked")
+        except Exception:
+            pass
 
 
 def _ensure_env(cfg: dict):
@@ -40,6 +169,7 @@ def _ensure_env(cfg: dict):
 async def _run_real_scenarios():
     cfg = load_config(ROOT)
     _ensure_env(cfg)
+    run_id = str(os.getenv("BGL_RUN_ID") or "")
 
     base_url = os.getenv("BGL_BASE_URL", cfg.get("base_url", "http://localhost:8000"))
     headless = bool(int(os.getenv("BGL_HEADLESS", str(cfg.get("headless", 1)))))
@@ -84,10 +214,14 @@ async def _run_real_scenarios():
                 )
                 _log_activity(
                     "scenario_shadow_canary",
-                    json.dumps({"ok": bool(release.get("ok")), "release_id": release.get("release_id")}),
+                    {
+                        "ok": bool(release.get("ok")),
+                        "release_id": release.get("release_id"),
+                        "run_id": run_id,
+                    },
                 )
             except Exception:
-                _log_activity("scenario_shadow_canary_failed")
+                _log_activity("scenario_shadow_canary_failed", {"run_id": run_id})
 
 
 def simulate_traffic():
@@ -160,10 +294,39 @@ def simulate_traffic():
 
 def main():
     cfg = load_config(ROOT)
+    run_id = f"run_{int(time.time())}_{os.getpid()}"
+    os.environ["BGL_RUN_ID"] = run_id
+    trigger = _detect_trigger_source()
+    trigger_payload = {
+        "run_id": run_id,
+        "trigger": trigger,
+        "diagnostic_run_id": os.getenv("BGL_DIAGNOSTIC_RUN_ID"),
+        "apply_proposal_id": os.getenv("BGL_APPLY_PROPOSAL_ID"),
+        "source_env": os.getenv("BGL_TRIGGER_SOURCE"),
+    }
+    _update_diagnostic_status_stage("run_scenarios_start", run_id=run_id)
     lock_ttl = int(cfg.get("run_scenarios_lock_ttl_sec", 7200))
     ok, reason = acquire_lock(LOCK_PATH, ttl_sec=lock_ttl, label="run_scenarios")
     if not ok:
+        try:
+            lock_info = describe_lock(LOCK_PATH, ttl_sec=lock_ttl)
+            lock_info["reason"] = reason
+            lock_info["run_id"] = run_id
+            _log_runtime_event(
+                {
+                    "timestamp": time.time(),
+                    "session": "lock",
+                    "run_id": run_id,
+                    "event_type": "lock_blocked",
+                    "route": str(LOCK_PATH),
+                    "target": "run_scenarios",
+                    "payload": lock_info,
+                }
+            )
+        except Exception:
+            pass
         print(f"[!] Scenario run already in progress ({reason}); skipping.")
+        _update_diagnostic_status_stage("run_scenarios_blocked", run_id=run_id)
         return
 
     if os.getenv("BGL_SIMULATE_SCENARIOS", "0") == "1":
@@ -184,11 +347,23 @@ def main():
         _log_activity("scenario_deps_missing", str(deps.to_dict()))
         raise SystemExit(2)
 
-    _log_activity("scenario_run_started")
+    _log_activity("scenario_run_started", trigger_payload)
+    _log_runtime_event(
+        {
+            "timestamp": time.time(),
+            "session": "trigger",
+            "run_id": run_id,
+            "source": "run_scenarios",
+            "event_type": "scenario_trigger",
+            "target": trigger,
+            "payload": trigger_payload,
+        }
+    )
     try:
         asyncio.run(_run_real_scenarios())
-        _log_activity("scenario_run_completed")
+        _log_activity("scenario_run_completed", {"run_id": run_id})
     finally:
+        _update_diagnostic_status_stage("run_scenarios_exit", run_id=run_id)
         release_lock(LOCK_PATH)
 
 

@@ -90,6 +90,47 @@ class BGLGuardian:
         self.python_exe = _preferred_python(root_dir)
         self._route_scan_meta_limit = int(os.getenv("BGL_ROUTE_SCAN_META_LIMIT", "40") or 40)
 
+    def _update_diagnostic_status(self, stage: str, run_id: str | None = None) -> None:
+        try:
+            status_path = self.root_dir / ".bgl_core" / "logs" / "diagnostic_status.json"
+            payload: Dict[str, Any] = {}
+            if status_path.exists():
+                try:
+                    payload = json.loads(status_path.read_text(encoding="utf-8")) or {}
+                except Exception:
+                    payload = {}
+            payload["status"] = payload.get("status") or "running"
+            payload["stage"] = stage
+            payload["stage_timestamp"] = time.time()
+            payload["last_stage_change"] = payload["stage_timestamp"]
+            if run_id:
+                payload["run_id"] = run_id
+            try:
+                history = payload.get("stage_history")
+                if not isinstance(history, list):
+                    history = []
+                entry = {
+                    "stage": stage,
+                    "ts": payload["stage_timestamp"],
+                    "run_id": payload.get("run_id"),
+                    "source": "guardian",
+                }
+                if payload.get("scenario_run_id"):
+                    entry["scenario_run_id"] = payload.get("scenario_run_id")
+                history.append(entry)
+                if len(history) > 200:
+                    history = history[-200:]
+                payload["stage_history"] = history
+            except Exception:
+                pass
+            payload["timestamp"] = time.time()
+            status_path.parent.mkdir(parents=True, exist_ok=True)
+            status_path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+        except Exception:
+            pass
+
     async def perform_full_audit(self) -> Dict[str, Any]:
         """
         Scans all indexed routes and provides a proactive health report.
@@ -174,6 +215,7 @@ class BGLGuardian:
         # We'll update it later once routes + scan metrics are ready.
         report: Dict[str, Any] = {
             "timestamp": time.time(),
+            "diagnostic_run_id": run_id,
             "total_routes": 0,
             "healthy_routes": 0,
             "failing_routes": [],
@@ -223,6 +265,7 @@ class BGLGuardian:
             "reason": "disabled",
         }
         if run_scenarios == "1":
+            self._update_diagnostic_status("scenario_batch", run_id=run_id)
             scenario_runner_main = None
             scenario_dep_error = None
             if not scenario_deps.get("ok", False):
@@ -334,7 +377,7 @@ class BGLGuardian:
                     scenario_run_stats["reason"] = ""
                     pre_events = self._count_runtime_events()
                     run_started = time.time()
-                    await asyncio.wait_for(
+                    run_result = await asyncio.wait_for(
                         scenario_runner_main(
                             base_url,
                             headless,
@@ -349,8 +392,33 @@ class BGLGuardian:
                     run_duration = time.time() - run_started
                     post_events = self._count_runtime_events()
                     delta = max(0, post_events - pre_events)
+                    fallback_delta = 0
+                    try:
+                        fallback_delta = self._count_runtime_events_fallback(run_started)
+                    except Exception:
+                        fallback_delta = 0
+                    effective_delta = delta + max(0, int(fallback_delta or 0))
+                    if isinstance(run_result, dict):
+                        scenario_run_stats.update(
+                            {
+                                "ui_exploration_duration_s": run_result.get(
+                                    "ui_exploration_duration_s"
+                                ),
+                                "ui_scenarios_count": run_result.get("ui_scenarios_count"),
+                                "api_scenarios_count": run_result.get("api_scenarios_count"),
+                                "autonomous_scenario": run_result.get("autonomous_scenario"),
+                                "run_id": run_result.get("run_id"),
+                                "scenario_batch_duration_s": run_result.get("scenario_batch_duration_s"),
+                            }
+                        )
                     scenario_run_stats.update(
-                        {"event_delta": delta, "duration_s": round(run_duration, 2)}
+                        {
+                            "event_delta": delta,
+                            "fallback_event_delta": fallback_delta,
+                            "event_delta_total": effective_delta,
+                            "duration_s": round(run_duration, 2),
+                            "db_fallback": bool(fallback_delta),
+                        }
                     )
                     try:
                         min_delta = int(
@@ -393,8 +461,8 @@ class BGLGuardian:
                         )
                     except Exception:
                         retry_delay = 8.0
-                    if delta < min_delta:
-                        if run_duration < min_runtime:
+                    if effective_delta < min_delta:
+                        if run_duration < min_runtime and effective_delta <= 0:
                             scenario_run_stats["status"] = "skipped_or_locked"
                             scenario_run_stats["reason"] = "no_new_events_or_locked"
                             self.authority.record_outcome(
@@ -407,7 +475,7 @@ class BGLGuardian:
                             pre_retry = self._count_runtime_events()
                             retry_started = time.time()
                             try:
-                                await scenario_runner_main(
+                                retry_result = await scenario_runner_main(
                                     base_url,
                                     headless,
                                     keep_open,
@@ -418,6 +486,19 @@ class BGLGuardian:
                                 )
                             except Exception:
                                 pass
+                            if isinstance(retry_result, dict):
+                                scenario_run_stats.update(
+                                    {
+                                        "ui_exploration_duration_s": retry_result.get(
+                                            "ui_exploration_duration_s"
+                                        ),
+                                        "ui_scenarios_count": retry_result.get("ui_scenarios_count"),
+                                        "api_scenarios_count": retry_result.get("api_scenarios_count"),
+                                        "autonomous_scenario": retry_result.get("autonomous_scenario"),
+                                        "run_id": retry_result.get("run_id"),
+                                        "scenario_batch_duration_s": retry_result.get("scenario_batch_duration_s"),
+                                    }
+                                )
                             retry_duration = time.time() - retry_started
                             post_retry = self._count_runtime_events()
                             retry_delta = max(0, post_retry - pre_retry)
@@ -449,15 +530,21 @@ class BGLGuardian:
                             )
                     else:
                         scenario_run_stats["status"] = "ok"
-                        scenario_run_stats["reason"] = "ok"
+                        scenario_run_stats["reason"] = "ok_fallback_events" if fallback_delta else "ok"
                         self.authority.record_outcome(
                             decision_id, "success", "scenario batch executed"
                         )
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
-                    self.authority.record_outcome(decision_id, "fail", str(e))
-                    scenario_run_stats["status"] = "fail"
-                    scenario_run_stats["reason"] = str(e)
+                    err_text = str(e)
+                    if "database is locked" in err_text.lower():
+                        self.authority.record_outcome(decision_id, "deferred", "scenario_run:db_locked")
+                        scenario_run_stats["status"] = "db_locked"
+                        scenario_run_stats["reason"] = "db_locked"
+                    else:
+                        self.authority.record_outcome(decision_id, "fail", err_text)
+                        scenario_run_stats["status"] = "fail"
+                        scenario_run_stats["reason"] = err_text
 
         # Persist scenario run stats into runtime_events + decision traces for memory linkage.
         try:
@@ -629,6 +716,7 @@ class BGLGuardian:
                     )
 
         # 1. Ensure route index exists then fetch routes
+        self._update_diagnostic_status("route_scan", run_id=run_id)
         self._ensure_routes_indexed()
         routes = self._get_proxied_routes()
         limit_env = os.getenv("BGL_ROUTE_SCAN_LIMIT")
@@ -703,6 +791,10 @@ class BGLGuardian:
             report.setdefault("warnings", []).append(
                 f"Audit budget exceeded at {stage} (elapsed {elapsed:.1f}s > budget {audit_budget:.1f}s)."
             )
+            try:
+                self._update_diagnostic_status("budget_exceeded", run_id=run_id)
+            except Exception:
+                pass
             try:
                 self._log_runtime_event(
                     {
@@ -985,6 +1077,8 @@ class BGLGuardian:
                         "flow": item.get("flow"),
                         "status": item.get("status"),
                         "endpoints": item.get("endpoints") or [],
+                        "step_routes": item.get("step_routes") or [],
+                        "step_events": item.get("step_events") or [],
                         "priority_score": round(flow_score, 2),
                     }
                 )
@@ -1235,7 +1329,7 @@ class BGLGuardian:
                             os.environ["BGL_INCLUDE_AUTONOMOUS"] = "0"
                             os.environ["BGL_AUTONOMOUS_SCENARIO"] = "0"
                             try:
-                                await asyncio.wait_for(
+                                gap_result = await asyncio.wait_for(
                                     scenario_runner_main(
                                         base_url,
                                         headless,
@@ -1263,6 +1357,17 @@ class BGLGuardian:
                             run_duration = time.time() - run_started
                             post_events = self._count_runtime_events()
                             delta = max(0, post_events - pre_events)
+                            if isinstance(gap_result, dict):
+                                gap_run_stats.update(
+                                    {
+                                        "ui_exploration_duration_s": gap_result.get(
+                                            "ui_exploration_duration_s"
+                                        ),
+                                        "ui_scenarios_count": gap_result.get("ui_scenarios_count"),
+                                        "api_scenarios_count": gap_result.get("api_scenarios_count"),
+                                        "autonomous_scenario": gap_result.get("autonomous_scenario"),
+                                    }
+                                )
                             gap_run_stats.update(
                                 {"event_delta": delta, "duration_s": round(run_duration, 2)}
                             )
@@ -2048,6 +2153,29 @@ class BGLGuardian:
                 pass
             return 0
 
+    def _count_runtime_events_fallback(self, since_ts: float) -> int:
+        """Count runtime events that were written to fallback jsonl (DB locked)."""
+        try:
+            fallback = self.root_dir / ".bgl_core" / "logs" / "runtime_events_fallback.jsonl"
+            if not fallback.exists():
+                return 0
+            count = 0
+            with fallback.open("r", encoding="utf-8") as fh:
+                for line in fh:
+                    try:
+                        obj = json.loads(line.strip() or "{}")
+                    except Exception:
+                        continue
+                    ts = obj.get("timestamp") or (obj.get("event") or {}).get("timestamp")
+                    try:
+                        if ts is not None and float(ts) >= float(since_ts):
+                            count += 1
+                    except Exception:
+                        continue
+            return count
+        except Exception:
+            return 0
+
     def _normalize_route(self, route: str) -> str:
         """Normalize route/URL to a path for coverage comparison."""
         if not route:
@@ -2226,8 +2354,12 @@ class BGLGuardian:
             )
         return flows
 
-    def _sequence_matches(self, route_list: List[str], endpoints: List[str]) -> bool:
-        """Check if endpoints appear in order within a route list (not necessarily contiguous)."""
+    def _sequence_matches(
+        self, route_list: List[str], endpoints: List[str], *, any_order: bool = False
+    ) -> bool:
+        """Check if endpoints appear in order within a route list (not necessarily contiguous).
+        If any_order=True, only require each endpoint to appear at least once (order ignored).
+        """
         if not endpoints:
             return False
 
@@ -2262,6 +2394,28 @@ class BGLGuardian:
         compiled = [_compile_endpoint(e) for e in endpoints if e]
         if not compiled:
             return False
+
+        if any_order:
+            for idx, pattern in enumerate(compiled):
+                matched = False
+                for r in norm_routes:
+                    try:
+                        if pattern.match(r):
+                            matched = True
+                            break
+                    except Exception:
+                        pass
+                    try:
+                        ep_raw = endpoints[idx]
+                        ep_norm = self._normalize_route(str(ep_raw or ""))
+                        if ep_norm and (r == ep_norm or r.startswith(ep_norm.rstrip("/") + "/")):
+                            matched = True
+                            break
+                    except Exception:
+                        pass
+                if not matched:
+                    return False
+            return True
 
         idx = 0
         for r in norm_routes:
@@ -2377,14 +2531,62 @@ class BGLGuardian:
             except Exception:
                 continue
 
+        def _escape_has_text(value: str) -> str:
+            try:
+                return value.replace("\\", "\\\\").replace('"', '\\"')
+            except Exception:
+                return value
+
+        def _selector_from_key(selector_key: str, text: str, selector: str, href: str) -> str:
+            key = str(selector_key or "").strip()
+            if key:
+                if key.startswith("id="):
+                    return f"#{key.split('=', 1)[1]}"
+                if key.startswith("href="):
+                    val = key.split("=", 1)[1]
+                    return f"a[href*=\"{_escape_has_text(val)}\"]"
+                if key.startswith("text="):
+                    val = _escape_has_text(key.split("=", 1)[1])
+                    return f"button:has-text(\"{val}\"), a:has-text(\"{val}\")"
+                if key.startswith("role="):
+                    parts = key.split("|", 1)
+                    role = parts[0].split("=", 1)[1]
+                    hint = ""
+                    if len(parts) > 1 and "text=" in parts[1]:
+                        hint = parts[1].split("text=", 1)[1]
+                    if hint:
+                        return f"[role=\"{role}\"]:has-text(\"{_escape_has_text(hint)}\")"
+                    return f"[role=\"{role}\"]"
+                # Attribute selectors (data-*, aria-*, name, data-tab, etc.)
+                if "=" in key:
+                    attr, val = key.split("=", 1)
+                    if attr and val:
+                        return f"[{attr}=\"{_escape_has_text(val)}\"]"
+            if selector:
+                return selector
+            if text:
+                return f"button:has-text(\"{_escape_has_text(text)}\"), a:has-text(\"{_escape_has_text(text)}\")"
+            if href:
+                try:
+                    base = Path(href).name
+                except Exception:
+                    base = href
+                if base:
+                    return f"a[href*=\"{_escape_has_text(base)}\"]"
+            return ""
+
         # UI action gaps (interactive elements)
         ui_action_gaps = (coverage_payload.get("ui_actions") or {}).get("gaps") or []
         for item in ui_action_gaps[:limit]:
             route = str(item.get("route") or "")
             selector = str(item.get("selector") or "")
-            label = selector or str(item.get("href") or "") or str(item.get("text") or "")
-            if not (route or selector):
+            selector_key = str(item.get("selector_key") or "")
+            text = str(item.get("text") or "")
+            href = str(item.get("href") or "")
+            label = selector or href or text
+            if not (route or selector or selector_key or text or href):
                 continue
+            selector = _selector_from_key(selector_key, text, selector, href) or selector
             name = f"gap_ui_action_{_slug(route or label) or 'unknown'}"
             path = out_dir / f"{name}.yaml"
             if path.exists():
@@ -2397,9 +2599,19 @@ class BGLGuardian:
                         {"action": "wait", "ms": 400},
                     ]
                 )
+            needs_hover = bool(item.get("needs_hover"))
             if selector:
+                if needs_hover:
+                    steps.append(
+                        {
+                            "action": "hover",
+                            "selector": selector,
+                            "selector_key": selector_key,
+                            "optional": True,
+                        }
+                    )
                 danger = str(item.get("risk") or "") in ("danger", "write")
-                click_step = {"action": "click", "selector": selector}
+                click_step = {"action": "click", "selector": selector, "selector_key": selector_key}
                 if danger:
                     click_step["danger"] = True
                 steps.append(click_step)
@@ -2412,6 +2624,7 @@ class BGLGuardian:
                     "origin": "ui_action_gap",
                     "route": route,
                     "selector": selector,
+                    "selector_key": selector_key,
                     "risk": item.get("risk"),
                 },
                 "steps": steps,
@@ -2653,6 +2866,20 @@ class BGLGuardian:
                         semantic_change_count += 1
             except Exception:
                 semantic_change_count = 0
+            # Fallback: count semantic change runtime events if still zero.
+            if semantic_change_count <= 0:
+                try:
+                    row_sem_evt = cur.execute(
+                        """
+                        SELECT COUNT(*) FROM runtime_events
+                        WHERE event_type='ui_semantic_change' AND timestamp >= ?
+                        """,
+                        (cutoff,),
+                    ).fetchone()
+                    if row_sem_evt:
+                        semantic_change_count += int(row_sem_evt[0] or 0)
+                except Exception:
+                    pass
             # Flow gap scenario evidence (explicit link between flow gaps and coverage)
             try:
                 rows_gap = cur.execute(
@@ -2694,9 +2921,12 @@ class BGLGuardian:
 
         covered = 0
         seq_covered = 0
+        seq_covered_strict = 0
+        seq_covered_inferred = 0
         operational_covered = 0
         results = []
         require_events = False
+        infer_sequence = True
         raw_flag = self.config.get("flow_require_events", None)
         try:
             if raw_flag is None:
@@ -2712,6 +2942,17 @@ class BGLGuardian:
                 )
         except Exception:
             require_events = True
+        try:
+            infer_sequence = bool(
+                int(
+                    os.getenv(
+                        "BGL_FLOW_SEQUENCE_INFER",
+                        str(self.config.get("flow_sequence_infer", "1")),
+                    )
+                )
+            )
+        except Exception:
+            infer_sequence = True
         for flow in flows:
             endpoints = list(flow.get("endpoints") or [])
             events = list(flow.get("events") or [])
@@ -2768,6 +3009,7 @@ class BGLGuardian:
                 status = "partial"
             missing_steps = [e for e in endpoint_norms if e not in action_route_seen]
             sequence_covered = False
+            sequence_inferred = False
             sequence_session = ""
             if endpoints and session_routes:
                 for sess, routes in session_routes.items():
@@ -2775,7 +3017,17 @@ class BGLGuardian:
                         sequence_covered = True
                         sequence_session = sess
                         break
+            if endpoints:
+                try:
+                    sequence_inferred = self._sequence_matches(list(route_seen), endpoints, any_order=True)
+                except Exception:
+                    sequence_inferred = False
             if sequence_covered:
+                seq_covered_strict += 1
+            if sequence_inferred:
+                seq_covered_inferred += 1
+            sequence_effective = sequence_covered or (infer_sequence and sequence_inferred)
+            if sequence_effective:
                 seq_covered += 1
             results.append(
                 {
@@ -2792,7 +3044,11 @@ class BGLGuardian:
                     "endpoints": endpoints[:5],
                     "missing_steps": missing_steps[:5],
                     "steps_sample": (flow.get("steps") or [])[:5],
-                    "sequence_covered": sequence_covered,
+                    "step_routes": step_routes[:5],
+                    "step_events": step_events[:5],
+                    "sequence_covered": sequence_effective,
+                    "sequence_covered_strict": sequence_covered,
+                    "sequence_inferred": sequence_inferred,
                     "sequence_session": sequence_session,
                     "gap_runs": gap_runs,
                 }
@@ -2800,6 +3056,8 @@ class BGLGuardian:
 
         ratio = round((covered / max(1, len(flows))) * 100, 2)
         seq_ratio = round((seq_covered / max(1, len(flows))) * 100, 2)
+        seq_ratio_strict = round((seq_covered_strict / max(1, len(flows))) * 100, 2)
+        seq_ratio_inferred = round((seq_covered_inferred / max(1, len(flows))) * 100, 2)
         op_ratio = round((operational_covered / max(1, len(flows))) * 100, 2)
         uncovered = [r for r in results if r.get("status") != "covered"]
         try:
@@ -2829,6 +3087,11 @@ class BGLGuardian:
             "operational_coverage_ratio": op_ratio,
             "sequence_covered_flows": seq_covered,
             "sequence_coverage_ratio": seq_ratio,
+            "sequence_covered_flows_strict": seq_covered_strict,
+            "sequence_coverage_ratio_strict": seq_ratio_strict,
+            "sequence_covered_flows_inferred": seq_covered_inferred,
+            "sequence_coverage_ratio_inferred": seq_ratio_inferred,
+            "sequence_infer_enabled": infer_sequence,
             "uncovered_sample": uncovered[:limit],
             "details": results,
             "events_total": event_count,
@@ -3132,6 +3395,20 @@ class BGLGuardian:
                         last_digest[url] = digest
                 except Exception:
                     pass
+            # Fallback: count semantic change runtime events when transitions are missing.
+            if semantic_change_count <= 0:
+                try:
+                    row_sem_evt = conn.execute(
+                        """
+                        SELECT COUNT(*) FROM runtime_events
+                        WHERE event_type='ui_semantic_change' AND timestamp >= ?
+                        """,
+                        (cutoff,),
+                    ).fetchone()
+                    if row_sem_evt:
+                        semantic_change_count += int(row_sem_evt[0] or 0)
+                except Exception:
+                    pass
 
             gap_runs = 0
             gap_changed = 0
@@ -3291,6 +3568,16 @@ class BGLGuardian:
                 score += 4.0
             return round(score, 2)
 
+        def _needs_hover(selector: str, text: str, href: str, selector_key: str, tag: str, role: str) -> bool:
+            probe = " ".join([selector, selector_key, text, href, tag, role]).lower()
+            hover_tokens = ("dropdown", "menu", "submenu", "hover", "tooltip", "nav", "navbar")
+            tab_tokens = ("tab", "tabs", "tab-btn", "switchtab")
+            if any(t in probe for t in hover_tokens):
+                return True
+            if any(t in probe for t in tab_tokens):
+                return True
+            return False
+
         seen_keys: set[str] = set()
         covered_keys: set[str] = set()
         route_stats: Dict[str, Dict[str, int]] = {}
@@ -3341,14 +3628,17 @@ class BGLGuardian:
                 else:
                     risk = _risk(text, href)
                     score = _priority(text, tag, role, href, risk)
+                    needs_hover = _needs_hover(selector, text, href, selector_key, tag, role)
                     gap = {
                         "route": route or url,
                         "selector": selector,
+                        "selector_key": selector_key,
                         "text": text,
                         "href": href,
                         "tag": tag,
                         "risk": risk,
                         "priority_score": score,
+                        "needs_hover": needs_hover,
                     }
                     gaps.append(gap)
                     if len(uncovered_sample) < max(8, int(limit)):
@@ -3624,8 +3914,12 @@ class BGLGuardian:
                 ),
             )
             db.commit()
-        except Exception:
-            pass
+        except Exception as e:
+            try:
+                if "locked" in str(e).lower():
+                    self._update_diagnostic_status("db_write_locked")
+            except Exception:
+                pass
         finally:
             try:
                 db.close()

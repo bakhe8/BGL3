@@ -2,7 +2,7 @@ openapi: 3.0.0
 info:
   title: BGL3 API (Manual Seed)
   version: '0.1'
-  x-bgl-last-refresh: '2026-02-10 09:40:31'
+  x-bgl-last-refresh: '2026-02-11 04:41:06'
 paths:
   /api/batches.php:
     get:

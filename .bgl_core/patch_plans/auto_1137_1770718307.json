@@ -1,0 +1,86 @@
+{
+  "version": 1,
+  "id": "1137",
+  "description": "Route button.tab-btn, .tab-btn: 5 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1689420000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1137,
+    "generated_at": 1770718307.6481783
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_bootstrap_php.yaml",
+      "mode": "append",
+      "content": "\n- route: button.tab-btn\n  target: .tab-btn",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: button.tab-btn\n  target: .tab-btn"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_layout_php.yaml",
+      "mode": "append",
+      "content": "\n- route: button.tab-btn\n  target: .tab-btn",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: button.tab-btn\n  target: .tab-btn"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_activity_php.yaml",
+      "mode": "append",
+      "content": "\n- route: button.tab-btn\n  target: .tab-btn",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: button.tab-btn\n  target: .tab-btn"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml",
+      "mode": "append",
+      "content": "\n- route: button.tab-btn\n  target: .tab-btn",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: button.tab-btn\n  target: .tab-btn"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_controls_php.yaml",
+      "mode": "append",
+      "content": "\n- route: button.tab-btn\n  target: .tab-btn",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: button.tab-btn\n  target: .tab-btn"
+      }
+    }
+  ]
+}

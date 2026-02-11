@@ -19,6 +19,9 @@
   <div class="section">
     <h2>Summary</h2>
     <p>Timestamp: {{ timestamp }}</p>
+    {% if diagnostic_run_id %}
+      <p>Diagnostic Run ID: {{ diagnostic_run_id }}</p>
+    {% endif %}
     {% if health_score is not none %}
       <p>Health Score: {{ health_score|round(1) }}%</p>
     {% else %}
@@ -53,6 +56,9 @@
     {% endif %}
     {% if cache_used %}
     <p>Cache used: {{ cache_used }}{% if cache_reason %} ({{ cache_reason }}){% endif %}</p>
+    {% endif %}
+    {% if report_render_duration_s is not none %}
+      <p>Report render: {{ report_render_duration_s }}s</p>
     {% endif %}
     {% if diagnostic_confidence %}
     <p>Diagnostic confidence: {{ diagnostic_confidence.score|default('n/a') }} (profile {{ diagnostic_confidence.profile|default('n/a') }}, route ratio {{ diagnostic_confidence.route_scan_ratio|default('n/a') }})</p>
@@ -102,9 +108,33 @@
     <h2>Scenario Run Stats</h2>
     {% if scenario_run_stats %}
       <p>Status: <strong>{{ scenario_run_stats.status|default('n/a') }}</strong></p>
+      {% if scenario_run_stats.run_id %}
+        <p>Scenario Run ID: {{ scenario_run_stats.run_id }}</p>
+      {% endif %}
       <p>Attempted: {{ scenario_run_stats.attempted|default(false) }}</p>
       <p>Event delta: {{ scenario_run_stats.event_delta|default(0) }}</p>
+      {% if scenario_run_stats.event_delta_total is not none %}
+        <p>Event delta (total): {{ scenario_run_stats.event_delta_total|default(0) }}{% if scenario_run_stats.fallback_event_delta %} <span class="warn">(fallback {{ scenario_run_stats.fallback_event_delta }})</span>{% endif %}</p>
+      {% endif %}
       <p>Duration: {{ scenario_run_stats.duration_s|default(0) }}s</p>
+      {% if scenario_run_stats.scenario_batch_duration_s is defined %}
+        <p>Scenario batch duration: {{ scenario_run_stats.scenario_batch_duration_s }}s</p>
+      {% endif %}
+      {% if scenario_run_stats.ui_exploration_duration_s is defined %}
+        <p>UI exploration duration: {{ scenario_run_stats.ui_exploration_duration_s }}s</p>
+        <p>UI scenarios: {{ scenario_run_stats.ui_scenarios_count|default(0) }} | API scenarios: {{ scenario_run_stats.api_scenarios_count|default(0) }} | Autonomous: {{ scenario_run_stats.autonomous_scenario|default(false) }}</p>
+      {% endif %}
+      {% if scenario_run_stats.selection %}
+        <p>Selection mode: {{ scenario_run_stats.selection.mode|default('n/a') }}</p>
+        <p>Selected: {{ scenario_run_stats.selection.selected|default(0) }} / Candidates: {{ scenario_run_stats.selection.candidates|default(0) }} | Cooldown skipped: {{ scenario_run_stats.selection.skipped_cooldown|default(0) }}</p>
+        {% if scenario_run_stats.selection.top_reasons %}
+          <p>Selection reasons:
+            {% for k, v in scenario_run_stats.selection.top_reasons.items() %}
+              {{ k }}={{ v }}{% if not loop.last %}, {% endif %}
+            {% endfor %}
+          </p>
+        {% endif %}
+      {% endif %}
       {% if scenario_run_stats.retry_delta is defined %}
         <p>Retry delta: {{ scenario_run_stats.retry_delta }}</p>
         <p>Retry duration: {{ scenario_run_stats.retry_duration_s|default(0) }}s</p>
@@ -122,6 +152,50 @@
       <p>Flow coverage reliable: {{ coverage_reliability.flow }}</p>
     {% else %}
       <p class="warn">Coverage reliability not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Phase Timings</h2>
+    {% if diagnostic_phase_timings %}
+      <table>
+        <tr><th>Phase</th><th>Duration (s)</th><th>Status</th><th>Reason</th></tr>
+        {% for phase in diagnostic_phase_timings %}
+          <tr>
+            <td>{{ phase.phase|default('n/a') }}</td>
+            <td>{{ phase.duration_s|default('n/a') }}</td>
+            <td>{{ phase.status|default('n/a') }}</td>
+            <td>{{ phase.reason|default('') }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="warn">Phase timings not recorded.</p>
+    {% endif %}
+  </div>
+
+  <div class="section">
+    <h2>Diagnostic Stage Durations</h2>
+    {% if diagnostic_stage_totals %}
+      <table>
+        <tr><th>Stage</th><th>Total Duration (s)</th></tr>
+        {% for stage, dur in diagnostic_stage_totals.items() %}
+          <tr>
+            <td>{{ stage }}</td>
+            <td>{{ dur }}</td>
+          </tr>
+        {% endfor %}
+      </table>
+    {% else %}
+      <p class="warn">Stage durations not recorded.</p>
+    {% endif %}
+    {% if diagnostic_slow_phases and diagnostic_slow_phases|length > 0 %}
+      <p class="warn">Slow phases detected:</p>
+      <ul>
+        {% for sp in diagnostic_slow_phases %}
+          <li>{{ sp.stage }} — {{ sp.duration_s }}s</li>
+        {% endfor %}
+      </ul>
     {% endif %}
   </div>
 
@@ -608,6 +682,9 @@
     {% if ui_action_coverage %}
       <p>Window: {{ ui_action_coverage.window_days|default(0) }} days</p>
       <p>Actions covered: {{ ui_action_coverage.covered_actions|default(0) }} / {{ ui_action_coverage.total_actions|default(0) }} ({{ ui_action_coverage.coverage_ratio|default(0) }}%)</p>
+      {% if ui_action_coverage.operational_coverage_ratio is not none %}
+        <p>Operational coverage: {{ ui_action_coverage.operational_coverage_ratio|default(0) }}%</p>
+      {% endif %}
       <p>Routes with actions: {{ ui_action_coverage.routes_with_actions|default(0) }} (covered {{ ui_action_coverage.routes_with_coverage|default(0) }})</p>
       {% if ui_action_coverage.uncovered_sample %}
         <p class="warn">Uncovered actions (sample):</p>
@@ -631,6 +708,9 @@
       <p>Window: {{ flow_coverage.window_days|default(0) }} days</p>
       <p>Flows covered: {{ flow_coverage.covered_flows|default(0) }} / {{ flow_coverage.total_flows|default(0) }} ({{ flow_coverage.coverage_ratio|default(0) }}%)</p>
       <p>Flow sequences covered: {{ flow_coverage.sequence_covered_flows|default(0) }} ({{ flow_coverage.sequence_coverage_ratio|default(0) }}%)</p>
+      {% if flow_coverage.sequence_coverage_ratio_strict is not none %}
+        <p>Sequence strict: {{ flow_coverage.sequence_coverage_ratio_strict|default(0) }}%{% if flow_coverage.sequence_coverage_ratio_inferred is not none %} | inferred: {{ flow_coverage.sequence_coverage_ratio_inferred|default(0) }}%{% endif %}</p>
+      {% endif %}
       {% if flow_coverage.gap_runs is not none %}
         <p>Flow gap runs: {{ flow_coverage.gap_runs|default(0) }}{% if flow_coverage.gap_changed is not none %} (changed {{ flow_coverage.gap_changed|default(0) }}){% endif %}</p>
       {% endif %}

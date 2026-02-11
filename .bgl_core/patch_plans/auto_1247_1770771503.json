@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "1247",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown #1770770870",
+  "created_at": 1770770870,
+  "metadata": {
+    "proposal_context": {
+      "id": 1247,
+      "name": "تحسين تلقائي من خبرة: outcome:reasoning.plan:unknown #1770770870",
+      "description": "Outcome proposed for reasoning.plan (propose_fix/low) x12. Last note: reasoning_plan_logged failure_class=unknown",
+      "action": "investigate",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 8418, \"exp_hash\": \"09976c87920a0cd568aac840196623507f40b3b6\", \"scenario\": \"outcome:reasoning.plan:unknown\", \"summary\": \"Outcome proposed for reasoning.plan (propose_fix/low) x12. Last note: reasoning_plan_logged failure_class=unknown\", \"confidence\": 0.85, \"evidence_count\": 12, \"related_files\": \"reasoning.plan\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1247,
+    "generated_at": 1770771503.196224
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "replace",
+      "content": "def generate_patch_plan():\n    # Generate patch plan logic\n    if failure_class == 'unknown':\n        return generate_unknown_patch_plan()\n",
+      "match": "def generate_patch_plan():",
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "replace",
+        "match": "def generate_patch_plan():",
+        "content": "def generate_patch_plan():\n    # Generate patch plan logic\n    if failure_class == 'unknown':\n        return generate_unknown_patch_plan()\n"
+      }
+    }
+  ]
+}

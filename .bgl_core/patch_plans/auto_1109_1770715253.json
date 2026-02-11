@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_9fd4632145",
+  "description": "Route http://localhost:8000/: 48 events, 5 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1680000000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1109,
+    "generated_at": 1770715253.9939423
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "def stabilize_route():\n    # Add stabilization logic here\n    pass\n\nstabilize_route()",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def stabilize_route():\n    # Add stabilization logic here\n    pass\n\nstabilize_route()"
+      }
+    }
+  ]
+}

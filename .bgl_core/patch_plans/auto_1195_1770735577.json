@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "patch_plan_1195",
+  "description": "Patch Plan for prod_op:proposal.apply|826|force|plan:826 on .bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+  "created_at": 1683072000,
+  "metadata": {
+    "experience_id": 9288,
+    "exp_hash": "2ae8852c4c69496cd0ef92cbe51b708d78a2b29a",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1195,
+    "generated_at": 1770735577.6639967
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": null,
+      "content": "version: '3.8'\n\nservices:\n  gap_route_api_delete_bank:\n    image: gap_route_api_delete_bank_image\n    ports:\n      - \"8080:80\"\n    environment:\n      - ENV=production\n      - DEBUG=false",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3.8'\n\nservices:\n  gap_route_api_delete_bank:\n    image: gap_route_api_delete_bank_image\n    ports:\n      - \"8080:80\"\n    environment:\n      - ENV=production\n      - DEBUG=false"
+      }
+    }
+  ]
+}

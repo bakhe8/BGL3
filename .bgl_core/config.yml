@@ -16,11 +16,18 @@ autonomous_scenario: 1
 autonomous_only: 0
 autonomous_max_steps: 12
 scenario_lock_ttl_sec: 7200
+# If a lock heartbeat is older than this, treat it as stale and allow takeover.
+scenario_lock_max_age_sec: 600
+# Skip running scenarios only when lock is fresh within this age window.
+scenario_lock_skip_age_sec: 600
 scenario_shadow_mode: 1 # Shadow mode enabled (was 0)
 scenario_min_event_delta: 5
 scenario_min_runtime_sec: 4
 scenario_retry_on_low_events: 1
 scenario_retry_delay_sec: 8
+scenario_scheduler_enabled: 1
+scenario_scheduler_auto_budget: 1
+scenario_scheduler_budget_minutes: 0
 api_scan_mode: all
 api_scan_force_examples: 1
 policy_strict: 0

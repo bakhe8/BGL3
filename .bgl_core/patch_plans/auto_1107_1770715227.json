@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_1107",
+  "description": "Stabilize route http://localhost:8000/api/create-guarantee.php",
+  "created_at": 1684593600,
+  "metadata": {
+    "proposal_id": 1107,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770715227.7364209
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_create_guarantee_.yaml",
+      "mode": null,
+      "content": "version: '3'\nservices:\n  api:\n    image: my-api-image\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=1",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nservices:\n  api:\n    image: my-api-image\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=1"
+      }
+    }
+  ]
+}

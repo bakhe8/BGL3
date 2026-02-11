@@ -1,0 +1,32 @@
+{
+  "version": 1,
+  "id": "patch_plan_1108",
+  "description": "Stabilize route http://localhost:8000/api/smart-paste-confidence.php",
+  "created_at": 1770714714,
+  "metadata": {
+    "experience_id": 9723,
+    "exp_hash": "67a4f6240379a7ac4df886a8ee4ebc1754da4af3",
+    "scenario": "http://localhost:8000/api/smart-paste-confidence.php",
+    "confidence": 0.85,
+    "evidence_count": 5,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1108,
+    "generated_at": 1770715218.3422
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_smart_paste_confidence_php.yaml",
+      "mode": null,
+      "content": "version: '3'\nservices:\n  api:\n    image: my-api-image\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=1",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: '3'\nservices:\n  api:\n    image: my-api-image\n    ports:\n      - \"8000:8000\"\n    environment:\n      - DEBUG=1"
+      }
+    }
+  ]
+}

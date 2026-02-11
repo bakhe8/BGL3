@@ -1,4 +1,7 @@
 import subprocess
+import sys
+import shutil
+import importlib.util
 from pathlib import Path
 from typing import List, Dict, Any
 
@@ -26,15 +29,33 @@ def run_contract_suite(root: Path) -> List[Dict[str, Any]]:
 
     if openapi:
         try:
-            cmd = [
-                "schemathesis",
-                "run",
-                str(openapi),
-                "--stateful=links",
-                "--checks=all",
-                "--hypothesis-deadline=750",
-                "--max-examples=50",
-            ]
+            # Prefer running via the current Python interpreter to avoid PATH issues.
+            schemathesis_module = importlib.util.find_spec("schemathesis")
+            if schemathesis_module is not None:
+                cmd = [
+                    sys.executable,
+                    "-m",
+                    "schemathesis",
+                    "run",
+                    str(openapi),
+                    "--stateful=links",
+                    "--checks=all",
+                    "--hypothesis-deadline=750",
+                    "--max-examples=50",
+                ]
+            else:
+                schemathesis_cli = shutil.which("schemathesis")
+                if not schemathesis_cli:
+                    raise FileNotFoundError("schemathesis not installed")
+                cmd = [
+                    schemathesis_cli,
+                    "run",
+                    str(openapi),
+                    "--stateful=links",
+                    "--checks=all",
+                    "--hypothesis-deadline=750",
+                    "--max-examples=50",
+                ]
             r = subprocess.run(cmd, capture_output=True, text=True, cwd=root, timeout=120)
             passed = r.returncode == 0
             results.append(

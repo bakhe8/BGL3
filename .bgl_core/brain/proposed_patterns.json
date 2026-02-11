@@ -1,62 +1,74 @@
 [
   {
-    "id": "1058",
+    "id": "1240",
     "check": "ui_action_gap",
     "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
     "evidence": [
       {
         "route": "/index.php",
         "selector": "#bgl-confirm-no",
+        "selector_key": "",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       },
       {
         "route": "/index.php",
         "selector": "button.note-cancel-btn",
+        "selector_key": "",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       },
       {
         "route": "/index.php",
         "selector": "#manualTestBatchId",
+        "selector_key": "",
         "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
         "href": "",
         "tag": "input",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       },
       {
         "route": "/index.php",
         "selector": "#btnCancelManualEntry",
+        "selector_key": "",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       },
       {
         "route": "/index.php",
         "selector": "#btnCancelPaste",
+        "selector_key": "",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       },
       {
         "route": "/",
-        "selector": "#bgl-confirm-no",
+        "selector": "button.note-cancel-btn",
+        "selector_key": "",
         "text": "إلغاء",
         "href": "",
         "tag": "button",
         "risk": "danger",
-        "priority_score": 86.0
+        "priority_score": 86.0,
+        "needs_hover": false
       }
     ],
     "scope": [],

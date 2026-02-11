@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_effective_config_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/effective_config.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/effective_config.php
+- action: wait
+  ms: 400

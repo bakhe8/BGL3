@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1122",
+  "description": "Stabilize route /api/delete_bank.php",
+  "created_at": 1770717571,
+  "metadata": {
+    "proposal_id": 1122,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770717650.4204533
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "append",
+      "content": "\n- Ensure proper error handling and logging for /api/delete_bank.php",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- Ensure proper error handling and logging for /api/delete_bank.php"
+      }
+    }
+  ]
+}

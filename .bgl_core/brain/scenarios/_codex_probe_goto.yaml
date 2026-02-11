@@ -1,0 +1,6 @@
+name: codex_probe_goto
+steps:
+  - action: goto
+    url: "data:text/html,<html><body>ok</body></html>"
+  - action: wait
+    ms: 50

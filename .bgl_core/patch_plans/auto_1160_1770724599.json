@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1160",
+  "description": "Stabilize scenario goals/goal_1770723806.yaml",
+  "created_at": 1704832800,
+  "metadata": {
+    "proposal_id": 1160,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770724599.2762632
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_1770723806.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_1770723806\ndescription: Stabilize scenario goals/goal_1770723806.yaml\ntargets:\n  - route: /api/v1/stabilize\n    method: POST\n    parameters:\n      - name: experience_id\n        type: integer\n        required: true\n      - name: exp_hash\n        type: string\n        required: true\n    responses:\n      - status_code: 200\n        description: Success\n        content:\n          application/json:\n            schema:\n              $ref: '#/definitions/StabilizeResponse'\ndefinitions:\n  StabilizeResponse:\n    type: object\n    properties:\n      message:\n        type: string\n      status:\n        type: string",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_1770723806\ndescription: Stabilize scenario goals/goal_1770723806.yaml\ntargets:\n  - route: /api/v1/stabilize\n    method: POST\n    parameters:\n      - name: experience_id\n        type: integer\n        required: true\n      - name: exp_hash\n        type: string\n        required: true\n    responses:\n      - status_code: 200\n        description: Success\n        content:\n          application/json:\n            schema:\n              $ref: '#/definitions/StabilizeResponse'\ndefinitions:\n  StabilizeResponse:\n    type: object\n    properties:\n      message:\n        type: string\n      status:\n        type: string"
+      }
+    }
+  ]
+}

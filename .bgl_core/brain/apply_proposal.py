@@ -161,6 +161,7 @@ def _auto_run_scenarios_after_apply(cfg: Dict[str, Any], *, proposal_id: Optiona
     env.setdefault("BGL_AUTONOMOUS_SCENARIO", "1" if include_autonomous else "0")
     env.setdefault("BGL_HEADLESS", "1" if headless else "0")
     env.setdefault("BGL_RUN_AFTER_APPLY", "1")
+    env.setdefault("BGL_TRIGGER_SOURCE", "auto_apply")
     if proposal_id:
         env.setdefault("BGL_APPLY_PROPOSAL_ID", str(proposal_id))
     try:

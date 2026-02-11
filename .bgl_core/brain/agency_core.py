@@ -768,6 +768,21 @@ class AgencyCore:
         except Exception:
             limit = 400
 
+        # If we recently timed out, reduce scope automatically (based on prior runs).
+        state_path = self.root_dir / ".bgl_core" / "logs" / "context_digest_state.json"
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+        except Exception:
+            state = {}
+        try:
+            last_timeout_at = float(state.get("last_timeout_at") or 0)
+        except Exception:
+            last_timeout_at = 0.0
+        if last_timeout_at and (time.time() - last_timeout_at) < 6 * 3600:
+            # Back off to avoid repeated timeouts.
+            hours = min(hours, float(state.get("fallback_hours") or max(1.0, hours / 2)))
+            limit = min(limit, int(state.get("fallback_limit") or max(100, int(limit / 2))))
+
         script = self.root_dir / ".bgl_core" / "brain" / "context_digest.py"
         if not script.exists():
             return {"ok": False, "error": "context_digest_missing"}
@@ -798,6 +813,21 @@ class AgencyCore:
             out = (proc.stdout or "").strip()
             err = (proc.stderr or "").strip()
             # Keep the payload compact for the report.
+            try:
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                state = state if isinstance(state, dict) else {}
+                state.update(
+                    {
+                        "last_success_at": time.time(),
+                        "last_timeout_at": state.get("last_timeout_at"),
+                        "last_hours": hours,
+                        "last_limit": limit,
+                        "returncode": proc.returncode,
+                    }
+                )
+                state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
             return {
                 "ok": proc.returncode == 0,
                 "returncode": proc.returncode,
@@ -805,9 +835,34 @@ class AgencyCore:
                 "stderr": err[-500:] if err else "",
                 "hours": hours,
                 "limit": limit,
+                "timeout_sec": timeout_sec,
             }
         except Exception as e:
-            return {"ok": False, "error": str(e), "hours": hours, "limit": limit}
+            # Mark timeout and suggest fallback scope for next run.
+            try:
+                state_path.parent.mkdir(parents=True, exist_ok=True)
+                state = state if isinstance(state, dict) else {}
+                state.update(
+                    {
+                        "last_timeout_at": time.time(),
+                        "last_hours": hours,
+                        "last_limit": limit,
+                        "timeout_sec": timeout_sec,
+                        "fallback_hours": max(1.0, hours / 2),
+                        "fallback_limit": max(100, int(limit / 2)),
+                    }
+                )
+                state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+            except Exception:
+                pass
+            return {
+                "ok": False,
+                "error": str(e),
+                "hours": hours,
+                "limit": limit,
+                "timeout_sec": timeout_sec,
+                "timed_out": "TimeoutExpired" in str(e),
+            }
 
     def _auto_generate_patch_plans(self) -> Dict[str, Any]:
         """
@@ -1332,15 +1387,28 @@ class AgencyCore:
             ui_sem = latest_ui_semantic_snapshot(self.db_path)
             if ui_sem:
                 findings["ui_semantic"] = ui_sem
+                current_url = str(ui_sem.get("url") or "")
                 prev_sem = previous_ui_semantic_snapshot(
                     self.db_path,
-                    url=str(ui_sem.get("url") or ""),
+                    url=current_url,
                     before_ts=float(ui_sem.get("created_at") or time.time()),
                 )
+                if not (prev_sem and prev_sem.get("summary")):
+                    prev_sem = previous_ui_semantic_snapshot(
+                        self.db_path,
+                        url=None,
+                        before_ts=float(ui_sem.get("created_at") or time.time()),
+                    )
                 if prev_sem and prev_sem.get("summary"):
-                    findings["ui_semantic_delta"] = compute_ui_semantic_delta(
+                    delta = compute_ui_semantic_delta(
                         prev_sem.get("summary"), ui_sem.get("summary")
                     )
+                    if not delta.get("changed") and str(prev_sem.get("url") or "") and str(prev_sem.get("url") or "") != current_url:
+                        delta["changed"] = True
+                        delta["reason"] = "new_url"
+                        delta["change_count"] = max(1, int(delta.get("change_count") or 0))
+                        delta["prev_url"] = str(prev_sem.get("url") or "")
+                    findings["ui_semantic_delta"] = delta
         except Exception:
             findings.setdefault("ui_semantic", None)
         # Merge auto-run checks (if any) into external_checks for unified proposal channel.

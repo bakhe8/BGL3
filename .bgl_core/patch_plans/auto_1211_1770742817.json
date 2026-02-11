@@ -1,0 +1,33 @@
+{
+  "version": 1,
+  "id": "patch_plan_1211",
+  "description": "Patch Plan for prod_op:proposal.apply|801|force|plan:801 on .bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml,.bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+  "created_at": 1684579200,
+  "metadata": {
+    "experience_id": 9227,
+    "exp_hash": "7892449b3fb6730264255a11b6164291688f8d43",
+    "scenario": "prod_op:proposal.apply|801|force|plan:801:.bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml,.bgl_core/brain/scenarios/generated/gap_route_api_delete_supplier_php.yaml",
+    "confidence": 0.85,
+    "evidence_count": 1,
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1211,
+    "generated_at": 1770742817.3079393
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_delete_bank_php.yaml",
+      "mode": "overwrite",
+      "content": "version: '3.8'\n\nservices:\n  gap_route_api_delete_bank:\n    image: my_image:latest\n    ports:\n      - \"8080:80\"\n    environment:\n      - ENV_VAR=value",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3.8'\n\nservices:\n  gap_route_api_delete_bank:\n    image: my_image:latest\n    ports:\n      - \"8080:80\"\n    environment:\n      - ENV_VAR=value"
+      }
+    }
+  ]
+}

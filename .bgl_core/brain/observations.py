@@ -249,22 +249,33 @@ def latest_ui_semantic_snapshot(
 
 
 def previous_ui_semantic_snapshot(
-    db_path: Path, *, url: str, before_ts: float
+    db_path: Path, *, url: Optional[str] = None, before_ts: float
 ) -> Optional[Dict[str, Any]]:
-    if not url:
+    if url is not None and not url:
         return None
     with sqlite3.connect(str(db_path)) as conn:
         conn.row_factory = sqlite3.Row
         _ensure_ui_semantic_tables(conn)
-        row = conn.execute(
-            """
-            SELECT * FROM ui_semantic_snapshots
-            WHERE url = ? AND created_at < ?
-            ORDER BY created_at DESC
-            LIMIT 1
-            """,
-            (url, float(before_ts)),
-        ).fetchone()
+        if url:
+            row = conn.execute(
+                """
+                SELECT * FROM ui_semantic_snapshots
+                WHERE url = ? AND created_at < ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (url, float(before_ts)),
+            ).fetchone()
+        else:
+            row = conn.execute(
+                """
+                SELECT * FROM ui_semantic_snapshots
+                WHERE created_at < ?
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (float(before_ts),),
+            ).fetchone()
         if not row:
             return None
         summary = {}

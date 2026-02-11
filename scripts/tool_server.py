@@ -270,11 +270,14 @@ class Handler(BaseHTTPRequestHandler):
 
     def _scenario_run(self, req):
         try:
+            env = os.environ.copy()
+            env["BGL_TRIGGER_SOURCE"] = "tool_server"
             res = subprocess.run(
                 [PYTHON_EXE, ".bgl_core/brain/run_scenarios.py"],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
+                env=env,
                 timeout=300,
             )
             output = (res.stdout or "") + "\n" + (res.stderr or "")

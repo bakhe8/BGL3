@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "patch_1210",
+  "description": "Prod op proposal.apply|1189|force|plan:patch_1189 on .bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+  "created_at": 1683456789,
+  "metadata": {
+    "experience_id": 9830,
+    "exp_hash": "9a53b6620a146beb44a86673433afdc23b272c14",
+    "scenario": "prod_op:proposal.apply|1189|force|plan:patch_1189:.bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+    "confidence": 0.85,
+    "source": "proposal",
+    "generated_by": "llm",
+    "proposal_id": 1210,
+    "generated_at": 1770756683.7077672
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "// This is a placeholder for the actual patch content\n// Please replace this with the actual changes required by the proposal\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// This is a placeholder for the actual patch content\n// Please replace this with the actual changes required by the proposal\n"
+      }
+    }
+  ]
+}

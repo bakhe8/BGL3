@@ -96,6 +96,60 @@ def _count_by_time(conn: sqlite3.Connection, table: str, time_col: str, start_ts
         return None
 
 
+def _log_runtime_event(conn: sqlite3.Connection, event: Dict[str, Any]) -> None:
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS runtime_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp REAL NOT NULL,
+                session TEXT,
+                run_id TEXT,
+                scenario_id TEXT,
+                goal_id TEXT,
+                source TEXT,
+                event_type TEXT NOT NULL,
+                route TEXT,
+                method TEXT,
+                target TEXT,
+                step_id TEXT,
+                payload TEXT,
+                status INTEGER,
+                latency_ms REAL,
+                error TEXT
+            )
+            """
+        )
+        payload = event.get("payload")
+        if isinstance(payload, dict):
+            payload = json.dumps(payload, ensure_ascii=False)
+        conn.execute(
+            """
+            INSERT INTO runtime_events (timestamp, session, run_id, scenario_id, goal_id, source, event_type, route, method, target, step_id, payload, status, latency_ms, error)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                event.get("timestamp", time.time()),
+                event.get("session", ""),
+                event.get("run_id", ""),
+                event.get("scenario_id", ""),
+                event.get("goal_id", ""),
+                event.get("source", "run_ledger"),
+                event.get("event_type"),
+                event.get("route"),
+                event.get("method"),
+                event.get("target"),
+                event.get("step_id"),
+                payload,
+                event.get("status"),
+                event.get("latency_ms"),
+                event.get("error"),
+            ),
+        )
+    except Exception:
+        pass
+
+
 def _load_attribution(conn: sqlite3.Connection, run_id: str, start_ts: float, end_ts: float) -> Dict[str, Any]:
     try:
         row = conn.execute(
@@ -141,12 +195,53 @@ def finish_run(db_path: Path, *, run_id: str, ended_at: Optional[float] = None) 
         duration_s = max(0.0, end_ts - start_ts)
 
         runtime_count = _count_runtime_events(conn, run_id, start_ts, end_ts)
+        window_events = None
+        try:
+            row = conn.execute(
+                "SELECT COUNT(*) FROM runtime_events WHERE timestamp >= ? AND timestamp <= ?",
+                (float(start_ts), float(end_ts)),
+            ).fetchone()
+            window_events = int(row[0] or 0) if row else 0
+        except Exception:
+            window_events = None
         decisions_count = _count_by_time(conn, "decisions", "created_at", start_ts, end_ts)
         outcomes_count = _count_by_time(conn, "outcomes", "timestamp", start_ts, end_ts)
 
         attr = _load_attribution(conn, run_id, start_ts, end_ts)
         attr_class = str(attr.get("classification") or "") if isinstance(attr, dict) else ""
         attr_conf = float(attr.get("confidence") or 0) if isinstance(attr, dict) else None
+
+        notes = None
+        try:
+            row_notes = conn.execute(
+                "SELECT notes FROM agent_runs WHERE run_id = ?",
+                (run_id,),
+            ).fetchone()
+            notes = str(row_notes[0] or "") if row_notes else ""
+        except Exception:
+            notes = ""
+        if window_events is not None and runtime_count == 0 and window_events > 0:
+            mismatch_note = f"run_id_mismatch:events_in_window={window_events}"
+            if mismatch_note not in (notes or ""):
+                notes = (notes + " | " if notes else "") + mismatch_note
+            try:
+                _log_runtime_event(
+                    conn,
+                    {
+                        "timestamp": end_ts,
+                        "run_id": run_id,
+                        "event_type": "run_id_mismatch",
+                        "source": "run_ledger",
+                        "payload": {
+                            "run_id": run_id,
+                            "events_in_window": window_events,
+                            "start_ts": start_ts,
+                            "end_ts": end_ts,
+                        },
+                    },
+                )
+            except Exception:
+                pass
 
         conn.execute(
             """
@@ -166,4 +261,12 @@ def finish_run(db_path: Path, *, run_id: str, ended_at: Optional[float] = None) 
                 run_id,
             ),
         )
+        if notes is not None:
+            try:
+                conn.execute(
+                    "UPDATE agent_runs SET notes=? WHERE run_id=?",
+                    (notes, run_id),
+                )
+            except Exception:
+                pass
         conn.commit()
