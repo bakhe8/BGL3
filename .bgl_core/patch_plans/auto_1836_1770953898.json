@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "fix-confirm-modal-path",
+  "description": "Fix path for confirm-modal.php to be within allowed scopes.",
+  "created_at": 1697539200,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1836,
+    "generated_at": 1770953898.3364658
+  },
+  "operations": [
+    {
+      "op": "move",
+      "path": "partials/confirm-modal.php",
+      "mode": null,
+      "content": null,
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": ".bgl_core/brain/scenarios/generated/gap_route_partials_confirm_modal_php.yaml",
+      "meta": {
+        "to": ".bgl_core/brain/scenarios/generated/gap_route_partials_confirm_modal_php.yaml"
+      }
+    }
+  ]
+}

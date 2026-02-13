@@ -1,0 +1,30 @@
+{
+  "version": 2,
+  "id": "1838",
+  "description": "Patch Plan for proposal.apply|1744|plan:patch_plan_1744 to address 'Exceeded max_lines_per_change.' error in write engine.",
+  "created_at": 1690560000,
+  "metadata": {
+    "proposal_id": 1838,
+    "impact": "medium",
+    "solution": "Reduce the number of changes per patch plan.",
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770953883.5858784
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/write_engine.py",
+      "mode": "overwrite",
+      "content": "def apply_patch_plan(patch_plan):\n    # Reduce the number of changes per patch plan\n    max_lines_per_change = 100\n    for change in patch_plan['changes']:\n        if len(change) > max_lines_per_change:\n            raise ValueError('Exceeded max_lines_per_change.')\n    # Apply the patch plan\n    apply_changes(patch_plan)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "def apply_patch_plan(patch_plan):\n    # Reduce the number of changes per patch plan\n    max_lines_per_change = 100\n    for change in patch_plan['changes']:\n        if len(change) > max_lines_per_change:\n            raise ValueError('Exceeded max_lines_per_change.')\n    # Apply the patch plan\n    apply_changes(patch_plan)\n"
+      }
+    }
+  ]
+}

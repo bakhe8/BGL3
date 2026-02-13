@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1705",
+  "description": "Stabilize route http://localhost:8000/agentfrontend/partials/summary.php",
+  "created_at": 1694380800,
+  "metadata": {
+    "proposal_id": 1705,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770906947.4146938
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": null,
+      "content": "// Ensure the batch detail view is stable and responsive\n// Add necessary error handling and logging",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Ensure the batch detail view is stable and responsive\n// Add necessary error handling and logging"
+      }
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+name: gap_route_api_import_banks_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/import_banks.php
+  route_type: direct
+steps:
+- action: request
+  url: /api/import_banks.php
+  method: GET

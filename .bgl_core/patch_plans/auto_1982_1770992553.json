@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "1982",
+  "description": "Runtime evidence for /api/import_banks.php: events 1-3, errors 1-3 (rate 0.3-0.6), latency low. last_error_present. suspect_deps=Exception,Exception,Exception,Database.",
+  "created_at": 1770992524,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1982,
+    "generated_at": 1770992553.661219
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "api/import_banks.php",
+      "mode": null,
+      "content": "// TODO: Add error handling and logging for /api/import_banks.php\ntry {\n    // Existing code here\n} catch (Exception $e) {\n    log_error($e);\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// TODO: Add error handling and logging for /api/import_banks.php\ntry {\n    // Existing code here\n} catch (Exception $e) {\n    log_error($e);\n}\n"
+      }
+    }
+  ]
+}

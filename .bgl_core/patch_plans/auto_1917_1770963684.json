@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_1917",
+  "description": "Stabilize route http://localhost:8000/agent.php",
+  "created_at": 1770963672,
+  "metadata": {
+    "proposal_id": 1917,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770963684.9620786
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agent_dashboard_php.yaml",
+      "mode": null,
+      "content": "Ensure the route is properly configured and all dependencies are met.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the route is properly configured and all dependencies are met."
+      }
+    }
+  ]
+}

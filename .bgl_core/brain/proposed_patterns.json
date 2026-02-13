@@ -1,42 +1,9 @@
 [
   {
-    "id": "1489",
+    "id": "2064",
     "check": "ui_action_gap",
     "recommendation": "توسيع الاستكشاف ليشمل الأزرار/التبويبات غير المُجرّبة",
     "evidence": [
-      {
-        "route": "/index.php",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "text=إلغاء",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#manualTestBatchId",
-        "selector_key": "id=manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelPaste",
-        "selector_key": "id=btnCancelPaste",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
       {
         "route": "/",
         "selector": "button.note-cancel-btn",
@@ -68,6 +35,39 @@
         "tag": "button",
         "risk": "danger",
         "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelPaste",
+        "selector_key": "id=btnCancelPaste",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#btnCancelExcel",
+        "selector_key": "id=btnCancelExcel",
+        "text": "إلغاء",
+        "href": "",
+        "tag": "button",
+        "risk": "danger",
+        "priority_score": 86.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "button.note-save-btn",
+        "selector_key": "text=حفظ",
+        "text": "حفظ",
+        "href": "",
+        "tag": "button",
+        "risk": "write",
+        "priority_score": 84.0,
         "needs_hover": false
       }
     ],

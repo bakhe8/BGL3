@@ -9,6 +9,161 @@ import json
 import sqlite3
 import time
 import ctypes
+import socket
+from typing import Any, Dict, List
+
+# Runtime globals for report finalization (used by exit fallback).
+_ACTIVE_RUN_ID: str | None = None
+_RUN_START_TS: float | None = None
+_REPORT_WRITTEN: bool = False
+_REPORT_PATH: Path | None = None
+_STATUS_PATH: Path | None = None
+_LAST_REPORT_SNAPSHOT: Dict[str, Any] | None = None
+_CFG_SNAPSHOT: Dict[str, Any] | None = None
+
+
+def _path_get(data: Dict[str, Any], path: str, default: Any = None) -> Any:
+    if not path:
+        return default
+    cur: Any = data
+    for part in path.split("."):
+        if not isinstance(cur, dict) or part not in cur:
+            return default
+        cur = cur[part]
+    return cur
+
+
+def _parse_env_override(raw: str, cast: str) -> tuple[bool, Any]:
+    try:
+        text = str(raw).strip()
+        if cast == "int":
+            return True, int(text)
+        if cast == "float":
+            return True, float(text)
+        if cast == "bool":
+            return True, text.lower() in {"1", "true", "yes", "on"}
+        return True, text
+    except Exception:
+        return False, raw
+
+
+def _build_effective_runtime_config(effective_cfg: Dict[str, Any]) -> Dict[str, Any]:
+    tracked_specs = {
+        "diagnostic_profile": {"path": "diagnostic_profile", "env": "BGL_DIAGNOSTIC_PROFILE", "cast": "str", "default": "auto"},
+        "diagnostic_timeout_sec": {"path": "diagnostic_timeout_sec", "env": "BGL_DIAGNOSTIC_TIMEOUT_SEC", "cast": "int", "default": 300},
+        "guardian_timeout_sec": {"path": "guardian_timeout_sec", "env": "BGL_GUARDIAN_TIMEOUT_SEC", "cast": "int", "default": None},
+        "diagnostic_budget_seconds": {"path": "diagnostic_budget_seconds", "env": "BGL_DIAGNOSTIC_BUDGET_SECONDS", "cast": "int", "default": None},
+        "route_scan_limit": {"path": "route_scan_limit", "env": "BGL_ROUTE_SCAN_LIMIT", "cast": "int", "default": None},
+        "route_scan_max_seconds": {"path": "route_scan_max_seconds", "env": "BGL_ROUTE_SCAN_MAX_SECONDS", "cast": "int", "default": None},
+        "scenario_batch_limit": {"path": "scenario_batch_limit", "env": "BGL_SCENARIO_BATCH_LIMIT", "cast": "int", "default": None},
+        "scenario_batch_timeout_sec": {"path": "scenario_batch_timeout_sec", "env": "BGL_SCENARIO_BATCH_TIMEOUT_SEC", "cast": "int", "default": None},
+        "scenario_retry_on_low_events": {"path": "scenario_retry_on_low_events", "env": "BGL_SCENARIO_RETRY_ON_LOW_EVENTS", "cast": "bool", "default": True},
+        "scenario_retry_on_flaky_errors": {"path": "scenario_retry_on_flaky_errors", "env": "BGL_SCENARIO_RETRY_ON_FLAKY_ERRORS", "cast": "bool", "default": True},
+        "skip_dream": {"path": "skip_dream", "env": "BGL_SKIP_DREAM", "cast": "bool", "default": False},
+        "reasoning_enabled": {"path": "reasoning_enabled", "env": "BGL_REASONING", "cast": "bool", "default": True},
+        "force_process_exit": {"path": "force_process_exit", "env": "BGL_FORCE_PROCESS_EXIT", "cast": "bool", "default": False},
+    }
+    out: Dict[str, Any] = {"tracked": {}, "env_overrides": []}
+    flat_sources = effective_cfg.get("_sources", {}) if isinstance(effective_cfg, dict) else {}
+    for key, spec in tracked_specs.items():
+        path = str(spec.get("path") or key)
+        env_name = str(spec.get("env") or "")
+        cast = str(spec.get("cast") or "str")
+        default = spec.get("default")
+        value = _path_get(effective_cfg, path, default)
+        source = flat_sources.get(path, "default") if isinstance(flat_sources, dict) else "default"
+        env_value = os.getenv(env_name, "") if env_name else ""
+        env_applied = False
+        env_parse_ok = True
+        if env_name and str(env_value).strip() != "":
+            ok, parsed = _parse_env_override(env_value, cast)
+            value = parsed
+            source = "env"
+            env_applied = True
+            env_parse_ok = ok
+            out["env_overrides"].append(key)
+        out["tracked"][key] = {
+            "value": value,
+            "source": source,
+            "path": path,
+            "env": env_name,
+            "env_applied": env_applied,
+            "env_parse_ok": env_parse_ok,
+            "default": default,
+        }
+    return out
+
+
+def _mark_report_written() -> None:
+    global _REPORT_WRITTEN
+    _REPORT_WRITTEN = True
+
+
+def _build_stub_report(run_id: str, reason: str) -> Dict[str, Any]:
+    now = time.time()
+    return {
+        "timestamp": now,
+        "diagnostic_run_id": run_id,
+        "cache_used": True,
+        "cache_reason": reason,
+        "cached_at": now,
+        "cache_run_id": run_id,
+        "cache_source_run_id": None,
+        "diagnostic_profile": "cache-stub",
+        "findings": {},
+        "scenario_run_stats": {},
+        "context_digest": {},
+    }
+
+
+def _write_cached_report(reason: str) -> None:
+    if _REPORT_PATH is None:
+        return
+    run_id = _ACTIVE_RUN_ID or ""
+    now = time.time()
+    base = _LAST_REPORT_SNAPSHOT or {}
+    if not base and run_id:
+        payload = _build_stub_report(run_id, reason)
+    else:
+        payload = dict(base)
+        payload["timestamp"] = now
+        if run_id:
+            payload["diagnostic_run_id"] = run_id
+        payload["cache_used"] = True
+        payload["cache_reason"] = reason
+        payload["cached_at"] = now
+        payload["cache_run_id"] = run_id or payload.get("cache_run_id")
+        payload["cache_source_run_id"] = base.get("diagnostic_run_id")
+        payload["diagnostic_profile"] = payload.get("diagnostic_profile") or "cache-full"
+    try:
+        if _STATUS_PATH is not None:
+            payload["diagnostic_status"] = _read_json(_STATUS_PATH)
+    except Exception:
+        payload["diagnostic_status"] = {}
+    try:
+        payload["auto_review"] = _auto_review(payload, _CFG_SNAPSHOT or {})
+    except Exception:
+        pass
+    _atomic_write_json(_REPORT_PATH, payload)
+    _mark_report_written()
+
+
+def _exit_report_fallback() -> None:
+    """
+    Best-effort fallback to ensure a report is written even if the run exits
+    before the normal report-writing path completes.
+    """
+    if _REPORT_PATH is None or not _ACTIVE_RUN_ID:
+        return
+    if _REPORT_WRITTEN:
+        return
+    try:
+        current = _read_json(_REPORT_PATH)
+        if current.get("diagnostic_run_id") == _ACTIVE_RUN_ID or current.get("cache_run_id") == _ACTIVE_RUN_ID:
+            return
+    except Exception:
+        pass
+    _write_cached_report("exit_fallback")
 
 # Fix path to find brain modules in all execution contexts
 current_dir = str(Path(__file__).parent)
@@ -65,6 +220,32 @@ def log_activity(root_path: Path, message: str, details: str | dict = "{}"):
         except Exception:
             pass
         print(f"[WARN] Failed to log activity: {e}")
+
+
+def log_run_audit(root_path: Path) -> None:
+    """Append a single-line audit record for each master_verify invocation."""
+    try:
+        log_dir = root_path / ".bgl_core" / "logs"
+        log_dir.mkdir(parents=True, exist_ok=True)
+        log_path = log_dir / "run_audit.jsonl"
+        now_ts = time.time()
+        payload = {
+            "ts": now_ts,
+            "timestamp": now_ts,
+            "iso": time.strftime("%Y-%m-%d %H:%M:%S", time.localtime()),
+            "pid": os.getpid(),
+            "ppid": os.getppid(),
+            "user": os.environ.get("USERNAME") or os.environ.get("USER"),
+            "host": os.environ.get("COMPUTERNAME") or socket.gethostname(),
+            "source": os.environ.get("BGL_RUN_SOURCE", "manual"),
+            "task_name": os.environ.get("BGL_RUN_TASK_NAME", ""),
+            "trigger": os.environ.get("BGL_RUN_TRIGGER", ""),
+            "cmd": " ".join(sys.argv),
+        }
+        with log_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    except Exception as exc:
+        print(f"[WARN] Failed to write run audit: {exc}")
 
 
 def _log_runtime_event(root_path: Path, event: dict) -> None:
@@ -158,6 +339,126 @@ def _run_with_timeout(label: str, func, timeout: int, default):
     return result.get("value", default)
 
 
+def _run_post_finalize(root: Path, cfg: Dict[str, Any], run_id: str | None = None) -> None:
+    """Run post-report automation hooks (auto-apply, strategy, cleanup, retention)."""
+    rid = str(run_id or "")
+
+    try:
+        allow_auto_apply = os.getenv("BGL_AUTO_APPLY_PENDING")
+        if allow_auto_apply is None:
+            allow_auto_apply = str(cfg.get("auto_apply", 0))
+        if str(allow_auto_apply).strip().lower() in ("1", "true", "yes", "on"):
+            script = root / ".bgl_core" / "brain" / "auto_apply_pending_plans.py"
+            if script.exists():
+                exe = sys.executable or "python"
+                try:
+                    per_apply_timeout = int(cfg.get("auto_apply_timeout_sec", 300) or 300)
+                except Exception:
+                    per_apply_timeout = 300
+                try:
+                    apply_limit = int(cfg.get("auto_apply_limit", 3) or 3)
+                except Exception:
+                    apply_limit = 3
+                aggregate_timeout = max(per_apply_timeout, (per_apply_timeout * max(1, apply_limit)) + 30)
+                proc = subprocess.run(
+                    [exe, str(script)],
+                    cwd=str(root),
+                    capture_output=True,
+                    text=True,
+                    timeout=aggregate_timeout,
+                )
+                payload = {
+                    "ok": proc.returncode == 0,
+                    "stdout": (proc.stdout or "").strip()[-1200:],
+                    "stderr": (proc.stderr or "").strip()[-1200:],
+                    "returncode": proc.returncode,
+                    "per_apply_timeout": per_apply_timeout,
+                    "auto_apply_limit": apply_limit,
+                    "aggregate_timeout": aggregate_timeout,
+                }
+                try:
+                    payload = json.loads((proc.stdout or "").strip().splitlines()[-1])
+                except Exception:
+                    pass
+                _log_runtime_event(
+                    root,
+                    {
+                        "timestamp": time.time(),
+                        "run_id": rid,
+                        "event_type": "auto_apply_pending",
+                        "source": "master_verify",
+                        "payload": payload,
+                    },
+                )
+    except Exception as exc:
+        try:
+            _log_runtime_event(
+                root,
+                {
+                    "timestamp": time.time(),
+                    "run_id": rid,
+                    "event_type": "auto_apply_pending_error",
+                    "source": "master_verify",
+                    "payload": {"ok": False, "error": str(exc)[:600]},
+                },
+            )
+        except Exception:
+            pass
+
+    try:
+        allow_strategy = os.getenv("BGL_AUTO_STRATEGY")
+        if allow_strategy is None:
+            allow_strategy = str(cfg.get("auto_strategy", 1))
+        if str(allow_strategy).strip().lower() in ("1", "true", "yes", "on"):
+            try:
+                from .self_strategy_engine import run_self_strategy  # type: ignore
+            except Exception:
+                try:
+                    from self_strategy_engine import run_self_strategy  # type: ignore
+                except Exception:
+                    run_self_strategy = None  # type: ignore
+            if run_self_strategy:
+                payload = run_self_strategy(root, cfg, run_id=rid or None)
+                _log_runtime_event(
+                    root,
+                    {
+                        "timestamp": time.time(),
+                        "run_id": rid,
+                        "event_type": "self_strategy",
+                        "source": "master_verify",
+                        "payload": payload,
+                    },
+                )
+    except Exception:
+        pass
+
+    try:
+        from .maintenance_cleanup import run_cleanup  # type: ignore
+    except Exception:
+        try:
+            from maintenance_cleanup import run_cleanup  # type: ignore
+        except Exception:
+            run_cleanup = None  # type: ignore
+    if run_cleanup:
+        try:
+            run_cleanup(root, cfg, source="master_verify")
+        except Exception:
+            pass
+
+    try:
+        from .retention_engine import run_retention  # type: ignore
+    except Exception:
+        try:
+            from retention_engine import run_retention  # type: ignore
+        except Exception:
+            run_retention = None  # type: ignore
+    if run_retention:
+        try:
+            run_retention(root, cfg, run_id=rid or None)
+        except Exception:
+            pass
+
+
 def _read_lock_status(lock_path: Path) -> dict:
     try:
         return describe_lock(lock_path)
@@ -228,12 +529,336 @@ def _read_json(path: Path) -> dict:
         return {}
 
 
-def _write_json(path: Path, payload: dict) -> None:
+def _is_valid_ui_action_coverage(payload: Any) -> bool:
+    if not isinstance(payload, dict):
+        return False
+    ratio = payload.get("coverage_ratio")
     try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        if ratio is None:
+            return False
+        float(ratio)
+        return True
+    except Exception:
+        return False
+
+
+def _extract_ui_action_coverage(report: Dict[str, Any]) -> Dict[str, Any]:
+    if not isinstance(report, dict):
+        return {}
+    findings = report.get("findings") or {}
+    if isinstance(findings, dict):
+        from_findings = findings.get("ui_action_coverage")
+        if _is_valid_ui_action_coverage(from_findings):
+            return dict(from_findings)
+    top_level = report.get("ui_action_coverage")
+    if _is_valid_ui_action_coverage(top_level):
+        return dict(top_level)
+    return {}
+
+
+def _load_last_valid_ui_action_coverage(root: Path) -> Dict[str, Any]:
+    logs_dir = root / ".bgl_core" / "logs"
+    candidates: List[Path] = []
+    try:
+        p = logs_dir / "latest_report.json"
+        if p.exists():
+            candidates.append(p)
     except Exception:
         pass
+    try:
+        baseline = logs_dir / "diagnostic_baseline.json"
+        if baseline.exists():
+            candidates.append(baseline)
+    except Exception:
+        pass
+    try:
+        rotated = sorted(
+            logs_dir.glob("latest_report.*.json"),
+            key=lambda x: x.stat().st_mtime,
+            reverse=True,
+        )
+        candidates.extend(rotated[:15])
+    except Exception:
+        pass
+    seen: set[str] = set()
+    for path in candidates:
+        pstr = str(path)
+        if pstr in seen:
+            continue
+        seen.add(pstr)
+        report = _read_json(path)
+        cov = _extract_ui_action_coverage(report)
+        if cov:
+            return cov
+    return {}
+
+
+def _cfg_bool(value: object, default: bool = False) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    try:
+        return bool(int(value))
+    except Exception:
+        return str(value).strip().lower() in ("1", "true", "yes", "on")
+
+
+def _approvals_disabled(cfg: dict) -> bool:
+    force_no_human = _cfg_bool(cfg.get("force_no_human_approvals", 0), False)
+    env_force = os.getenv("BGL_FORCE_NO_HUMAN_APPROVALS")
+    if env_force is not None:
+        force_no_human = str(env_force).strip().lower() in ("1", "true", "yes", "on")
+    approvals_enabled = _cfg_bool(cfg.get("approvals_enabled", 1), True)
+    env_flag = os.getenv("BGL_APPROVALS_ENABLED")
+    if env_flag is not None:
+        approvals_enabled = str(env_flag).strip().lower() in ("1", "true", "yes", "on")
+    if force_no_human:
+        approvals_enabled = False
+    return not approvals_enabled
+
+
+def _atomic_write_text(path: Path, content: str) -> None:
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_suffix(f"{path.suffix}.tmp.{os.getpid()}")
+        try:
+            tmp_path.write_text(content, encoding="utf-8")
+            os.replace(tmp_path, path)
+        finally:
+            try:
+                if tmp_path.exists():
+                    tmp_path.unlink()
+            except Exception:
+                pass
+    except Exception:
+        pass
+
+
+def _atomic_write_json(path: Path, payload: dict) -> None:
+    _atomic_write_text(path, json.dumps(payload, ensure_ascii=False, indent=2))
+
+
+def _write_json(path: Path, payload: dict) -> None:
+    _atomic_write_json(path, payload)
+
+
+def _acquire_lock_with_timeout(lock_path: Path, ttl_sec: int, timeout_sec: int, label: str) -> tuple[bool, str]:
+    if timeout_sec <= 0:
+        ok, reason = acquire_lock(lock_path, ttl_sec=ttl_sec, label=label)
+        return ok, reason
+    deadline = time.time() + timeout_sec
+    last_reason = "timeout"
+    while True:
+        ok, reason = acquire_lock(lock_path, ttl_sec=ttl_sec, label=label)
+        if ok:
+            return True, reason
+        last_reason = reason
+        if time.time() >= deadline:
+            return False, last_reason
+        time.sleep(1.5)
+
+
+def _load_retention_state(root: Path) -> Dict[str, Any]:
+    state_path = root / ".bgl_core" / "logs" / "retention_state.json"
+    apply_path = root / ".bgl_core" / "logs" / "retention_actions_applied.json"
+    state: Dict[str, Any] = {}
+    applied: Dict[str, Any] = {}
+    if state_path.exists():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+        except Exception:
+            state = {}
+    if apply_path.exists():
+        try:
+            applied = json.loads(apply_path.read_text(encoding="utf-8"))
+        except Exception:
+            applied = {}
+    if not state and not applied:
+        return {}
+    summary = {
+        "run_seq": state.get("run_seq"),
+        "catalog_total": state.get("catalog_total"),
+        "prune_candidates": state.get("prune_candidates"),
+        "kept": state.get("kept"),
+        "rewrite_candidates": state.get("rewrite_candidates"),
+        "merge_groups": state.get("merge_groups"),
+        "top_k_per_route": state.get("top_k_per_route"),
+        "rewrite_applied": applied.get("rewrite_applied"),
+        "merge_applied": applied.get("merge_applied"),
+        "apply_errors": len(applied.get("errors") or []),
+    }
+    return {"summary": summary, "state": state, "apply": applied}
+
+
+def _retention_indicator_metrics(root: Path, report: Dict[str, Any]) -> Dict[str, Any]:
+    def _rj(path: Path) -> Dict[str, Any]:
+        if not path.exists():
+            return {}
+        try:
+            return json.loads(path.read_text(encoding="utf-8"))
+        except Exception:
+            return {}
+
+    cleanup_report = _rj(root / ".bgl_core" / "logs" / "cleanup_report.json")
+    selection = _rj(root / ".bgl_core" / "logs" / "scenario_selection.json")
+    retention_state = _rj(root / ".bgl_core" / "logs" / "retention_state.json")
+    retention_preview = _rj(root / ".bgl_core" / "logs" / "retention_preview.json")
+    retention_apply = _rj(root / ".bgl_core" / "logs" / "retention_actions_applied.json")
+
+    kinds_seen: List[str] = []
+    try:
+        for item in retention_preview.get("candidates") or []:
+            kind = str(item.get("kind") or "")
+            if kind and kind not in kinds_seen:
+                kinds_seen.append(kind)
+    except Exception:
+        kinds_seen = []
+
+    scenario_stats = report.get("scenario_run_stats") or {}
+    diagnostic_faults = report.get("diagnostic_faults") or {}
+
+    metrics: Dict[str, Any] = {
+        "time_prune_disabled": cleanup_report.get("retention_disable_time_prune"),
+        "retention_blocked": (selection.get("retention_blocked") if selection else None),
+        "run_seq": retention_state.get("run_seq"),
+        "merge_groups": retention_state.get("merge_groups"),
+        "rewrite_candidates": retention_state.get("rewrite_candidates"),
+        "rewrite_applied": retention_apply.get("rewrite_applied"),
+        "kinds_seen": kinds_seen,
+        "prune_quota": retention_state.get("prune_quota"),
+        "prune_candidates": retention_state.get("prune_candidates"),
+        "event_delta_source": scenario_stats.get("event_delta_source"),
+        "db_write_locked": diagnostic_faults.get("db_write_locked"),
+        "archived": retention_state.get("archived"),
+        "archive_errors": retention_state.get("archive_errors"),
+    }
+    return {k: v for k, v in metrics.items() if v is not None and v != []}
+
+
+def _retention_auto_review(root: Path, report: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    indicators = report.get("retention_indicators") or {}
+    retention_state = (report.get("retention_state") or {}).get("state") or {}
+    reasons: List[str] = []
+
+    paused = bool(retention_state.get("paused"))
+    if paused:
+        reasons.append("pause_on_low_coverage")
+
+    if indicators.get("time_prune_disabled") is False:
+        reasons.append("time_prune_enabled")
+
+    if indicators.get("run_seq") is None:
+        reasons.append("missing_run_seq")
+
+    db_write_locked = indicators.get("db_write_locked")
+    if isinstance(db_write_locked, (int, float)) and db_write_locked:
+        reasons.append("db_write_locked")
+
+    if indicators.get("event_delta_source") and indicators.get("event_delta_source") != "db":
+        reasons.append("event_delta_fallback")
+
+    archive_errors = indicators.get("archive_errors") or []
+    if archive_errors:
+        reasons.append("archive_errors")
+
+    min_ui = float(cfg.get("min_ui_action_coverage", 30) or 30)
+    ui_cov = (report.get("ui_action_coverage") or {}).get("coverage_ratio")
+    if ui_cov is not None and float(ui_cov) < min_ui:
+        reasons.append("low_ui_coverage")
+
+    status = "OK"
+    if paused:
+        status = "Blocked"
+    elif reasons:
+        status = "Risk"
+
+    return {
+        "status": status,
+        "reasons": reasons,
+        "timestamp": time.time(),
+    }
+
+
+def _auto_review(report: Dict[str, Any], cfg: Dict[str, Any]) -> Dict[str, Any]:
+    status = "OK"
+    reasons: List[str] = []
+
+    def mark(level: str, reason: str) -> None:
+        nonlocal status
+        if level == "Blocked":
+            status = "Blocked"
+        elif level == "Risk" and status == "OK":
+            status = "Risk"
+        reasons.append(reason)
+
+    integrity_gate = report.get("integrity_gate") or {}
+    overall = (integrity_gate.get("overall") or {}).get("status")
+    if overall in {"fail", "blocked", "error"}:
+        mark("Blocked", f"integrity_gate_{overall}")
+    elif overall in {"warn", "warning"}:
+        mark("Risk", "integrity_gate_warn")
+
+    scenario_run = report.get("scenario_run_stats") or {}
+    scen_status = str(scenario_run.get("status") or "").lower()
+    if scen_status in {"blocked", "aborted"}:
+        mark("Blocked", f"scenario_run_{scen_status}")
+    elif scen_status in {"timeout", "fail", "error", "safe_mode"}:
+        mark("Risk", f"scenario_run_{scen_status}")
+
+    context_digest = report.get("context_digest") or {}
+    profile = str(report.get("diagnostic_profile") or "").strip().lower()
+    try:
+        strict_fast_context_digest = str(
+            cfg.get("auto_review_fast_context_digest_is_risk", 0)
+        ).strip().lower() in ("1", "true", "yes", "on")
+    except Exception:
+        strict_fast_context_digest = False
+    skip_context_digest_due_fast = (
+        not strict_fast_context_digest
+        and profile.startswith("fast")
+        and context_digest.get("ok") is False
+    )
+    if context_digest.get("ok") is False and not skip_context_digest_due_fast:
+        mark("Risk", "context_digest_failed")
+
+    ui_action = report.get("ui_action_coverage") or {}
+    try:
+        cov = float(ui_action.get("coverage_ratio"))
+        min_cov = float(cfg.get("min_ui_action_coverage", 30) or 30)
+        if cov < min_cov:
+            mark("Risk", "ui_action_coverage_low")
+    except Exception:
+        pass
+
+    try:
+        success_rate = float(report.get("success_rate"))
+        target = float(cfg.get("success_rate_target", 0.75) or 0.75)
+        if success_rate < target:
+            mark("Risk", "success_rate_low")
+    except Exception:
+        pass
+
+    canary = report.get("canary_status") or {}
+    canary_reason = str(canary.get("reason") or "").strip().lower()
+    try:
+        strict_fast_skip = str(
+            cfg.get("auto_review_fast_canary_skip_is_risk", 0)
+        ).strip().lower() in ("1", "true", "yes", "on")
+    except Exception:
+        strict_fast_skip = False
+    skip_due_fast_profile = (
+        not strict_fast_skip
+        and profile.startswith("fast")
+        and bool(canary.get("skipped"))
+        and canary_reason == "fast_profile_skip"
+    )
+    if canary.get("ok") is False and not skip_due_fast_profile:
+        mark("Risk", "canary_not_ok")
+    if canary.get("skipped") and not skip_due_fast_profile:
+        mark("Risk", "canary_skipped")
+
+    return {"status": status, "reasons": reasons, "timestamp": time.time()}
 
 
 def _append_stage_history(
@@ -1130,6 +1755,7 @@ def _apply_profile_env(profile: str, cfg: dict) -> dict:
             "BGL_ROUTE_SCAN_LIMIT": "12",
             "BGL_ROUTE_SCAN_MAX_SECONDS": "25",
             "BGL_RUN_SCENARIOS": "0",
+            "BGL_AUTO_RUN_GAP_SCENARIOS": "0",
             "BGL_API_SCAN_MODE": "skip",
             "BGL_DIAGNOSTIC_BUDGET_SECONDS": "45",
             "BGL_CODE_INTEL": "0",
@@ -1172,6 +1798,7 @@ async def master_assurance_diagnostic():
     except Exception:
         pass
     lock_path = ROOT / ".bgl_core" / "logs" / "master_verify.lock"
+    effective_runtime_config = _build_effective_runtime_config(effective_cfg)
     status_path = ROOT / ".bgl_core" / "logs" / "diagnostic_status.json"
     hb_stop: threading.Event | None = None
     lock_heartbeat_stop: threading.Event | None = None
@@ -1195,6 +1822,8 @@ async def master_assurance_diagnostic():
     try:
         idle_guard = int(cfg.get("diagnostic_idle_guard_sec", 0) or 0)
     except Exception:
+        idle_guard = 0
+    if _approvals_disabled(cfg):
         idle_guard = 0
     if (
         idle_guard > 0
@@ -1294,6 +1923,10 @@ async def master_assurance_diagnostic():
         min_interval = 60.0
     if not force and age is not None and age < min_interval:
         print(f"[!] Diagnostic cooldown active ({age:.1f}s < {min_interval}s); skipping.")
+        try:
+            _run_post_finalize(ROOT, cfg, run_id=None)
+        except Exception:
+            pass
         _release_master_lock()
         return
 
@@ -1324,6 +1957,10 @@ async def master_assurance_diagnostic():
             meta["cached_at"] = now
             _write_json(meta_path, meta)
             _update_status_stage(status_path, "cache_used")
+        except Exception:
+            pass
+        try:
+            _run_post_finalize(ROOT, cfg, run_id=None)
         except Exception:
             pass
         _release_master_lock()
@@ -1414,6 +2051,10 @@ async def master_assurance_diagnostic():
             )
         except Exception:
             pass
+        try:
+            _run_post_finalize(ROOT, cfg, run_id=None)
+        except Exception:
+            pass
         _release_master_lock()
         return
     fast_strategy = str(cfg.get("diagnostic_fast_strategy", "scan") or "scan").strip().lower()
@@ -1426,6 +2067,7 @@ async def master_assurance_diagnostic():
                 last_report["cached_at"] = now
                 last_report["diagnostic_profile"] = "cache-fast"
                 _write_json(report_path, last_report)
+                _mark_report_written()
             else:
                 stub = {
                     "timestamp": now,
@@ -1440,6 +2082,7 @@ async def master_assurance_diagnostic():
                     "cache_reason": "fast_profile_stub",
                 }
                 _write_json(report_path, stub)
+                _mark_report_written()
         except Exception:
             pass
         try:
@@ -1451,6 +2094,10 @@ async def master_assurance_diagnostic():
                 reason="fast_profile_skip",
                 cache_used=True,
             )
+        except Exception:
+            pass
+        try:
+            _run_post_finalize(ROOT, cfg, run_id=None)
         except Exception:
             pass
         _release_master_lock()
@@ -1539,6 +2186,18 @@ async def master_assurance_diagnostic():
     # Run Full Diagnostic with bounded timeout to avoid hanging browser runs
     run_id = f"diag_{int(time.time())}"
     os.environ["BGL_DIAGNOSTIC_RUN_ID"] = run_id
+    # Snapshot globals for exit fallback (after run_id exists).
+    global _ACTIVE_RUN_ID, _RUN_START_TS, _REPORT_PATH, _STATUS_PATH, _LAST_REPORT_SNAPSHOT, _CFG_SNAPSHOT
+    _ACTIVE_RUN_ID = run_id
+    _RUN_START_TS = now
+    _REPORT_PATH = report_path
+    _STATUS_PATH = status_path
+    _LAST_REPORT_SNAPSHOT = last_report if isinstance(last_report, dict) else {}
+    _CFG_SNAPSHOT = cfg
+    try:
+        atexit.register(_exit_report_fallback)
+    except Exception:
+        pass
     # دائم: تنفيذ أول 3 أولويات قبل التشخيص (سلامة التشغيل -> الأحداث -> digest)
     if run_priority_loop:
         try:
@@ -1630,20 +2289,11 @@ async def master_assurance_diagnostic():
             pass
     except asyncio.TimeoutError:
         print(f"[CRITICAL] Diagnostic timed out after {timeout}s.")
+        timeout_report = None
         try:
             _phase_end("full_diagnostic", phase_ts, status="timeout", reason="diagnostic_timeout")
         except Exception:
             pass
-        # Fallback to cached report to keep pipeline responsive.
-        if profile == "fast" and last_report:
-            try:
-                last_report["cache_used"] = True
-                last_report["cache_reason"] = "timeout_fallback"
-                last_report["cached_at"] = time.time()
-                last_report["diagnostic_profile"] = "cache-fast"
-                _write_json(report_path, last_report)
-            except Exception:
-                pass
         try:
             _write_status(
                 status_path,
@@ -1655,7 +2305,76 @@ async def master_assurance_diagnostic():
             )
         except Exception:
             pass
-        return
+        # Fallback to cached report to keep pipeline responsive.
+        if last_report:
+            try:
+                timeout_report = dict(last_report)
+                timeout_report["timestamp"] = time.time()
+                timeout_report["diagnostic_run_id"] = run_id
+                timeout_report["cache_used"] = True
+                timeout_report["cache_reason"] = "timeout_fallback"
+                timeout_report["cached_at"] = time.time()
+                timeout_report["cache_run_id"] = run_id
+                timeout_report["cache_source_run_id"] = last_report.get("diagnostic_run_id")
+                timeout_report["diagnostic_profile"] = "cache-fast" if profile == "fast" else "cache-full"
+                try:
+                    timeout_report["diagnostic_status"] = _read_json(status_path)
+                except Exception:
+                    timeout_report["diagnostic_status"] = {}
+                try:
+                    timeout_report["diagnostic_timeout"] = {
+                        "reason": "diagnostic_timeout",
+                        "run_id": run_id,
+                        "ts": time.time(),
+                    }
+                except Exception:
+                    pass
+                try:
+                    timeout_report["auto_review"] = _auto_review(timeout_report, cfg)
+                except Exception:
+                    pass
+                try:
+                    template = Path(__file__).parent / "report_template.html"
+                    output = Path(".bgl_core/logs/latest_report.html")
+                    build_report(timeout_report, template, output)
+                except Exception:
+                    pass
+                _atomic_write_json(report_path, timeout_report)
+                _mark_report_written()
+            except Exception:
+                pass
+        if not isinstance(timeout_report, dict):
+            timeout_report = _build_stub_report(run_id, "diagnostic_timeout_no_cache")
+            timeout_report["diagnostic_profile"] = "cache-fast" if profile == "fast" else "cache-full"
+            timeout_report["cache_used"] = True
+            timeout_report["cache_reason"] = "timeout_fallback_no_cache"
+            timeout_report["audit_status"] = "partial"
+            timeout_report["diagnostic_timeout"] = {
+                "reason": "diagnostic_timeout",
+                "run_id": run_id,
+                "ts": time.time(),
+            }
+        timeout_report.setdefault("findings", {})
+        timeout_report.setdefault("execution_stats", {})
+        timeout_report.setdefault("scenario_run_stats", {})
+        timeout_report.setdefault("flow_coverage", {})
+        timeout_report.setdefault("ui_action_coverage", {})
+        timeout_report.setdefault("route_coverage", {})
+        timeout_report.setdefault("feature_flags", cfg.get("feature_flags", {}))
+        timeout_report.setdefault("effective_runtime_config", effective_runtime_config)
+        try:
+            cov = _extract_ui_action_coverage(timeout_report)
+            if not cov:
+                cov = _load_last_valid_ui_action_coverage(ROOT)
+            if cov:
+                timeout_report["ui_action_coverage"] = cov
+                findings_obj = timeout_report.get("findings")
+                if isinstance(findings_obj, dict):
+                    findings_obj["ui_action_coverage"] = cov
+        except Exception:
+            pass
+        timeout_report["diagnostic_run_id"] = run_id
+        diagnostic = timeout_report
     finally:
         _release_master_lock()
         try:
@@ -1682,6 +2401,7 @@ async def master_assurance_diagnostic():
     diagnostic["route_usage"] = load_route_usage(ROOT)
     diagnostic["feature_flags"] = cfg.get("feature_flags", {})
     diagnostic["effective_config"] = effective_cfg
+    diagnostic["effective_runtime_config"] = effective_runtime_config
 
     # Heavy stages (callgraph/OpenAPI/contract tests) can be skipped or scaled by profile.
     skip_heavy = fast_verify or profile == "fast"
@@ -1836,7 +2556,8 @@ async def master_assurance_diagnostic():
 
     # 4. Agent Status & Memory
     print(f"\n[4] Agent Memory (Knowledge DB): {'✅ SYNCED'}")
-    blockers = diagnostic["findings"]["blockers"]
+    findings = diagnostic.get("findings") or {}
+    blockers = findings.get("blockers") or []
     if blockers:
         print(f"    [!] ALERT: {len(blockers)} Cognitive Blockers identified.")
         for b in blockers:
@@ -1845,7 +2566,7 @@ async def master_assurance_diagnostic():
         print("    [SUCCESS] No cognitive blockers detected.")
 
     # 5. Route Health
-    failing = diagnostic["findings"]["failing_routes"]
+    failing = findings.get("failing_routes") or []
     print(f"\n[5] Real-time Route Health:  {100 - len(failing)}% Optimal")
     if failing:
         for f in failing[:3]:  # Show top 3
@@ -1917,7 +2638,11 @@ async def master_assurance_diagnostic():
                 "runtime_events_meta", {}
             ),
             "scenario_coverage": diagnostic["findings"].get("scenario_coverage", {}),
-            "ui_action_coverage": diagnostic["findings"].get("ui_action_coverage", {}),
+            "ui_action_coverage": (
+                _extract_ui_action_coverage(diagnostic)
+                or _load_last_valid_ui_action_coverage(ROOT)
+                or {}
+            ),
             "flow_coverage": diagnostic["findings"].get("flow_coverage", {}),
             "coverage_gate": diagnostic["findings"].get("coverage_gate", {}),
             "flow_gate": diagnostic["findings"].get("flow_gate", {}),
@@ -1951,6 +2676,7 @@ async def master_assurance_diagnostic():
             "diagnostic_attribution": diagnostic["findings"].get("diagnostic_attribution", {}),
             "domain_rule_summary": diagnostic["findings"].get("domain_rule_summary", {}),
             "effective_config": diagnostic.get("effective_config", {}),
+            "effective_runtime_config": diagnostic.get("effective_runtime_config", {}),
             "context_digest": diagnostic["findings"].get("context_digest", {}),
             "auto_plan": diagnostic["findings"].get("auto_plan", {}),
             "failure_taxonomy": diagnostic["findings"].get("failure_taxonomy", {}),
@@ -1961,6 +2687,24 @@ async def master_assurance_diagnostic():
             "diagnostic_delta": diagnostic["findings"].get("diagnostic_delta", {}),
             "diagnostic_confidence": diagnostic["findings"].get("diagnostic_confidence", {}),
         }
+
+        # Retention summary (value-based cleanup)
+        try:
+            data["retention_state"] = _load_retention_state(ROOT)
+        except Exception:
+            data["retention_state"] = {}
+        try:
+            data["retention_indicators"] = _retention_indicator_metrics(ROOT, data)
+        except Exception:
+            data["retention_indicators"] = {}
+        try:
+            data["retention_auto_review"] = _retention_auto_review(ROOT, data, cfg)
+        except Exception:
+            data["retention_auto_review"] = {}
+        try:
+            data["auto_review"] = _auto_review(data, cfg)
+        except Exception:
+            data["auto_review"] = {}
         # Baseline + confidence metadata (fast/medium/full layering)
         try:
             baseline_report, baseline_meta = _load_baseline_report(ROOT)
@@ -2155,68 +2899,118 @@ async def master_assurance_diagnostic():
             _update_status_stage(status_path, "report_render", run_id=run_id)
         except Exception:
             pass
-        _br_start = _phase_start("build_report")
-        build_report(data, template, output)
-        _phase_end("build_report", _br_start)
-        try:
-            if (
-                phase_timings
-                and isinstance(phase_timings[-1], dict)
-                and phase_timings[-1].get("phase") == "build_report"
-            ):
-                data["report_render_duration_s"] = phase_timings[-1].get("duration_s")
-        except Exception:
-            pass
-        try:
-            data["diagnostic_phase_timings"] = phase_timings
-            build_report(data, template, output)
-        except Exception:
-            pass
-        # Write JSON alongside HTML for dashboard consumption
-        json_out = Path(".bgl_core/logs/latest_report.json")
-        json_out.write_text(
-            json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8"
+        data["diagnostic_phase_timings"] = phase_timings
+        report_lock_path = ROOT / ".bgl_core" / "logs" / "report_writer.lock"
+        report_lock_ttl = int(cfg.get("report_writer_lock_ttl_sec", 900) or 900)
+        report_lock_timeout = int(cfg.get("report_writer_lock_timeout_sec", 120) or 120)
+        lock_ok, lock_reason = _acquire_lock_with_timeout(
+            report_lock_path,
+            report_lock_ttl,
+            report_lock_timeout,
+            label="report_writer",
         )
-        try:
-            meta_payload = {
-                "timestamp": diagnostic.get("timestamp"),
-                "fingerprint": fp_payload,
-                "diagnostic_profile": diagnostic.get("diagnostic_profile"),
-                "audit_status": diagnostic.get("audit_status"),
-                "route_scan_limit": diagnostic.get("route_scan_limit"),
-                "scan_duration_seconds": diagnostic.get("scan_duration_seconds"),
-            }
-            _write_json(meta_path, meta_payload)
-        except Exception:
-            pass
-        # Update baseline if this is a full, non-cached report
-        try:
-            prof = str(diagnostic.get("diagnostic_profile") or "").lower()
-            audit_status = str(diagnostic.get("audit_status") or "").lower()
+        report_blocked = not lock_ok
+        if report_blocked:
             try:
-                conf_score = float((data.get("diagnostic_confidence") or {}).get("score") or 0.0)
-            except Exception:
-                conf_score = 0.0
-            if (
-                prof in ("full", "full-scan")
-                and not diagnostic.get("cache_used")
-                and audit_status != "partial"
-                and conf_score >= 0.7
-            ):
-                baseline_path = ROOT / ".bgl_core" / "logs" / "diagnostic_baseline.json"
-                baseline_meta_path = ROOT / ".bgl_core" / "logs" / "diagnostic_baseline.meta.json"
-                _write_json(baseline_path, _sanitize_baseline_report(data))
-                _write_json(
-                    baseline_meta_path,
+                data["report_write_blocked"] = {
+                    "reason": lock_reason,
+                    "timeout_sec": report_lock_timeout,
+                }
+                _log_runtime_event(
+                    ROOT,
                     {
-                        "timestamp": diagnostic.get("timestamp"),
-                        "diagnostic_profile": diagnostic.get("diagnostic_profile"),
-                        "route_scan_limit": diagnostic.get("route_scan_limit"),
-                        "scan_duration_seconds": diagnostic.get("scan_duration_seconds"),
+                        "timestamp": time.time(),
+                        "session": "diagnostic",
+                        "run_id": run_id,
+                        "event_type": "report_write_blocked",
+                        "payload": data["report_write_blocked"],
                     },
                 )
-        except Exception:
-            pass
+                _write_status(
+                    status_path,
+                    "running",
+                    stage="report_write_blocked",
+                    run_id=run_id,
+                    report_lock_reason=lock_reason,
+                )
+            except Exception:
+                pass
+            try:
+                alt_json = ROOT / ".bgl_core" / "logs" / f"latest_report.{run_id}.json"
+                _atomic_write_json(alt_json, data)
+            except Exception:
+                pass
+            # Best-effort: still refresh latest_report.json to avoid stale dashboards
+            try:
+                _atomic_write_json(report_path, data)
+            except Exception:
+                pass
+        else:
+            try:
+                _br_start = _phase_start("build_report")
+                build_report(data, template, output)
+                _phase_end("build_report", _br_start)
+            except Exception:
+                pass
+            try:
+                if (
+                    phase_timings
+                    and isinstance(phase_timings[-1], dict)
+                    and phase_timings[-1].get("phase") == "build_report"
+                ):
+                    data["report_render_duration_s"] = phase_timings[-1].get("duration_s")
+            except Exception:
+                pass
+            # Write JSON alongside HTML for dashboard consumption (atomic)
+            json_out = ROOT / ".bgl_core" / "logs" / "latest_report.json"
+            _atomic_write_json(json_out, data)
+            _mark_report_written()
+            try:
+                meta_payload = {
+                    "timestamp": diagnostic.get("timestamp"),
+                    "fingerprint": fp_payload,
+                    "diagnostic_profile": diagnostic.get("diagnostic_profile"),
+                    "audit_status": diagnostic.get("audit_status"),
+                    "route_scan_limit": diagnostic.get("route_scan_limit"),
+                    "scan_duration_seconds": diagnostic.get("scan_duration_seconds"),
+                }
+                _write_json(meta_path, meta_payload)
+            except Exception:
+                pass
+        if lock_ok:
+            try:
+                release_lock(report_lock_path)
+            except Exception:
+                pass
+        # Update baseline if this is a full, non-cached report
+        if not report_blocked:
+            try:
+                prof = str(diagnostic.get("diagnostic_profile") or "").lower()
+                audit_status = str(diagnostic.get("audit_status") or "").lower()
+                try:
+                    conf_score = float((data.get("diagnostic_confidence") or {}).get("score") or 0.0)
+                except Exception:
+                    conf_score = 0.0
+                if (
+                    prof in ("full", "full-scan")
+                    and not diagnostic.get("cache_used")
+                    and audit_status != "partial"
+                    and conf_score >= 0.7
+                ):
+                    baseline_path = ROOT / ".bgl_core" / "logs" / "diagnostic_baseline.json"
+                    baseline_meta_path = ROOT / ".bgl_core" / "logs" / "diagnostic_baseline.meta.json"
+                    _write_json(baseline_path, _sanitize_baseline_report(data))
+                    _write_json(
+                        baseline_meta_path,
+                        {
+                            "timestamp": diagnostic.get("timestamp"),
+                            "diagnostic_profile": diagnostic.get("diagnostic_profile"),
+                            "route_scan_limit": diagnostic.get("route_scan_limit"),
+                            "scan_duration_seconds": diagnostic.get("scan_duration_seconds"),
+                        },
+                    )
+            except Exception:
+                pass
         print(f"[+] HTML report written to {output}")
         try:
             _write_status(
@@ -2229,6 +3023,7 @@ async def master_assurance_diagnostic():
             )
         except Exception:
             pass
+        _run_post_finalize(ROOT, cfg, run_id=run_id)
     except Exception as e:
         print(f"[!] Failed to write HTML report: {e}")
         try:
@@ -2253,11 +3048,38 @@ async def master_assurance_diagnostic():
 
 if __name__ == "__main__":
     try:
+        # Silence noisy unraisable asyncio transport errors on Windows shutdown.
+        import sys
+        import warnings
+
+        def _quiet_unraisablehook(unraisable):
+            try:
+                exc = unraisable.exc_value
+                msg = str(exc or "").lower()
+                if isinstance(exc, ValueError) and "closed pipe" in msg:
+                    return
+            except Exception:
+                pass
+            try:
+                return sys.__unraisablehook__(unraisable)
+            except Exception:
+                return None
+
+        try:
+            sys.unraisablehook = _quiet_unraisablehook
+        except Exception:
+            pass
+        try:
+            warnings.filterwarnings("ignore", category=ResourceWarning, message="unclosed transport")
+        except Exception:
+            pass
+
         # Allow overriding headless and scenario run via env for visibility/CI
         ROOT = Path(__file__).parent.parent.parent
         cfg = load_config(ROOT)
+        diag_profile_env = str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "")).strip().lower()
         fast_cfg = str(cfg.get("fast_verify", "0")).strip().lower() in ("1", "true", "yes", "on")
-        if os.getenv("BGL_FAST_VERIFY", "0") == "1" or fast_cfg:
+        if os.getenv("BGL_FAST_VERIFY", "0") == "1" or fast_cfg or diag_profile_env == "fast":
             os.environ["BGL_RUN_SCENARIOS"] = "0"
             os.environ["BGL_AUTO_CONTEXT_DIGEST"] = "0"
             os.environ["BGL_AUTO_APPLY"] = "0"
@@ -2266,6 +3088,19 @@ if __name__ == "__main__":
             os.environ["BGL_AUTO_PATCH_ON_ERRORS"] = "0"
             os.environ["BGL_SKIP_DREAM"] = "1"
             os.environ["BGL_MAX_AUTO_INSIGHTS"] = "0"
+        elif diag_profile_env == "full":
+            # Avoid env leakage from previous fast runs in persistent shells.
+            respect_env = str(os.getenv("BGL_RESPECT_RUN_SCENARIOS_ENV", "0")).strip().lower() in (
+                "1",
+                "true",
+                "yes",
+                "on",
+            )
+            if not respect_env:
+                os.environ["BGL_RUN_SCENARIOS"] = str(cfg.get("run_scenarios", 1))
+                os.environ["BGL_AUTO_RUN_GAP_SCENARIOS"] = str(
+                    cfg.get("auto_run_gap_scenarios", 1)
+                )
         os.environ.setdefault(
             "BGL_HEADLESS", os.environ.get("BGL_HEADLESS", str(cfg.get("headless", 1)))
         )
@@ -2283,7 +3118,50 @@ if __name__ == "__main__":
             "BGL_KEEP_BROWSER",
             os.environ.get("BGL_KEEP_BROWSER", str(cfg.get("keep_browser", 0))),
         )
-        asyncio.run(master_assurance_diagnostic())
+        log_run_audit(ROOT)
+
+        async def _run_with_cleanup():
+            try:
+                await master_assurance_diagnostic()
+            finally:
+                # Best-effort cleanup before loop shutdown.
+                try:
+                    await asyncio.sleep(0)
+                except Exception:
+                    pass
+                try:
+                    import gc
+
+                    gc.collect()
+                except Exception:
+                    pass
+
+        run_completed = False
+        try:
+            asyncio.run(_run_with_cleanup())
+            run_completed = True
+        finally:
+            # Prevent lingering process after successful completion in autonomous runs.
+            try:
+                force_process_exit_raw = os.getenv("BGL_FORCE_PROCESS_EXIT", "")
+                if force_process_exit_raw.strip():
+                    force_process_exit = force_process_exit_raw.strip().lower() in (
+                        "1",
+                        "true",
+                        "yes",
+                        "on",
+                    )
+                else:
+                    force_process_exit = str(cfg.get("agent_mode", "")).strip().lower() in (
+                        "auto",
+                        "autonomous",
+                    )
+                if run_completed and force_process_exit:
+                    os._exit(0)
+            except Exception:
+                pass
+    except KeyboardInterrupt:
+        print("\n[INFO] Master diagnostic interrupted gracefully.")
     except Exception as e:
         print(f"\n[CRITICAL FAILURE] Master Diagnostic Crashed: {e}")
         import traceback

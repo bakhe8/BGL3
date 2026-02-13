@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_simple_mode_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/simple_mode.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/simple_mode.php
+- action: wait
+  ms: 400

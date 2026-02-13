@@ -1,0 +1,39 @@
+name: autonomous_1770887559
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: click
+  selector: button.note-cancel-btn
+  optional: true
+- action: click
+  selector: '#hiddenFileInput'
+  optional: true
+- action: scroll
+  dy: 400
+- action: click
+  selector: '#bgl-confirm-no'
+- action: upload
+  selector: '#hiddenFileInput'
+  files:
+  - 19-10-2025.xlsx
+  danger: true
+- action: click
+  selector: '#pasteTestNote'
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: conflict
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

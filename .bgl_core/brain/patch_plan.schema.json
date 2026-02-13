@@ -18,7 +18,21 @@
         "properties": {
           "op": {
             "type": "string",
-            "enum": ["create", "modify", "delete", "rename", "move", "mkdir"]
+            "enum": [
+              "create",
+              "modify",
+              "delete",
+              "rename",
+              "move",
+              "mkdir",
+              "rename_class",
+              "rename_reference",
+              "add_method",
+              "add_import",
+              "replace_block",
+              "toggle_flag",
+              "insert_event"
+            ]
           },
           "path": { "type": "string", "minLength": 1 },
           "to": { "type": "string" },

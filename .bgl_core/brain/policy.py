@@ -110,7 +110,15 @@ class Policy:
         return {"status": "clicked", "context": ctx, "move": move_info}
 
     async def perform_goto(self, page, url: str, wait_until: str = "load", post_wait_ms: int = 400):
-        await page.goto(url, wait_until=wait_until)
+        try:
+            await page.goto(url, wait_until=wait_until)
+        except Exception as exc:
+            msg = str(exc)
+            # Treat download-triggered navigations as a soft success to avoid aborting scenarios.
+            if "Download is starting" in msg:
+                self.motor.mouse_state = MouseState.idle
+                return {"status": "download_started", "error": msg}
+            raise
         await page.wait_for_timeout(post_wait_ms)
         self.motor.mouse_state = MouseState.idle
         return {"status": "navigated"}

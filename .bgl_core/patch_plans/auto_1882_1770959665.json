@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1882",
+  "description": "Stabilize route http://localhost:8000/?filter=released",
+  "created_at": 1770959628,
+  "metadata": {
+    "proposal_id": 1882,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770959665.9414132
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": null,
+      "content": "def stabilize_route(filter):\n    # Add stabilization logic here\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def stabilize_route(filter):\n    # Add stabilization logic here\n    pass"
+      }
+    }
+  ]
+}

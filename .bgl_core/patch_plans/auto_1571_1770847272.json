@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "id": "patch_plan_1571",
+  "description": "Patch Plan for outcome:evolve:success #1770847222",
+  "created_at": 1683072800,
+  "metadata": {
+    "proposal_id": 1571,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770847272.8561828
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "/bgl_core/brain/scenarios/autonomous/auto_1770846805.yaml",
+      "mode": null,
+      "content": {
+        "description": "Outcome success for evolve (propose_fix/medium) x4. Last note: auto-log from master_verify pipeline"
+      },
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": {
+          "description": "Outcome success for evolve (propose_fix/medium) x4. Last note: auto-log from master_verify pipeline"
+        }
+      }
+    }
+  ]
+}

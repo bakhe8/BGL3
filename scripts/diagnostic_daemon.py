@@ -24,6 +24,8 @@ def _preferred_python() -> str:
 
 def _run_once(profile: str | None) -> int:
     env = os.environ.copy()
+    env["BGL_RUN_SOURCE"] = "diagnostic_daemon"
+    env["BGL_RUN_TRIGGER"] = "diagnostic_daemon"
     if profile:
         env["BGL_DIAGNOSTIC_PROFILE"] = profile
     cmd = [_preferred_python(), str(ROOT / ".bgl_core" / "brain" / "master_verify.py")]

@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_tool_evidence_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/tool_evidence.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/tool_evidence.php
+- action: wait
+  ms: 400

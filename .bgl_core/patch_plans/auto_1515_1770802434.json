@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_1515",
+  "description": "Stabilize route http://localhost:8000/views/statistics.php",
+  "created_at": 1770802389,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1515,
+    "generated_at": 1770802434.987527
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_views_statistics_php.yaml",
+      "mode": "append",
+      "content": "\n- stabilize: true",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- stabilize: true"
+      }
+    }
+  ]
+}

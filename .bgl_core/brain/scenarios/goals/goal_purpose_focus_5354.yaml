@@ -1,0 +1,24 @@
+name: goal_purpose_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: wait
+  ms: 800
+- action: hover
+  selector: text=ضمان بنكي جاهز
+  optional: true
+- action: scroll
+  dy: 500
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: batch
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

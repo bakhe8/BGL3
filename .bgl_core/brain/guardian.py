@@ -501,14 +501,17 @@ class BGLGuardian:
                             pre_retry = self._count_runtime_events()
                             retry_started = time.time()
                             try:
-                                retry_result = await scenario_runner_main(
-                                    base_url,
-                                    headless,
-                                    keep_open,
-                                    max_pages=scenario_max_pages,
-                                    idle_timeout=scenario_idle_timeout,
-                                    include=scenario_include,
-                                    shadow_mode=False,
+                                retry_result = await asyncio.wait_for(
+                                    scenario_runner_main(
+                                        base_url,
+                                        headless,
+                                        keep_open,
+                                        max_pages=scenario_max_pages,
+                                        idle_timeout=scenario_idle_timeout,
+                                        include=scenario_include,
+                                        shadow_mode=False,
+                                    ),
+                                    timeout=scenario_timeout_sec,
                                 )
                             except Exception:
                                 pass
@@ -579,6 +582,15 @@ class BGLGuardian:
                 except Exception as e:
                     print(f"    [!] Guardian: scenario run failed: {e}")
                     err_text = str(e) or e.__class__.__name__
+                    failure_class = ""
+                    try:
+                        try:
+                            from .failure_classifier import classify_failure  # type: ignore
+                        except Exception:
+                            from failure_classifier import classify_failure  # type: ignore
+                        failure_class = classify_failure("fail", err_text or "")
+                    except Exception:
+                        failure_class = ""
                     try:
                         run_duration = time.time() - run_started
                         scenario_run_stats["duration_s"] = round(run_duration, 2)
@@ -599,6 +611,8 @@ class BGLGuardian:
                         self._log_runtime_event(failure_event)
                     except Exception:
                         pass
+                    if failure_class:
+                        scenario_run_stats["failure_class"] = failure_class
                     if "database is locked" in err_text.lower():
                         self.authority.record_outcome(decision_id, "deferred", "scenario_run:db_locked")
                         scenario_run_stats["status"] = "db_locked"
@@ -623,9 +637,115 @@ class BGLGuardian:
                         except Exception:
                             pass
                     else:
-                        self.authority.record_outcome(decision_id, "fail", err_text)
-                        scenario_run_stats["status"] = "fail"
-                        scenario_run_stats["reason"] = err_text
+                        retry_attempted = False
+                        retry_ok = False
+                        retry_error = ""
+                        try:
+                            retry_enabled = bool(
+                                int(
+                                    os.getenv(
+                                        "BGL_SCENARIO_RETRY_ON_FLAKY_ERRORS",
+                                        str(self.config.get("scenario_retry_on_flaky_errors", 1)),
+                                    )
+                                )
+                            )
+                        except Exception:
+                            retry_enabled = True
+                        retry_classes = {"timeout", "network", "browser", "llm"}
+                        try:
+                            raw_classes = os.getenv(
+                                "BGL_SCENARIO_RETRY_FLAKY_CLASSES",
+                                str(self.config.get("scenario_retry_flaky_classes", "")),
+                            )
+                            if raw_classes:
+                                retry_classes = {
+                                    c.strip().lower()
+                                    for c in str(raw_classes).split(",")
+                                    if c.strip()
+                                }
+                        except Exception:
+                            pass
+                        try:
+                            retry_delay = float(
+                                os.getenv(
+                                    "BGL_SCENARIO_RETRY_FLAKY_DELAY_SEC",
+                                    str(self.config.get("scenario_retry_flaky_delay_sec", 10)),
+                                )
+                                or 10
+                            )
+                        except Exception:
+                            retry_delay = 10.0
+                        try:
+                            min_delta = int(
+                                os.getenv(
+                                    "BGL_SCENARIO_MIN_EVENT_DELTA",
+                                    str(self.config.get("scenario_min_event_delta", 5)),
+                                )
+                                or 5
+                            )
+                        except Exception:
+                            min_delta = 5
+                        if retry_enabled and failure_class and failure_class in retry_classes:
+                            retry_attempted = True
+                            time.sleep(max(0.0, retry_delay))
+                            pre_retry = self._count_runtime_events()
+                            retry_started = time.time()
+                            retry_result = None
+                            try:
+                                retry_result = await asyncio.wait_for(
+                                    scenario_runner_main(
+                                        base_url,
+                                        headless,
+                                        keep_open,
+                                        max_pages=scenario_max_pages,
+                                        idle_timeout=scenario_idle_timeout,
+                                        include=scenario_include,
+                                        shadow_mode=False,
+                                    ),
+                                    timeout=scenario_timeout_sec,
+                                )
+                            except Exception as retry_exc:
+                                retry_error = str(retry_exc) or retry_exc.__class__.__name__
+                            if isinstance(retry_result, dict):
+                                scenario_run_stats.update(
+                                    {
+                                        "ui_exploration_duration_s": retry_result.get(
+                                            "ui_exploration_duration_s"
+                                        ),
+                                        "ui_scenarios_count": retry_result.get("ui_scenarios_count"),
+                                        "api_scenarios_count": retry_result.get("api_scenarios_count"),
+                                        "autonomous_scenario": retry_result.get("autonomous_scenario"),
+                                        "run_id": retry_result.get("run_id"),
+                                        "scenario_batch_duration_s": retry_result.get("scenario_batch_duration_s"),
+                                    }
+                                )
+                            retry_duration = time.time() - retry_started
+                            post_retry = self._count_runtime_events()
+                            retry_delta = max(0, post_retry - pre_retry)
+                            scenario_run_stats.update(
+                                {
+                                    "retry_delta": retry_delta,
+                                    "retry_duration_s": round(retry_duration, 2),
+                                    "retry_error": retry_error,
+                                    "retry_reason": f"flaky:{failure_class}",
+                                }
+                            )
+                            if retry_delta >= min_delta:
+                                retry_ok = True
+                                scenario_run_stats["status"] = "ok"
+                                scenario_run_stats["reason"] = "ok_after_flaky_retry"
+                                self.authority.record_outcome(
+                                    decision_id,
+                                    "success",
+                                    f"scenario batch executed (retry:{failure_class})",
+                                )
+                        if not retry_ok:
+                            if retry_attempted:
+                                scenario_run_stats["reason"] = f"flaky_retry_failed:{failure_class}" if failure_class else "flaky_retry_failed"
+                            else:
+                                scenario_run_stats["reason"] = err_text
+                            scenario_run_stats["status"] = "fail"
+                            self.authority.record_outcome(decision_id, "fail", err_text)
                     try:
                         post_events = self._count_runtime_events()
                         delta = max(0, post_events - pre_events)
@@ -875,6 +995,12 @@ class BGLGuardian:
         except Exception:
             diag_timeout = 600.0
         try:
+            diag_timeout_env = float(os.getenv("BGL_DIAGNOSTIC_TIMEOUT_SEC", "0") or 0)
+        except Exception:
+            diag_timeout_env = 0.0
+        if diag_timeout_env > 0:
+            diag_timeout = max(diag_timeout, diag_timeout_env)
+        try:
             budget_env = os.getenv("BGL_DIAGNOSTIC_BUDGET_SECONDS")
             if budget_env is not None and str(budget_env).strip():
                 budget_cfg = float(budget_env)
@@ -885,8 +1011,9 @@ class BGLGuardian:
         if budget_cfg > 0:
             audit_budget = budget_cfg
         else:
-            # Soft budget: keep room for report generation, stay under global timeout.
-            audit_budget = max(25.0, min(diag_timeout * 0.6, max_seconds + 15.0))
+            # Soft budget: keep room for report generation, but align with full diagnostic timeout.
+            headroom_cap = max(max_seconds + 15.0, diag_timeout - 20.0)
+            audit_budget = max(25.0, min(diag_timeout * 0.9, headroom_cap))
 
         def _budget_exceeded(stage: str) -> bool:
             nonlocal audit_status, audit_reason
@@ -1353,6 +1480,10 @@ class BGLGuardian:
                 "BGL_AUTO_RUN_GAP_SCENARIOS",
                 str(self.config.get("auto_run_gap_scenarios", "1")),
             )
+            if str(run_scenarios) != "1":
+                gap_run_stats["status"] = "disabled"
+                gap_run_stats["reason"] = "scenario_batch_disabled"
+                auto_gap = "0"
             gap_limit = int(
                 os.getenv(
                     "BGL_GAP_SCENARIO_RUN_LIMIT",
@@ -1654,11 +1785,12 @@ class BGLGuardian:
 
         # 2. Sequential Scan
         important_routes = routes
+        route_loop_started = time.time()
 
         for route in important_routes:
             if _budget_exceeded("route_scan_loop"):
                 break
-            if time.time() - scan_start > max_seconds:
+            if time.time() - route_loop_started > max_seconds:
                 print(
                     f"[WARN] Route scan reached max seconds ({max_seconds}s). Stopping early."
                 )
@@ -1986,6 +2118,9 @@ class BGLGuardian:
         report["recent_outcomes"] = self._recent_outcomes(limit=25)
         report["decision_traces"] = self._recent_decision_traces(limit=25)
         report["context_digest_state"] = self._load_context_digest_state()
+        report["retention_state"] = self._load_retention_state()
+        report["retention_indicators"] = self._retention_indicator_metrics(report)
+        report["retention_auto_review"] = self._retention_auto_review(report)
         report["dependency_graph"] = self._dependency_graph_summary()
         report["callgraph"] = self._callgraph_summary()
         report["runtime_profile"] = self._runtime_profile_summary()
@@ -2219,12 +2354,15 @@ class BGLGuardian:
     def log_maintenance(self):
         """Standard maintenance tasks for the system."""
         print("[*] Guardian: Running Log Maintenance...")
-        self._prune_logs(days=7)
+        self._prune_logs(days=0)
 
     def _prune_logs(self, days: int):
         """Clears old log entries to preserve performance."""
-        # Simulation of pruning logic
-        print(f"    - Pruning logs older than {days} days... OK")
+        # Time-based pruning disabled; retention handles cleanup based on utility.
+        if days and days > 0:
+            print("    - Time-based log pruning disabled by policy.")
+        else:
+            print("    - Log pruning skipped (utility-based retention active).")
 
     def _check_learning_confirmations(self) -> List[Dict[str, Any]]:
         """Queries the memory for confirmed anomalies or rejected false positives."""
@@ -2562,32 +2700,110 @@ class BGLGuardian:
         def _slug(text: str) -> str:
             return re.sub(r"[^a-zA-Z0-9_]+", "_", (text or "").strip("/").lower())[:60]
 
+        def _norm_key(value: Any) -> str:
+            return re.sub(r"\s+", " ", str(value or "")).strip().lower()
+
+        def _priority(item: Dict[str, Any]) -> float:
+            try:
+                return float(item.get("priority_score") or 0.0)
+            except Exception:
+                return 0.0
+
+        def _unique_order(values: List[Any]) -> List[str]:
+            out: List[str] = []
+            seen: set[str] = set()
+            for v in values or []:
+                val = str(v or "")
+                if not val:
+                    continue
+                if val in seen:
+                    continue
+                seen.add(val)
+                out.append(val)
+            return out
+
+        def _is_partial_route(route: str) -> bool:
+            r = str(route or "").strip().lower()
+            return r.startswith("/agentfrontend/partials/") and r.endswith(".php")
+
+        def _partial_to_dashboard_steps(route: str) -> List[Dict[str, Any]]:
+            r = str(route or "").strip()
+            base = ""
+            try:
+                base = Path(r).name
+            except Exception:
+                base = ""
+            steps: List[Dict[str, Any]] = [
+                {"action": "goto", "url": "/agent.php"},
+                {"action": "wait", "ms": 500},
+            ]
+            if base:
+                steps.extend(
+                    [
+                        {"action": "click", "selector": f"a[href*='{base}']", "optional": True},
+                        {"action": "wait", "ms": 350},
+                    ]
+                )
+            steps.extend(
+                [
+                    {"action": "scroll", "dy": 450},
+                    {"action": "hover", "selector": "section", "optional": True},
+                    {"action": "wait", "ms": 300},
+                ]
+            )
+            return steps
+
+        def _stale_minimal_scenario(path: Path) -> bool:
+            try:
+                if not path.exists():
+                    return False
+                data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+                steps = data.get("steps") or []
+                if not isinstance(steps, list):
+                    return False
+                if len(steps) <= 2:
+                    return True
+                return False
+            except Exception:
+                return False
+
         # Scenario gaps (route coverage)
         scenario_gaps = (
             (coverage_payload.get("scenario") or {}).get("gaps") or []
         )
-        for item in scenario_gaps[:limit]:
+        scenario_gaps_sorted = sorted(
+            scenario_gaps,
+            key=lambda g: (-_priority(g), _norm_key(g.get("route"))),
+        )
+        for item in scenario_gaps_sorted[:limit]:
             route = str(item.get("route") or "")
             if not route:
                 continue
             name = f"gap_route_{_slug(route) or 'unknown'}"
             path = out_dir / f"{name}.yaml"
-            if path.exists():
+            if path.exists() and not (_is_partial_route(route) and _stale_minimal_scenario(path)):
                 continue
             kind = "api" if route.startswith("/api/") else "ui"
             steps = []
             if kind == "api":
                 steps = [{"action": "request", "url": route, "method": "GET"}]
             else:
-                steps = [
-                    {"action": "goto", "url": route},
-                    {"action": "wait", "ms": 400},
-                ]
+                if _is_partial_route(route):
+                    steps = _partial_to_dashboard_steps(route)
+                else:
+                    steps = [
+                        {"action": "goto", "url": route},
+                        {"action": "wait", "ms": 400},
+                    ]
             payload = {
                 "name": name,
                 "kind": kind,
                 "generated": True,
-                "meta": {"origin": "coverage_gap", "route": route},
+                "meta": {
+                    "origin": "coverage_gap",
+                    "route": route,
+                    "route_type": "partial" if _is_partial_route(route) else "direct",
+                },
                 "steps": steps,
             }
             try:
@@ -2601,11 +2817,21 @@ class BGLGuardian:
 
         # Flow gaps (flow coverage)
         flow_gaps = (coverage_payload.get("flow") or {}).get("gaps") or []
-        for item in flow_gaps[:limit]:
-            endpoints = item.get("endpoints") or []
-            step_routes = item.get("step_routes") or []
-            step_events = item.get("step_events") or []
+        flow_gaps_sorted = sorted(
+            flow_gaps,
+            key=lambda g: (
+                -_priority(g),
+                _norm_key(g.get("flow")),
+                _norm_key(((g.get("step_routes") or g.get("endpoints") or [""])[0])),
+            ),
+        )
+        for item in flow_gaps_sorted[:limit]:
+            endpoints = _unique_order(item.get("endpoints") or [])
+            step_routes = _unique_order(item.get("step_routes") or [])
+            step_events = _unique_order(item.get("step_events") or [])
             routes = step_routes or endpoints
+            if not step_routes:
+                routes = sorted(routes, key=_norm_key)
             if not routes:
                 continue
             flow_name = str(item.get("flow") or "flow")
@@ -2697,7 +2923,18 @@ class BGLGuardian:
 
         # UI action gaps (interactive elements)
         ui_action_gaps = (coverage_payload.get("ui_actions") or {}).get("gaps") or []
-        for item in ui_action_gaps[:limit]:
+        ui_action_sorted = sorted(
+            ui_action_gaps,
+            key=lambda g: (
+                -_priority(g),
+                _norm_key(g.get("route")),
+                _norm_key(g.get("selector_key")),
+                _norm_key(g.get("selector")),
+                _norm_key(g.get("href")),
+                _norm_key(g.get("text")),
+            ),
+        )
+        for item in ui_action_sorted[:limit]:
             route = str(item.get("route") or "")
             selector = str(item.get("selector") or "")
             selector_key = str(item.get("selector_key") or "")
@@ -3726,6 +3963,27 @@ class BGLGuardian:
                 return True
             return False
 
+        try:
+            route_scoped = str(
+                os.getenv(
+                    "BGL_UI_ACTION_ROUTE_SCOPED",
+                    str(self.config.get("ui_action_route_scoped", 0)),
+                )
+                or "0"
+            ).strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            route_scoped = False
+        try:
+            include_danger = str(
+                os.getenv(
+                    "BGL_UI_ACTION_INCLUDE_DANGER",
+                    str(self.config.get("ui_action_include_danger", 0)),
+                )
+                or "0"
+            ).strip().lower() in ("1", "true", "yes", "on")
+        except Exception:
+            include_danger = False
+
         seen_keys: set[str] = set()
         covered_keys: set[str] = set()
         route_stats: Dict[str, Dict[str, int]] = {}
@@ -3748,8 +4006,21 @@ class BGLGuardian:
                 text = str(c.get("text") or "")
                 tag = str(c.get("tag") or "")
                 role = str(c.get("role") or "")
+                input_type = str(c.get("type") or "")
                 href_base = _href_base(href)
-                key = f"{route}|{selector_key or selector or href_base or text[:40]}"
+                risk = _risk(text, href)
+                if (not include_danger) and risk == "danger":
+                    continue
+                if (
+                    tag == "input"
+                    and input_type in {"file", "hidden"}
+                    and not text.strip()
+                    and not href_base
+                ):
+                    continue
+
+                action_sig = (selector_key or selector or href_base or text[:40]).strip()
+                key = f"{route}|{action_sig}" if route_scoped else action_sig
                 if key in seen_keys:
                     continue
                 seen_keys.add(key)
@@ -3785,7 +4056,6 @@ class BGLGuardian:
                     covered_keys.add(key)
                     route_stats[route]["covered"] += 1
                 else:
-                    risk = _risk(text, href)
                     score = _priority(text, tag, role, href, risk)
                     needs_hover = _needs_hover(selector, text, href, selector_key, tag, role)
                     gap = {
@@ -5023,6 +5293,126 @@ class BGLGuardian:
             return json.loads(path.read_text(encoding="utf-8"))
         except Exception:
             return {}
+
+    def _load_retention_state(self) -> Dict[str, Any]:
+        state_path = self.root_dir / ".bgl_core" / "logs" / "retention_state.json"
+        apply_path = self.root_dir / ".bgl_core" / "logs" / "retention_actions_applied.json"
+        state: Dict[str, Any] = {}
+        applied: Dict[str, Any] = {}
+        if state_path.exists():
+            try:
+                state = json.loads(state_path.read_text(encoding="utf-8"))
+            except Exception:
+                state = {}
+        if apply_path.exists():
+            try:
+                applied = json.loads(apply_path.read_text(encoding="utf-8"))
+            except Exception:
+                applied = {}
+        if not state and not applied:
+            return {}
+        summary = {
+            "run_seq": state.get("run_seq"),
+            "catalog_total": state.get("catalog_total"),
+            "prune_candidates": state.get("prune_candidates"),
+            "kept": state.get("kept"),
+            "rewrite_candidates": state.get("rewrite_candidates"),
+            "merge_groups": state.get("merge_groups"),
+            "top_k_per_route": state.get("top_k_per_route"),
+            "rewrite_applied": applied.get("rewrite_applied"),
+            "merge_applied": applied.get("merge_applied"),
+            "apply_errors": len(applied.get("errors") or []),
+        }
+        return {"summary": summary, "state": state, "apply": applied}
+
+    def _retention_indicator_metrics(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        def _read_json(path: Path) -> Dict[str, Any]:
+            if not path.exists():
+                return {}
+            try:
+                return json.loads(path.read_text(encoding="utf-8"))
+            except Exception:
+                return {}
+
+        root = self.root_dir
+        cleanup_report = _read_json(root / ".bgl_core" / "logs" / "cleanup_report.json")
+        selection = _read_json(root / ".bgl_core" / "logs" / "scenario_selection.json")
+        retention_state = _read_json(root / ".bgl_core" / "logs" / "retention_state.json")
+        retention_preview = _read_json(root / ".bgl_core" / "logs" / "retention_preview.json")
+        retention_apply = _read_json(root / ".bgl_core" / "logs" / "retention_actions_applied.json")
+
+        kinds_seen: List[str] = []
+        try:
+            for item in retention_preview.get("candidates") or []:
+                kind = str(item.get("kind") or "")
+                if kind and kind not in kinds_seen:
+                    kinds_seen.append(kind)
+        except Exception:
+            kinds_seen = []
+
+        scenario_stats = report.get("scenario_run_stats") or {}
+        diagnostic_faults = report.get("diagnostic_faults") or {}
+
+        metrics: Dict[str, Any] = {
+            "time_prune_disabled": cleanup_report.get("retention_disable_time_prune"),
+            "retention_blocked": (selection.get("retention_blocked") if selection else None),
+            "run_seq": retention_state.get("run_seq"),
+            "merge_groups": retention_state.get("merge_groups"),
+            "rewrite_candidates": retention_state.get("rewrite_candidates"),
+            "rewrite_applied": retention_apply.get("rewrite_applied"),
+            "kinds_seen": kinds_seen,
+            "prune_quota": retention_state.get("prune_quota"),
+            "prune_candidates": retention_state.get("prune_candidates"),
+            "event_delta_source": scenario_stats.get("event_delta_source"),
+            "db_write_locked": diagnostic_faults.get("db_write_locked"),
+            "archived": retention_state.get("archived"),
+            "archive_errors": retention_state.get("archive_errors"),
+        }
+        return {k: v for k, v in metrics.items() if v is not None and v != []}
+
+    def _retention_auto_review(self, report: Dict[str, Any]) -> Dict[str, Any]:
+        indicators = report.get("retention_indicators") or {}
+        retention_state = (report.get("retention_state") or {}).get("state") or {}
+        cfg = self.config or {}
+        reasons: List[str] = []
+
+        paused = bool(retention_state.get("paused"))
+        if paused:
+            reasons.append("pause_on_low_coverage")
+
+        if indicators.get("time_prune_disabled") is False:
+            reasons.append("time_prune_enabled")
+
+        if indicators.get("run_seq") is None:
+            reasons.append("missing_run_seq")
+
+        db_write_locked = indicators.get("db_write_locked")
+        if isinstance(db_write_locked, (int, float)) and db_write_locked:
+            reasons.append("db_write_locked")
+
+        if indicators.get("event_delta_source") and indicators.get("event_delta_source") != "db":
+            reasons.append("event_delta_fallback")
+
+        archive_errors = indicators.get("archive_errors") or []
+        if archive_errors:
+            reasons.append("archive_errors")
+
+        min_ui = float(cfg.get("min_ui_action_coverage", 30) or 30)
+        ui_cov = (report.get("ui_action_coverage") or {}).get("coverage_ratio")
+        if ui_cov is not None and float(ui_cov) < min_ui:
+            reasons.append("low_ui_coverage")
+
+        status = "OK"
+        if paused:
+            status = "Blocked"
+        elif reasons:
+            status = "Risk"
+
+        return {
+            "status": status,
+            "reasons": reasons,
+            "timestamp": time.time(),
+        }
 
     def _dependency_graph_summary(self) -> Dict[str, Any]:
         if not self.db_path.exists():

@@ -59,6 +59,9 @@ SAFE_KEYS = {
     # recovery tuning
     "stall_recovery_threshold",
     "idle_recovery_after_sec",
+    # retention controls
+    "retention_enabled",
+    "retention_disable_time_prune",
 }
 
 
@@ -147,13 +150,21 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
         min_ui = 30.0
     if ui_cov and ui_ratio < min_ui:
         cur_limit = int(cfg.get("ui_action_goal_limit", 4) or 4)
-        if cur_limit < 6:
-            updates["ui_action_goal_limit"] = 6
+        if cur_limit < 8:
+            updates["ui_action_goal_limit"] = 8
             reasons["ui_action_goal_limit"] = "low_ui_action_coverage"
         cur_sample = int(cfg.get("ui_action_sample_limit", 12) or 12)
-        if cur_sample < 16:
-            updates["ui_action_sample_limit"] = 16
+        if cur_sample < 24:
+            updates["ui_action_sample_limit"] = 24
             reasons["ui_action_sample_limit"] = "low_ui_action_coverage"
+        cur_window = int(cfg.get("ui_action_window_days", 21) or 21)
+        if cur_window < 30:
+            updates["ui_action_window_days"] = 30
+            reasons["ui_action_window_days"] = "low_ui_action_coverage"
+        cur_snapshots = int(cfg.get("ui_action_min_snapshots", 2) or 2)
+        if cur_snapshots < 3:
+            updates["ui_action_min_snapshots"] = 3
+            reasons["ui_action_min_snapshots"] = "low_ui_action_coverage"
 
     # Flow coverage tuning
     flow_cov = findings.get("flow_coverage") or {}
@@ -181,6 +192,15 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
     if cfg.get("auto_run_gap_scenarios", 1) in (0, "0", False):
         updates["auto_run_gap_scenarios"] = 1
         reasons["auto_run_gap_scenarios"] = "ensure_gap_execution"
+
+    # Ensure value-based retention is enabled (plan requirement).
+    if cfg.get("retention_enabled", 0) in (0, "0", False):
+        updates["retention_enabled"] = 1
+        reasons["retention_enabled"] = "enable_value_based_retention"
+    # Keep temporal prune disabled to align with non-time-based policy.
+    if cfg.get("retention_disable_time_prune", 0) in (0, "0", False):
+        updates["retention_disable_time_prune"] = 1
+        reasons["retention_disable_time_prune"] = "enforce_non_time_prune"
 
     # Route scan reliability tuning (avoid 0% health due to no checked routes)
     try:
@@ -218,6 +238,29 @@ def apply_safe_config_tuning(root_dir: Path, diagnostic_map: Dict[str, Any]) -> 
         if new_batch != cur_batch:
             updates["scenario_batch_limit"] = new_batch
             reasons["scenario_batch_limit"] = "low_scenario_coverage"
+
+    # Scenario timeout recovery (avoid repeated scenario_run_timeout loop)
+    scen_stats = (diagnostic_map or {}).get("scenario_run_stats") or {}
+    scen_status = str(scen_stats.get("status") or "").strip().lower()
+    if scen_status == "timeout":
+        cur_batch_timeout = int(cfg.get("scenario_batch_timeout_sec", 300) or 300)
+        new_batch_timeout = _clamp(max(cur_batch_timeout, 900), 300, 2400)
+        if new_batch_timeout != cur_batch_timeout:
+            updates["scenario_batch_timeout_sec"] = new_batch_timeout
+            reasons["scenario_batch_timeout_sec"] = "scenario_run_timeout"
+
+        cur_batch_limit = int(cfg.get("scenario_batch_limit", 40) or 40)
+        new_batch_limit = _clamp(min(cur_batch_limit, 12), 4, 80)
+        if new_batch_limit != cur_batch_limit:
+            updates["scenario_batch_limit"] = new_batch_limit
+            reasons["scenario_batch_limit"] = "scenario_run_timeout"
+
+        cur_diag_timeout = int(cfg.get("diagnostic_timeout_sec", 600) or 600)
+        target_diag_timeout = max(cur_diag_timeout, new_batch_timeout + 300)
+        new_diag_timeout = _clamp(target_diag_timeout, 600, 3600)
+        if new_diag_timeout != cur_diag_timeout:
+            updates["diagnostic_timeout_sec"] = new_diag_timeout
+            reasons["diagnostic_timeout_sec"] = "scenario_run_timeout"
 
     # Filter to safe keys only
     updates = {k: v for k, v in updates.items() if k in SAFE_KEYS}

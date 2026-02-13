@@ -1,4 +1,5 @@
 import json
+import math
 import os
 import sqlite3
 import time
@@ -15,6 +16,8 @@ ROOT = Path(__file__).parent.parent.parent
 DB_PATH = ROOT / ".bgl_core" / "brain" / "knowledge.db"
 SCENARIOS_DIR = Path(__file__).parent / "scenarios"
 STATE_PATH = ROOT / ".bgl_core" / "logs" / "scenario_scheduler_state.json"
+RETENTION_STATE_PATH = ROOT / ".bgl_core" / "logs" / "retention_state.json"
+PRUNE_INDEX_PATH = ROOT / ".bgl_core" / "logs" / "prune_index.jsonl"
 
 
 @dataclass
@@ -71,6 +74,56 @@ def _read_json(path: Path) -> Dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8")) or {}
     except Exception:
         return {}
+
+
+def _load_retention_blocks(cfg: Dict[str, Any], key_map: Dict[str, str]) -> Tuple[Dict[str, Dict[str, Any]], Dict[str, Any]]:
+    enabled = _cfg_bool(cfg, "retention_enabled", False)
+    dry_run = _cfg_bool(cfg, "retention_dry_run", True)
+    meta: Dict[str, Any] = {"enabled": enabled, "dry_run": dry_run}
+    if not enabled or dry_run:
+        return {}, meta
+    state = _read_json(RETENTION_STATE_PATH)
+    run_seq = int(state.get("run_seq") or 0)
+    meta["run_seq"] = run_seq
+    if not PRUNE_INDEX_PATH.exists():
+        return {}, meta
+    blocks: Dict[str, Dict[str, Any]] = {}
+    try:
+        with PRUNE_INDEX_PATH.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                raw = line.strip()
+                if not raw:
+                    continue
+                try:
+                    entry = json.loads(raw)
+                except Exception:
+                    continue
+                if str(entry.get("kind") or "") != "scenario":
+                    continue
+                scenario_key = str(entry.get("scenario_key") or entry.get("name") or "")
+                if not scenario_key:
+                    continue
+                budget = int(entry.get("block_budget") or 0)
+                if budget <= 0:
+                    continue
+                entry_seq = int(entry.get("run_seq") or 0)
+                age = run_seq - entry_seq
+                if age < 0:
+                    age = 0
+                remaining = budget - age
+                if remaining <= 0:
+                    continue
+                canonical = _normalize_scenario_key(scenario_key, key_map)
+                existing = blocks.get(canonical)
+                if not existing or remaining > int(existing.get("remaining") or 0):
+                    blocks[canonical] = {
+                        "remaining": remaining,
+                        "reason": entry.get("reason") or "retention_blocked",
+                        "run_seq": entry_seq,
+                    }
+    except Exception:
+        return {}, meta
+    return blocks, meta
 
 
 def _extract_meta(path: Path) -> ScenarioMeta:
@@ -183,6 +236,9 @@ def _collect_runtime_stats(
                 "recent_error": 0,
                 "last_timeout_ts": 0.0,
                 "last_error_ts": 0.0,
+                "non_write_no_change": 0,
+                "non_write_safe_candidates": 0,
+                "non_write_last_reason": "",
             },
         )
         stat["event_count"] += 1
@@ -201,6 +257,30 @@ def _collect_runtime_stats(
                 stat["last_error_ts"] = ts
             if ts >= recent_cutoff:
                 stat["recent_error"] += 1
+        if event_type == "ui_non_write_coverage":
+            payload_raw = row["payload"]
+            payload: Dict[str, Any] = {}
+            if isinstance(payload_raw, str) and payload_raw.strip():
+                try:
+                    payload = json.loads(payload_raw)
+                except Exception:
+                    payload = {}
+            elif isinstance(payload_raw, dict):
+                payload = payload_raw
+            failure_reason = str(payload.get("failure_reason") or "").strip().lower()
+            if failure_reason in {"gap_no_change", "semantic_shift_no_change", "search_no_change"}:
+                stat["non_write_no_change"] = int(stat.get("non_write_no_change") or 0) + 1
+            safe_candidates = payload.get("safe_action_candidates")
+            if isinstance(safe_candidates, list):
+                stat["non_write_safe_candidates"] = int(stat.get("non_write_safe_candidates") or 0) + min(
+                    6, len(safe_candidates)
+                )
+            if failure_reason:
+                stat["non_write_last_reason"] = failure_reason
+        if event_type == "semantic_delta_missing":
+            stat["non_write_no_change"] = int(stat.get("non_write_no_change") or 0) + 1
+            if not stat.get("non_write_last_reason"):
+                stat["non_write_last_reason"] = "semantic_delta_missing"
     for stat in stats.values():
         stat["in_cooldown"] = bool(
             stat.get("last_timeout_ts", 0) >= cooldown_cutoff
@@ -241,6 +321,11 @@ def _score_scenario(
     if ui_boost and meta.kind == "ui":
         score += ui_boost
         reasons.append("ui_boost")
+    is_ui_gap = bool(meta.is_gap and meta.kind == "ui") or str(meta.name or "").startswith("gap_ui_")
+    if ui_boost and is_ui_gap:
+        gap_boost = _cfg_number(cfg, "scenario_scheduler_weight_ui_gap_boost", 8.0)
+        score += gap_boost
+        reasons.append("ui_gap_boost")
     if flow_boost and meta.is_gap and str(meta.name or "").startswith("gap_flow_"):
         score += flow_boost
         reasons.append("flow_boost")
@@ -273,6 +358,19 @@ def _score_scenario(
     if recent_errors:
         score -= min(20.0, recent_errors * weights.get("error_penalty", 5.0))
         reasons.append("errors")
+
+    if meta.kind == "ui":
+        no_change_count = int(stat.get("non_write_no_change") or 0)
+        if no_change_count > 0:
+            stall_penalty = min(30.0, no_change_count * 6.0)
+            if is_ui_gap:
+                stall_penalty *= 1.2
+            score -= stall_penalty
+            reasons.append("ui_non_write_stall")
+        safe_candidates = int(stat.get("non_write_safe_candidates") or 0)
+        if safe_candidates > 0 and no_change_count == 0:
+            score += min(10.0, safe_candidates * 0.5)
+            reasons.append("ui_safe_candidates")
 
     min_events = int(_cfg_number(cfg, "scenario_scheduler_min_events", 5))
     if int(stat.get("event_count") or 0) < min_events:
@@ -487,6 +585,7 @@ def select_scenarios(
 
     catalog = [_extract_meta(p) for p in scenario_files]
     key_map = _build_key_map(catalog)
+    retention_blocks, retention_meta = _load_retention_blocks(cfg, key_map)
     stats = _collect_runtime_stats(db_path, key_map, cutoff, recent_cutoff, cooldown_cutoff)
     durations = _collect_durations(db_path, key_map, cutoff)
     avg_duration_s = 0.0
@@ -501,15 +600,47 @@ def select_scenarios(
     # UI/Flow coverage boosts: prioritize scenarios when coverage is below target.
     ui_boost = 0.0
     flow_boost = 0.0
+    ui_low = False
+    ui_min_required = 1
+    ui_ratio_min = 0.0
+    ui_gap_min = 0
+    ui_non_gap_min = 0
+    gap_weight_adjusted = False
+    ui_stalled_scenarios = 0
     try:
         report = _read_json(ROOT / ".bgl_core" / "logs" / "latest_report.json")
         ui_cov = report.get("ui_action_coverage") or {}
         ratio = float(ui_cov.get("coverage_ratio") or 0.0)
+        gap_runs = int(ui_cov.get("gap_runs") or 0)
+        gap_changed = int(ui_cov.get("gap_changed") or 0)
         target = float(_cfg_number(cfg, "ui_action_coverage_target", 30.0))
         base_boost = float(_cfg_number(cfg, "scenario_scheduler_weight_ui_boost", 12.0))
         if target > 0 and ratio < target:
             deficit = max(0.0, target - ratio)
             ui_boost = min(base_boost * (deficit / target), base_boost * 2.0)
+            ui_low = True
+            if gap_runs >= 2 and gap_changed == 0:
+                try:
+                    weights["gap"] = max(20.0, float(weights.get("gap", 120.0)) * 0.4)
+                    gap_weight_adjusted = True
+                except Exception:
+                    gap_weight_adjusted = False
+            try:
+                ui_min_required = max(1, int(_cfg_number(cfg, "scenario_scheduler_min_ui", 2)))
+            except Exception:
+                ui_min_required = 2
+            try:
+                ui_ratio_min = float(_cfg_number(cfg, "scenario_scheduler_min_ui_ratio", 0.35))
+            except Exception:
+                ui_ratio_min = 0.35
+            try:
+                ui_gap_min = max(0, int(_cfg_number(cfg, "scenario_scheduler_min_ui_gap", 1)))
+            except Exception:
+                ui_gap_min = 1
+            try:
+                ui_non_gap_min = max(0, int(_cfg_number(cfg, "scenario_scheduler_min_ui_non_gap", 1)))
+            except Exception:
+                ui_non_gap_min = 1
         flow_cov = report.get("flow_coverage") or {}
         flow_ratio = float(flow_cov.get("sequence_coverage_ratio") or 0.0)
         flow_target = float(_cfg_number(cfg, "flow_sequence_coverage_target", 60.0))
@@ -520,6 +651,27 @@ def select_scenarios(
     except Exception:
         ui_boost = 0.0
         flow_boost = 0.0
+        ui_low = False
+        ui_min_required = 1
+        ui_ratio_min = 0.0
+        ui_gap_min = 0
+        ui_non_gap_min = 0
+        gap_weight_adjusted = False
+
+    try:
+        ui_stalled_scenarios = len(
+            [
+                key
+                for key, stat in (stats or {}).items()
+                if int(stat.get("non_write_no_change") or 0) >= 2
+            ]
+        )
+    except Exception:
+        ui_stalled_scenarios = 0
+    if ui_low and ui_stalled_scenarios > 0:
+        ui_non_gap_min = max(ui_non_gap_min, 2)
+        if ui_gap_min > 0:
+            ui_gap_min = max(0, ui_gap_min - 1)
 
     cooldown_minutes = float(tuning_payload["tuning"].get("cooldown_minutes") or _cfg_number(cfg, "scenario_scheduler_cooldown_minutes", 45.0))
     cooldown_cutoff = now_ts - (cooldown_minutes * 60.0)
@@ -532,7 +684,8 @@ def select_scenarios(
     ranked: List[Dict[str, Any]] = []
     for meta in catalog:
         key = meta.name or meta.stem
-        stat = stats.get(key)
+        canonical = _normalize_scenario_key(str(key), key_map)
+        stat = stats.get(canonical)
         score, reasons, cooldown = _score_scenario(
             meta,
             stat,
@@ -546,7 +699,12 @@ def select_scenarios(
             ui_boost,
             flow_boost,
         )
-        expected_duration = durations.get(key) or default_duration_s
+        retention_block = retention_blocks.get(canonical)
+        if retention_block:
+            reasons.append("retention_blocked")
+            score -= max(weights.get("cooldown", 80.0), 50.0)
+            cooldown = True
+        expected_duration = durations.get(canonical) or default_duration_s
         ranked.append(
             {
                 "path": meta.path,
@@ -555,10 +713,17 @@ def select_scenarios(
                 "score": round(score, 2),
                 "reasons": reasons,
                 "cooldown": cooldown,
+                "retention_blocked": bool(retention_block),
+                "retention_remaining": int(retention_block.get("remaining") or 0) if retention_block else 0,
                 "last_ts": (stat or {}).get("last_ts"),
                 "recent_timeouts": (stat or {}).get("recent_timeout"),
                 "recent_errors": (stat or {}).get("recent_error"),
                 "expected_duration_s": round(float(expected_duration), 2),
+                "is_gap": bool(meta.is_gap),
+                "is_ui_gap": bool((meta.is_gap and meta.kind == "ui") or str(meta.name or "").startswith("gap_ui_")),
+                "non_write_no_change": int((stat or {}).get("non_write_no_change") or 0),
+                "non_write_safe_candidates": int((stat or {}).get("non_write_safe_candidates") or 0),
+                "non_write_last_reason": str((stat or {}).get("non_write_last_reason") or ""),
             }
         )
 
@@ -591,21 +756,137 @@ def select_scenarios(
     if not selected:
         selected = ranked[: min(limit or len(ranked), len(ranked))]
 
-    # Ensure at least one UI scenario is present when available.
-    ui_in_selected = any(str(item.get("kind") or "") == "ui" for item in selected)
-    if not ui_in_selected:
-        ui_candidates = [i for i in ranked if str(i.get("kind") or "") == "ui" and not i.get("cooldown")]
+    # Ensure a minimum number of UI scenarios when coverage is below target.
+    ui_needed = 1
+    if ui_low:
+        ui_needed = max(1, int(ui_min_required))
+        if ui_ratio_min and ui_ratio_min > 0:
+            ui_needed = max(ui_needed, int(math.ceil(float(ui_ratio_min) * max(1, len(selected)))))
+    ui_selected = [item for item in selected if str(item.get("kind") or "") == "ui"]
+    if len(ui_selected) < ui_needed:
+        ui_candidates = [
+            i for i in ranked if str(i.get("kind") or "") == "ui" and not i.get("cooldown")
+        ]
         if ui_candidates:
-            ui_pick = ui_candidates[0]
-            replaced = False
-            for idx in range(len(selected) - 1, -1, -1):
-                if str(selected[idx].get("kind") or "") != "ui":
-                    selected[idx] = ui_pick
-                    replaced = True
+            selected_paths = {str(i.get("path") or "") for i in selected}
+            for cand in ui_candidates:
+                if len(ui_selected) >= ui_needed:
                     break
-            if not replaced:
-                if limit <= 0 or len(selected) < limit:
-                    selected.append(ui_pick)
+                if str(cand.get("path") or "") in selected_paths:
+                    continue
+                replaced = False
+                for idx in range(len(selected) - 1, -1, -1):
+                    if str(selected[idx].get("kind") or "") != "ui":
+                        selected[idx] = cand
+                        replaced = True
+                        break
+                if not replaced:
+                    if limit <= 0 or len(selected) < limit:
+                        selected.append(cand)
+                ui_selected = [item for item in selected if str(item.get("kind") or "") == "ui"]
+
+    # Ensure a minimum number of non-gap UI scenarios for coverage lift.
+    ui_non_gap_needed = int(ui_non_gap_min or 0) if ui_low else 0
+    if ui_non_gap_needed > 0:
+        ui_non_gap_selected = [
+            item
+            for item in selected
+            if str(item.get("kind") or "") == "ui" and not item.get("is_gap")
+        ]
+        if len(ui_non_gap_selected) < ui_non_gap_needed:
+            ui_non_gap_candidates = [
+                i
+                for i in ranked
+                if str(i.get("kind") or "") == "ui"
+                and not i.get("is_gap")
+                and not i.get("cooldown")
+            ]
+            if ui_non_gap_candidates:
+                selected_paths = {str(i.get("path") or "") for i in selected}
+                for cand in ui_non_gap_candidates:
+                    if len(ui_non_gap_selected) >= ui_non_gap_needed:
+                        break
+                    if str(cand.get("path") or "") in selected_paths:
+                        continue
+                    replaced = False
+                    for idx in range(len(selected) - 1, -1, -1):
+                        if selected[idx].get("is_gap"):
+                            selected[idx] = cand
+                            replaced = True
+                            break
+                    if not replaced:
+                        if limit <= 0 or len(selected) < limit:
+                            selected.append(cand)
+                    ui_non_gap_selected = [
+                        item
+                        for item in selected
+                        if str(item.get("kind") or "") == "ui" and not item.get("is_gap")
+                    ]
+
+    # Ensure a minimum number of UI gap scenarios when UI coverage is low.
+    ui_gap_needed = int(ui_gap_min or 0) if ui_low else 0
+    if ui_gap_needed > 0:
+        ui_gap_selected = [item for item in selected if item.get("is_ui_gap")]
+        if len(ui_gap_selected) < ui_gap_needed:
+            ui_gap_candidates = [
+                i for i in ranked if i.get("is_ui_gap") and not i.get("cooldown")
+            ]
+            if ui_gap_candidates:
+                selected_paths = {str(i.get("path") or "") for i in selected}
+                for cand in ui_gap_candidates:
+                    if len(ui_gap_selected) >= ui_gap_needed:
+                        break
+                    if str(cand.get("path") or "") in selected_paths:
+                        continue
+                    replaced = False
+                    for idx in range(len(selected) - 1, -1, -1):
+                        if not selected[idx].get("is_ui_gap"):
+                            selected[idx] = cand
+                            replaced = True
+                            break
+                    if not replaced:
+                        if limit <= 0 or len(selected) < limit:
+                            selected.append(cand)
+                    ui_gap_selected = [item for item in selected if item.get("is_ui_gap")]
+
+    # Cap repeated gap share to avoid looped selection when gap_changed stays flat.
+    gap_ratio_capped = False
+    try:
+        max_gap_ratio = float(_cfg_number(cfg, "scenario_scheduler_max_gap_ratio", 0.5))
+    except Exception:
+        max_gap_ratio = 0.5
+    if max_gap_ratio < 0:
+        max_gap_ratio = 0.0
+    if max_gap_ratio > 1:
+        max_gap_ratio = 1.0
+    if selected:
+        gap_selected = [item for item in selected if item.get("is_gap")]
+        allowed_gap_count = int(math.floor(max_gap_ratio * len(selected)))
+        protected_gap_count = int(ui_gap_min or 0) if ui_low else 0
+        allowed_gap_count = max(protected_gap_count, allowed_gap_count)
+        if len(gap_selected) > allowed_gap_count:
+            non_gap_candidates = [
+                i
+                for i in ranked
+                if not i.get("is_gap")
+                and not i.get("cooldown")
+                and str(i.get("path") or "") not in {str(s.get("path") or "") for s in selected}
+            ]
+            replace_count = len(gap_selected) - allowed_gap_count
+            replaced = 0
+            for cand in non_gap_candidates:
+                if replaced >= replace_count:
+                    break
+                for idx in range(len(selected) - 1, -1, -1):
+                    if selected[idx].get("is_gap"):
+                        selected[idx] = cand
+                        replaced += 1
+                        break
+            if replaced > 0:
+                gap_ratio_capped = True
+
+    gap_selected_count = len([item for item in selected if item.get("is_gap")])
+    gap_selected_ratio = (float(gap_selected_count) / max(1, len(selected))) if selected else 0.0
 
     summary = {
         "enabled": True,
@@ -613,6 +894,10 @@ def select_scenarios(
         "candidates": len(ranked),
         "selected": len(selected),
         "skipped_cooldown": len(skipped),
+        "retention_blocked": len([r for r in ranked if r.get("retention_blocked")]),
+        "retention_run_seq": retention_meta.get("run_seq"),
+        "retention_enabled": retention_meta.get("enabled"),
+        "retention_dry_run": retention_meta.get("dry_run"),
         "history_hours": round(history_hours, 2),
         "recent_minutes": round(recent_minutes, 2),
         "cooldown_minutes": round(cooldown_minutes, 2),
@@ -621,6 +906,16 @@ def select_scenarios(
         "budget_seconds_used": round(elapsed_budget, 2),
         "ui_boost": round(float(ui_boost), 2),
         "flow_boost": round(float(flow_boost), 2),
+        "ui_min_required": int(ui_min_required),
+        "ui_ratio_min": round(float(ui_ratio_min or 0.0), 3),
+        "ui_gap_min": int(ui_gap_min or 0),
+        "ui_non_gap_min": int(ui_non_gap_min or 0),
+        "gap_weight_adjusted": bool(gap_weight_adjusted),
+        "ui_stalled_scenarios": int(ui_stalled_scenarios),
+        "max_gap_ratio": round(float(max_gap_ratio), 3),
+        "gap_selected": int(gap_selected_count),
+        "gap_selected_ratio": round(float(gap_selected_ratio), 3),
+        "gap_ratio_capped": bool(gap_ratio_capped),
     }
     kind_counts: Dict[str, int] = {"ui": 0, "api": 0, "other": 0}
     for item in selected:

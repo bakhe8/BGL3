@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "1653",
+  "description": "Investigate outcome:reasoning.plan:unknown issue",
+  "created_at": 1770885367,
+  "metadata": {
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1653,
+    "generated_at": 1770885540.3797574
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Investigate outcome:reasoning.plan:unknown issue\nprint('Investigating outcome:reasoning.plan:unknown')\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Investigate outcome:reasoning.plan:unknown issue\nprint('Investigating outcome:reasoning.plan:unknown')\n"
+      }
+    }
+  ]
+}

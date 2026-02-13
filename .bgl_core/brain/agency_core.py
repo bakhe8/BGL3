@@ -172,6 +172,15 @@ class AgencyCore:
         self._initialized = True
         print(f"[*] AgencyCore: Intelligence engine initialized at {self.root_dir}")
 
+    def _load_auto_gate_policy(self) -> Dict[str, Any]:
+        path = self.root_dir / ".bgl_core" / "logs" / "auto_gate_policy.json"
+        try:
+            if path.exists():
+                return json.loads(path.read_text(encoding="utf-8")) or {}
+        except Exception:
+            return {}
+        return {}
+
     def _summarize_code_intent_signals(self) -> Dict[str, Any]:
         path = self.root_dir / "analysis" / "code_contracts.json"
         if not path.exists():
@@ -783,6 +792,19 @@ class AgencyCore:
         except Exception:
             last_timeout_at = 0.0
         try:
+            timeout_streak = int(state.get("timeout_streak") or 0)
+        except Exception:
+            timeout_streak = 0
+        try:
+            last_status = str(state.get("status") or "").strip().lower()
+        except Exception:
+            last_status = ""
+        if last_status == "timeout" and not last_timeout_at:
+            try:
+                last_timeout_at = float(state.get("ended_at") or state.get("started_at") or 0)
+            except Exception:
+                last_timeout_at = last_timeout_at or 0.0
+        try:
             last_duration = float(state.get("duration_sec") or 0)
         except Exception:
             last_duration = 0.0
@@ -806,10 +828,14 @@ class AgencyCore:
                 "limit": limit,
                 "last_duration_sec": last_duration or None,
             }
+        fast_mode = False
         if last_timeout_at and (time.time() - last_timeout_at) < 6 * 3600:
             # Back off to avoid repeated timeouts.
             hours = min(hours, float(state.get("fallback_hours") or max(1.0, hours / 2)))
             limit = min(limit, int(state.get("fallback_limit") or max(100, int(limit / 2))))
+            fast_mode = True
+        if timeout_streak >= 2 or last_status == "timeout":
+            fast_mode = True
 
         script = self.root_dir / ".bgl_core" / "brain" / "context_digest.py"
         if not script.exists():
@@ -854,6 +880,12 @@ class AgencyCore:
                 digest_timeout = max(5.0, float(timeout_sec - 5))
             else:
                 digest_timeout = max(5.0, min(float(digest_timeout), float(timeout_sec - 5)))
+            env = os.environ.copy()
+            if fast_mode:
+                env["BGL_CONTEXT_DIGEST_FAST"] = "1"
+                # Keep fast caps aligned with the reduced scope when available.
+                env.setdefault("BGL_CONTEXT_DIGEST_FAST_HOURS", str(round(float(hours), 2)))
+                env.setdefault("BGL_CONTEXT_DIGEST_FAST_LIMIT", str(int(limit)))
             proc = subprocess.run(
                 [
                     exe,
@@ -866,6 +898,7 @@ class AgencyCore:
                     str(round(float(digest_timeout), 2)),
                 ],
                 cwd=str(self.root_dir),
+                env=env,
                 capture_output=True,
                 text=True,
                 check=False,
@@ -873,24 +906,45 @@ class AgencyCore:
             )
             out = (proc.stdout or "").strip()
             err = (proc.stderr or "").strip()
+            ok_flag = proc.returncode == 0
             # Keep the payload compact for the report.
             try:
                 state_path.parent.mkdir(parents=True, exist_ok=True)
-                state = state if isinstance(state, dict) else {}
-                state.update(
+                state_after = (
+                    json.loads(state_path.read_text(encoding="utf-8")) if state_path.exists() else {}
+                )
+                if not isinstance(state_after, dict):
+                    state_after = {}
+                status = str(state_after.get("status") or "").strip().lower()
+                ok_by_state = status in ("ok", "no_data")
+                timed_out = status == "timeout"
+                ok = (proc.returncode == 0) and (ok_by_state or status == "")
+                ok_flag = ok
+                if timed_out:
+                    timeout_streak = min(timeout_streak + 1, 10)
+                    state_after["last_timeout_at"] = time.time()
+                    state_after["timeout_streak"] = timeout_streak
+                    state_after.setdefault("fallback_hours", max(1.0, hours / 2))
+                    state_after.setdefault("fallback_limit", max(100, int(limit / 2)))
+                elif ok:
+                    state_after["last_success_at"] = time.time()
+                    state_after["timeout_streak"] = 0
+                state_after.update(
                     {
-                        "last_success_at": time.time(),
-                        "last_timeout_at": state.get("last_timeout_at"),
                         "last_hours": hours,
                         "last_limit": limit,
                         "returncode": proc.returncode,
+                        "last_status": status or None,
+                        "last_stderr_tail": err[-200:] if err else "",
                     }
                 )
-                state_path.write_text(json.dumps(state, ensure_ascii=False, indent=2), encoding="utf-8")
+                state_path.write_text(
+                    json.dumps(state_after, ensure_ascii=False, indent=2), encoding="utf-8"
+                )
             except Exception:
                 pass
             return {
-                "ok": proc.returncode == 0,
+                "ok": bool(ok_flag),
                 "returncode": proc.returncode,
                 "stdout": out[-500:] if out else "",
                 "stderr": err[-500:] if err else "",
@@ -1043,6 +1097,66 @@ class AgencyCore:
             "generated_ids": generated[:10],
             "failed_samples": failed[:5],
         }
+
+    def _auto_ingest_audit_proposals(self) -> Dict[str, Any]:
+        """
+        Ingest audit gaps/risks into proposals DB so auto-plan can generate plans.
+        """
+        try:
+            enabled = os.getenv(
+                "BGL_AUTO_AUDIT_PROPOSE",
+                str(self.config.get("auto_audit_propose", 1)),
+            )
+            if str(enabled).strip().lower() not in ("1", "true", "yes", "on"):
+                return {"ok": False, "skipped": True, "reason": "disabled"}
+        except Exception:
+            return {"ok": False, "skipped": True, "reason": "disabled"}
+
+        script = self.root_dir / ".bgl_core" / "brain" / "audit_to_proposals.py"
+        if not script.exists():
+            return {"ok": False, "error": "audit_to_proposals_missing"}
+
+        report_path = os.getenv(
+            "BGL_AUDIT_REPORT_PATH",
+            os.getenv("BGL_AUDIT_REPORT", str(self.root_dir / "docs" / "brain_functional_audit_report.md")),
+        )
+
+        try:
+            exe = sys.executable or "python"
+        except Exception:
+            exe = "python"
+
+        try:
+            proc = subprocess.run(
+                [exe, str(script), "--report", str(report_path)],
+                cwd=str(self.root_dir),
+                capture_output=True,
+                text=True,
+                check=False,
+                timeout=60,
+            )
+        except Exception as e:
+            return {"ok": False, "error": str(e)}
+
+        stdout = (proc.stdout or "").strip()
+        stderr = (proc.stderr or "").strip()
+        payload: Dict[str, Any] = {}
+        if stdout:
+            try:
+                payload = json.loads(stdout.splitlines()[-1])
+            except Exception:
+                payload = {"raw": stdout[-1000:]}
+
+        if proc.returncode != 0:
+            return {
+                "ok": False,
+                "error": "audit_to_proposals_failed",
+                "stderr": stderr[-800:],
+                "payload": payload,
+            }
+
+        payload.setdefault("ok", True)
+        return payload
 
     def _auto_run_checks(self, findings: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -1305,7 +1419,7 @@ class AgencyCore:
             except Exception:
                 diag_timeout = 0.0
             if diag_timeout > 0:
-                guardian_timeout = max(60.0, diag_timeout * 0.7)
+                guardian_timeout = max(120.0, diag_timeout * 0.9)
         if guardian_timeout > 0:
             try:
                 health_report = await asyncio.wait_for(
@@ -1785,6 +1899,11 @@ class AgencyCore:
             )
         except Exception:
             findings.setdefault("runtime_contract_learning", 0)
+        # Ingest audit gaps/risks into proposals so auto-plan can act.
+        try:
+            findings["audit_proposals"] = self._auto_ingest_audit_proposals()
+        except Exception:
+            findings.setdefault("audit_proposals", {})
         try:
             findings["auto_plan"] = self._auto_generate_patch_plans()
         except Exception:
@@ -1832,6 +1951,114 @@ class AgencyCore:
             recheck_sec = int(os.getenv("BGL_CANARY_RECHECK_SEC", str(cfg_recheck) or "0") or "0")
         except Exception:
             recheck_sec = 0
+        canary_gate = {
+            "integrity_ok": True,
+            "event_delta": None,
+            "scenario_status": "",
+            "active_releases": 0,
+            "conditional_override": False,
+            "reason": "ok",
+        }
+        integrity_status = ""
+        try:
+            require_integrity = bool(
+                int(
+                    os.getenv(
+                        "BGL_CANARY_REQUIRE_INTEGRITY_OK",
+                        str(self.config.get("canary_require_integrity_ok", 1)),
+                    )
+                )
+            )
+        except Exception:
+            require_integrity = True
+        try:
+            require_event_delta = bool(
+                int(
+                    os.getenv(
+                        "BGL_CANARY_REQUIRE_EVENT_DELTA",
+                        str(self.config.get("canary_require_event_delta", 1)),
+                    )
+                )
+            )
+        except Exception:
+            require_event_delta = True
+        try:
+            report_path = self.root_dir / ".bgl_core" / "logs" / "latest_report.json"
+            if report_path.exists():
+                report = json.loads(report_path.read_text(encoding="utf-8")) or {}
+                gate = report.get("integrity_gate") or {}
+                overall = gate.get("overall") or {}
+                status = str(overall.get("status") or overall.get("decision") or "").lower()
+                if status:
+                    integrity_status = status
+                    canary_gate["integrity_ok"] = status in ("ok", "pass")
+                scen_stats = report.get("scenario_run_stats") or {}
+                try:
+                    canary_gate["scenario_status"] = str(scen_stats.get("status") or "").lower()
+                except Exception:
+                    canary_gate["scenario_status"] = ""
+                event_delta = scen_stats.get("event_delta_total")
+                if event_delta is None:
+                    event_delta = scen_stats.get("event_delta")
+                try:
+                    canary_gate["event_delta"] = int(event_delta or 0)
+                except Exception:
+                    canary_gate["event_delta"] = 0
+        except Exception:
+            pass
+        # Built-in conditional override:
+        # allow canary evaluation even when integrity is WARN (not OK) if runtime evidence is positive.
+        try:
+            if not bool(canary_gate.get("integrity_ok")):
+                scen_status = str(canary_gate.get("scenario_status") or "").lower()
+                event_delta_val = int(canary_gate.get("event_delta") or 0)
+                if integrity_status == "warn" and event_delta_val > 0 and scen_status == "ok":
+                    require_integrity = False
+                    canary_gate["conditional_override"] = True
+                    canary_gate["reason"] = "warn_with_event_delta_and_scenario_ok"
+        except Exception:
+            pass
+        # Never keep canary in permanent skipped mode while active releases exist.
+        try:
+            canary_snapshot = summarize_canary_status(self.db_path, limit=3)
+            active_releases = int((canary_snapshot or {}).get("active") or 0)
+            canary_gate["active_releases"] = active_releases
+            if active_releases > 0 and (
+                (require_integrity and not canary_gate.get("integrity_ok"))
+                or (require_event_delta and int(canary_gate.get("event_delta") or 0) <= 0)
+            ):
+                require_integrity = False
+                require_event_delta = False
+                canary_gate["conditional_override"] = True
+                canary_gate["reason"] = "active_release_forced_evaluation"
+        except Exception:
+            pass
+        # Auto gate policy (conditional overrides based on repeated skips).
+        try:
+            auto_policy = self._load_auto_gate_policy()
+        except Exception:
+            auto_policy = {}
+        try:
+            if isinstance(auto_policy, dict) and auto_policy.get("mode") == "conditional":
+                allow_if = auto_policy.get("allow_if") or {}
+                allowed_statuses = allow_if.get("integrity_status_allow") or []
+                min_event_delta = int(allow_if.get("min_event_delta") or 0)
+                if not allowed_statuses or integrity_status in [str(s).lower() for s in allowed_statuses]:
+                    if allow_if.get("override_require_integrity"):
+                        require_integrity = False
+                    if allow_if.get("override_require_event_delta"):
+                        try:
+                            if int(canary_gate.get("event_delta") or 0) >= min_event_delta:
+                                require_event_delta = False
+                        except Exception:
+                            pass
+                canary_gate["auto_policy"] = {
+                    "mode": auto_policy.get("mode"),
+                    "skipped_gate_count": auto_policy.get("skipped_gate_count"),
+                    "reason": auto_policy.get("reason"),
+                }
+        except Exception:
+            pass
         try:
             if os.getenv("BGL_CANARY_EXTERNAL_DEPENDENCY_ROLLBACK") is None:
                 cfg_val = self.config.get("canary_external_dependency_rollback", 1)
@@ -1846,20 +2073,58 @@ class AgencyCore:
         except Exception:
             pass
         try:
-            canary_eval = evaluate_canary_releases(
-                self.root_dir,
-                self.db_path,
-                min_age_sec=min_age,
-                auto_rollback=auto_rb,
-                recheck_sec=recheck_sec,
-                external_dependency=external_dependency_signal,
-            )
+            diag_profile = str(os.getenv("BGL_DIAGNOSTIC_PROFILE", "") or "").lower()
+            skip_fast_eval = diag_profile.startswith("fast") and str(
+                os.getenv(
+                    "BGL_CANARY_EVAL_IN_FAST",
+                    str(self.config.get("canary_eval_in_fast", 0)),
+                )
+            ) not in ("1", "true", "yes", "on")
+
+            if skip_fast_eval:
+                canary_eval = {
+                    "ok": False,
+                    "skipped": True,
+                    "reason": "fast_profile_skip",
+                    "evaluated": 0,
+                }
+            elif (require_integrity and not canary_gate.get("integrity_ok")) or (
+                require_event_delta and int(canary_gate.get("event_delta") or 0) <= 0
+            ):
+                canary_eval = {
+                    "ok": False,
+                    "skipped": True,
+                    "reason": "integrity_gate_not_ok"
+                    if not canary_gate.get("integrity_ok")
+                    else "event_delta_zero",
+                    "evaluated": 0,
+                }
+            else:
+                canary_eval = evaluate_canary_releases(
+                    self.root_dir,
+                    self.db_path,
+                    min_age_sec=min_age,
+                    auto_rollback=auto_rb,
+                    recheck_sec=recheck_sec,
+                    external_dependency=external_dependency_signal,
+                )
+        except Exception as exc:
+            canary_eval = {"ok": False, "error": str(exc), "evaluated": 0}
+        try:
+            canary_eval["gate"] = canary_gate
         except Exception:
-            canary_eval = {"ok": False}
+            pass
         try:
             canary_eval["summary"] = summarize_canary_status(self.db_path, limit=4)
         except Exception:
             canary_eval.setdefault("summary", {})
+        try:
+            if canary_eval.get("evaluated") is None:
+                canary_eval["evaluated"] = 0
+            if canary_eval.get("ok") is True and int(canary_eval.get("evaluated") or 0) == 0:
+                canary_eval.setdefault("reason", "no_releases")
+        except Exception:
+            pass
         findings["canary_status"] = canary_eval
 
         # Auto-run checks already executed earlier to feed proposals/external checks.
@@ -2253,14 +2518,38 @@ class AgencyCore:
             stats["direct_attempts"] = int(cur.fetchone()[0])
             cur.execute("SELECT result, COUNT(*) FROM outcomes GROUP BY result")
             rows = cur.fetchall()
-            ignore = {"proposed", "skipped", "deferred", "blocked"}
-            total = sum(count for res, count in rows if str(res or "") not in ignore)
+            ignore = {
+                "proposed",
+                "skipped",
+                "deferred",
+                "blocked",
+                "false_positive",
+                "mode_direct",
+            }
+            success_set = {
+                "success",
+                "success_with_override",
+                "success_sandbox",
+                "success_direct",
+                "partial",
+                "prevented_regression",
+                "confirmed_issue",
+            }
+            def _is_ignored(res_val: Any) -> bool:
+                r = str(res_val or "").strip().lower()
+                if not r:
+                    return True
+                if r in ignore:
+                    return True
+                if r.startswith("blocked") or r.startswith("skipped") or r.startswith("deferred"):
+                    return True
+                return False
+
+            total = sum(count for res, count in rows if not _is_ignored(res))
             stats["total_outcomes"] = total
             if total > 0:
                 successes = sum(
-                    count
-                    for res, count in rows
-                    if res in ("success", "success_with_override")
+                    count for res, count in rows if str(res or "").strip().lower() in success_set
                 )
                 stats["success_rate"] = round(successes / total, 3)
             conn.close()

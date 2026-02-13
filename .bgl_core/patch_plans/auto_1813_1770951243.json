@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "id": "patch_plan_1813",
+  "description": "Stabilize route http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA",
+  "created_at": 1770951214,
+  "metadata": {
+    "experience_id": 10506,
+    "exp_hash": "561131fb8d8bce8e76cc3f6457156a9442d3c629",
+    "scenario": "http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1813,
+    "generated_at": 1770951243.177816
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_events_php.yaml",
+      "mode": null,
+      "content": "- event: route_stabilization\n  description: Stabilize route http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA\n  actions:\n    - action: add_event_handler\n      handler: handle_route_stabilization\n      conditions:\n        - condition: route_visited\n          route: http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- event: route_stabilization\n  description: Stabilize route http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA\n  actions:\n    - action: add_event_handler\n      handler: handle_route_stabilization\n      conditions:\n        - condition: route_visited\n          route: http://localhost:8000/index.php?search=%D8%A7%D9%82%D8%AA%D8%B1%D8%A7%D8%AD%D8%A7%D8%AA"
+      }
+    }
+  ]
+}

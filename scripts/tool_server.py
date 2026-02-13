@@ -237,12 +237,18 @@ class Handler(BaseHTTPRequestHandler):
 
     def _master_verify(self, req):
         try:
+            env = os.environ.copy()
+            env["BGL_RUN_SOURCE"] = "tool_server"
+            env["BGL_RUN_TRIGGER"] = "tool_server"
+            if isinstance(req, dict) and req.get("request_id"):
+                env["BGL_RUN_REQUEST_ID"] = str(req["request_id"])
             res = subprocess.run(
                 [PYTHON_EXE, ".bgl_core/brain/master_verify.py"],
                 cwd=ROOT,
                 capture_output=True,
                 text=True,
                 timeout=300,
+                env=env,
             )
             output = (res.stdout or "") + "\n" + (res.stderr or "")
             self._set_headers(200)

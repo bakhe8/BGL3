@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1605",
+  "description": "Stabilize scenario goals/flow_gap_3543.yaml",
+  "created_at": 1704384000,
+  "metadata": {
+    "proposal_id": 1605,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770873855.3734834
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_3543.yaml",
+      "mode": "overwrite",
+      "content": "version: 2\nname: goal_flow_gap_3543\ndescription: Stabilize scenario goals/flow_gap_3543.yaml\ntags:\n  - stabilization\nsteps:\n  - name: Ensure stability\n    action: run_stability_check\n    parameters:\n      threshold: 0.9\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 2\nname: goal_flow_gap_3543\ndescription: Stabilize scenario goals/flow_gap_3543.yaml\ntags:\n  - stabilization\nsteps:\n  - name: Ensure stability\n    action: run_stability_check\n    parameters:\n      threshold: 0.9\n"
+      }
+    }
+  ]
+}

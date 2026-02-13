@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1670",
+  "description": "Stabilize scenario goals/flow_gap_4096.yaml",
+  "created_at": 1683456000,
+  "metadata": {
+    "proposal_id": 1670,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770889954.3184366
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_4096.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_flow_gap_4096\ndescription: Stabilize scenario goals/flow_gap_4096.yaml\ntype: stabilization\nsteps:\n- step_id: 1\n  action: verify_integrity\n  parameters: {}\n- step_id: 2\n  action: run_scenarios\n  parameters: {scenario_file: goal_flow_gap_4096.yaml}\n- step_id: 3\n  action: check_confidence\n  parameters: {confidence_threshold: 0.85}",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_flow_gap_4096\ndescription: Stabilize scenario goals/flow_gap_4096.yaml\ntype: stabilization\nsteps:\n- step_id: 1\n  action: verify_integrity\n  parameters: {}\n- step_id: 2\n  action: run_scenarios\n  parameters: {scenario_file: goal_flow_gap_4096.yaml}\n- step_id: 3\n  action: check_confidence\n  parameters: {confidence_threshold: 0.85}"
+      }
+    }
+  ]
+}

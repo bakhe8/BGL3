@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "2090",
+  "description": "Route [data-toggle]:has-text(\"bgl\"): 4 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).",
+  "created_at": 1683756800,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 2090,
+    "generated_at": 1770999554.5678976
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/[data-toggle]:has-text(\"bgl\").yaml",
+      "mode": "append",
+      "content": "\n- name: Stabilize Route\n  steps:\n    - action: stabilize\n      impact: medium",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- name: Stabilize Route\n  steps:\n    - action: stabilize\n      impact: medium"
+      }
+    }
+  ]
+}

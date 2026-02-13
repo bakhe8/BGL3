@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_2070",
+  "description": "Stabilize scenario goals/flow_gap_6359.yaml",
+  "created_at": 1694587200,
+  "metadata": {
+    "proposal_id": 2070,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770998330.5905485
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_6359.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_flow_gap_6359\nsteps:\n- name: Step 1\n  action: stabilize\n  parameters:\n    target: .bgl_core/brain/scenarios/goals/goal_flow_gap_6359.yaml",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_flow_gap_6359\nsteps:\n- name: Step 1\n  action: stabilize\n  parameters:\n    target: .bgl_core/brain/scenarios/goals/goal_flow_gap_6359.yaml"
+      }
+    }
+  ]
+}

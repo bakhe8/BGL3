@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1908",
+  "description": "Stabilize scenario goals/flow_gap_5799.yaml",
+  "created_at": 1677456000,
+  "metadata": {
+    "proposal_id": 1908,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770962412.4558995
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_5799.yaml",
+      "mode": "overwrite",
+      "content": "version: '3'\nscenarios:\n  - name: goal_flow_gap_5799\n    events:\n      - event_type: http_request\n        url: /api/v1/goal_flow_gap_5799\n        method: GET\n        expected_status_code: 200\n        expected_response_body: {}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: '3'\nscenarios:\n  - name: goal_flow_gap_5799\n    events:\n      - event_type: http_request\n        url: /api/v1/goal_flow_gap_5799\n        method: GET\n        expected_status_code: 200\n        expected_response_body: {}\n"
+      }
+    }
+  ]
+}

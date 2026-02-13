@@ -1,0 +1,39 @@
+name: autonomous_1770889460
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: click
+  selector: a[href="./views/batches.php"]
+  optional: true
+- action: click
+  selector: '#noteTextarea'
+  optional: true
+- action: scroll
+  dy: 400
+- action: click
+  selector: '#bgl-confirm-no'
+- action: upload
+  selector: '#excelFileInput'
+  files:
+  - 19-10-2025.xlsx
+  danger: true
+- action: click
+  selector: '#pasteTestBatchId'
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: بنك
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

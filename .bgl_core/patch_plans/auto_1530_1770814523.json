@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1530",
+  "description": "Patch Plan for outcome:evolve:success",
+  "created_at": 1684792800,
+  "metadata": {
+    "proposal_id": 1530,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770814523.4850554
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Log outcome success for evolve\nif 'outcome:evolve:success' in experience:\n    log_success(experience)",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Log outcome success for evolve\nif 'outcome:evolve:success' in experience:\n    log_success(experience)"
+      }
+    }
+  ]
+}

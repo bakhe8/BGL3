@@ -24,6 +24,8 @@ use PhpParser\Node\Stmt\UseUse;
 use PhpParser\Node\Stmt\TraitUse;
 use PhpParser\Node\Stmt\TraitUseAdaptation\Alias as TraitAlias;
 use PhpParser\Node\Scalar\String_;
+use PhpParser\Node\Stmt\Use_ as UseStmt;
+use PhpParser\Node\Stmt\Namespace_ as NamespaceStmt;
 
 function parseMethodBody(string $content, Parser $parser): array
 {
@@ -74,6 +76,103 @@ $clonedStmts = $traverser->traverse($stmts);
 
 $traverser = new NodeTraverser();
 $factory = new BuilderFactory();
+
+// 🧩 Text-based actions (non-AST)
+if (in_array($action, ['replace_block', 'toggle_flag', 'insert_event'], true)) {
+    $match = $params['match'] ?? null;
+    $content = $params['content'] ?? null;
+    $regex = !empty($params['regex']);
+    $count = $params['count'] ?? 0;
+
+    if ($action === 'toggle_flag') {
+        $flag = $params['flag'] ?? ($params['name'] ?? null);
+        $value = $params['value'] ?? ($params['enabled'] ?? null);
+        if ($flag === null) {
+            echo json_encode(['status' => 'error', 'message' => 'Missing flag/name for toggle_flag']);
+            exit(1);
+        }
+        $valStr = null;
+        if (is_bool($value)) {
+            $valStr = $value ? 'true' : 'false';
+        } elseif ($value === 1 || $value === 0 || $value === '1' || $value === '0') {
+            $valStr = ((int)$value) ? 'true' : 'false';
+        } elseif (is_string($value) && $value !== '') {
+            $low = strtolower($value);
+            if (in_array($low, ['true','false'], true)) {
+                $valStr = $low;
+            } else {
+                $valStr = $value;
+            }
+        } else {
+            $valStr = 'true';
+        }
+        $pattern = '/(\\b' . preg_quote((string)$flag, '/') . '\\b\\s*=\\s*)(true|false|1|0|\"true\"|\"false\")/i';
+        $replaced = preg_replace($pattern, '$1' . $valStr, $code, -1, $replCount);
+        if ($replCount === 0 || $replaced === null) {
+            echo json_encode(['status' => 'error', 'message' => 'Flag not found for toggle_flag']);
+            exit(1);
+        }
+        if (!empty($params['dry_run'])) {
+            echo json_encode(['status' => 'success', 'code' => $replaced]);
+            exit(0);
+        }
+        file_put_contents($filePath, $replaced);
+        echo json_encode(['status' => 'success', 'message' => 'Flag toggled']);
+        exit(0);
+    }
+
+    if (!$match || $content === null) {
+        echo json_encode(['status' => 'error', 'message' => 'Missing match/content for text action']);
+        exit(1);
+    }
+
+    if ($action === 'insert_event') {
+        $mode = strtolower($params['mode'] ?? 'after');
+        if ($regex) {
+            $replacement = ($mode === 'before')
+                ? $content . "\n$0"
+                : "$0\n" . $content;
+            $replaced = preg_replace('/' . $match . '/m', $replacement, $code, $count > 0 ? (int)$count : -1, $replCount);
+        } else {
+            $replacement = ($mode === 'before')
+                ? $content . "\n" . $match
+                : $match . "\n" . $content;
+            $replaced = str_replace($match, $replacement, $code, $replCount);
+            if ($count > 0 && $replCount > $count) {
+                // best-effort limit by reapplying with regex-like approach
+            }
+        }
+        if ($replCount === 0) {
+            echo json_encode(['status' => 'error', 'message' => 'Match not found for insert_event']);
+            exit(1);
+        }
+        if (!empty($params['dry_run'])) {
+            echo json_encode(['status' => 'success', 'code' => $replaced]);
+            exit(0);
+        }
+        file_put_contents($filePath, $replaced);
+        echo json_encode(['status' => 'success', 'message' => 'Event inserted']);
+        exit(0);
+    }
+
+    // replace_block
+    if ($regex) {
+        $replaced = preg_replace('/' . $match . '/m', $content, $code, $count > 0 ? (int)$count : -1, $replCount);
+    } else {
+        $replaced = str_replace($match, $content, $code, $replCount);
+    }
+    if ($replCount === 0) {
+        echo json_encode(['status' => 'error', 'message' => 'Match not found for replace_block']);
+        exit(1);
+    }
+    if (!empty($params['dry_run'])) {
+        echo json_encode(['status' => 'success', 'code' => $replaced]);
+        exit(0);
+    }
+    file_put_contents($filePath, $replaced);
+    echo json_encode(['status' => 'success', 'message' => 'Block replaced']);
+    exit(0);
+}
 
 // 🛠️ Action: Rename Class (Fix Naming Violation)
 if ($action === 'rename_class') {
@@ -244,6 +343,54 @@ if ($action === 'add_method') {
             return null;
         }
     });
+}
+
+// 🛠️ Action: Add Import (use statement)
+if ($action === 'add_import') {
+    $import = $params['import'] ?? null;
+    $alias = $params['alias'] ?? null;
+    if (!$import) {
+        echo json_encode(['status' => 'error', 'message' => 'Missing import']);
+        exit(1);
+    }
+    $normImport = ltrim($import, '\\');
+
+    // Find target stmt list (namespace-aware)
+    $targetStmts =& $clonedStmts;
+    foreach ($clonedStmts as $idx => $stmt) {
+        if ($stmt instanceof NamespaceStmt) {
+            $targetStmts =& $clonedStmts[$idx]->stmts;
+            break;
+        }
+    }
+
+    $already = false;
+    foreach ($targetStmts as $stmt) {
+        if ($stmt instanceof UseStmt) {
+            foreach ($stmt->uses as $use) {
+                if (ltrim($use->name->toString(), '\\') === $normImport) {
+                    $already = true;
+                }
+            }
+        }
+    }
+
+    if (!$already) {
+        $useNode = new UseUse(new Name($normImport));
+        if ($alias) {
+            $useNode->alias = new Node\Identifier($alias);
+        }
+        $useStmt = new UseStmt([$useNode]);
+
+        // Insert after last use statement
+        $insertAt = 0;
+        foreach ($targetStmts as $i => $stmt) {
+            if ($stmt instanceof UseStmt) {
+                $insertAt = $i + 1;
+            }
+        }
+        array_splice($targetStmts, $insertAt, 0, [$useStmt]);
+    }
 }
 
 // 🪄 Apply Transformations

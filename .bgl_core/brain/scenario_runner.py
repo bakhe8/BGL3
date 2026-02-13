@@ -14,7 +14,7 @@ Env overrides:
 import argparse
 import asyncio
 import os
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urljoin
 import subprocess
 import time
 import sqlite3
@@ -768,6 +768,7 @@ async def _attempt_semantic_shift(page, db_path: Path, session: str) -> bool:
         "[aria-controls]",
     ]
     candidate_selectors: List[Tuple[str, Dict[str, Any]]] = []
+    safe_action_candidates: List[Dict[str, Any]] = []
     try:
         ui_limit = int(os.getenv("BGL_UI_ACTION_LIMIT", "80") or "80")
     except Exception:
@@ -787,11 +788,25 @@ async def _attempt_semantic_shift(page, db_path: Path, session: str) -> bool:
                 continue
             if _candidate_is_disabled(c):
                 continue
+            if not _semantic_is_write_action(str(c.get("text") or "")):
+                safe_action_candidates.append(
+                    {
+                        "selector": sel,
+                        "selector_key": str(c.get("selector_key") or ""),
+                        "text": str(c.get("text") or "")[:80],
+                        "tag": str(c.get("tag") or ""),
+                    }
+                )
             if _candidate_is_tab_like(c):
                 if _candidate_is_active(c):
                     continue
                 candidate_selectors.append((sel, c))
+    try:
+        page._bgl_last_safe_action_candidates = safe_action_candidates[:6]  # type: ignore[attr-defined]
+    except Exception:
+        pass
     seen = set()
+    last_attempt: Dict[str, Any] = {}
 
     def _iter_selectors():
         for sel, meta in candidate_selectors:
@@ -830,6 +845,16 @@ async def _attempt_semantic_shift(page, db_path: Path, session: str) -> bool:
             await page.wait_for_timeout(240)
             after_hash = await _dom_state_hash(page)
             changed = bool(before_hash and after_hash and before_hash != after_hash)
+            last_attempt = {
+                "selector": sel,
+                "selector_key": str(meta.get("selector_key") or ""),
+                "source": source,
+                "changed": changed,
+            }
+            try:
+                page._bgl_last_non_write_attempt = last_attempt  # type: ignore[attr-defined]
+            except Exception:
+                pass
             try:
                 log_event(
                     db_path,
@@ -897,6 +922,24 @@ async def _attempt_semantic_shift(page, db_path: Path, session: str) -> bool:
                 return True
         except Exception:
             continue
+    try:
+        log_event(
+            db_path,
+            session,
+            {
+                "event_type": "ui_non_write_coverage",
+                "route": page.url if hasattr(page, "url") else "",
+                "method": "NON_WRITE",
+                "payload": {
+                    "failure_reason": "semantic_shift_no_change",
+                    "safe_action_candidates": safe_action_candidates[:6],
+                    "last_attempt": last_attempt or None,
+                },
+                "status": 204,
+            },
+        )
+    except Exception:
+        pass
     return False
 
 
@@ -907,6 +950,8 @@ async def exploratory_action(
     تنفيذ تفاعل آمن واحد غير مذكور (hover/scroll) لا يغيّر البيانات.
     """
     try:
+        safe_action_candidates: List[Dict[str, Any]] = []
+        last_attempt: Dict[str, Any] = {}
         candidates = await page.query_selector_all(
             "button, a, [role='button'], [data-action], input, textarea, select"
         )
@@ -1010,6 +1055,20 @@ async def exploratory_action(
                 if not _candidate_is_disabled(m)
                 and not (_candidate_is_tab_like(m) and _candidate_is_active(m))
             ]
+            safe_action_candidates = [
+                {
+                    "selector": str(m.get("selector") or ""),
+                    "selector_key": str(m.get("selector_key") or ""),
+                    "text": str(m.get("text") or "")[:80],
+                    "tag": str(m.get("tag") or ""),
+                }
+                for m in candidate_meta
+                if m.get("selector") and not _semantic_is_write_action(str(m.get("text") or ""))
+            ][:6]
+            try:
+                page._bgl_last_safe_action_candidates = safe_action_candidates  # type: ignore[attr-defined]
+            except Exception:
+                pass
 
         explored = _load_explored_selectors(
             ROOT_DIR / ".bgl_core" / "brain" / "knowledge.db"
@@ -1039,6 +1098,11 @@ async def exploratory_action(
         # Prefer scroll sometimes to explore below the fold
         if random.random() < 0.35:
             await page.mouse.wheel(0, 600)
+            last_attempt = {"action": "scroll", "dy": 600}
+            try:
+                page._bgl_last_non_write_attempt = last_attempt  # type: ignore[attr-defined]
+            except Exception:
+                pass
             with open(learn_log, "a", encoding="utf-8") as f:
                 f.write(f"{time.time()}\t{session}\texplore\tscroll\n")
             return
@@ -1058,10 +1122,20 @@ async def exploratory_action(
                         y = box["y"] + box["height"] / 2
                         await motor.move_to(page, x, y, danger=False)
                     await el.click()
+                    last_attempt = {"action": "search_click", "selector": "input[type='search']"}
                     terms = _build_search_terms()
                     term = random.choice(terms)
                     await el.fill("")
                     await el.type(term, delay=50)
+                    last_attempt = {
+                        "action": "search_type",
+                        "selector": "input[type='search']",
+                        "term": term[:40],
+                    }
+                    try:
+                        page._bgl_last_non_write_attempt = last_attempt  # type: ignore[attr-defined]
+                    except Exception:
+                        pass
                     await page.wait_for_timeout(300)
                     after_hash = await _dom_state_hash(page)
                     seen.add(hash(f"search:{term}"))
@@ -1150,6 +1224,15 @@ async def exploratory_action(
             if box:
                 x = box["x"] + box["width"] / 2
                 y = box["y"] + box["height"] / 2
+                last_attempt = {
+                    "action": "hover",
+                    "selector": str(m.get("selector") or ""),
+                    "selector_key": str(m.get("selector_key") or ""),
+                }
+                try:
+                    page._bgl_last_non_write_attempt = last_attempt  # type: ignore[attr-defined]
+                except Exception:
+                    pass
                 await motor.move_to(page, x, y, danger=False)
                 await page.wait_for_timeout(80)
                 seen.add(h)
@@ -1219,6 +1302,11 @@ async def exploratory_action(
                 return
         # fallback scroll
         await page.mouse.wheel(0, 300)
+        last_attempt = {"action": "scroll", "dy": 300}
+        try:
+            page._bgl_last_non_write_attempt = last_attempt  # type: ignore[attr-defined]
+        except Exception:
+            pass
         with open(learn_log, "a", encoding="utf-8") as f:
             f.write(f"{time.time()}\t{session}\texplore\tscroll\n")
     except Exception:
@@ -1303,19 +1391,94 @@ async def run_step(
             current = page.url
         except Exception:
             current = ""
+        # Avoid download-triggered navigations for export endpoints (suppliers/banks/etc.)
+        if _is_export_download_url(str(target_url)):
+            abs_url = _normalize_step_url(str(target_url), current)
+            status, err = _safe_api_get(
+                abs_url,
+                timeout_sec=int(step.get("timeout", 8)),
+            )
+            if status is not None and status >= 400:
+                log_event(
+                    db_path,
+                    scenario_name,
+                    {
+                        "event_type": "http_error",
+                        "route": abs_url,
+                        "method": "GET",
+                        "status": status,
+                        "error": err,
+                    },
+                )
+            elif err:
+                log_event(
+                    db_path,
+                    scenario_name,
+                    {
+                        "event_type": "network_fail",
+                        "route": abs_url,
+                        "method": "GET",
+                        "status": status,
+                        "error": err,
+                    },
+                )
+            else:
+                log_event(
+                    db_path,
+                    scenario_name,
+                    {
+                        "event_type": "export_download_bypass",
+                        "route": abs_url,
+                        "method": "GET",
+                        "status": status or 200,
+                        "payload": "download_bypassed_via_api",
+                    },
+                )
+            return
         if current != target_url or step.get("force", 0):
-            await policy.perform_goto(
+            result = await policy.perform_goto(
                 page,
                 target_url,
                 wait_until=step.get("wait_until", "load"),
                 post_wait_ms=int(step.get("post_wait_ms", DEFAULT_POST_WAIT_MS)),
             )
+            if isinstance(result, dict) and result.get("status") == "download_started":
+                log_event(
+                    db_path,
+                    scenario_name,
+                    {
+                        "event_type": "download_started",
+                        "route": target_url,
+                        "method": "GET",
+                        "payload": result.get("error", ""),
+                        "status": None,
+                    },
+                )
+                return
     elif action == "wait":
         # Support both "ms" and the older "duration_ms" key.
         await page.wait_for_timeout(int(step.get("ms", step.get("duration_ms", 500))))
     elif action == "click":
         await ensure_cursor(page)
         danger = bool(step.get("danger", False))
+        selector = str(step.get("selector", ""))
+        try:
+            block_reason = _blocked_click_reason(selector)
+            if block_reason:
+                log_event(
+                    db_path,
+                    step.get("session", ""),
+                    {
+                        "event_type": "ui_click_skipped",
+                        "route": selector,
+                        "method": "CLICK",
+                        "payload": block_reason,
+                        "status": None,
+                    },
+                )
+                return
+        except Exception:
+            pass
         try:
             await _apply_pre_hints("click", str(step.get("selector", "")))
         except Exception:
@@ -3007,6 +3170,27 @@ def _cfg_value(key: str, default: Any = None) -> Any:
         return cfg.get(key, default)
     except Exception:
         return default
+
+
+def _blocked_click_reason(selector: str) -> Optional[str]:
+    sel = (selector or "").strip().lower()
+    if not sel:
+        return None
+    # Configurable blocklist of substrings for click selectors.
+    blocklist = _cfg_value("ui_click_blocklist", None)
+    if isinstance(blocklist, (list, tuple)):
+        for item in blocklist:
+            if not item:
+                continue
+            token = str(item).strip().lower()
+            if token and token in sel:
+                return f"blocked_by_config:{token}"
+    # Avoid print-related actions that can open system dialogs.
+    avoid_print = str(_cfg_value("autonomous_avoid_print", "0")).strip().lower()
+    if avoid_print in ("1", "true", "yes"):
+        if "print" in sel or "btn-print" in sel or "print-overlay" in sel:
+            return "print_action_blocked"
+    return None
 
 
 def _update_diagnostic_status_stage(stage: str) -> None:
@@ -5932,6 +6116,14 @@ async def _run_goal_scenario_impl(
     _trace(f"goal: strategy={strategy} route_kind={route_kind} uri={uri}")
     tried = []
 
+    def _goal_file_tag(name: str, gid: str) -> str:
+        tag = f"{name}_{gid}" if gid else name
+        tag = re.sub(r"[^a-zA-Z0-9_]+", "_", str(tag or "").strip().lower())
+        tag = tag.strip("_")
+        if not tag:
+            tag = "goal"
+        return tag[:90]
+
     async def _run_ui() -> bool:
         if not scenario:
             return False
@@ -5981,7 +6173,7 @@ async def _run_goal_scenario_impl(
         _trace("goal: ui path prepare")
         out_dir = SCENARIOS_DIR / "goals"
         out_dir.mkdir(parents=True, exist_ok=True)
-        path = out_dir / f"goal_{int(time.time())}.yaml"
+        path = out_dir / f"goal_{_goal_file_tag(goal_name, goal_id)}.yaml"
         try:
             with path.open("w", encoding="utf-8") as f:
                 yaml.safe_dump(scenario, f, sort_keys=False, allow_unicode=True)
@@ -7954,6 +8146,34 @@ async def _run_scenario_impl(
             pass
     if not semantic_changed:
         try:
+            safe_action_candidates = []
+            try:
+                safe_action_candidates = list(getattr(page, "_bgl_last_safe_action_candidates", []) or [])
+            except Exception:
+                safe_action_candidates = []
+            last_attempt = None
+            try:
+                last_attempt = getattr(page, "_bgl_last_non_write_attempt", None)
+            except Exception:
+                last_attempt = None
+            try:
+                log_event(
+                    db_path,
+                    name,
+                    {
+                        "event_type": "ui_non_write_coverage",
+                        "route": page.url if hasattr(page, "url") else "",
+                        "method": "NON_WRITE",
+                        "payload": {
+                            "failure_reason": "gap_no_change",
+                            "safe_action_candidates": safe_action_candidates[:6],
+                            "last_attempt": last_attempt,
+                        },
+                        "status": 204,
+                    },
+                )
+            except Exception:
+                pass
             log_event(
                 db_path,
                 name,
@@ -8053,6 +8273,76 @@ def _is_api_url(url: str) -> bool:
     if "/api/" in url:
         return True
     return False
+
+
+def _download_route_patterns() -> List[str]:
+    patterns = _cfg_value("download_route_patterns", None)
+    if patterns is None:
+        return ["/api/export_"]
+    if isinstance(patterns, str):
+        return [p.strip() for p in patterns.split(",") if p.strip()]
+    if isinstance(patterns, list):
+        out = []
+        for p in patterns:
+            if p is None:
+                continue
+            out.append(str(p))
+        return out
+    return ["/api/export_"]
+
+
+def _is_export_download_url(url: str) -> bool:
+    if not url:
+        return False
+    lowered = url.lower()
+    for pattern in _download_route_patterns():
+        if not pattern:
+            continue
+        if pattern.startswith("re:"):
+            try:
+                if re.search(pattern[3:], lowered):
+                    return True
+            except Exception:
+                continue
+            continue
+        if pattern.lower() in lowered:
+            return True
+    return False
+
+
+def _normalize_step_url(target_url: str, page_url: str) -> str:
+    if not target_url:
+        return target_url
+    if target_url.startswith("http://") or target_url.startswith("https://"):
+        return target_url
+    if page_url:
+        try:
+            return urljoin(page_url, target_url)
+        except Exception:
+            return target_url
+    base = os.getenv("BGL_BASE_URL", "")
+    if base:
+        base = base.rstrip("/")
+        if target_url.startswith("/"):
+            return base + target_url
+        return base + "/" + target_url
+    return target_url
+
+
+def _safe_api_get(url: str, timeout_sec: int = 8) -> tuple[Optional[int], Optional[str]]:
+    status = None
+    err = None
+    try:
+        req = urllib.request.Request(url, method="GET")
+        with urllib.request.urlopen(req, timeout=timeout_sec) as resp:
+            status = resp.getcode()
+            resp.read()
+    except urllib.error.HTTPError as e:
+        status = e.code
+        err = str(e)
+    except Exception as e:
+        err = str(e)
+    return status, err
 
 
 def _is_api_scenario(data: Dict[str, Any], scenario_path: Path) -> bool:

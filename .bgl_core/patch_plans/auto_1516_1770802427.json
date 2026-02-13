@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1516",
+  "description": "Patch Plan for Proposal ID 1516 - Improve UI Interaction Coverage",
+  "created_at": 1700000000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1516,
+    "generated_at": 1770802427.7059288
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/ui_interaction_tests.py",
+      "mode": "append",
+      "content": "\n\n# Test cases for new UI elements\n\ndef test_cancel_button():\n    assert ui_element_exists('button.note-cancel-btn')\n\ndef test_manual_test_batch_id_input():\n    assert ui_element_exists('#manualTestBatchId')\n\ndef test_btnCancelManualEntry_button():\n    assert ui_element_exists('#btnCancelManualEntry')\n\ndef test_btnCancelPaste_button():\n    assert ui_element_exists('#btnCancelPaste')\n\ndef test_btnCancelExcel_button():\n    assert ui_element_exists('#btnCancelExcel')",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n# Test cases for new UI elements\n\ndef test_cancel_button():\n    assert ui_element_exists('button.note-cancel-btn')\n\ndef test_manual_test_batch_id_input():\n    assert ui_element_exists('#manualTestBatchId')\n\ndef test_btnCancelManualEntry_button():\n    assert ui_element_exists('#btnCancelManualEntry')\n\ndef test_btnCancelPaste_button():\n    assert ui_element_exists('#btnCancelPaste')\n\ndef test_btnCancelExcel_button():\n    assert ui_element_exists('#btnCancelExcel')"
+      }
+    }
+  ]
+}

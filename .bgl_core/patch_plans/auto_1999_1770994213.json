@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "1999",
+  "description": "Route http://localhost:8000/agentfrontend/partials/blockers.php: 10 events, 1 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0.0 ms (max 0.0 ms).",
+  "created_at": 1770994187,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1999,
+    "generated_at": 1770994213.1221302
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_blockers_php.yaml",
+      "mode": null,
+      "content": "stabilize: true",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "stabilize: true"
+      }
+    }
+  ]
+}

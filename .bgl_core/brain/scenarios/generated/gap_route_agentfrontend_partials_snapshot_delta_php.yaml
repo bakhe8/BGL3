@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_snapshot_delta_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/snapshot_delta.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/snapshot_delta.php
+- action: wait
+  ms: 400

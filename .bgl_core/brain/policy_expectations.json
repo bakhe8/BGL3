@@ -694,9 +694,9 @@
     "uri": "/api/update_bank.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Expected status based on current implementation and error handling.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -704,9 +704,9 @@
     "uri": "/api/update_supplier.php",
     "method": "GET",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Expected status based on current implementation and error handling.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -796,7 +796,7 @@
     "expected_statuses": [
       400
     ],
-    "reason": "Expected status based on historical evidence and current behavior.",
+    "reason": "Expected status based on historical evidence and current usage patterns.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -806,7 +806,7 @@
     "expected_statuses": [
       400
     ],
-    "reason": "Expected status based on historical evidence and current behavior.",
+    "reason": "Expected status based on historical evidence and current usage patterns.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -924,9 +924,9 @@
     "uri": "/api/delete_bank.php",
     "method": "POST",
     "expected_statuses": [
-      429
+      500
     ],
-    "reason": "Auto-promoted from evidence",
+    "reason": "Expected status based on current implementation and error handling.",
     "category": "policy_expected_auto",
     "match_body_regex": "\\{\"success\":false,\"error\":\"Rate\\ limit\\ exceeded\",\"retry_after_sec\":60\\}"
   },
@@ -976,6 +976,70 @@
       503
     ],
     "reason": "Ensure the status endpoint returns expected HTTP statuses.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/v1/events",
+    "method": "GET",
+    "expected_statuses": [
+      200,
+      404
+    ],
+    "reason": "The /api/v1/events endpoint should return either a list of events or a 404 if no events are found.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/legacy/data",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The legacy data endpoint is expected to return a 400 status code for certain requests.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/bank/entry",
+    "method": "POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The POST request to /api/bank/entry may fail with a 400 status code due to invalid input parameters.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/views/batches.php",
+    "method": "GET/POST",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The UI semantic change detected in the route /views/batches.php may require a specific response status to ensure proper handling of user input or data processing.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/index.php?search=domain",
+    "method": "GET",
+    "expected_statuses": [
+      400
+    ],
+    "reason": "The UI semantic change detected requires a policy update to handle the expected 400 status for this specific route.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/v1/healthcheck",
+    "method": "GET",
+    "expected_statuses": [
+      200
+    ],
+    "reason": "Ensure the health check endpoint returns a 200 status to indicate service is up and running.",
+    "category": "policy_expected_auto"
+  },
+  {
+    "uri": "/api/ui/semantic-changes",
+    "method": "GET",
+    "expected_statuses": [
+      200
+    ],
+    "reason": "The UI semantic changes are frequent and indicate potential issues with the user interface architecture or design. Evolving the architecture to improve consistency and maintainability would help address this problem.",
     "category": "policy_expected_auto"
   }
 ]

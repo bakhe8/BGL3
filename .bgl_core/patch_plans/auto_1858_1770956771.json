@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1858",
+  "description": "Stabilize scenario goals/decision_focus_5593.yaml",
+  "created_at": 1694073600,
+  "metadata": {
+    "proposal_id": 1858,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770956771.7485707
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_decision_focus_5593.yaml",
+      "mode": null,
+      "content": "Ensure the scenario is stable and meets all requirements.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure the scenario is stable and meets all requirements."
+      }
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1797",
+  "description": "Stabilize route UI based on experience data.",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 1797,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770948506.521028
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_events_php.yaml",
+      "mode": "append",
+      "content": "\n- event: stabilize_ui\n  description: Stabilize route UI based on experience data.\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 10443, \\\"exp_hash\\\": \\\"269d9c0cc8fc3a2723cfbad002197def224a90d0\\\", \\\"scenario\\\": \\\"ui\\\", \\\"summary\\\": \\\"Route ui: 49 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 49, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\"",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- event: stabilize_ui\n  description: Stabilize route UI based on experience data.\n  impact: medium\n  solution: \"\"\n  expectation: \"\"\n  evidence: \"{\\\"experience_id\\\": 10443, \\\"exp_hash\\\": \\\"269d9c0cc8fc3a2723cfbad002197def224a90d0\\\", \\\"scenario\\\": \\\"ui\\\", \\\"summary\\\": \\\"Route ui: 49 events, 0 HTTP calls (0 failed), 0 JS errors, 0 network errors, avg latency 0 ms (max 0 ms).\\\", \\\"confidence\\\": 0.85, \\\"evidence_count\\\": 49, \\\"related_files\\\": \\\"unknown\\\", \\\"source\\\": \\\"auto_experience\\\"}\""
+      }
+    }
+  ]
+}

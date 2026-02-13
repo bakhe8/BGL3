@@ -419,9 +419,27 @@ def rollback_release(root_dir: Path, release_id: str, conn: Optional[sqlite3.Con
             conn.close()
         return False
     restored = 0
+    scanned = 0
+    partial = False
+    try:
+        max_files = int(os.getenv("BGL_CANARY_ROLLBACK_MAX_FILES", "1500") or "1500")
+    except Exception:
+        max_files = 1500
+    try:
+        max_seconds = float(os.getenv("BGL_CANARY_ROLLBACK_MAX_SECONDS", "60") or "60")
+    except Exception:
+        max_seconds = 60.0
+    start_ts = time.time()
     for path in backup_dir.rglob("*"):
         if not path.is_file():
             continue
+        scanned += 1
+        if max_files > 0 and scanned > max_files:
+            partial = True
+            break
+        if max_seconds > 0 and (time.time() - start_ts) >= max_seconds:
+            partial = True
+            break
         rel = path.relative_to(backup_dir)
         target = root_dir / rel
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -431,13 +449,27 @@ def rollback_release(root_dir: Path, release_id: str, conn: Optional[sqlite3.Con
         except Exception:
             continue
     now = time.time()
+    release_status = "rollback_partial" if partial else "rolled_back"
     conn.execute(
         "UPDATE canary_releases SET status=?, updated_at=? WHERE release_id=?",
-        ("rolled_back", float(now), release_id),
+        (release_status, float(now), release_id),
     )
     conn.execute(
         "INSERT INTO canary_release_events (release_id, created_at, event_type, detail_json) VALUES (?, ?, ?, ?)",
-        (release_id, float(now), "rollback", _safe_json({"restored": restored})),
+        (
+            release_id,
+            float(now),
+            "rollback",
+            _safe_json(
+                {
+                    "restored": restored,
+                    "scanned": scanned,
+                    "partial": partial,
+                    "max_files": max_files,
+                    "max_seconds": max_seconds,
+                }
+            ),
+        ),
     )
     conn.commit()
     try:
@@ -474,7 +506,7 @@ def evaluate_canary_releases(
     _ensure_tables(conn)
     now = time.time()
     rows = conn.execute(
-        "SELECT * FROM canary_releases WHERE status IN ('monitoring','promoted') ORDER BY created_at DESC",
+        "SELECT * FROM canary_releases WHERE status IN ('monitoring','promoted','rollback_required') ORDER BY created_at DESC",
     ).fetchall()
     evaluated = 0
     rollbacks = 0
@@ -492,7 +524,45 @@ def evaluate_canary_releases(
     except Exception:
         runtime_contract_hotspots_thr = 2
     for row in rows:
+        status = str(row["status"] or "")
         created_at = _safe_float(row["created_at"], now)
+        if status == "rollback_required":
+            if recheck_sec:
+                last_update = _safe_float(row["updated_at"], created_at)
+                if now - last_update < recheck_sec:
+                    continue
+            if auto_rollback:
+                try:
+                    if rollback_release(root_dir, row["release_id"], conn=conn):
+                        rollbacks += 1
+                except Exception:
+                    try:
+                        conn.execute(
+                            "INSERT INTO canary_release_events (release_id, created_at, event_type, detail_json) VALUES (?, ?, ?, ?)",
+                            (
+                                row["release_id"],
+                                float(now),
+                                "rollback_failed",
+                                _safe_json({"reason": "exception"}),
+                            ),
+                        )
+                    except Exception:
+                        pass
+            else:
+                try:
+                    conn.execute(
+                        "INSERT INTO canary_release_events (release_id, created_at, event_type, detail_json) VALUES (?, ?, ?, ?)",
+                        (
+                            row["release_id"],
+                            float(now),
+                            "rollback_pending",
+                            _safe_json({"reason": "auto_rollback_disabled"}),
+                        ),
+                    )
+                except Exception:
+                    pass
+            evaluated += 1
+            continue
         # Respect minimum age for first evaluation
         if now - created_at < min_age_sec and row["status"] == "monitoring":
             continue

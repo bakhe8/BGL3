@@ -9,6 +9,8 @@ $env:BGL_BASE_URL = $BaseUrl
 $env:BGL_HEADLESS = "$Headless"
 $env:BGL_RUN_SCENARIOS = "1"
 $env:BGL_FORCE_RATE_LIMIT = "1"
+$env:BGL_RUN_SOURCE = "agent_verify"
+$env:BGL_RUN_TRIGGER = "manual_script"
 
 $pythonExe = Join-Path $PSScriptRoot ".bgl_core\\.venv312\\Scripts\\python.exe"
 if (-not (Test-Path $pythonExe)) {

@@ -1,0 +1,11 @@
+name: gap_route_partials_letter_renderer_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /partials/letter-renderer.php
+steps:
+- action: goto
+  url: /partials/letter-renderer.php
+- action: wait
+  ms: 400

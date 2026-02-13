@@ -1,0 +1,40 @@
+{
+  "version": 2,
+  "id": "1983",
+  "description": "Patch Plan for /api/export_banks.php to stabilize runtime evidence",
+  "created_at": 1770992524,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1983,
+    "generated_at": 1770992545.3875816
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "api/agent-event.php",
+      "mode": null,
+      "content": "// Add error handling and logging for /api/export_banks.php\nfunction handleExportBanks() {\n    try {\n        // Existing code here\n    } catch (Exception $e) {\n        logError($e);\n        return response()->json(['error' => 'Internal Server Error'], 500);\n    }\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Add error handling and logging for /api/export_banks.php\nfunction handleExportBanks() {\n    try {\n        // Existing code here\n    } catch (Exception $e) {\n        logError($e);\n        return response()->json(['error' => 'Internal Server Error'], 500);\n    }\n}\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": "api/export_banks.php",
+      "mode": null,
+      "content": "// Add error handling and logging for /api/export_banks.php\nfunction exportBanks() {\n    try {\n        // Existing code here\n    } catch (Exception $e) {\n        logError($e);\n        return response()->json(['error' => 'Internal Server Error'], 500);\n    }\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Add error handling and logging for /api/export_banks.php\nfunction exportBanks() {\n    try {\n        // Existing code here\n    } catch (Exception $e) {\n        logError($e);\n        return response()->json(['error' => 'Internal Server Error'], 500);\n    }\n}\n"
+      }
+    }
+  ]
+}

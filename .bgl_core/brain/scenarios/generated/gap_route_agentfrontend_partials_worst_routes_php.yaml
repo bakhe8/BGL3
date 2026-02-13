@@ -1,0 +1,24 @@
+name: gap_route_agentfrontend_partials_worst_routes_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/worst_routes.php
+  route_type: partial
+steps:
+- action: goto
+  url: /agent.php
+- action: wait
+  ms: 500
+- action: click
+  selector: a[href*='worst_routes.php']
+  optional: true
+- action: wait
+  ms: 350
+- action: scroll
+  dy: 450
+- action: hover
+  selector: section
+  optional: true
+- action: wait
+  ms: 300

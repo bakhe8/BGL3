@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_1948",
+  "description": "Stabilize route /api/reduce.php",
+  "created_at": 1677808000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1948,
+    "generated_at": 1770984013.9935167
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "api/reduce.php",
+      "mode": "append",
+      "content": "\n\n// Add stability checks and logging\nif (!isset($_POST['data'])) {\n    http_response_code(400);\n    echo json_encode(['error' => 'Missing data']);\n    exit;\n}\n\ntry {\n    // Your existing code here\n} catch (Exception $e) {\n    error_log('Error in /api/reduce.php: ' . $e->getMessage());\n    http_response_code(500);\n    echo json_encode(['error' => 'Internal Server Error']);\n}\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n\n// Add stability checks and logging\nif (!isset($_POST['data'])) {\n    http_response_code(400);\n    echo json_encode(['error' => 'Missing data']);\n    exit;\n}\n\ntry {\n    // Your existing code here\n} catch (Exception $e) {\n    error_log('Error in /api/reduce.php: ' . $e->getMessage());\n    http_response_code(500);\n    echo json_encode(['error' => 'Internal Server Error']);\n}\n"
+      }
+    }
+  ]
+}

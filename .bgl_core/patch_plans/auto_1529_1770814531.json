@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_1529",
+  "description": "Patch Plan for outcome:run_scenarios:generic_fail",
+  "created_at": 1770814507,
+  "metadata": {
+    "proposal_id": 1529,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770814531.0337064
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/run_scenarios.py",
+      "mode": "append",
+      "content": "\n# Added to handle generic fail scenario\nif failure_class == 'generic_fail':\n    handle_generic_fail()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Added to handle generic fail scenario\nif failure_class == 'generic_fail':\n    handle_generic_fail()\n"
+      }
+    }
+  ]
+}

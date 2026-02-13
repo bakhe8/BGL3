@@ -1,11 +1,25 @@
+# yaml-language-server: $schema=../scenario_schema.json
 name: gap_route_agentfrontend_partials_agent_autonomy_state_php
 kind: ui
 generated: true
 meta:
   origin: coverage_gap
   route: /agentfrontend/partials/agent_autonomy_state.php
+  route_type: partial
 steps:
 - action: goto
-  url: /agentfrontend/partials/agent_autonomy_state.php
+  url: /agent.php
 - action: wait
-  ms: 400
+  ms: 500
+- action: click
+  selector: a[href*='agent_autonomy_state.php']
+  optional: true
+- action: wait
+  ms: 350
+- action: scroll
+  dy: 450
+- action: hover
+  selector: section
+  optional: true
+- action: wait
+  ms: 300

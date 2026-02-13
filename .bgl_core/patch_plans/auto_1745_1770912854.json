@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1745",
+  "description": "Patch Plan for AUDIT RISK: Canary evaluation is gated by integrity and event_delta; can remain skipped indefinitely.",
+  "created_at": 1690238400,
+  "metadata": {
+    "proposal_id": 1745,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770912854.8740888
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/checks/phase3_integrity.py",
+      "mode": null,
+      "content": "def check_phase3_integrity():\n    # Add logic to ensure event_delta is considered\n    pass",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "def check_phase3_integrity():\n    # Add logic to ensure event_delta is considered\n    pass"
+      }
+    }
+  ]
+}

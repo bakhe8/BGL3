@@ -42,6 +42,12 @@ class BGLPatcher:
             self._update_references(old_name, new_name)
         return result
 
+    def rename_reference(
+        self, file_path: Path, old_name: str, new_name: str, dry_run: bool = False
+    ) -> Dict[str, Any]:
+        params = {"old_name": old_name, "new_name": new_name, "dry_run": dry_run}
+        return self._run_action(file_path, "rename_reference", params)
+
     def add_method(
         self,
         file_path: Path,
@@ -55,6 +61,62 @@ class BGLPatcher:
             "dry_run": dry_run,
         }
         return self._run_action(file_path, "add_method", params)
+
+    def add_import(
+        self,
+        file_path: Path,
+        import_name: str,
+        alias: str | None = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        params = {"import": import_name, "alias": alias, "dry_run": dry_run}
+        return self._run_action(file_path, "add_import", params)
+
+    def replace_block(
+        self,
+        file_path: Path,
+        match: str,
+        content: str,
+        regex: bool = False,
+        count: int | None = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        params = {
+            "match": match,
+            "content": content,
+            "regex": regex,
+            "count": count,
+            "dry_run": dry_run,
+        }
+        return self._run_action(file_path, "replace_block", params)
+
+    def toggle_flag(
+        self,
+        file_path: Path,
+        flag: str,
+        value: object = True,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        params = {"flag": flag, "value": value, "dry_run": dry_run}
+        return self._run_action(file_path, "toggle_flag", params)
+
+    def insert_event(
+        self,
+        file_path: Path,
+        match: str,
+        content: str,
+        regex: bool = False,
+        mode: str | None = None,
+        dry_run: bool = False,
+    ) -> Dict[str, Any]:
+        params = {
+            "match": match,
+            "content": content,
+            "regex": regex,
+            "mode": mode,
+            "dry_run": dry_run,
+        }
+        return self._run_action(file_path, "insert_event", params)
 
     def _run_action(
         self, file_path: Path, action: str, params: Dict[str, Any]
@@ -96,6 +158,21 @@ class BGLPatcher:
             m = str(params.get("method_name", ""))
             op_parts.extend([tgt, m])
             cmd = f"add_method {rel} {tgt}::{m}"
+        elif action == "add_import":
+            imp = str(params.get("import", ""))
+            alias = str(params.get("alias", "") or "")
+            op_parts.extend([imp, alias] if alias else [imp])
+            cmd = f"add_import {rel} {imp}" + (f" as {alias}" if alias else "")
+        elif action == "replace_block":
+            op_parts.append("replace_block")
+            cmd = f"replace_block {rel}"
+        elif action == "toggle_flag":
+            flag = str(params.get("flag", ""))
+            op_parts.append(flag)
+            cmd = f"toggle_flag {rel} {flag}"
+        elif action == "insert_event":
+            op_parts.append("insert_event")
+            cmd = f"insert_event {rel}"
 
         operation = "|".join([p for p in op_parts if p])
         meta = {

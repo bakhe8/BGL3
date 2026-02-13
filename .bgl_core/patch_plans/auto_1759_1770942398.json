@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1759",
+  "description": "Stabilize scenario goals/flow_gap_4901.yaml",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 1759,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770942398.816352
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_4901.yaml",
+      "mode": "append",
+      "content": "Ensure all events are properly handled and no errors occur during execution.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure all events are properly handled and no errors occur during execution.",
+        "mode": "append"
+      }
+    }
+  ]
+}

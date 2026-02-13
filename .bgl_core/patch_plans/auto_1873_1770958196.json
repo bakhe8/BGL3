@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1873",
+  "description": "Stabilize scenario goals/5617 by ensuring all events are handled correctly.",
+  "created_at": 1694000000,
+  "metadata": {
+    "proposal_id": 1873,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770958196.7328625
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_purpose_focus_5617.yaml",
+      "mode": null,
+      "content": "Ensure all events are handled correctly in the scenario.",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "Ensure all events are handled correctly in the scenario."
+      }
+    }
+  ]
+}

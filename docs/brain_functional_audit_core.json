@@ -1,0 +1,4197 @@
+{
+  "count": 233,
+  "entries": [
+    {
+      "path": "agency_core.py",
+      "ext": ".py",
+      "size": 108402,
+      "lines": 2515,
+      "functions": [],
+      "classes": [
+        "AgencyCore"
+      ],
+      "imports": [
+        "time",
+        "asyncio",
+        "sqlite3",
+        "json",
+        "os",
+        "sys",
+        "subprocess",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "canary",
+        "cleanup",
+        "digest",
+        "integrity_gate",
+        "lock",
+        "memory",
+        "patch_plan",
+        "playbook",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "agent_tasks.py",
+      "ext": ".py",
+      "size": 2342,
+      "lines": 71,
+      "functions": [
+        "simulate_agent_task"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "time",
+        "os",
+        "sys",
+        "pathlib"
+      ],
+      "tags": [
+        "authority",
+        "lock",
+        "memory"
+      ]
+    },
+    {
+      "path": "agent_verify.py",
+      "ext": ".py",
+      "size": 7533,
+      "lines": 210,
+      "functions": [
+        "_normalize_path",
+        "_infer_scopes_from_files",
+        "_pattern_matches_scope",
+        "_load_patterns",
+        "run_all_checks",
+        "run_contextual_checks"
+      ],
+      "classes": [],
+      "imports": [
+        "importlib",
+        "json",
+        "importlib",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "policy",
+        "report"
+      ]
+    },
+    {
+      "path": "apply_db_fixes.py",
+      "ext": ".py",
+      "size": 2776,
+      "lines": 86,
+      "functions": [
+        "run_sqlite",
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "argparse",
+        "sqlite3",
+        "pathlib"
+      ],
+      "tags": [
+        "authority",
+        "lock"
+      ],
+      "purpose": "Apply DB fixes in sandbox: indexes and FKs based on patch_templates."
+    },
+    {
+      "path": "apply_proposal.py",
+      "ext": ".py",
+      "size": 46950,
+      "lines": 1243,
+      "functions": [
+        "_read_json",
+        "_diagnostic_running",
+        "_load_cfg",
+        "_cfg_flag",
+        "_cfg_str",
+        "_cfg_number",
+        "_auto_run_scenarios_after_apply",
+        "_lint_files",
+        "_run_phpunit_tests",
+        "_post_apply_evaluate",
+        "_summarize_eval_failure",
+        "_summarize_eval_for_trace",
+        "_write_eval_artifact",
+        "_load_code_contracts",
+        "_patch_risk_summary",
+        "_ensure_proposal_links",
+        "_link_proposal_outcome",
+        "_ensure_learning_events",
+        "_log_learning_event",
+        "_try_parse_json"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "argparse",
+        "hashlib",
+        "pathlib",
+        "sqlite3",
+        "time",
+        "subprocess",
+        "shutil",
+        "os",
+        "sys",
+        "atexit",
+        "typing"
+      ],
+      "tags": [
+        "authority",
+        "canary",
+        "cleanup",
+        "digest",
+        "lock",
+        "patch_plan",
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "approve_playbook.py",
+      "ext": ".py",
+      "size": 2609,
+      "lines": 79,
+      "functions": [
+        "append_rule",
+        "approve"
+      ],
+      "classes": [],
+      "imports": [
+        "sys",
+        "shutil",
+        "pathlib",
+        "yaml",
+        "datetime"
+      ],
+      "tags": [
+        "authority",
+        "lock",
+        "playbook"
+      ]
+    },
+    {
+      "path": "archive/master_out.txt",
+      "ext": ".txt",
+      "size": 5108,
+      "lines": 111,
+      "tags": [],
+      "purpose": "=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000"
+    },
+    {
+      "path": "archive/master_out2.txt",
+      "ext": ".txt",
+      "size": 5108,
+      "lines": 111,
+      "tags": [],
+      "purpose": "=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000"
+    },
+    {
+      "path": "archive/master_out3.txt",
+      "ext": ".txt",
+      "size": 5108,
+      "lines": 111,
+      "tags": [],
+      "purpose": "=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000"
+    },
+    {
+      "path": "archive/master_out4.txt",
+      "ext": ".txt",
+      "size": 5108,
+      "lines": 111,
+      "tags": [],
+      "purpose": "=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000=\u0000"
+    },
+    {
+      "path": "archive/sensor_out.txt",
+      "ext": ".txt",
+      "size": 956,
+      "lines": 29,
+      "tags": [],
+      "purpose": "[\u0000*\u0000]\u0000 \u0000S\u0000t\u0000a\u0000r\u0000t\u0000i\u0000n\u0000g\u0000 \u0000t\u0000e\u0000s\u0000t\u0000 \u0000s\u0000c\u0000a\u0000n\u0000 \u0000o\u0000f\u0000 \u0000h\u0000t\u0000t\u0000p\u0000:\u0000/\u0000/\u0000l\u0000o\u0000c\u0000a\u0000l\u0000h\u0000o\u0000s\u0000t\u0000:\u00008\u00000\u00000\u00000\u0000.\u0000.\u0000.\u0000"
+    },
+    {
+      "path": "archive/verify_confidence.py",
+      "ext": ".py",
+      "size": 1646,
+      "lines": 54,
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "archive/verify_failure_modes.py",
+      "ext": ".py",
+      "size": 3220,
+      "lines": 103,
+      "functions": [
+        "test_atomic_rollback",
+        "test_sandbox_isolation",
+        "test_guardrail_barrier"
+      ],
+      "classes": [],
+      "imports": [
+        "time",
+        "json",
+        "os",
+        "shutil",
+        "pathlib",
+        "orchestrator"
+      ],
+      "tags": [
+        "lock",
+        "scenario"
+      ]
+    },
+    {
+      "path": "archive/verify_final_agent.py",
+      "ext": ".py",
+      "size": 1346,
+      "lines": 52,
+      "functions": [
+        "test_specialized_programming"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "os",
+        "pathlib",
+        "orchestrator"
+      ],
+      "tags": []
+    },
+    {
+      "path": "archive/verify_intelligence.py",
+      "ext": ".py",
+      "size": 3342,
+      "lines": 108,
+      "functions": [
+        "benchmark_intelligence"
+      ],
+      "classes": [
+        "AgentBenchmark"
+      ],
+      "imports": [
+        "time",
+        "json",
+        "os",
+        "pathlib",
+        "orchestrator"
+      ],
+      "tags": [
+        "lock",
+        "report"
+      ]
+    },
+    {
+      "path": "archive/verify_patch.py",
+      "ext": ".py",
+      "size": 548,
+      "lines": 18,
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "patcher",
+        "json"
+      ],
+      "tags": []
+    },
+    {
+      "path": "archive/verify_phase_1.py",
+      "ext": ".py",
+      "size": 1265,
+      "lines": 40,
+      "functions": [
+        "test_browser_sensor_integration"
+      ],
+      "classes": [],
+      "imports": [
+        "sys",
+        "pathlib",
+        "safety"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "archive/verify_phase_2.py",
+      "ext": ".py",
+      "size": 2045,
+      "lines": 64,
+      "functions": [
+        "test_unified_perception"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "time",
+        "pathlib",
+        "orchestrator"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "archive/verify_phase_3.py",
+      "ext": ".py",
+      "size": 2268,
+      "lines": 69,
+      "functions": [
+        "test_fault_localization"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "pathlib",
+        "safety"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "archive/verify_phase_5.py",
+      "ext": ".py",
+      "size": 2154,
+      "lines": 64,
+      "functions": [],
+      "classes": [],
+      "imports": [
+        "asyncio",
+        "json",
+        "sqlite3",
+        "pathlib",
+        "guardian"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "authority.py",
+      "ext": ".py",
+      "size": 50277,
+      "lines": 1236,
+      "functions": [
+        "_ensure_agent_permissions_table",
+        "_safe_json",
+        "_normalize_scope",
+        "_compact_fallback_context"
+      ],
+      "classes": [
+        "Authority"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "lock",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "AUTHORITY_INVENTORY.md",
+      "ext": ".md",
+      "size": 4801,
+      "lines": 56,
+      "tags": [
+        "approval",
+        "authority",
+        "lock",
+        "playbook",
+        "policy",
+        "report",
+        "scenario"
+      ],
+      "purpose": "# Authority Inventory (Execution/Approval Paths)"
+    },
+    {
+      "path": "auto_insights.py",
+      "ext": ".py",
+      "size": 3978,
+      "lines": 130,
+      "functions": [
+        "_extract_meta",
+        "should_include_insight",
+        "_hash_file",
+        "audit_auto_insights",
+        "write_auto_insights_status"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "re",
+        "os",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "digest"
+      ]
+    },
+    {
+      "path": "autonomous_policy.py",
+      "ext": ".py",
+      "size": 7746,
+      "lines": 229,
+      "functions": [
+        "_load_rules",
+        "_save_rules",
+        "_rule_key",
+        "_infer_status_from_error",
+        "_candidate_to_rule",
+        "_fallback_patch",
+        "_apply_patch",
+        "apply_autonomous_policy_edit"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "re",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "behavior_learning.py",
+      "ext": ".py",
+      "size": 6705,
+      "lines": 219,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "record_behavior_hint",
+        "get_behavior_hints",
+        "mark_hint_result"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "time",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "memory"
+      ]
+    },
+    {
+      "path": "brain_rules.py",
+      "ext": ".py",
+      "size": 7634,
+      "lines": 198,
+      "functions": [],
+      "classes": [
+        "RuleRegistry",
+        "RuleEngine"
+      ],
+      "imports": [
+        "sys",
+        "re",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "brain_types.py",
+      "ext": ".py",
+      "size": 3556,
+      "lines": 112,
+      "functions": [],
+      "classes": [
+        "Intent",
+        "HealthScore",
+        "Context",
+        "OperationalMode",
+        "CognitiveState",
+        "Rule",
+        "ActionKind",
+        "ActionRequest",
+        "GateResult"
+      ],
+      "imports": [
+        "enum",
+        "dataclasses",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "lock",
+        "policy",
+        "report"
+      ]
+    },
+    {
+      "path": "browser_core.py",
+      "ext": ".py",
+      "size": 1112,
+      "lines": 42,
+      "functions": [],
+      "classes": [
+        "BrowserCore"
+      ],
+      "imports": [
+        "__future__",
+        "typing"
+      ],
+      "tags": [
+        "scenario"
+      ],
+      "purpose": "browser_core.py (Deprecated)"
+    },
+    {
+      "path": "browser_manager.py",
+      "ext": ".py",
+      "size": 8174,
+      "lines": 236,
+      "functions": [],
+      "classes": [
+        "BrowserManager"
+      ],
+      "imports": [
+        "asyncio",
+        "time",
+        "os",
+        "pathlib",
+        "typing",
+        "playwright.async_api"
+      ],
+      "tags": [
+        "cleanup",
+        "lock"
+      ]
+    },
+    {
+      "path": "browser_sensor.py",
+      "ext": ".py",
+      "size": 13607,
+      "lines": 345,
+      "functions": [],
+      "classes": [
+        "BrowserSensor"
+      ],
+      "imports": [
+        "asyncio",
+        "json",
+        "os",
+        "time",
+        "playwright.async_api",
+        "pathlib",
+        "typing",
+        "perception"
+      ],
+      "tags": [
+        "lock",
+        "report"
+      ]
+    },
+    {
+      "path": "business_conflicts_probe.php",
+      "ext": ".php",
+      "size": 5348,
+      "lines": 189,
+      "tags": [
+        "authority"
+      ]
+    },
+    {
+      "path": "callgraph_builder.py",
+      "ext": ".py",
+      "size": 4315,
+      "lines": 141,
+      "functions": [
+        "_guess_layer",
+        "_get_dependencies",
+        "_get_entity_method_id",
+        "build_callgraph"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "canary_release.py",
+      "ext": ".py",
+      "size": 25646,
+      "lines": 709,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_safe_json",
+        "_safe_float",
+        "_root_from_db",
+        "_load_code_contracts",
+        "_normalize_path",
+        "_matches_scope",
+        "_collect_runtime_contract_hotspots",
+        "_collect_route_health",
+        "_collect_runtime_errors",
+        "_collect_outcomes",
+        "_collect_metrics",
+        "register_canary_release",
+        "_should_rollback",
+        "rollback_release",
+        "evaluate_canary_releases",
+        "summarize_canary_status"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "canary",
+        "lock"
+      ]
+    },
+    {
+      "path": "check_mouse_layer.py",
+      "ext": ".py",
+      "size": 1134,
+      "lines": 37,
+      "functions": [
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "re",
+        "sys",
+        "pathlib"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "checks/__init__.py",
+      "ext": ".py",
+      "size": 39,
+      "lines": 2,
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "tags": []
+    },
+    {
+      "path": "checks/authority_drift.py",
+      "ext": ".py",
+      "size": 2347,
+      "lines": 73,
+      "functions": [
+        "_read_text",
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "policy"
+      ]
+    },
+    {
+      "path": "checks/css_bloat.py",
+      "ext": ".py",
+      "size": 905,
+      "lines": 28,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/db_fk_missing.py",
+      "ext": ".py",
+      "size": 1956,
+      "lines": 54,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/db_index_missing.py",
+      "ext": ".py",
+      "size": 1816,
+      "lines": 60,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "pathlib"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "checks/hypothesis_meta_separation.py",
+      "ext": ".py",
+      "size": 2103,
+      "lines": 67,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "os",
+        "typing",
+        "config_loader"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "checks/js_bloat.py",
+      "ext": ".py",
+      "size": 1291,
+      "lines": 44,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "pathlib"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "checks/missing_alerts_aggregator.py",
+      "ext": ".py",
+      "size": 926,
+      "lines": 29,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/missing_audit_trail.py",
+      "ext": ".py",
+      "size": 597,
+      "lines": 16,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/missing_caching_reports.py",
+      "ext": ".py",
+      "size": 778,
+      "lines": 27,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "checks/missing_import_safety.py",
+      "ext": ".py",
+      "size": 767,
+      "lines": 25,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/missing_rate_limit_middleware.py",
+      "ext": ".py",
+      "size": 956,
+      "lines": 32,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "os",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/missing_validation_guards.py",
+      "ext": ".py",
+      "size": 979,
+      "lines": 28,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "checks/phase3_integrity.py",
+      "ext": ".py",
+      "size": 2596,
+      "lines": 81,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "time",
+        "typing"
+      ],
+      "tags": [
+        "scenario"
+      ]
+    },
+    {
+      "path": "checks/self_regulation_runtime_link.py",
+      "ext": ".py",
+      "size": 1932,
+      "lines": 68,
+      "functions": [
+        "run"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "os",
+        "typing",
+        "config_loader"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "code_contracts.py",
+      "ext": ".py",
+      "size": 56809,
+      "lines": 1544,
+      "functions": [
+        "_risk_tier",
+        "_load_json",
+        "_load_yaml",
+        "_normalize_route",
+        "_load_callgraph",
+        "_read_log_tail",
+        "_load_log_hints",
+        "_load_runtime_stats",
+        "_extract_test_refs",
+        "_extract_php_inputs",
+        "_extract_php_outputs",
+        "_split_identifier",
+        "_tokens_from_identifiers",
+        "_tokenize_route",
+        "_test_token_candidates",
+        "_token_overlap",
+        "_temporal_profile_text",
+        "_temporal_profile_python_module",
+        "_extract_comment_hints",
+        "_extract_comment_tags"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "ast",
+        "json",
+        "os",
+        "re",
+        "time",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "code_intel.py",
+      "ext": ".py",
+      "size": 11234,
+      "lines": 318,
+      "functions": [
+        "_risk_tier",
+        "_list_files",
+        "_scan_python_tree",
+        "_scan_js_file",
+        "_attach_parents",
+        "_scan_python",
+        "_scan_js",
+        "_scan_php_from_db",
+        "_collect_routes",
+        "build_code_intel"
+      ],
+      "classes": [],
+      "imports": [
+        "ast",
+        "json",
+        "os",
+        "re",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "memory",
+        "report"
+      ]
+    },
+    {
+      "path": "commit_rule.py",
+      "ext": ".py",
+      "size": 1071,
+      "lines": 38,
+      "functions": [
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "sys",
+        "pathlib",
+        "agency_core"
+      ],
+      "tags": []
+    },
+    {
+      "path": "config_loader.py",
+      "ext": ".py",
+      "size": 4245,
+      "lines": 123,
+      "functions": [
+        "_deep_merge",
+        "_flatten_config",
+        "_has_path",
+        "_get_path",
+        "load_config",
+        "load_effective_config"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "yaml",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "config_tuner.py",
+      "ext": ".py",
+      "size": 8823,
+      "lines": 248,
+      "functions": [
+        "_read_json",
+        "_write_json",
+        "_auto_tune_enabled",
+        "_clamp",
+        "apply_safe_config_tuning"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "digest",
+        "scenario"
+      ],
+      "purpose": "config_tuner.py"
+    },
+    {
+      "path": "context_digest.py",
+      "ext": ".py",
+      "size": 63166,
+      "lines": 1828,
+      "functions": [
+        "_cfg_flag",
+        "_cfg_number",
+        "_read_digest_state",
+        "_write_digest_state",
+        "_ensure_digest_indexes",
+        "_bucket_count",
+        "_bucket_rate",
+        "_bucket_latency",
+        "_load_code_contracts",
+        "summarize_runtime_contracts",
+        "fetch_events",
+        "fetch_prod_ops",
+        "load_route_map",
+        "summarize",
+        "_safe_json",
+        "_row_context",
+        "summarize_log_highlights",
+        "summarize_route_scan_meta",
+        "summarize_diagnostic_events",
+        "summarize_retention_events"
+      ],
+      "classes": [],
+      "imports": [
+        "argparse",
+        "sqlite3",
+        "time",
+        "os",
+        "sys",
+        "hashlib",
+        "json",
+        "subprocess",
+        "math",
+        "pathlib",
+        "typing",
+        "embeddings"
+      ],
+      "tags": [
+        "digest",
+        "lock",
+        "memory",
+        "prune",
+        "retention",
+        "scenario"
+      ],
+      "purpose": "Context Digest"
+    },
+    {
+      "path": "context_extractor.py",
+      "ext": ".py",
+      "size": 1703,
+      "lines": 52,
+      "functions": [
+        "_read_snippet",
+        "extract"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "typing"
+      ],
+      "tags": [],
+      "purpose": "Lightweight context extractor for LLM prompts."
+    },
+    {
+      "path": "contract_seeder.py",
+      "ext": ".py",
+      "size": 9456,
+      "lines": 248,
+      "functions": [
+        "_load_yaml",
+        "_guess_value",
+        "_extract_post_fields",
+        "_extract_get_params",
+        "_param_example_is_placeholder",
+        "_ensure_method",
+        "_post_only",
+        "_example_is_placeholder",
+        "seed_contract"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "re",
+        "pathlib",
+        "os",
+        "typing",
+        "time",
+        "yaml"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "contract_tests.py",
+      "ext": ".py",
+      "size": 4336,
+      "lines": 128,
+      "functions": [
+        "run_contract_suite"
+      ],
+      "classes": [],
+      "imports": [
+        "subprocess",
+        "sys",
+        "shutil",
+        "importlib.util",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "CORE_OPERATIONS.md",
+      "ext": ".md",
+      "size": 2309,
+      "lines": 42,
+      "tags": [
+        "approval"
+      ],
+      "purpose": "# 🧠 BGL3 Agent: CORE OPERATIONS MANUAL 🛡️💎"
+    },
+    {
+      "path": "css_inventory.json",
+      "ext": ".json",
+      "size": 1111,
+      "lines": 56,
+      "tags": []
+    },
+    {
+      "path": "db_schema.json",
+      "ext": ".json",
+      "size": 107385,
+      "lines": 1750,
+      "keys": [
+        "engine",
+        "tables"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "db_utils.py",
+      "ext": ".py",
+      "size": 938,
+      "lines": 31,
+      "functions": [
+        "connect_db"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "decision_db.py",
+      "ext": ".py",
+      "size": 7173,
+      "lines": 227,
+      "functions": [
+        "init_db",
+        "_connect",
+        "_ensure_outcome_columns",
+        "_ensure_decision_trace",
+        "_safe_json",
+        "record_decision_trace",
+        "insert_intent",
+        "insert_decision",
+        "insert_outcome"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "os",
+        "json",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "scenario"
+      ]
+    },
+    {
+      "path": "decision_engine.py",
+      "ext": ".py",
+      "size": 25696,
+      "lines": 712,
+      "functions": [
+        "decide",
+        "_deterministic_decision",
+        "_semantic_decision_hint",
+        "_runtime_decision_hint",
+        "_code_intent_decision_hint",
+        "_code_temporal_decision_hint",
+        "_apply_code_intent_override",
+        "_apply_code_temporal_override",
+        "_apply_runtime_override",
+        "_apply_semantic_override",
+        "_ensure_justification",
+        "_risk_rank",
+        "_extract_action_kind",
+        "_scope_requires_human",
+        "_extract_domain_rule_info",
+        "_apply_policy_overrides",
+        "_attach_explanation"
+      ],
+      "classes": [],
+      "imports": [
+        "typing",
+        "json",
+        "os"
+      ],
+      "tags": [
+        "approval",
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "decision_schema.sql",
+      "ext": ".sql",
+      "size": 9687,
+      "lines": 361,
+      "tables": [
+        "intents",
+        "decisions",
+        "overrides",
+        "outcomes",
+        "agent_runs",
+        "proposal_outcome_links",
+        "decision_traces",
+        "exploration_outcomes",
+        "exploration_outcome_relations",
+        "exploration_outcome_scores",
+        "exploration_history",
+        "exploration_novelty",
+        "autonomy_goals",
+        "autonomy_goal_strategy",
+        "autonomous_plans",
+        "hypotheses",
+        "hypothesis_outcomes",
+        "learning_events",
+        "volitions",
+        "agent_permissions"
+      ],
+      "tags": [
+        "approval",
+        "canary",
+        "lock",
+        "scenario"
+      ]
+    },
+    {
+      "path": "domain_rules.yml",
+      "ext": ".yml",
+      "size": 1832,
+      "lines": 55,
+      "keys": [
+        "classifications",
+        "rules",
+        "content_rules"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "embeddings.py",
+      "ext": ".py",
+      "size": 3416,
+      "lines": 118,
+      "functions": [
+        "_tokenize",
+        "_vectorize",
+        "_cosine",
+        "_ensure_table",
+        "add_text",
+        "search"
+      ],
+      "classes": [],
+      "imports": [
+        "re",
+        "json",
+        "math",
+        "sqlite3",
+        "collections",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "memory",
+        "prune"
+      ],
+      "purpose": "Simple embedding cache using bag-of-words hashing stored in SQLite."
+    },
+    {
+      "path": "encoding_utils.py",
+      "ext": ".py",
+      "size": 908,
+      "lines": 36,
+      "functions": [
+        "_atomic_write_text",
+        "read_text_utf8",
+        "write_text_utf8"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "pathlib",
+        "os"
+      ],
+      "tags": []
+    },
+    {
+      "path": "execution_gate.py",
+      "ext": ".py",
+      "size": 4183,
+      "lines": 99,
+      "functions": [
+        "check"
+      ],
+      "classes": [],
+      "imports": [
+        "typing",
+        "pathlib",
+        "os"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "lock"
+      ]
+    },
+    {
+      "path": "experience_replay.py",
+      "ext": ".py",
+      "size": 1602,
+      "lines": 63,
+      "functions": [
+        "_ensure",
+        "save",
+        "fetch"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "pathlib",
+        "typing",
+        "json",
+        "time"
+      ],
+      "tags": [],
+      "purpose": "Experience replay store for LLM:"
+    },
+    {
+      "path": "failure_classifier.py",
+      "ext": ".py",
+      "size": 4065,
+      "lines": 125,
+      "functions": [
+        "extract_failure_class",
+        "classify_failure",
+        "summarize_failure_taxonomy"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "re",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "fault_locator.py",
+      "ext": ".py",
+      "size": 3518,
+      "lines": 103,
+      "functions": [],
+      "classes": [
+        "FaultLocator"
+      ],
+      "imports": [
+        "sqlite3",
+        "pathlib",
+        "typing",
+        "urllib.parse"
+      ],
+      "tags": []
+    },
+    {
+      "path": "fingerprint.py",
+      "ext": ".py",
+      "size": 3520,
+      "lines": 130,
+      "functions": [
+        "_stat_sig",
+        "_walk_globs",
+        "compute_fingerprint",
+        "fingerprint_is_fresh",
+        "fingerprint_equal",
+        "fingerprint_to_payload"
+      ],
+      "classes": [
+        "Fingerprint"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "time",
+        "dataclasses",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "scenario"
+      ]
+    },
+    {
+      "path": "generate_openapi.py",
+      "ext": ".py",
+      "size": 2271,
+      "lines": 67,
+      "functions": [
+        "generate"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "time",
+        "pathlib",
+        "yaml"
+      ],
+      "tags": []
+    },
+    {
+      "path": "generate_patch_plan.py",
+      "ext": ".py",
+      "size": 2598,
+      "lines": 89,
+      "functions": [
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "argparse",
+        "json",
+        "sqlite3",
+        "time",
+        "pathlib"
+      ],
+      "tags": [
+        "patch_plan"
+      ]
+    },
+    {
+      "path": "generate_playbooks.py",
+      "ext": ".py",
+      "size": 5011,
+      "lines": 162,
+      "functions": [
+        "_approvals_disabled",
+        "_auto_approve_pending",
+        "generate_from_proposed"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "os",
+        "shutil",
+        "pathlib",
+        "datetime"
+      ],
+      "tags": [
+        "approval",
+        "playbook"
+      ]
+    },
+    {
+      "path": "governor.py",
+      "ext": ".py",
+      "size": 10938,
+      "lines": 276,
+      "functions": [],
+      "classes": [
+        "BGLGovernor"
+      ],
+      "imports": [
+        "sqlite3",
+        "yaml",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "report"
+      ]
+    },
+    {
+      "path": "guardian.py",
+      "ext": ".py",
+      "size": 251950,
+      "lines": 5809,
+      "functions": [
+        "_preferred_python"
+      ],
+      "classes": [
+        "BGLGuardian"
+      ],
+      "imports": [
+        "time",
+        "os",
+        "asyncio",
+        "json",
+        "sqlite3",
+        "urllib.request",
+        "urllib.parse",
+        "urllib.error",
+        "pathlib",
+        "typing",
+        "re",
+        "sys",
+        "yaml"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "auto_review",
+        "canary",
+        "cleanup",
+        "digest",
+        "lock",
+        "memory",
+        "policy",
+        "prune",
+        "report",
+        "retention",
+        "scenario"
+      ]
+    },
+    {
+      "path": "guardrails.py",
+      "ext": ".py",
+      "size": 1739,
+      "lines": 60,
+      "functions": [],
+      "classes": [
+        "BGLGuardrails"
+      ],
+      "imports": [
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "hand_profile.py",
+      "ext": ".py",
+      "size": 1661,
+      "lines": 39,
+      "functions": [],
+      "classes": [
+        "HandProfile"
+      ],
+      "imports": [
+        "random",
+        "dataclasses",
+        "os"
+      ],
+      "tags": []
+    },
+    {
+      "path": "hardware_sensor.py",
+      "ext": ".py",
+      "size": 2861,
+      "lines": 92,
+      "functions": [
+        "get_gpu_info",
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "os",
+        "json",
+        "time",
+        "psutil",
+        "subprocess"
+      ],
+      "tags": [
+        "lock",
+        "memory"
+      ]
+    },
+    {
+      "path": "hypothesis.py",
+      "ext": ".py",
+      "size": 18557,
+      "lines": 551,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_fingerprint",
+        "_safe_json",
+        "_merge_evidence",
+        "upsert_hypothesis",
+        "list_hypotheses",
+        "derive_hypotheses_from_diagnostic",
+        "_relation_from_outcome",
+        "_confidence_delta",
+        "ingest_exploration_outcomes",
+        "refresh_hypothesis_status"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "time",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "digest",
+        "lock",
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "indexer.py",
+      "ext": ".py",
+      "size": 3596,
+      "lines": 105,
+      "functions": [],
+      "classes": [
+        "EntityIndexer"
+      ],
+      "imports": [
+        "os",
+        "json",
+        "subprocess",
+        "pathlib",
+        "memory"
+      ],
+      "tags": [
+        "memory"
+      ]
+    },
+    {
+      "path": "inference.py",
+      "ext": ".py",
+      "size": 31985,
+      "lines": 767,
+      "functions": [],
+      "classes": [
+        "ReasoningEngine"
+      ],
+      "imports": [
+        "pathlib",
+        "typing",
+        "json",
+        "os",
+        "hashlib",
+        "urllib.request",
+        "urllib.error",
+        "sys"
+      ],
+      "tags": [
+        "digest",
+        "lock",
+        "policy",
+        "report"
+      ]
+    },
+    {
+      "path": "inference_patterns.json",
+      "ext": ".json",
+      "size": 2417,
+      "lines": 87,
+      "tags": [
+        "approval",
+        "authority",
+        "playbook",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "intent_resolver.py",
+      "ext": ".py",
+      "size": 13362,
+      "lines": 318,
+      "functions": [
+        "resolve_intent"
+      ],
+      "classes": [],
+      "imports": [
+        "typing",
+        "json",
+        "os",
+        "urllib.request"
+      ],
+      "tags": [
+        "approval",
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "interpretation.py",
+      "ext": ".py",
+      "size": 2271,
+      "lines": 65,
+      "functions": [
+        "interpret"
+      ],
+      "classes": [],
+      "imports": [
+        "typing",
+        "time"
+      ],
+      "tags": []
+    },
+    {
+      "path": "js_inventory.json",
+      "ext": ".json",
+      "size": 1008,
+      "lines": 50,
+      "tags": []
+    },
+    {
+      "path": "knowledge.db",
+      "ext": ".db",
+      "size": 514191360,
+      "lines": 312890,
+      "tags": [
+        "approval",
+        "authority",
+        "canary",
+        "cleanup",
+        "digest",
+        "integrity_gate",
+        "lock",
+        "memory",
+        "patch_plan",
+        "playbook",
+        "policy",
+        "prune",
+        "report",
+        "retention",
+        "scenario"
+      ]
+    },
+    {
+      "path": "knowledge_curation.py",
+      "ext": ".py",
+      "size": 15079,
+      "lines": 447,
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "tags": [
+        "digest",
+        "prune"
+      ]
+    },
+    {
+      "path": "knowledge_probe.db",
+      "ext": ".db",
+      "size": 118784,
+      "lines": 335,
+      "tags": [
+        "digest",
+        "lock",
+        "memory",
+        "scenario"
+      ]
+    },
+    {
+      "path": "learning_core.py",
+      "ext": ".py",
+      "size": 70274,
+      "lines": 2088,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_fingerprint",
+        "_safe_json",
+        "_record_fallback_rule_trace",
+        "_root_from_db",
+        "_cfg_number",
+        "_cfg_flag",
+        "_fallback_block_disabled",
+        "_fallback_require_human_disabled",
+        "_normalize_fallback_action",
+        "_normalize_scope",
+        "_external_dependency_patterns",
+        "_scan_logs_for_external_dependency",
+        "_recent_external_dependency",
+        "apply_external_dependency_fallback",
+        "ingest_learned_events",
+        "ingest_learning_confirmations",
+        "_runtime_contract_confidence",
+        "ingest_runtime_contract_experiences"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "time",
+        "sqlite3",
+        "os",
+        "re",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "digest",
+        "lock",
+        "policy",
+        "prune",
+        "scenario"
+      ]
+    },
+    {
+      "path": "learning_feedback.py",
+      "ext": ".py",
+      "size": 6611,
+      "lines": 223,
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "tags": [
+        "digest",
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "llm_client.py",
+      "ext": ".py",
+      "size": 11812,
+      "lines": 348,
+      "functions": [
+        "_swap_localhost",
+        "_normalize_urls"
+      ],
+      "classes": [
+        "LLMClientConfig",
+        "LLMClient"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "time",
+        "urllib.error",
+        "urllib.request",
+        "subprocess",
+        "shutil",
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "threading"
+      ],
+      "tags": [
+        "lock",
+        "memory"
+      ]
+    },
+    {
+      "path": "llm_status.py",
+      "ext": ".py",
+      "size": 1158,
+      "lines": 43,
+      "functions": [],
+      "classes": [],
+      "imports": [],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "llm_tools.py",
+      "ext": ".py",
+      "size": 10546,
+      "lines": 321,
+      "functions": [
+        "tool_run_checks",
+        "tool_route_index",
+        "tool_logic_bridge",
+        "tool_layout_map",
+        "tool_context_pack",
+        "tool_score_response",
+        "_method_exists",
+        "tool_schema",
+        "dispatch"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "json",
+        "subprocess",
+        "sqlite3",
+        "time",
+        "typing",
+        "agent_verify",
+        "route_indexer",
+        "embeddings",
+        "perception",
+        "observations",
+        "volition"
+      ],
+      "tags": [
+        "memory"
+      ],
+      "purpose": "Lightweight tool layer to let the local LLM (or any caller) trigger safe utilities."
+    },
+    {
+      "path": "logic_bridge.php",
+      "ext": ".php",
+      "size": 1851,
+      "lines": 69,
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "long_term_goals.py",
+      "ext": ".py",
+      "size": 18414,
+      "lines": 594,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_safe_json",
+        "_safe_float",
+        "_clamp",
+        "_interval_hours",
+        "_upsert_goal",
+        "_outcome_stats",
+        "_decision_trace_stats",
+        "refresh_long_term_goals",
+        "pick_long_term_goals",
+        "record_long_term_goal_result",
+        "summarize_long_term_goals"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "maintenance_cleanup.py",
+      "ext": ".py",
+      "size": 4086,
+      "lines": 133,
+      "functions": [
+        "_as_bool",
+        "_as_int",
+        "_within",
+        "_collect_pycache_candidates",
+        "_collect_sqlite_temp_candidates",
+        "run_cleanup"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "cleanup",
+        "prune",
+        "report",
+        "retention"
+      ]
+    },
+    {
+      "path": "master_verify.py",
+      "ext": ".py",
+      "size": 110320,
+      "lines": 2810,
+      "functions": [
+        "_mark_report_written",
+        "_build_stub_report",
+        "_write_cached_report",
+        "_exit_report_fallback",
+        "log_activity",
+        "log_run_audit",
+        "_log_runtime_event",
+        "_run_with_timeout",
+        "_read_lock_status",
+        "_start_lock_heartbeat",
+        "_read_json",
+        "_cfg_bool",
+        "_approvals_disabled",
+        "_atomic_write_text",
+        "_atomic_write_json",
+        "_write_json",
+        "_acquire_lock_with_timeout",
+        "_load_retention_state",
+        "_retention_indicator_metrics",
+        "_retention_auto_review"
+      ],
+      "classes": [],
+      "imports": [
+        "asyncio",
+        "sys",
+        "subprocess",
+        "os",
+        "threading",
+        "atexit",
+        "pathlib",
+        "json",
+        "sqlite3",
+        "time",
+        "ctypes",
+        "socket",
+        "typing",
+        "agency_core",
+        "config_loader",
+        "report_builder",
+        "generate_playbooks",
+        "contract_tests",
+        "utils",
+        "callgraph_builder"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "auto_review",
+        "canary",
+        "cleanup",
+        "digest",
+        "integrity_gate",
+        "lock",
+        "memory",
+        "playbook",
+        "policy",
+        "prune",
+        "report",
+        "retention",
+        "run_audit",
+        "scenario"
+      ]
+    },
+    {
+      "path": "memory.py",
+      "ext": ".py",
+      "size": 11916,
+      "lines": 327,
+      "functions": [],
+      "classes": [
+        "StructureMemory"
+      ],
+      "imports": [
+        "sqlite3",
+        "os",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "memory",
+        "scenario"
+      ]
+    },
+    {
+      "path": "memory_index.py",
+      "ext": ".py",
+      "size": 14942,
+      "lines": 457,
+      "functions": [
+        "_connect",
+        "_ensure_tables",
+        "_hash_key",
+        "_merge_confidence",
+        "_value_score",
+        "upsert_memory_item",
+        "record_relation",
+        "record_action",
+        "suppress_memory_item",
+        "unsuppress_memory_item",
+        "auto_curate_memory"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "math",
+        "time",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "digest",
+        "memory"
+      ]
+    },
+    {
+      "path": "metrics_enrichment.py",
+      "ext": ".py",
+      "size": 9955,
+      "lines": 307,
+      "functions": [
+        "_connect",
+        "_safe_float",
+        "_parse_target",
+        "_compare_target",
+        "load_domain_kpis",
+        "_calc_data_quality_score",
+        "compute_kpi_metrics",
+        "summarize_agent_activity"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "re",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "metrics_guard.py",
+      "ext": ".py",
+      "size": 1816,
+      "lines": 63,
+      "functions": [
+        "load_summary",
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "os",
+        "sys",
+        "pathlib"
+      ],
+      "tags": [],
+      "purpose": "Metrics guard: يقارن ملخص mouse_metrics بحدود مطلوبة."
+    },
+    {
+      "path": "metrics_summary.py",
+      "ext": ".py",
+      "size": 2109,
+      "lines": 65,
+      "functions": [
+        "summarize"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "statistics",
+        "pathlib"
+      ],
+      "tags": []
+    },
+    {
+      "path": "migrate_decision_to_knowledge.py",
+      "ext": ".py",
+      "size": 2010,
+      "lines": 60,
+      "functions": [
+        "ensure_schema",
+        "migrate"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "sqlite3"
+      ],
+      "tags": [],
+      "purpose": "One-time migration: copy intents/decisions/outcomes from decision.db to knowledge.db."
+    },
+    {
+      "path": "motor.py",
+      "ext": ".py",
+      "size": 3705,
+      "lines": 90,
+      "functions": [],
+      "classes": [
+        "MouseState",
+        "Motor"
+      ],
+      "imports": [
+        "math",
+        "random",
+        "typing",
+        "hand_profile"
+      ],
+      "tags": []
+    },
+    {
+      "path": "observations.py",
+      "ext": ".py",
+      "size": 29716,
+      "lines": 855,
+      "functions": [
+        "_ensure_tables",
+        "_ensure_ui_semantic_tables",
+        "_ensure_ui_action_tables",
+        "store_env_snapshot",
+        "store_ui_semantic_snapshot",
+        "store_ui_action_snapshot",
+        "latest_ui_semantic_snapshot",
+        "previous_ui_semantic_snapshot",
+        "compute_ui_semantic_delta",
+        "_ensure_ui_flow_tables",
+        "record_ui_flow_transition",
+        "latest_env_snapshot",
+        "_safe_get",
+        "_diff_scalar",
+        "compute_diagnostic_delta",
+        "_previous_env_snapshot",
+        "_count_runtime_events",
+        "_count_internal_writes",
+        "compute_change_attribution",
+        "store_latest_diagnostic_delta"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "digest",
+        "lock",
+        "policy",
+        "scenario"
+      ],
+      "purpose": "Unified Observations"
+    },
+    {
+      "path": "orchestrator.py",
+      "ext": ".py",
+      "size": 12818,
+      "lines": 307,
+      "functions": [],
+      "classes": [
+        "ExecutionReport",
+        "BGLOrchestrator"
+      ],
+      "imports": [
+        "json",
+        "os",
+        "subprocess",
+        "time",
+        "pathlib",
+        "typing",
+        "patcher",
+        "guardrails",
+        "safety",
+        "sandbox"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "cleanup",
+        "lock",
+        "patch_plan",
+        "policy",
+        "report"
+      ]
+    },
+    {
+      "path": "outcome_signals.py",
+      "ext": ".py",
+      "size": 12037,
+      "lines": 310,
+      "functions": [
+        "_as_list",
+        "_top",
+        "_candidate_conf_by_uri",
+        "_looks_like_scan_artifact",
+        "compute_outcome_signals"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "re",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "lock",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "patch_plan.py",
+      "ext": ".py",
+      "size": 2862,
+      "lines": 90,
+      "functions": [
+        "load_plan"
+      ],
+      "classes": [
+        "PlanError",
+        "PatchOperation",
+        "PatchPlan"
+      ],
+      "imports": [
+        "json",
+        "dataclasses",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "patch_plan.schema.json",
+      "ext": ".json",
+      "size": 1234,
+      "lines": 40,
+      "keys": [
+        "$schema",
+        "title",
+        "type",
+        "required",
+        "properties",
+        "additionalProperties"
+      ],
+      "tags": []
+    },
+    {
+      "path": "patch_templates/alerts_handler.stub",
+      "ext": ".stub",
+      "size": 745,
+      "lines": 26,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/audit_trigger.sql",
+      "ext": ".sql",
+      "size": 946,
+      "lines": 34,
+      "tables": [],
+      "tags": []
+    },
+    {
+      "path": "patch_templates/backup_export_task.stub",
+      "ext": ".stub",
+      "size": 493,
+      "lines": 16,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/caching_layer.stub",
+      "ext": ".stub",
+      "size": 447,
+      "lines": 20,
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "patch_templates/critical_test.stub",
+      "ext": ".stub",
+      "size": 358,
+      "lines": 20,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/db_add_foreign_keys.sql",
+      "ext": ".sql",
+      "size": 1860,
+      "lines": 41,
+      "tables": [
+        "guarantees_new"
+      ],
+      "tags": []
+    },
+    {
+      "path": "patch_templates/db_add_indexes.sql",
+      "ext": ".sql",
+      "size": 964,
+      "lines": 18,
+      "tables": [],
+      "tags": []
+    },
+    {
+      "path": "patch_templates/import_safety_guard.stub",
+      "ext": ".stub",
+      "size": 275,
+      "lines": 15,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/js_split_placeholder.md",
+      "ext": ".md",
+      "size": 1245,
+      "lines": 25,
+      "tags": [],
+      "purpose": "# Patch Template: تفكيك ملف JS متضخم"
+    },
+    {
+      "path": "patch_templates/rate_limit_laravel.stub",
+      "ext": ".stub",
+      "size": 352,
+      "lines": 19,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/settings_autosave.js",
+      "ext": ".js",
+      "size": 472,
+      "lines": 16,
+      "tags": []
+    },
+    {
+      "path": "patch_templates/validation_request.stub",
+      "ext": ".stub",
+      "size": 232,
+      "lines": 17,
+      "tags": []
+    },
+    {
+      "path": "patcher.py",
+      "ext": ".py",
+      "size": 20176,
+      "lines": 505,
+      "functions": [],
+      "classes": [
+        "BGLPatcher"
+      ],
+      "imports": [
+        "subprocess",
+        "json",
+        "os",
+        "shutil",
+        "sqlite3",
+        "pathlib",
+        "typing",
+        "safety",
+        "config_loader"
+      ],
+      "tags": [
+        "authority",
+        "lock",
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "perception.py",
+      "ext": ".py",
+      "size": 17342,
+      "lines": 426,
+      "functions": [
+        "summarize_semantic_map",
+        "_extract_keywords",
+        "project_interactive_elements"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "typing",
+        "re"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "plan_generator.py",
+      "ext": ".py",
+      "size": 7405,
+      "lines": 217,
+      "functions": [
+        "_load_write_caps",
+        "_tokenize",
+        "_collect_candidate_files",
+        "_build_prompt",
+        "generate_plan_from_proposal"
+      ],
+      "classes": [
+        "PlanGenerationError"
+      ],
+      "imports": [
+        "__future__",
+        "json",
+        "re",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "patch_plan",
+        "scenario"
+      ]
+    },
+    {
+      "path": "playbook_loader.py",
+      "ext": ".py",
+      "size": 1839,
+      "lines": 54,
+      "functions": [
+        "load_playbooks_meta"
+      ],
+      "classes": [],
+      "imports": [
+        "re",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "playbook"
+      ]
+    },
+    {
+      "path": "playbooks/1003.md",
+      "ext": ".md",
+      "size": 1375,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1020.md",
+      "ext": ".md",
+      "size": 1375,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1058.md",
+      "ext": ".md",
+      "size": 1375,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1076.md",
+      "ext": ".md",
+      "size": 1375,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1119.md",
+      "ext": ".md",
+      "size": 1375,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1154.md",
+      "ext": ".md",
+      "size": 1348,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1171.md",
+      "ext": ".md",
+      "size": 1474,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1188.md",
+      "ext": ".md",
+      "size": 1501,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1205.md",
+      "ext": ".md",
+      "size": 1480,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1214.md",
+      "ext": ".md",
+      "size": 1501,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1223.md",
+      "ext": ".md",
+      "size": 1501,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1240.md",
+      "ext": ".md",
+      "size": 1501,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1257.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1274.md",
+      "ext": ".md",
+      "size": 1565,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1327.md",
+      "ext": ".md",
+      "size": 1565,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1354.md",
+      "ext": ".md",
+      "size": 1496,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1387.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1414.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1489.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1516.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1528.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1548.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1569.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1607.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1615.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1630.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1647.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1664.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1681.md",
+      "ext": ".md",
+      "size": 1553,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1698.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/1715.md",
+      "ext": ".md",
+      "size": 1538,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/454.md",
+      "ext": ".md",
+      "size": 2374,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/560.md",
+      "ext": ".md",
+      "size": 2374,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/689.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/690.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/699.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/716.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/717.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/726.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/743.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/744.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/753.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/770.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/771.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/790.md",
+      "ext": ".md",
+      "size": 1346,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/791.md",
+      "ext": ".md",
+      "size": 2500,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/800.md",
+      "ext": ".md",
+      "size": 2607,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/825.md",
+      "ext": ".md",
+      "size": 1346,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/842.md",
+      "ext": ".md",
+      "size": 1346,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/859.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/878.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/895.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/905.md",
+      "ext": ".md",
+      "size": 1373,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/938.md",
+      "ext": ".md",
+      "size": 1346,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/alerts.md",
+      "ext": ".md",
+      "size": 928,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/audit_trail.md",
+      "ext": ".md",
+      "size": 1211,
+      "lines": 35,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/backup_export.md",
+      "ext": ".md",
+      "size": 995,
+      "lines": 31,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/caching.md",
+      "ext": ".md",
+      "size": 1040,
+      "lines": 35,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/critical_tests.md",
+      "ext": ".md",
+      "size": 906,
+      "lines": 30,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/data_validation.md",
+      "ext": ".md",
+      "size": 939,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/import_safety.md",
+      "ext": ".md",
+      "size": 1011,
+      "lines": 31,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_CSS_BLOAT.md",
+      "ext": ".md",
+      "size": 884,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_DATA_VALIDATION.md",
+      "ext": ".md",
+      "size": 882,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_DB_FK_MISSING.md",
+      "ext": ".md",
+      "size": 900,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_DB_INDEX_MISSING.md",
+      "ext": ".md",
+      "size": 971,
+      "lines": 32,
+      "tags": [
+        "playbook",
+        "report"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_JS_BLOAT.md",
+      "ext": ".md",
+      "size": 1724,
+      "lines": 34,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_PHASE3_INTEGRITY.md",
+      "ext": ".md",
+      "size": 965,
+      "lines": 32,
+      "tags": [
+        "playbook",
+        "scenario"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/PAT_RATE_LIMIT.md",
+      "ext": ".md",
+      "size": 799,
+      "lines": 32,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/production_guard.md",
+      "ext": ".md",
+      "size": 1661,
+      "lines": 27,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "# Playbook: Production Mode Guard"
+    },
+    {
+      "path": "playbooks/rate_limit.md",
+      "ext": ".md",
+      "size": 1587,
+      "lines": 40,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "playbooks/rename_class.md",
+      "ext": ".md",
+      "size": 2522,
+      "lines": 38,
+      "tags": [
+        "playbook",
+        "policy"
+      ],
+      "purpose": "# Playbook: Canonical Rename Class Pipeline"
+    },
+    {
+      "path": "playbooks/settings_ux.md",
+      "ext": ".md",
+      "size": 982,
+      "lines": 34,
+      "tags": [
+        "playbook"
+      ],
+      "purpose": "---"
+    },
+    {
+      "path": "policy.py",
+      "ext": ".py",
+      "size": 9936,
+      "lines": 230,
+      "functions": [],
+      "classes": [
+        "Policy"
+      ],
+      "imports": [
+        "typing",
+        "time",
+        "motor",
+        "perception"
+      ],
+      "tags": [
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "policy_expectations.json",
+      "ext": ".json",
+      "size": 32601,
+      "lines": 1018,
+      "tags": [
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "policy_verifier.py",
+      "ext": ".py",
+      "size": 4104,
+      "lines": 141,
+      "functions": [
+        "_find_app_db",
+        "_read_file",
+        "_method_guard",
+        "_required_fields",
+        "_foreign_keys_for",
+        "verify_failure"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "re",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "priority_loop.py",
+      "ext": ".py",
+      "size": 10035,
+      "lines": 271,
+      "functions": [
+        "_read_json",
+        "_write_json",
+        "_log_runtime_event",
+        "_update_diagnostic_status",
+        "_cleanup_lock",
+        "_run_integrity",
+        "_event_integrity",
+        "_digest_integrity",
+        "run_priority_loop"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing",
+        "run_lock"
+      ],
+      "tags": [
+        "cleanup",
+        "digest",
+        "lock",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "proposed_patterns.json",
+      "ext": ".json",
+      "size": 2126,
+      "lines": 77,
+      "tags": []
+    },
+    {
+      "path": "readiness_gate.py",
+      "ext": ".py",
+      "size": 3779,
+      "lines": 123,
+      "functions": [
+        "_swap_localhost",
+        "_http_check",
+        "_port_check",
+        "_ollama_tags",
+        "_ollama_warm",
+        "run_readiness"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "socket",
+        "time",
+        "urllib.request",
+        "urllib.error",
+        "typing"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "report_builder.py",
+      "ext": ".py",
+      "size": 1330,
+      "lines": 44,
+      "functions": [
+        "build_report",
+        "load_latest_health"
+      ],
+      "classes": [],
+      "imports": [
+        "pathlib",
+        "json",
+        "typing",
+        "jinja2",
+        "encoding_utils",
+        "time"
+      ],
+      "tags": [
+        "report"
+      ]
+    },
+    {
+      "path": "report_template.html",
+      "ext": ".html",
+      "size": 47329,
+      "lines": 1118,
+      "tags": [
+        "approval",
+        "authority",
+        "canary",
+        "digest",
+        "lock",
+        "policy",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "retention_engine.py",
+      "ext": ".py",
+      "size": 52041,
+      "lines": 1373,
+      "functions": [
+        "_safe_yaml",
+        "_write_yaml",
+        "_safe_json",
+        "_write_json",
+        "_hash_text",
+        "_fingerprint_scenario",
+        "_step_fingerprint",
+        "_fingerprint_generic",
+        "_extract_routes_from_steps",
+        "_load_report_signals",
+        "_read_decision_links",
+        "_read_runtime_stats",
+        "_read_runtime_fallback_stats",
+        "_log_runtime_event",
+        "_collect_scenarios",
+        "_collect_patch_plans",
+        "_collect_backups",
+        "_collect_playbooks",
+        "_collect_logs",
+        "_collect_insights"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "os",
+        "sqlite3",
+        "time",
+        "shutil",
+        "math",
+        "pathlib",
+        "typing",
+        "yaml",
+        "run_lock"
+      ],
+      "tags": [
+        "digest",
+        "lock",
+        "patch_plan",
+        "playbook",
+        "prune",
+        "report",
+        "retention",
+        "scenario"
+      ]
+    },
+    {
+      "path": "route_indexer.py",
+      "ext": ".py",
+      "size": 8662,
+      "lines": 242,
+      "functions": [],
+      "classes": [
+        "LaravelRouteIndexer"
+      ],
+      "imports": [
+        "re",
+        "pathlib",
+        "typing",
+        "memory"
+      ],
+      "tags": [
+        "memory"
+      ]
+    },
+    {
+      "path": "run_ledger.py",
+      "ext": ".py",
+      "size": 9320,
+      "lines": 273,
+      "functions": [
+        "_ensure_table",
+        "_has_column",
+        "start_run",
+        "_count_runtime_events",
+        "_count_by_time",
+        "_log_runtime_event",
+        "_load_attribution",
+        "finish_run"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "scenario"
+      ]
+    },
+    {
+      "path": "run_lock.py",
+      "ext": ".py",
+      "size": 6964,
+      "lines": 223,
+      "functions": [
+        "_pid_alive",
+        "_parse_lock",
+        "_parse_lock_extended",
+        "_atomic_write_lock",
+        "describe_lock",
+        "refresh_lock",
+        "acquire_lock",
+        "release_lock"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "os",
+        "subprocess",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "scenario"
+      ]
+    },
+    {
+      "path": "run_scenarios.py",
+      "ext": ".py",
+      "size": 15585,
+      "lines": 449,
+      "functions": [
+        "_log_activity",
+        "_detect_trigger_source",
+        "_update_diagnostic_status_stage",
+        "_log_runtime_event",
+        "_start_lock_heartbeat",
+        "_ensure_env",
+        "simulate_traffic",
+        "main"
+      ],
+      "classes": [],
+      "imports": [
+        "asyncio",
+        "json",
+        "os",
+        "sqlite3",
+        "threading",
+        "time",
+        "pathlib",
+        "config_loader",
+        "scenario_deps",
+        "run_lock"
+      ],
+      "tags": [
+        "canary",
+        "lock",
+        "scenario"
+      ]
+    },
+    {
+      "path": "runtime_safety.yml",
+      "ext": ".yml",
+      "size": 15679,
+      "lines": 578,
+      "keys": [
+        "rules"
+      ],
+      "tags": [
+        "lock",
+        "playbook",
+        "report"
+      ]
+    },
+    {
+      "path": "safety.py",
+      "ext": ".py",
+      "size": 20898,
+      "lines": 521,
+      "functions": [],
+      "classes": [
+        "SafetyNet"
+      ],
+      "imports": [
+        "subprocess",
+        "shutil",
+        "os",
+        "time",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "memory",
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "sandbox.py",
+      "ext": ".py",
+      "size": 10969,
+      "lines": 279,
+      "functions": [],
+      "classes": [
+        "BGLSandbox"
+      ],
+      "imports": [
+        "subprocess",
+        "shutil",
+        "tempfile",
+        "os",
+        "stat",
+        "pathlib"
+      ],
+      "tags": [
+        "cleanup",
+        "lock"
+      ]
+    },
+    {
+      "path": "scenario_deps.py",
+      "ext": ".py",
+      "size": 4335,
+      "lines": 137,
+      "functions": [
+        "_module_present",
+        "_playwright_version",
+        "check_scenario_deps"
+      ],
+      "classes": [
+        "ScenarioDepsReport"
+      ],
+      "imports": [
+        "__future__",
+        "importlib.util",
+        "os",
+        "dataclasses",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "report",
+        "scenario"
+      ]
+    },
+    {
+      "path": "scenario_runner.py",
+      "ext": ".py",
+      "size": 348465,
+      "lines": 9129,
+      "functions": [
+        "_push_context",
+        "_pop_context",
+        "_trace",
+        "_acquire_scenario_lock",
+        "_refresh_scenario_lock",
+        "_release_scenario_lock",
+        "_decorate_session",
+        "ensure_dev_mode",
+        "_write_runtime_fallback",
+        "log_event",
+        "_ensure_outcomes_tables",
+        "_log_outcome",
+        "_log_relation",
+        "_derive_outcomes_from_runtime",
+        "_derive_outcomes_from_learning",
+        "_last_selector_from_payload",
+        "_apply_exploration_reward",
+        "_reward_exploration_from_outcomes",
+        "_score_outcomes",
+        "_seed_goals_from_outcome_scores"
+      ],
+      "classes": [],
+      "imports": [
+        "argparse",
+        "asyncio",
+        "os",
+        "urllib.parse",
+        "subprocess",
+        "time",
+        "sqlite3",
+        "urllib.request",
+        "urllib.error",
+        "json",
+        "re",
+        "random",
+        "hashlib",
+        "pathlib",
+        "sys",
+        "typing",
+        "atexit",
+        "yaml",
+        "config_loader",
+        "browser_manager"
+      ],
+      "tags": [
+        "approval",
+        "authority",
+        "cleanup",
+        "digest",
+        "lock",
+        "memory",
+        "policy",
+        "report",
+        "scenario",
+        "scheduler"
+      ],
+      "purpose": "Scenario Runner"
+    },
+    {
+      "path": "scenario_scheduler.py",
+      "ext": ".py",
+      "size": 33390,
+      "lines": 877,
+      "functions": [
+        "_cfg_number",
+        "_cfg_bool",
+        "_safe_yaml",
+        "_read_json",
+        "_load_retention_blocks",
+        "_extract_meta",
+        "_build_key_map",
+        "_normalize_scenario_key",
+        "_collect_runtime_stats",
+        "_score_scenario",
+        "_load_state",
+        "_save_state",
+        "_base_weights",
+        "_collect_global_stats",
+        "_collect_durations",
+        "_auto_tune",
+        "select_scenarios",
+        "write_selection_report",
+        "main"
+      ],
+      "classes": [
+        "ScenarioMeta"
+      ],
+      "imports": [
+        "json",
+        "math",
+        "os",
+        "sqlite3",
+        "time",
+        "dataclasses",
+        "pathlib",
+        "typing",
+        "yaml",
+        "config_loader"
+      ],
+      "tags": [
+        "lock",
+        "prune",
+        "report",
+        "retention",
+        "scenario",
+        "scheduler"
+      ]
+    },
+    {
+      "path": "schema_check.py",
+      "ext": ".py",
+      "size": 5255,
+      "lines": 121,
+      "functions": [
+        "_table_columns",
+        "check_schema"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "canary",
+        "scenario"
+      ]
+    },
+    {
+      "path": "self_policy.json",
+      "ext": ".json",
+      "size": 813302,
+      "lines": 19922,
+      "keys": [
+        "intent_bias",
+        "semantic_thresholds",
+        "fallback_rules",
+        "last_updated",
+        "history"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "self_policy.py",
+      "ext": ".py",
+      "size": 4911,
+      "lines": 150,
+      "functions": [
+        "_clamp",
+        "_coerce_int",
+        "load_self_policy",
+        "save_self_policy",
+        "update_self_policy"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "approval",
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "self_rules.json",
+      "ext": ".json",
+      "size": 896,
+      "lines": 42,
+      "keys": [
+        "rules",
+        "overrides",
+        "last_updated",
+        "history"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "self_rules.py",
+      "ext": ".py",
+      "size": 5995,
+      "lines": 188,
+      "functions": [
+        "load_self_rules",
+        "save_self_rules",
+        "safe_rules_from_data",
+        "update_self_rules"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "policy"
+      ]
+    },
+    {
+      "path": "style_rules.yml",
+      "ext": ".yml",
+      "size": 501,
+      "lines": 17,
+      "keys": [
+        "rules"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "test_gate.py",
+      "ext": ".py",
+      "size": 4863,
+      "lines": 158,
+      "functions": [
+        "_normalize",
+        "_risk_tier",
+        "_load_write_scope",
+        "require_tests_enabled",
+        "load_code_contracts",
+        "_contract_map",
+        "_heuristic_tests",
+        "collect_tests_for_files",
+        "evaluate_files"
+      ],
+      "classes": [],
+      "imports": [
+        "json",
+        "os",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "ui_interaction_tests.py",
+      "ext": ".py",
+      "size": 877,
+      "lines": 34,
+      "functions": [
+        "test_ui_interaction_smoke"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "unittest.mock",
+        "sys",
+        "types"
+      ],
+      "tags": []
+    },
+    {
+      "path": "utils.py",
+      "ext": ".py",
+      "size": 819,
+      "lines": 30,
+      "functions": [
+        "load_route_usage"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "pathlib",
+        "typing"
+      ],
+      "tags": []
+    },
+    {
+      "path": "verify_phase_8_simulation.py",
+      "ext": ".py",
+      "size": 1111,
+      "lines": 37,
+      "functions": [
+        "simulate_recurring_blockers"
+      ],
+      "classes": [],
+      "imports": [
+        "sqlite3",
+        "time",
+        "pathlib"
+      ],
+      "tags": [
+        "lock"
+      ]
+    },
+    {
+      "path": "volition.py",
+      "ext": ".py",
+      "size": 4667,
+      "lines": 151,
+      "functions": [
+        "_ensure_table",
+        "store_volition",
+        "latest_volition",
+        "derive_volition"
+      ],
+      "classes": [],
+      "imports": [
+        "__future__",
+        "json",
+        "sqlite3",
+        "time",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "policy"
+      ]
+    },
+    {
+      "path": "write_capabilities.json",
+      "ext": ".json",
+      "size": 2379,
+      "lines": 119,
+      "keys": [
+        "version",
+        "policy",
+        "forbid_paths",
+        "operations",
+        "scopes"
+      ],
+      "tags": [
+        "patch_plan",
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "write_engine.py",
+      "ext": ".py",
+      "size": 16203,
+      "lines": 398,
+      "functions": [
+        "_posix_path",
+        "_safe_relpath",
+        "_load_scope",
+        "_match_any",
+        "_read_text",
+        "_write_text",
+        "_backup_file",
+        "main"
+      ],
+      "classes": [
+        "WriteResult",
+        "WriteEngine"
+      ],
+      "imports": [
+        "json",
+        "os",
+        "re",
+        "shutil",
+        "time",
+        "dataclasses",
+        "fnmatch",
+        "pathlib",
+        "typing"
+      ],
+      "tags": [
+        "lock",
+        "patch_plan",
+        "policy",
+        "scenario"
+      ]
+    },
+    {
+      "path": "write_scope.yml",
+      "ext": ".yml",
+      "size": 4025,
+      "lines": 167,
+      "keys": [
+        "version",
+        "policy",
+        "scopes"
+      ],
+      "tags": [
+        "authority",
+        "patch_plan",
+        "policy",
+        "scenario"
+      ]
+    }
+  ]
+}

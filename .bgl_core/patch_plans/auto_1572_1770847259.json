@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "1572",
+  "description": "Patch Plan for outcome:reasoning.plan:unknown #1770847222",
+  "created_at": 1684396800,
+  "metadata": {
+    "proposal_context": {
+      "id": 1572,
+      "name": "تحسين تلقائي من خبرة: outcome:reasoning.plan:unknown #1770847222",
+      "description": "Outcome proposed for reasoning.plan (propose_fix/low) x20. Last note: reasoning_plan_logged failure_class=unknown",
+      "action": "investigate",
+      "impact": "medium",
+      "solution": "",
+      "expectation": "",
+      "evidence": "{\"experience_id\": 9493, \"exp_hash\": \"11f3131826be99f159ada66caf19ae73c4400c2c\", \"scenario\": \"outcome:reasoning.plan:unknown\", \"summary\": \"Outcome proposed for reasoning.plan (propose_fix/low) x20. Last note: reasoning_plan_logged failure_class=unknown\", \"confidence\": 0.85, \"evidence_count\": 20, \"related_files\": \"reasoning.plan\", \"source\": \"auto_experience\"}"
+    },
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1572,
+    "generated_at": 1770847259.520612
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown failure class\nif failure_class == 'unknown':\n    handle_unknown_failure()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "append",
+      "content": "\n# Generate patch plan for unknown outcome\nif outcome == 'unknown':\n    generate_unknown_outcome_patch_plan()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Generate patch plan for unknown outcome\nif outcome == 'unknown':\n    generate_unknown_outcome_patch_plan()\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/outcome_signals.py",
+      "mode": "append",
+      "content": "\n# Signal unknown outcome\nif outcome == 'unknown':\n    signal_unknown_outcome()\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Signal unknown outcome\nif outcome == 'unknown':\n    signal_unknown_outcome()\n"
+      }
+    }
+  ]
+}

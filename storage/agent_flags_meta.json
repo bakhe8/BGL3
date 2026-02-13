@@ -161,6 +161,40 @@
         "auto_digest_timeout_sec": "context_digest_timeout"
       },
       "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770885694.2640936,
+      "updates": {
+        "ui_action_sample_limit": 16
+      },
+      "reasons": {
+        "ui_action_sample_limit": "low_ui_action_coverage"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770889988.0755658,
+      "updates": {
+        "ui_action_sample_limit": 16
+      },
+      "reasons": {
+        "ui_action_sample_limit": "low_ui_action_coverage"
+      },
+      "source": "auto_tune"
+    },
+    {
+      "timestamp": 1770994697.230346,
+      "updates": {
+        "ui_action_sample_limit": 24,
+        "ui_action_window_days": 30,
+        "ui_action_min_snapshots": 3
+      },
+      "reasons": {
+        "ui_action_sample_limit": "low_ui_action_coverage",
+        "ui_action_window_days": "low_ui_action_coverage",
+        "ui_action_min_snapshots": "low_ui_action_coverage"
+      },
+      "source": "auto_tune"
     }
   ]
 }

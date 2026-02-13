@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1883",
+  "description": "Stabilize scenario goals/flow_gap_5677.yaml",
+  "created_at": 1694707200,
+  "metadata": {
+    "proposal_id": 1883,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770959651.070699
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_5677.yaml",
+      "mode": null,
+      "content": "stabilize",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "stabilize"
+      }
+    }
+  ]
+}

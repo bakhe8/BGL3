@@ -1,0 +1,55 @@
+{
+  "version": 2,
+  "id": "patch_plan_1671",
+  "description": "Patch Plan for route http://localhost:8000/index.php?search=risk",
+  "created_at": 1671889907,
+  "metadata": {
+    "proposal_id": 1671,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770889941.7531126
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_indexer.py",
+      "mode": "append",
+      "content": "\n# Add code to handle the route http://localhost:8000/index.php?search=risk\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Add code to handle the route http://localhost:8000/index.php?search=risk\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_activity_php.yaml",
+      "mode": "append",
+      "content": "\n- route: http://localhost:8000/index.php?search=risk\n  description: Handles risk-related events and HTTP calls\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- route: http://localhost:8000/index.php?search=risk\n  description: Handles risk-related events and HTTP calls\n"
+      }
+    },
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_event_viewer_php.yaml",
+      "mode": null,
+      "content": "\n- route: http://localhost:8000/index.php?search=risk\n  description: Displays events related to the risk search\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "\n- route: http://localhost:8000/index.php?search=risk\n  description: Displays events related to the risk search\n"
+      }
+    }
+  ]
+}

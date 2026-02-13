@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1804",
+  "description": "Stabilize route http://localhost:8000/agentfrontend/partials/simple_mode.php",
+  "created_at": 1770950132,
+  "metadata": {
+    "proposal_id": 1804,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770950157.242617
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "partials/confirm-modal.php",
+      "mode": null,
+      "content": "// Ensure the confirm modal is properly initialized and handles events\nfunction initializeConfirmModal() {\n  // Add your initialization code here\n}\n\n// Example event handler for the confirm modal\ndocument.getElementById('confirmModal').addEventListener('click', function(event) {\n  if (event.target.classList.contains('close')) {\n    this.style.display = 'none';\n  }\n});",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "// Ensure the confirm modal is properly initialized and handles events\nfunction initializeConfirmModal() {\n  // Add your initialization code here\n}\n\n// Example event handler for the confirm modal\ndocument.getElementById('confirmModal').addEventListener('click', function(event) {\n  if (event.target.classList.contains('close')) {\n    this.style.display = 'none';\n  }\n});"
+      }
+    }
+  ]
+}

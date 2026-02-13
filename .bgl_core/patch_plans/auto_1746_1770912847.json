@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1746",
+  "description": "Patch Plan for AUDIT RISK: Self-strategy learning exists only as goal UI/API strategy table, not as system-wide strategy state.",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 1746,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770912847.6361628
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/self_policy.json",
+      "mode": null,
+      "content": "{\"strategy\": \"system-wide\", \"goals\": [\"self-strategy-learning\"]}",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "{\"strategy\": \"system-wide\", \"goals\": [\"self-strategy-learning\"]}"
+      }
+    }
+  ]
+}

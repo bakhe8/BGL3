@@ -20,6 +20,7 @@ try:
     from .brain_types import ActionRequest, ActionKind  # type: ignore
     from .patch_plan import PatchPlan, load_plan, PlanError  # type: ignore
     from .write_engine import WriteEngine  # type: ignore
+    from .patcher import BGLPatcher  # type: ignore
     from .sandbox import BGLSandbox  # type: ignore
     from .plan_generator import generate_plan_from_proposal, PlanGenerationError  # type: ignore
     from .canary_release import register_canary_release, evaluate_canary_releases, rollback_release  # type: ignore
@@ -33,6 +34,10 @@ except Exception:
     from brain_types import ActionRequest, ActionKind
     from patch_plan import PatchPlan, load_plan, PlanError
     from write_engine import WriteEngine
+    try:
+        from patcher import BGLPatcher  # type: ignore
+    except Exception:
+        BGLPatcher = None  # type: ignore
     from sandbox import BGLSandbox
     from plan_generator import generate_plan_from_proposal, PlanGenerationError
     from canary_release import register_canary_release, evaluate_canary_releases, rollback_release
@@ -659,6 +664,121 @@ def _resolve_plan_from_proposal(target: dict, root: Path) -> Tuple[Optional[Patc
     return None, None
 
 
+_PATCHER_OPS = {
+    "rename_class",
+    "rename_reference",
+    "add_method",
+    "add_import",
+    "replace_block",
+    "toggle_flag",
+    "insert_event",
+}
+
+
+class _PatcherResult:
+    def __init__(self, ok: bool, plan_id: str, changes: List[Dict[str, Any]], errors: List[str]):
+        self.ok = ok
+        self.plan_id = plan_id
+        self.changes = changes
+        self.errors = errors
+        self.backups: List[str] = []
+
+
+def _plan_uses_patcher(plan: PatchPlan) -> bool:
+    try:
+        return all(str(op.op or "").lower() in _PATCHER_OPS for op in plan.operations)
+    except Exception:
+        return False
+
+
+def _apply_plan_with_patcher(plan: PatchPlan, apply_root: Path, dry_run: bool) -> _PatcherResult:
+    if BGLPatcher is None:
+        return _PatcherResult(False, plan.plan_id, [], ["patcher_unavailable"])
+    try:
+        if apply_root.resolve() != ROOT.resolve():
+            os.environ.setdefault("BGL_MAIN_ROOT", str(ROOT))
+            os.environ.setdefault("BGL_VENDOR_PATH", str(ROOT / "vendor"))
+    except Exception:
+        pass
+
+    patcher = BGLPatcher(apply_root)
+    changes: List[Dict[str, Any]] = []
+    errors: List[str] = []
+
+    for op in plan.operations:
+        op_name = str(op.op or "").lower()
+        rel_path = str(op.path or "")
+        target_path = apply_root / rel_path
+        meta = op.meta if isinstance(op.meta, dict) else {}
+        try:
+            if op_name == "rename_class":
+                old = meta.get("old_name") or meta.get("old") or meta.get("from") or op.match
+                new = meta.get("new_name") or meta.get("new") or op.to
+                if not old or not new:
+                    raise ValueError("rename_class missing old/new")
+                res = patcher.rename_class(target_path, str(old), str(new), dry_run=dry_run)
+            elif op_name == "rename_reference":
+                old = meta.get("old_name") or meta.get("old") or meta.get("from") or op.match
+                new = meta.get("new_name") or meta.get("new") or op.to
+                if not old or not new:
+                    raise ValueError("rename_reference missing old/new")
+                res = patcher.rename_reference(target_path, str(old), str(new), dry_run=dry_run)
+            elif op_name == "add_method":
+                target_class = meta.get("target_class") or meta.get("class") or meta.get("target")
+                method_name = meta.get("method_name") or meta.get("method") or meta.get("name")
+                content = op.content or meta.get("content")
+                if not method_name:
+                    raise ValueError("add_method missing method_name")
+                res = patcher.add_method(target_path, str(target_class or "*"), str(method_name), dry_run=dry_run)
+                if content:
+                    # Re-run with body if provided
+                    res = patcher._run_action(
+                        target_path,
+                        "add_method",
+                        {"target_class": str(target_class or "*"), "method_name": str(method_name), "content": str(content), "dry_run": dry_run},
+                    )
+            elif op_name == "add_import":
+                import_name = meta.get("import") or meta.get("name") or op.content
+                alias = meta.get("alias")
+                if not import_name:
+                    raise ValueError("add_import missing import")
+                res = patcher.add_import(target_path, str(import_name), str(alias) if alias else None, dry_run=dry_run)
+            elif op_name == "replace_block":
+                match = op.match or meta.get("match")
+                content = op.content if op.content is not None else meta.get("content")
+                regex = bool(op.regex or meta.get("regex"))
+                count = op.count or meta.get("count")
+                if not match or content is None:
+                    raise ValueError("replace_block missing match/content")
+                res = patcher.replace_block(target_path, str(match), str(content), regex=regex, count=count, dry_run=dry_run)
+            elif op_name == "toggle_flag":
+                flag = meta.get("flag") or meta.get("name") or op.match
+                value = meta.get("value") if "value" in meta else (op.content if op.content is not None else meta.get("enabled"))
+                if not flag:
+                    raise ValueError("toggle_flag missing flag/name")
+                res = patcher.toggle_flag(target_path, str(flag), value=value, dry_run=dry_run)
+            elif op_name == "insert_event":
+                match = op.match or meta.get("match")
+                content = op.content if op.content is not None else meta.get("content")
+                regex = bool(op.regex or meta.get("regex"))
+                mode = op.mode or meta.get("mode")
+                if not match or content is None:
+                    raise ValueError("insert_event missing match/content")
+                res = patcher.insert_event(target_path, str(match), str(content), regex=regex, mode=str(mode) if mode else None, dry_run=dry_run)
+            else:
+                raise ValueError(f"Unsupported patcher op: {op_name}")
+        except Exception as exc:
+            errors.append(f"{rel_path}:{op_name}:{exc}")
+            continue
+
+        if not isinstance(res, dict) or res.get("status") != "success":
+            errors.append(f"{rel_path}:{op_name}:{res.get('message') if isinstance(res, dict) else 'unknown_error'}")
+        else:
+            changes.append({"path": rel_path})
+
+    return _PatcherResult(len(errors) == 0, plan.plan_id, changes, errors)
+
+
 def _git_status_lines() -> list[str]:
     if not shutil.which("git"):
         return []
@@ -935,36 +1055,56 @@ def main():
             return
 
     try:
-        engine = WriteEngine(Path(apply_root))
-        try:
-            result = engine.apply(plan, dry_run=dry_run)
-        except PlanError as e:
-            outcome_id = auth.record_outcome(decision_id, "fail", f"Plan error: {e}")
-            _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
-            _log_learning_event(
-                proposal_id=int(target.get("id") or 0),
-                outcome_id=outcome_id,
-                result="fail",
-                notes=f"Plan error: {e}",
-            )
-            print(f"[!] Plan error: {e}")
-            return
-        if not result.ok:
-            outcome_id = auth.record_outcome(
-                decision_id,
-                "fail",
-                f"Write engine errors: {result.errors}",
-                backup_path=(result.backups[0] if result.backups else ""),
-            )
-            _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
-            _log_learning_event(
-                proposal_id=int(target.get("id") or 0),
-                outcome_id=outcome_id,
-                result="fail",
-                notes=f"Write engine errors: {result.errors}",
-            )
-            print(f"[!] Write engine failed: {result.errors}")
-            return
+        result = None
+        if _plan_uses_patcher(plan):
+            result = _apply_plan_with_patcher(plan, Path(apply_root), dry_run=dry_run)
+            if not result.ok:
+                outcome_id = auth.record_outcome(
+                    decision_id,
+                    "fail",
+                    f"Patcher errors: {result.errors}",
+                    backup_path=(result.backups[0] if result.backups else ""),
+                )
+                _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+                _log_learning_event(
+                    proposal_id=int(target.get("id") or 0),
+                    outcome_id=outcome_id,
+                    result="fail",
+                    notes=f"Patcher errors: {result.errors}",
+                )
+                print(f"[!] Patcher failed: {result.errors}")
+                return
+        else:
+            engine = WriteEngine(Path(apply_root))
+            try:
+                result = engine.apply(plan, dry_run=dry_run)
+            except PlanError as e:
+                outcome_id = auth.record_outcome(decision_id, "fail", f"Plan error: {e}")
+                _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+                _log_learning_event(
+                    proposal_id=int(target.get("id") or 0),
+                    outcome_id=outcome_id,
+                    result="fail",
+                    notes=f"Plan error: {e}",
+                )
+                print(f"[!] Plan error: {e}")
+                return
+            if not result.ok:
+                outcome_id = auth.record_outcome(
+                    decision_id,
+                    "fail",
+                    f"Write engine errors: {result.errors}",
+                    backup_path=(result.backups[0] if result.backups else ""),
+                )
+                _link_proposal_outcome(int(target.get("id") or 0), decision_id, outcome_id, "apply_proposal")
+                _log_learning_event(
+                    proposal_id=int(target.get("id") or 0),
+                    outcome_id=outcome_id,
+                    result="fail",
+                    notes=f"Write engine errors: {result.errors}",
+                )
+                print(f"[!] Write engine failed: {result.errors}")
+                return
 
         changed_files: List[str] = []
         try:

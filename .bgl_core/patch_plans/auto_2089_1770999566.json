@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "2089",
+  "description": "Patch Plan for Improving Auto-Experience for button[aria-controls]:has-text(\"bgl\")",
+  "created_at": 1672531200,
+  "metadata": {
+    "proposal_id": 2089,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770999566.1068964
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/button_aria_controls_has_text_bgl.yaml",
+      "mode": null,
+      "content": "version: 1\nid: button_aria_controls_has_text_bgl\ndescription: Route button[aria-controls]:has-text(\"bgl\")\nsteps:\n  - action: route\n    selector: button[aria-controls]:has-text(\"bgl\")\n    events: 4\n    http_calls: 0\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0ms\n    max_latency: 0ms",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 1\nid: button_aria_controls_has_text_bgl\ndescription: Route button[aria-controls]:has-text(\"bgl\")\nsteps:\n  - action: route\n    selector: button[aria-controls]:has-text(\"bgl\")\n    events: 4\n    http_calls: 0\n    js_errors: 0\n    network_errors: 0\n    avg_latency: 0ms\n    max_latency: 0ms"
+      }
+    }
+  ]
+}

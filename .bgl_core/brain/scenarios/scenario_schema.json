@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bgl3://scenario-schema",
+  "title": "BGL3 Scenario",
+  "type": "object",
+  "required": ["name", "kind", "steps"],
+  "properties": {
+    "name": { "type": "string", "minLength": 1 },
+    "kind": { "type": "string", "enum": ["ui", "api", "other"] },
+    "generated": { "type": "boolean" },
+    "meta": {
+      "type": "object",
+      "additionalProperties": true
+    },
+    "steps": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["action"],
+        "properties": {
+          "action": { "type": "string" },
+          "url": { "type": "string" },
+          "route": { "type": "string" },
+          "selector": { "type": "string" },
+          "method": { "type": "string" },
+          "ms": { "type": "number" },
+          "dy": { "type": "number" },
+          "optional": { "type": "boolean" }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

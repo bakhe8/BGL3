@@ -1,0 +1,11 @@
+name: gap_route_partials_confirm_modal_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /partials/confirm-modal.php
+steps:
+- action: goto
+  url: /partials/confirm-modal.php
+- action: wait
+  ms: 400

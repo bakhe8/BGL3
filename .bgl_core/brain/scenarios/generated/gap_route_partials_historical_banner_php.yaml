@@ -1,0 +1,11 @@
+name: gap_route_partials_historical_banner_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /partials/historical-banner.php
+steps:
+- action: goto
+  url: /partials/historical-banner.php
+- action: wait
+  ms: 400

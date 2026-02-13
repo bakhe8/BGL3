@@ -369,6 +369,10 @@ def summarize(events: List[sqlite3.Row], route_map: Dict[str, Dict]) -> List[Dic
             "diagnostic_delta",
             "scenario_run_stats",
             "context_digest_timeout",
+            "retention_preview",
+            "retention_pruned",
+            "retention_apply",
+            "retention_rewrite",
         }
         if etype in skip_types:
             continue
@@ -608,6 +612,63 @@ def summarize_diagnostic_events(events: List[sqlite3.Row]) -> List[Dict]:
                 "scenario_id": ctx.get("scenario_id"),
                 "goal_id": ctx.get("goal_id"),
                 "source_type": "diagnostic_event",
+            }
+        )
+    return summaries
+
+
+def summarize_retention_events(events: List[sqlite3.Row]) -> List[Dict]:
+    summaries: List[Dict] = []
+    for e in events:
+        etype = e["event_type"] or ""
+        if etype not in {
+            "retention_preview",
+            "retention_pruned",
+            "retention_apply",
+            "retention_rewrite",
+        }:
+            continue
+        ctx = _row_context(e)
+        payload = _safe_json(e["payload"])
+        related = ".bgl_core/brain/retention_engine.py"
+        scenario = f"retention:{etype}"
+        confidence = 0.65
+        summary = ""
+        if etype in {"retention_preview", "retention_pruned"}:
+            summary = (
+                "Retention run "
+                f"{'preview' if etype == 'retention_preview' else 'pruned'} "
+                f"(candidates={payload.get('prune_candidates')}, "
+                f"kept={payload.get('kept')}, "
+                f"rewrite={payload.get('rewrite_candidates')}, "
+                f"merge={payload.get('merge_groups')}, "
+                f"paused={payload.get('paused')})."
+            )
+        elif etype == "retention_apply":
+            summary = (
+                "Retention apply "
+                f"(rewrite_applied={payload.get('rewrite_applied')}, "
+                f"merge_applied={payload.get('merge_applied')}, "
+                f"errors={len(payload.get('errors') or [])})."
+            )
+        elif etype == "retention_rewrite":
+            summary = (
+                "Retention rewrite "
+                f"(path={payload.get('path')}, "
+                f"kept_steps={payload.get('kept_steps')}, "
+                f"run_seq={payload.get('run_seq')})."
+            )
+        summaries.append(
+            {
+                "scenario": scenario,
+                "summary": summary,
+                "related_files": related,
+                "confidence": confidence,
+                "evidence_count": 1,
+                "run_id": ctx.get("run_id"),
+                "scenario_id": ctx.get("scenario_id"),
+                "goal_id": ctx.get("goal_id"),
+                "source_type": "retention_event",
             }
         )
     return summaries
@@ -1405,6 +1466,35 @@ def main():
     )
     args = parser.parse_args()
 
+    fast_mode = _cfg_flag(
+        "BGL_CONTEXT_DIGEST_FAST",
+        "context_digest_fast",
+        False,
+    )
+    if fast_mode:
+        try:
+            fast_hours = float(
+                _cfg_number(
+                    "BGL_CONTEXT_DIGEST_FAST_HOURS",
+                    "context_digest_fast_hours",
+                    6.0,
+                )
+            )
+        except Exception:
+            fast_hours = 6.0
+        try:
+            fast_limit = int(
+                _cfg_number(
+                    "BGL_CONTEXT_DIGEST_FAST_LIMIT",
+                    "context_digest_fast_limit",
+                    200,
+                )
+            )
+        except Exception:
+            fast_limit = 200
+        args.hours = min(float(args.hours), float(fast_hours))
+        args.limit = min(int(args.limit), int(fast_limit))
+
     start_ts = time.time()
     stale_minutes = _cfg_number(
         "BGL_CONTEXT_DIGEST_STALE_MINUTES",
@@ -1434,6 +1524,7 @@ def main():
         "pid": os.getpid(),
         "hours": float(args.hours),
         "limit": int(args.limit),
+        "fast_mode": bool(fast_mode),
     }
     _write_digest_state(state)
     timeout_cfg = _cfg_number(
@@ -1581,12 +1672,14 @@ def main():
     log_summaries: List[Dict] = []
     route_meta_summaries: List[Dict] = []
     diagnostic_summaries: List[Dict] = []
+    retention_summaries: List[Dict] = []
     if events:
         route_map = load_route_map(conn)
         event_summaries = summarize(events, route_map)
         log_summaries = summarize_log_highlights(events)
         route_meta_summaries = summarize_route_scan_meta(events)
         diagnostic_summaries = summarize_diagnostic_events(events)
+        retention_summaries = summarize_retention_events(events)
     if _budget_guard("events"):
         return
 
@@ -1615,38 +1708,40 @@ def main():
         return
 
     # Prod operations (central log)
-    prod_ops_full = _cfg_flag("BGL_PROD_OPS_FULL", "prod_ops_full", False)
-    prod_ops_hours = _cfg_number("BGL_PROD_OPS_HOURS", "prod_ops_hours", args.hours)
-    prod_ops_limit = _cfg_number("BGL_PROD_OPS_LIMIT", "prod_ops_limit", args.limit)
-    try:
-        if _time_left() < 18:
-            prod_ops_limit = max(80, min(int(prod_ops_limit), int(_time_left() * 4)))
-    except Exception:
-        pass
-    prod_cutoff = 0.0 if prod_ops_full or prod_ops_hours <= 0 else (time.time() - prod_ops_hours * 3600)
-    prod_ops, aborted = _guarded_fetch(
-        "prod_ops_query", lambda: fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
-    )
-    if aborted:
-        return
-    if prod_ops is None:
-        prod_ops = []
-    stats["prod_ops"] = len(prod_ops or [])
-    try:
-        if prod_ops:
-            latest_ts = max(latest_ts, float(prod_ops[0]["timestamp"] or 0))
-    except Exception:
-        pass
-    prod_summaries = summarize_prod_ops(prod_ops) if prod_ops else []
-    if _budget_guard("prod_ops"):
-        return
+    prod_summaries = []
+    if not fast_mode:
+        prod_ops_full = _cfg_flag("BGL_PROD_OPS_FULL", "prod_ops_full", False)
+        prod_ops_hours = _cfg_number("BGL_PROD_OPS_HOURS", "prod_ops_hours", args.hours)
+        prod_ops_limit = _cfg_number("BGL_PROD_OPS_LIMIT", "prod_ops_limit", args.limit)
+        try:
+            if _time_left() < 18:
+                prod_ops_limit = max(80, min(int(prod_ops_limit), int(_time_left() * 4)))
+        except Exception:
+            pass
+        prod_cutoff = 0.0 if prod_ops_full or prod_ops_hours <= 0 else (time.time() - prod_ops_hours * 3600)
+        prod_ops, aborted = _guarded_fetch(
+            "prod_ops_query", lambda: fetch_prod_ops(conn, prod_cutoff, prod_ops_limit)
+        )
+        if aborted:
+            return
+        if prod_ops is None:
+            prod_ops = []
+        stats["prod_ops"] = len(prod_ops or [])
+        try:
+            if prod_ops:
+                latest_ts = max(latest_ts, float(prod_ops[0]["timestamp"] or 0))
+        except Exception:
+            pass
+        prod_summaries = summarize_prod_ops(prod_ops) if prod_ops else []
+        if _budget_guard("prod_ops"):
+            return
 
     runtime_contract_summaries: List[Dict[str, Any]] = []
     if _cfg_flag(
         "BGL_RUNTIME_CONTRACT_EXPERIENCES", "runtime_contract_experiences", True
     ):
         # Skip heavy contract build when nearing timeout budget.
-        if _time_left() >= 25:
+        if (not fast_mode) and _time_left() >= 25:
             runtime_contract_summaries = summarize_runtime_contracts(ROOT_DIR, limit=120)
     if _budget_guard("runtime_contracts"):
         return
@@ -1656,6 +1751,7 @@ def main():
         + log_summaries
         + route_meta_summaries
         + diagnostic_summaries
+        + retention_summaries
         + prod_summaries
         + outcome_summaries
         + runtime_contract_summaries
@@ -1681,7 +1777,7 @@ def main():
     except Exception:
         pass
     # Only auto-apply when sufficient time budget remains.
-    if _time_left() >= 20:
+    if (not fast_mode) and _time_left() >= 20:
         auto_apply_proposals(
             proposal_ids,
             time_budget_sec=_time_left(),
@@ -1696,7 +1792,7 @@ def main():
             from memory_index import auto_curate_memory  # type: ignore
         except Exception:
             auto_curate_memory = None  # type: ignore
-    if auto_curate_memory and _cfg_flag("BGL_MEMORY_AUTO_CURATE", "memory_auto_curate", True):
+    if (not fast_mode) and auto_curate_memory and _cfg_flag("BGL_MEMORY_AUTO_CURATE", "memory_auto_curate", True):
         try:
             if _time_left() >= 15:
                 stats = auto_curate_memory(

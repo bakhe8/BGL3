@@ -7,8 +7,9 @@ external_allow_max_per_day: 5
 headless: 0
 run_scenarios: 1
 auto_run_gap_scenarios: 1
-gap_scenario_run_limit: 6
+gap_scenario_run_limit: 12
 gap_scenario_timeout_sec: 240
+scenario_batch_timeout_sec: 1200
 scenario_include_api: 1
 scenario_exploration: 1
 scenario_include_autonomous: 1
@@ -25,9 +26,18 @@ scenario_min_event_delta: 5
 scenario_min_runtime_sec: 4
 scenario_retry_on_low_events: 1
 scenario_retry_delay_sec: 8
+scenario_retry_on_flaky_errors: 1
+scenario_retry_flaky_delay_sec: 10
+scenario_retry_flaky_classes: "timeout,network,browser,llm"
 scenario_scheduler_enabled: 1
 scenario_scheduler_auto_budget: 1
 scenario_scheduler_budget_minutes: 0
+scenario_scheduler_min_ui: 6
+scenario_scheduler_min_ui_ratio: 0.6
+scenario_scheduler_min_ui_gap: 3
+scenario_scheduler_min_ui_non_gap: 3
+scenario_scheduler_weight_ui_boost: 18
+scenario_scheduler_weight_ui_gap_boost: 14
 api_scan_mode: all
 api_scan_force_examples: 1
 policy_strict: 0
@@ -41,9 +51,12 @@ force_contract_seed: 1
 reasoning_enabled: 1
 keep_browser: 0
 step_timeout_sec: 45
-diagnostic_timeout_sec: 600
+diagnostic_timeout_sec: 1800
 diagnostic_fast_strategy: scan
-diagnostic_idle_guard_sec: 120
+diagnostic_idle_guard_sec: 0
+report_writer_lock_ttl_sec: 900
+report_writer_lock_timeout_sec: 120
+retention_disable_time_prune: 1
 fast_verify: 0
 master_verify_lock_ttl_sec: 7200
 # Refresh master_verify lock heartbeat while diagnostic is running.
@@ -91,12 +104,17 @@ allow_prod_without_human: 1
 auto_submit_search: 1
 auto_submit_form: 1
 store_ui_actions: 1
-ui_action_limit: 80
+ui_action_limit: 120
 ui_action_window_days: 7
 ui_action_sample_limit: 12
-ui_action_goal_limit: 12
-ui_action_goal_min_score: 40
+ui_action_goal_limit: 20
+ui_action_goal_min_score: 30
 min_ui_action_coverage: 30
+autonomous_avoid_print: 1
+ui_click_blocklist:
+  - "btn-print"
+  - "print-overlay"
+  - "window.print"
 coverage_min_events: 20
 ui_action_min_snapshots: 2
 flow_min_events: 10
@@ -113,6 +131,8 @@ autonomy_goal_limit: 12
 canary_min_age_sec: 0
 canary_auto_rollback: 1
 canary_recheck_sec: 3600
+canary_require_integrity_ok: 1
+canary_require_event_delta: 1
 post_apply_validate: 1
 post_apply_validate_mode: checks
 post_apply_validate_max_files: 4

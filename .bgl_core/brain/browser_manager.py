@@ -97,6 +97,7 @@ class BrowserManager:
                     pass
             page = await self._context.new_page()
             self._install_filechooser_guard(page)
+            await self._install_print_guard(page)
             self._pages.append(page)
             return page
 
@@ -111,6 +112,7 @@ class BrowserManager:
                     pass
             page = await self._context.new_page()
             self._install_filechooser_guard(page)
+            await self._install_print_guard(page)
             self._pages.append(page)
             return page
 
@@ -144,6 +146,53 @@ class BrowserManager:
             page._bgl_filechooser_hook = True  # type: ignore[attr-defined]
         except Exception:
             # If hook install fails, do not crash browser creation.
+            pass
+
+    async def _install_print_guard(self, page: Page) -> None:
+        """
+        Disable native print dialogs which are outside browser control.
+
+        To allow printing (not recommended), set env BGL_ALLOW_PRINT=1 or set
+        page._bgl_allow_print = True temporarily.
+        """
+        try:
+            if getattr(page, "_bgl_print_hook", False):
+                return
+        except Exception:
+            pass
+        allow_env = os.getenv("BGL_ALLOW_PRINT", "0") == "1"
+        allow_page = bool(getattr(page, "_bgl_allow_print", False))
+        if allow_env or allow_page:
+            try:
+                page._bgl_print_hook = True  # type: ignore[attr-defined]
+            except Exception:
+                pass
+            return
+        script = """
+            () => {
+                if (window.__bgl_print_guard_installed) return;
+                window.__bgl_print_guard_installed = true;
+                window.__bgl_print_blocked = 0;
+                const orig = window.print;
+                window.print = function() {
+                    window.__bgl_print_blocked += 1;
+                    try { console.warn('bgl_print_blocked'); } catch (e) {}
+                    return undefined;
+                };
+                window.__bgl_orig_print = orig;
+            }
+        """
+        try:
+            await page.add_init_script(script)
+        except Exception:
+            pass
+        try:
+            await page.evaluate(script)
+        except Exception:
+            pass
+        try:
+            page._bgl_print_hook = True  # type: ignore[attr-defined]
+        except Exception:
             pass
 
     async def close(self):

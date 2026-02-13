@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_rules_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/rules.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/rules.php
+- action: wait
+  ms: 400

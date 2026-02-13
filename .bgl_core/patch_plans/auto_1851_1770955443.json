@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1851",
+  "description": "Fix write engine path for views/batch-detail.php",
+  "created_at": 1694000000,
+  "metadata": {
+    "proposal_id": 1851,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770955443.3766854
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/write_engine.py",
+      "mode": null,
+      "content": "import os\nfrom pathlib import Path\n\n# Ensure the path is within allowed scopes\nallowed_scopes = [\n    '.bgl_core/brain/**/*.py',\n    '.bgl_core/brain/**/*.md',\n    '.bgl_core/brain/**/*.json',\n    '.bgl_core/brain/**/*.yml',\n    '.bgl_core/brain/**/*.yaml'\n]\n\ndef is_path_allowed(path):\n    for scope in allowed_scopes:\n        if Path(path).match(scope):\n            return True\n    return False\n\n# Example usage\npath_to_check = 'views/batch-detail.php'\nif not is_path_allowed(path_to_check):\n    raise ValueError(f'Path not in allowed scopes: {path_to_check}')\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "import os\nfrom pathlib import Path\n\n# Ensure the path is within allowed scopes\nallowed_scopes = [\n    '.bgl_core/brain/**/*.py',\n    '.bgl_core/brain/**/*.md',\n    '.bgl_core/brain/**/*.json',\n    '.bgl_core/brain/**/*.yml',\n    '.bgl_core/brain/**/*.yaml'\n]\n\ndef is_path_allowed(path):\n    for scope in allowed_scopes:\n        if Path(path).match(scope):\n            return True\n    return False\n\n# Example usage\npath_to_check = 'views/batch-detail.php'\nif not is_path_allowed(path_to_check):\n    raise ValueError(f'Path not in allowed scopes: {path_to_check}')\n"
+      }
+    }
+  ]
+}

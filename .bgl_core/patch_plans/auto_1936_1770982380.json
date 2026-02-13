@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1936",
+  "description": "Patch Plan for route http://localhost:8000/index.php?search=risk",
+  "created_at": 1770982348,
+  "metadata": {
+    "proposal_id": 1936,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770982380.0312846
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_events_php.yaml",
+      "mode": null,
+      "content": "- event: risk_event\n  description: Event related to risk\n  impact: medium",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "- event: risk_event\n  description: Event related to risk\n  impact: medium"
+      }
+    }
+  ]
+}

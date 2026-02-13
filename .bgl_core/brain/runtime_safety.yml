@@ -467,3 +467,246 @@ rules:
   - '*'
   origin: auto_generated
   created: '2026-02-11'
+- id: RS_1516
+  name: Auto rule for 1516
+  description: Ensure playbook 1516 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1528
+  name: Auto rule for 1528
+  description: Ensure playbook 1528 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1548
+  name: Auto rule for 1548
+  description: Ensure playbook 1548 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-11'
+- id: RS_1569
+  name: Auto rule for 1569
+  description: Ensure playbook 1569 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1607
+  name: Auto rule for 1607
+  description: Ensure playbook 1607 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1615
+  name: Auto rule for 1615
+  description: Ensure playbook 1615 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1630
+  name: Auto rule for 1630
+  description: Ensure playbook 1630 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1647
+  name: Auto rule for 1647
+  description: Ensure playbook 1647 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1664
+  name: Auto rule for 1664
+  description: Ensure playbook 1664 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1681
+  name: Auto rule for 1681
+  description: Ensure playbook 1681 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1698
+  name: Auto rule for 1698
+  description: Ensure playbook 1698 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1715
+  name: Auto rule for 1715
+  description: Ensure playbook 1715 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-12'
+- id: RS_1753
+  name: Auto rule for 1753
+  description: Ensure playbook 1753 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1767
+  name: Auto rule for 1767
+  description: Ensure playbook 1767 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1781
+  name: Auto rule for 1781
+  description: Ensure playbook 1781 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1822
+  name: Auto rule for 1822
+  description: Ensure playbook 1822 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1900
+  name: Auto rule for 1900
+  description: Ensure playbook 1900 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1909
+  name: Auto rule for 1909
+  description: Ensure playbook 1909 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1918
+  name: Auto rule for 1918
+  description: Ensure playbook 1918 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1929
+  name: Auto rule for 1929
+  description: Ensure playbook 1929 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1940
+  name: Auto rule for 1940
+  description: Ensure playbook 1940 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1951
+  name: Auto rule for 1951
+  description: Ensure playbook 1951 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_1992
+  name: Auto rule for 1992
+  description: Ensure playbook 1992 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_2003
+  name: Auto rule for 2003
+  description: Ensure playbook 2003 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_2028
+  name: Auto rule for 2028
+  description: Ensure playbook 2028 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_2045
+  name: Auto rule for 2045
+  description: Ensure playbook 2045 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'
+- id: RS_2064
+  name: Auto rule for 2064
+  description: Ensure playbook 2064 is applied
+  action: WARN
+  rationale: Auto-generated from approved playbook
+  scope:
+  - '*'
+  origin: auto_generated
+  created: '2026-02-13'

@@ -1,0 +1,35 @@
+name: goal_text_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  optional: true
+- action: type
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  text: البناء
+  optional: true
+- action: press
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  key: Enter
+  optional: true
+- action: wait
+  ms: 800
+- action: scroll
+  dy: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: audit
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

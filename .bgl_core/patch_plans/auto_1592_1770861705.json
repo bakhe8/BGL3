@@ -1,0 +1,42 @@
+{
+  "version": 1,
+  "id": "1592",
+  "description": "Investigate outcome:reasoning.plan:unknown issue",
+  "created_at": 1770861686,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1592,
+    "generated_at": 1770861705.0429583
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/failure_classifier.py",
+      "mode": "append",
+      "content": "\n# Investigate unknown failure class\nif failure_class == 'unknown':\n    investigate_unknown_failure(failure_details)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Investigate unknown failure class\nif failure_class == 'unknown':\n    investigate_unknown_failure(failure_details)\n"
+      }
+    },
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/generate_patch_plan.py",
+      "mode": "append",
+      "content": "\n# Handle unknown reasoning plan\nif reasoning_plan == 'unknown':\n    handle_unknown_reasoning_plan(reasoning_details)\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n# Handle unknown reasoning plan\nif reasoning_plan == 'unknown':\n    handle_unknown_reasoning_plan(reasoning_details)\n"
+      }
+    }
+  ]
+}

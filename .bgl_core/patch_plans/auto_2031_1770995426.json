@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "id": "2031",
+  "description": "Patch Plan for Improving Experience: runtime_contract:/api/save-and-next.php",
+  "created_at": 1694784000,
+  "metadata": {
+    "action": "stabilize",
+    "impact": "medium",
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 2031,
+    "generated_at": 1770995426.5830986
+  },
+  "operations": [
+    {
+      "op": "create",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_save_and_next_php.yaml",
+      "mode": null,
+      "content": "experience_id: 10823\nexp_hash: 99611dad3162ad69e9b732c0ee75539d2f7de14a\nscenario: runtime_contract:/api/save-and-next.php\nsummary: Runtime evidence for /api/save-and-next.php: events 4-9, errors 0 (rate 0), latency 0. last_error_present.\nconfidence: 0.85\nevidence_count: 8\nrelated_files: api/save-and-next.php\nsource: auto_experience",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "experience_id: 10823\nexp_hash: 99611dad3162ad69e9b732c0ee75539d2f7de14a\nscenario: runtime_contract:/api/save-and-next.php\nsummary: Runtime evidence for /api/save-and-next.php: events 4-9, errors 0 (rate 0), latency 0. last_error_present.\nconfidence: 0.85\nevidence_count: 8\nrelated_files: api/save-and-next.php\nsource: auto_experience"
+      }
+    }
+  ]
+}

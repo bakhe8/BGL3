@@ -1,0 +1,11 @@
+name: gap_route_partials_excel_import_modal_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /partials/excel-import-modal.php
+steps:
+- action: goto
+  url: /partials/excel-import-modal.php
+- action: wait
+  ms: 400

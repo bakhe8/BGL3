@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "auto_1746_1770912847",
+  "description": "Patch plan to mitigate the risk of self-strategy learning existing only as goal UI/API strategy table, not as system-wide strategy state.",
+  "created_at": 1770912847,
+  "metadata": {
+    "proposal_id": 1746,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770984444.3100595
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/self_policy.json",
+      "mode": null,
+      "content": "{\"strategy_state\": \"system-wide\"}",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "{\"strategy_state\": \"system-wide\"}"
+      }
+    }
+  ]
+}

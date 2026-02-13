@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_1722",
+  "description": "Stabilize route a[href*='get-letter-preview.php']",
+  "created_at": 1683072000,
+  "metadata": {
+    "proposal_id": 1722,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770908140.3183649
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/generated/gap_route_api_get_letter_preview_php.yaml",
+      "mode": null,
+      "content": "stabilize: true",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "stabilize: true"
+      }
+    }
+  ]
+}

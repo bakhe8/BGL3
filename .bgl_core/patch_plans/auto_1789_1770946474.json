@@ -1,0 +1,27 @@
+{
+  "version": 2,
+  "id": "patch_plan_1789",
+  "description": "Stabilize scenario goals/flow_gap_5182.yaml",
+  "created_at": 1694035200,
+  "metadata": {
+    "proposal_id": 1789,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770946474.6964052
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_5182.yaml",
+      "mode": null,
+      "content": "version: 1\nname: goal_flow_gap_5182\ndescription: Stabilize scenario goals/flow_gap_5182.yaml\nevents:\n  - event_id: 1\n    type: http_request\n    url: /api/stabilize\n    method: POST\n    headers:\n      Content-Type: application/json\n    body: |\n      {\n        \"scenario\": \"goals/flow_gap_5182\",\n        \"action\": \"stabilize\"\n      }\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "version: 1\nname: goal_flow_gap_5182\ndescription: Stabilize scenario goals/flow_gap_5182.yaml\nevents:\n  - event_id: 1\n    type: http_request\n    url: /api/stabilize\n    method: POST\n    headers:\n      Content-Type: application/json\n    body: |\n      {\n        \"scenario\": \"goals/flow_gap_5182\",\n        \"action\": \"stabilize\"\n      }\n"
+      }
+    }
+  ]
+}

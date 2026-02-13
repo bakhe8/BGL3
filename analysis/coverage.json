@@ -1,13 +1,13 @@
 {
-  "generated_at": 1770800556.304854,
+  "generated_at": 1771004005.5307672,
   "scenario": {
     "summary": {
       "window_days": 7,
       "total_routes": 111,
-      "covered_routes": 79,
-      "coverage_ratio": 71.17,
-      "ui_snapshot_paths": 59,
-      "ui_coverage_ratio": 53.15,
+      "covered_routes": 96,
+      "coverage_ratio": 86.49,
+      "ui_snapshot_paths": 76,
+      "ui_coverage_ratio": 68.47,
       "uncovered_sample": [
         {
           "route": "/agent-dashboard.php",
@@ -15,143 +15,197 @@
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/permissions.php",
+          "route": "/agentfrontend/partials/worst_routes.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/permission_queue.php",
+          "route": "/partials/confirm-modal.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/plan_library.php",
-          "method": "POST",
-          "status_score": 100
-        },
-        {
-          "route": "/agentfrontend/partials/prod_operations.php",
+          "route": "/partials/excel-import-modal.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/proposals_simple.php",
+          "route": "/partials/historical-banner.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/proposed_playbooks_simple.php",
+          "route": "/partials/letter-renderer.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/quick_actions.php",
+          "route": "/partials/manual-entry-modal.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/report_viewer.php",
+          "route": "/partials/paste-modal.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/route_updates.php",
+          "route": "/partials/preview-placeholder.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/rules.php",
+          "route": "/partials/record-form.php",
           "method": "GET",
           "status_score": 100
         },
         {
-          "route": "/agentfrontend/partials/simple_mode.php",
+          "route": "/partials/suggestions.php",
+          "method": "GET",
+          "status_score": 100
+        },
+        {
+          "route": "/partials/supplier-suggestions.php",
           "method": "GET",
           "status_score": 100
         }
       ],
-      "events_total": 34815,
-      "ui_snapshot_count": 129,
-      "semantic_change_count": 108,
-      "gap_runs": 979,
-      "gap_changed": 115,
-      "gap_last_ts": 1770800738.1578534,
+      "events_total": 69862,
+      "ui_snapshot_count": 171,
+      "semantic_change_count": 398,
+      "gap_runs": 1974,
+      "gap_changed": 119,
+      "gap_last_ts": 1770999178.138373,
       "reliable": true,
       "reliability_reason": ""
     },
-    "gaps": []
+    "gaps": [
+      {
+        "route": "/agent-dashboard.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/agentfrontend/partials/worst_routes.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/confirm-modal.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/excel-import-modal.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/historical-banner.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/letter-renderer.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/manual-entry-modal.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/paste-modal.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/preview-placeholder.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/record-form.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/suggestions.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      },
+      {
+        "route": "/partials/supplier-suggestions.php",
+        "status": "uncovered",
+        "evidence": {
+          "method": "GET",
+          "status_score": 100
+        },
+        "priority_score": 100.0
+      }
+    ]
   },
   "ui_actions": {
     "summary": {
-      "window_days": 7,
-      "snapshot_count": 16,
-      "total_actions": 132,
-      "covered_actions": 32,
-      "coverage_ratio": 24.24,
-      "operational_coverage_ratio": 24.24,
-      "routes_with_actions": 3,
-      "routes_with_coverage": 3,
+      "window_days": 30,
+      "snapshot_count": 24,
+      "total_actions": 53,
+      "covered_actions": 16,
+      "coverage_ratio": 30.19,
+      "operational_coverage_ratio": 30.19,
+      "routes_with_actions": 2,
+      "routes_with_coverage": 1,
       "uncovered_sample": [
         {
-          "route": "/index.php",
-          "selector": "#hiddenFileInput",
-          "selector_key": "id=hiddenFileInput",
-          "text": "",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 60.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./index.php\"]",
-          "selector_key": "href=index.php",
-          "text": "✕",
-          "href": "./index.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/batches.php\"]",
-          "selector_key": "href=batches.php",
-          "text": "📦 الدفعات",
-          "href": "./views/batches.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/settings.php\"]",
-          "selector_key": "href=settings.php",
-          "text": "⚙ إعدادات",
-          "href": "./views/settings.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "a[href=\"./views/maintenance.php\"]",
-          "selector_key": "href=maintenance.php",
-          "text": "🛠️ صيانة",
-          "href": "./views/maintenance.php",
-          "tag": "a",
-          "risk": "safe",
-          "priority_score": 63.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.historical-banner-btn",
-          "selector_key": "text=↩️ العودة للوضع الحالي",
-          "text": "↩️ العودة للوضع الحالي",
+          "route": "/",
+          "selector": "#bgl-confirm-yes",
+          "selector_key": "id=bgl-confirm-yes",
+          "text": "نعم، تابع",
           "href": "",
           "tag": "button",
           "risk": "safe",
@@ -159,10 +213,10 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
-          "selector": "#decisionStatus",
-          "selector_key": "id=decisionStatus",
-          "text": "pending",
+          "route": "/",
+          "selector": "input[name=\"search\"]",
+          "selector_key": "name=search",
+          "text": "conflict",
           "href": "",
           "tag": "input",
           "risk": "safe",
@@ -170,18 +224,51 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
-          "selector": "#activeAction",
-          "selector_key": "id=activeAction",
-          "text": "",
-          "href": "",
-          "tag": "input",
+          "route": "/",
+          "selector": "a[href=\"./views/statistics.php\"]",
+          "selector_key": "href=statistics.php",
+          "text": "📊 إحصائيات",
+          "href": "./views/statistics.php",
+          "tag": "a",
           "risk": "safe",
-          "priority_score": 60.0,
+          "priority_score": 63.0,
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
+          "selector": "input[name=\"jump_to_index\"]",
+          "selector_key": "name=jump_to_index",
+          "text": "1",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#decisionStatus",
+          "selector_key": "id=decisionStatus",
+          "text": "ready",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#activeAction",
+          "selector_key": "id=activeAction",
+          "text": "extension",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
           "selector": "#relatedTo",
           "selector_key": "id=relatedTo",
           "text": "contract",
@@ -192,29 +279,29 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
-          "selector": "#eventSubtype",
-          "selector_key": "id=eventSubtype",
-          "text": "",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 60.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#supplierIdHidden",
           "selector_key": "id=supplierIdHidden",
-          "text": "",
+          "text": "118",
           "href": "",
           "tag": "input",
           "risk": "safe",
-          "priority_score": 60.0,
+          "priority_score": 68.0,
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
+          "selector": "button.chip",
+          "selector_key": "text=الشركة العربية للوازم الطبية\n   ",
+          "text": "الشركة العربية للوازم الطبية\n                        75%",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
           "selector": "#noteTextarea",
           "selector_key": "id=noteTextarea",
           "text": "أضف ملاحظة...",
@@ -225,184 +312,6 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
-          "selector": "button.note-cancel-btn",
-          "selector_key": "text=إلغاء",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.note-save-btn",
-          "selector_key": "text=حفظ",
-          "text": "حفظ",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#fileInput",
-          "selector_key": "id=fileInput",
-          "text": "",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 60.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#btnCloseManualEntry",
-          "selector_key": "id=btnCloseManualEntry",
-          "text": "×",
-          "href": "",
-          "tag": "button",
-          "risk": "safe",
-          "priority_score": 68.0,
-          "needs_hover": false
-        }
-      ],
-      "gaps": [
-        {
-          "route": "/index.php",
-          "selector": "button.note-cancel-btn",
-          "selector_key": "text=إلغاء",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#manualTestBatchId",
-          "selector_key": "id=manualTestBatchId",
-          "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-          "href": "",
-          "tag": "input",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#btnCancelPaste",
-          "selector_key": "id=btnCancelPaste",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "button.note-cancel-btn",
-          "selector_key": "text=إلغاء",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#manualTestBatchId",
-          "selector_key": "id=manualTestBatchId",
-          "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-          "href": "",
-          "tag": "input",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#btnCancelManualEntry",
-          "selector_key": "id=btnCancelManualEntry",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#btnCancelPaste",
-          "selector_key": "id=btnCancelPaste",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#btnCancelExcel",
-          "selector_key": "id=btnCancelExcel",
-          "text": "إلغاء",
-          "href": "",
-          "tag": "button",
-          "risk": "danger",
-          "priority_score": 86.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.note-save-btn",
-          "selector_key": "text=حفظ",
-          "text": "حفظ",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#btnSaveManualEntry",
-          "selector_key": "id=btnSaveManualEntry",
-          "text": "✓ حفظ وإضافة",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#btnProcessPaste",
-          "selector_key": "id=btnProcessPaste",
-          "text": "✨ تحليل وإضافة",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#excelTestNote",
-          "selector_key": "id=excelTestNote",
-          "text": "مثل: اختبار استيراد Excel",
-          "href": "",
-          "tag": "input",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
           "route": "/",
           "selector": "button.note-save-btn",
           "selector_key": "text=حفظ",
@@ -415,94 +324,6 @@
         },
         {
           "route": "/",
-          "selector": "#btnSaveManualEntry",
-          "selector_key": "id=btnSaveManualEntry",
-          "text": "✓ حفظ وإضافة",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#btnProcessPaste",
-          "selector_key": "id=btnProcessPaste",
-          "text": "✨ تحليل وإضافة",
-          "href": "",
-          "tag": "button",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "#excelTestNote",
-          "selector_key": "id=excelTestNote",
-          "text": "مثل: اختبار استيراد Excel",
-          "href": "",
-          "tag": "input",
-          "risk": "write",
-          "priority_score": 84.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/views/batches.php",
-          "selector": "input[name=\"search\"]",
-          "selector_key": "name=search",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 80.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/",
-          "selector": "input[name=\"search\"]",
-          "selector_key": "name=search",
-          "text": "بحث برقم الضمان، المورد، أو البنك...",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 80.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "button.historical-banner-btn",
-          "selector_key": "text=↩️ العودة للوضع الحالي",
-          "text": "↩️ العودة للوضع الحالي",
-          "href": "",
-          "tag": "button",
-          "risk": "safe",
-          "priority_score": 68.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#decisionStatus",
-          "selector_key": "id=decisionStatus",
-          "text": "pending",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
-          "selector": "#relatedTo",
-          "selector_key": "id=relatedTo",
-          "text": "contract",
-          "href": "",
-          "tag": "input",
-          "risk": "safe",
-          "priority_score": 68.0,
-          "needs_hover": false
-        },
-        {
-          "route": "/index.php",
           "selector": "#btnCloseManualEntry",
           "selector_key": "id=btnCloseManualEntry",
           "text": "×",
@@ -513,7 +334,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#manualSupplier",
           "selector_key": "id=manualSupplier",
           "text": "اسم المورد",
@@ -524,7 +345,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#manualBank",
           "selector_key": "id=manualBank",
           "text": "اسم البنك",
@@ -535,7 +356,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#manualGuarantee",
           "selector_key": "id=manualGuarantee",
           "text": "رقم الضمان",
@@ -546,7 +367,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#manualContract",
           "selector_key": "id=manualContract",
           "text": "رقم العقد أو أمر الشراء",
@@ -557,7 +378,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "input[name=\"relatedTo\"]",
           "selector_key": "name=relatedTo",
           "text": "contract",
@@ -568,7 +389,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#manualAmount",
           "selector_key": "id=manualAmount",
           "text": "50000.00",
@@ -579,7 +400,51 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
+          "selector": "#manualExpiry",
+          "selector_key": "id=manualExpiry",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualType",
+          "selector_key": "id=manualType",
+          "text": "اختر النوع\n                        نهائي (FINAL)\n                        دفعة مقدمة (ADVANCED)",
+          "href": "",
+          "tag": "select",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualIssue",
+          "selector_key": "id=manualIssue",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualComment",
+          "selector_key": "id=manualComment",
+          "text": "ملاحظات إضافية...",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
           "selector": "#manualIsTestData",
           "selector_key": "id=manualIsTestData",
           "text": "1",
@@ -590,7 +455,240 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
+          "selector": "#manualTestNote",
+          "selector_key": "id=manualTestNote",
+          "text": "ملاحظة عن هذه البيانات التجريبية (اختياري)",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        }
+      ],
+      "gaps": [
+        {
+          "route": "/",
+          "selector": "button.note-save-btn",
+          "selector_key": "text=حفظ",
+          "text": "حفظ",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#btnSaveManualEntry",
+          "selector_key": "id=btnSaveManualEntry",
+          "text": "✓ حفظ وإضافة",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#btnProcessPaste",
+          "selector_key": "id=btnProcessPaste",
+          "text": "✨ تحليل وإضافة",
+          "href": "",
+          "tag": "button",
+          "risk": "write",
+          "priority_score": 84.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#excelTestNote",
+          "selector_key": "id=excelTestNote",
+          "text": "مثل: اختبار استيراد Excel",
+          "href": "",
+          "tag": "input",
+          "risk": "write",
+          "priority_score": 84.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#bgl-confirm-yes",
+          "selector_key": "id=bgl-confirm-yes",
+          "text": "نعم، تابع",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "input[name=\"search\"]",
+          "selector_key": "name=search",
+          "text": "conflict",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "input[name=\"jump_to_index\"]",
+          "selector_key": "name=jump_to_index",
+          "text": "1",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#decisionStatus",
+          "selector_key": "id=decisionStatus",
+          "text": "ready",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#activeAction",
+          "selector_key": "id=activeAction",
+          "text": "extension",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#relatedTo",
+          "selector_key": "id=relatedTo",
+          "text": "contract",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#supplierIdHidden",
+          "selector_key": "id=supplierIdHidden",
+          "text": "118",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "button.chip",
+          "selector_key": "text=الشركة العربية للوازم الطبية\n   ",
+          "text": "الشركة العربية للوازم الطبية\n                        75%",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#btnCloseManualEntry",
+          "selector_key": "id=btnCloseManualEntry",
+          "text": "×",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualSupplier",
+          "selector_key": "id=manualSupplier",
+          "text": "اسم المورد",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualBank",
+          "selector_key": "id=manualBank",
+          "text": "اسم البنك",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualGuarantee",
+          "selector_key": "id=manualGuarantee",
+          "text": "رقم الضمان",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualContract",
+          "selector_key": "id=manualContract",
+          "text": "رقم العقد أو أمر الشراء",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "input[name=\"relatedTo\"]",
+          "selector_key": "name=relatedTo",
+          "text": "contract",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualAmount",
+          "selector_key": "id=manualAmount",
+          "text": "50000.00",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualIsTestData",
+          "selector_key": "id=manualIsTestData",
+          "text": "1",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
           "selector": "#btnClosePasteModal",
           "selector_key": "id=btnClosePasteModal",
           "text": "×",
@@ -601,7 +699,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#pasteIsTestData",
           "selector_key": "id=pasteIsTestData",
           "text": "on",
@@ -612,7 +710,7 @@
           "needs_hover": false
         },
         {
-          "route": "/index.php",
+          "route": "/",
           "selector": "#pasteTestBatchId",
           "selector_key": "id=pasteTestBatchId",
           "text": "مثل: TEST-BATCH-001",
@@ -621,148 +719,170 @@
           "risk": "safe",
           "priority_score": 68.0,
           "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#btnCloseExcelModal",
+          "selector_key": "id=btnCloseExcelModal",
+          "text": "×",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#excelIsTestData",
+          "selector_key": "id=excelIsTestData",
+          "text": "on",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#excelTestBatchId",
+          "selector_key": "id=excelTestBatchId",
+          "text": "مثل: EXCEL-TEST-BATCH-001",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#btnUploadExcel",
+          "selector_key": "id=btnUploadExcel",
+          "text": "📤 رفع وتحليل",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/index.php",
+          "selector": "button.chip",
+          "selector_key": "text=الشركة التعاونية للتأمين\n90%",
+          "text": "الشركة التعاونية للتأمين\n90%",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/index.php",
+          "selector": "button.chip",
+          "selector_key": "text=الشركة التعاونية للتأمين\n       ",
+          "text": "الشركة التعاونية للتأمين\n                        90%",
+          "href": "",
+          "tag": "button",
+          "risk": "safe",
+          "priority_score": 68.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "a[href=\"./views/statistics.php\"]",
+          "selector_key": "href=statistics.php",
+          "text": "📊 إحصائيات",
+          "href": "./views/statistics.php",
+          "tag": "a",
+          "risk": "safe",
+          "priority_score": 63.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualExpiry",
+          "selector_key": "id=manualExpiry",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualIssue",
+          "selector_key": "id=manualIssue",
+          "text": "",
+          "href": "",
+          "tag": "input",
+          "risk": "safe",
+          "priority_score": 60.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#noteTextarea",
+          "selector_key": "id=noteTextarea",
+          "text": "أضف ملاحظة...",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualType",
+          "selector_key": "id=manualType",
+          "text": "اختر النوع\n                        نهائي (FINAL)\n                        دفعة مقدمة (ADVANCED)",
+          "href": "",
+          "tag": "select",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualComment",
+          "selector_key": "id=manualComment",
+          "text": "ملاحظات إضافية...",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#manualTestNote",
+          "selector_key": "id=manualTestNote",
+          "text": "ملاحظة عن هذه البيانات التجريبية (اختياري)",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
+        },
+        {
+          "route": "/",
+          "selector": "#smartPasteInput",
+          "selector_key": "id=smartPasteInput",
+          "text": "مثال: يرجى إصدار ضمان بنكي بمبلغ 50,000 ريال لصالح شركة المراعي...",
+          "href": "",
+          "tag": "textarea",
+          "risk": "safe",
+          "priority_score": 58.0,
+          "needs_hover": false
         }
       ],
-      "gap_runs": 3,
+      "gap_runs": 7,
       "gap_changed": 0,
-      "gap_last_ts": 1770593752.3114355,
+      "gap_last_ts": 1770963613.9229476,
       "reliable": true,
       "reliability_reason": ""
     },
     "gaps": [
       {
-        "route": "/index.php",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "text=إلغاء",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#manualTestBatchId",
-        "selector_key": "id=manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelPaste",
-        "selector_key": "id=btnCancelPaste",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "text=إلغاء",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#manualTestBatchId",
-        "selector_key": "id=manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
-        "href": "",
-        "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnCancelManualEntry",
-        "selector_key": "id=btnCancelManualEntry",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnCancelPaste",
-        "selector_key": "id=btnCancelPaste",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnCancelExcel",
-        "selector_key": "id=btnCancelExcel",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "button.note-save-btn",
-        "selector_key": "text=حفظ",
-        "text": "حفظ",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnSaveManualEntry",
-        "selector_key": "id=btnSaveManualEntry",
-        "text": "✓ حفظ وإضافة",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnProcessPaste",
-        "selector_key": "id=btnProcessPaste",
-        "text": "✨ تحليل وإضافة",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#excelTestNote",
-        "selector_key": "id=excelTestNote",
-        "text": "مثل: اختبار استيراد Excel",
-        "href": "",
-        "tag": "input",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
         "route": "/",
         "selector": "button.note-save-btn",
         "selector_key": "text=حفظ",
@@ -807,32 +927,10 @@
         "needs_hover": false
       },
       {
-        "route": "/views/batches.php",
-        "selector": "input[name=\"search\"]",
-        "selector_key": "name=search",
-        "text": "بحث برقم الضمان، المورد، أو البنك...",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 80.0,
-        "needs_hover": false
-      },
-      {
         "route": "/",
-        "selector": "input[name=\"search\"]",
-        "selector_key": "name=search",
-        "text": "بحث برقم الضمان، المورد، أو البنك...",
-        "href": "",
-        "tag": "input",
-        "risk": "safe",
-        "priority_score": 80.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "button.historical-banner-btn",
-        "selector_key": "text=↩️ العودة للوضع الحالي",
-        "text": "↩️ العودة للوضع الحالي",
+        "selector": "#bgl-confirm-yes",
+        "selector_key": "id=bgl-confirm-yes",
+        "text": "نعم، تابع",
         "href": "",
         "tag": "button",
         "risk": "safe",
@@ -840,10 +938,32 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
+        "selector": "input[name=\"search\"]",
+        "selector_key": "name=search",
+        "text": "conflict",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "input[name=\"jump_to_index\"]",
+        "selector_key": "name=jump_to_index",
+        "text": "1",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
         "selector": "#decisionStatus",
         "selector_key": "id=decisionStatus",
-        "text": "pending",
+        "text": "ready",
         "href": "",
         "tag": "input",
         "risk": "safe",
@@ -851,7 +971,18 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
+        "selector": "#activeAction",
+        "selector_key": "id=activeAction",
+        "text": "extension",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
         "selector": "#relatedTo",
         "selector_key": "id=relatedTo",
         "text": "contract",
@@ -862,7 +993,29 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
+        "selector": "#supplierIdHidden",
+        "selector_key": "id=supplierIdHidden",
+        "text": "118",
+        "href": "",
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "button.chip",
+        "selector_key": "text=الشركة العربية للوازم الطبية\n   ",
+        "text": "الشركة العربية للوازم الطبية\n                        75%",
+        "href": "",
+        "tag": "button",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
         "selector": "#btnCloseManualEntry",
         "selector_key": "id=btnCloseManualEntry",
         "text": "×",
@@ -873,7 +1026,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualSupplier",
         "selector_key": "id=manualSupplier",
         "text": "اسم المورد",
@@ -884,7 +1037,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualBank",
         "selector_key": "id=manualBank",
         "text": "اسم البنك",
@@ -895,7 +1048,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualGuarantee",
         "selector_key": "id=manualGuarantee",
         "text": "رقم الضمان",
@@ -906,7 +1059,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualContract",
         "selector_key": "id=manualContract",
         "text": "رقم العقد أو أمر الشراء",
@@ -917,7 +1070,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "input[name=\"relatedTo\"]",
         "selector_key": "name=relatedTo",
         "text": "contract",
@@ -928,7 +1081,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualAmount",
         "selector_key": "id=manualAmount",
         "text": "50000.00",
@@ -939,7 +1092,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#manualIsTestData",
         "selector_key": "id=manualIsTestData",
         "text": "1",
@@ -950,7 +1103,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#btnClosePasteModal",
         "selector_key": "id=btnClosePasteModal",
         "text": "×",
@@ -961,7 +1114,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#pasteIsTestData",
         "selector_key": "id=pasteIsTestData",
         "text": "on",
@@ -972,7 +1125,7 @@
         "needs_hover": false
       },
       {
-        "route": "/index.php",
+        "route": "/",
         "selector": "#pasteTestBatchId",
         "selector_key": "id=pasteTestBatchId",
         "text": "مثل: TEST-BATCH-001",
@@ -981,139 +1134,159 @@
         "risk": "safe",
         "priority_score": 68.0,
         "needs_hover": false
-      }
-    ],
-    "prioritized_gaps": [
+      },
       {
         "route": "/",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "text=إلغاء",
-        "text": "إلغاء",
+        "selector": "#btnCloseExcelModal",
+        "selector_key": "id=btnCloseExcelModal",
+        "text": "×",
         "href": "",
         "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "risk": "safe",
+        "priority_score": 68.0,
         "needs_hover": false
       },
       {
         "route": "/",
-        "selector": "#manualTestBatchId",
-        "selector_key": "id=manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "selector": "#excelIsTestData",
+        "selector_key": "id=excelIsTestData",
+        "text": "on",
         "href": "",
         "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "risk": "safe",
+        "priority_score": 68.0,
         "needs_hover": false
       },
       {
         "route": "/",
-        "selector": "#btnCancelManualEntry",
-        "selector_key": "id=btnCancelManualEntry",
-        "text": "إلغاء",
+        "selector": "#excelTestBatchId",
+        "selector_key": "id=excelTestBatchId",
+        "text": "مثل: EXCEL-TEST-BATCH-001",
         "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "tag": "input",
+        "risk": "safe",
+        "priority_score": 68.0,
         "needs_hover": false
       },
       {
         "route": "/",
-        "selector": "#btnCancelPaste",
-        "selector_key": "id=btnCancelPaste",
-        "text": "إلغاء",
+        "selector": "#btnUploadExcel",
+        "selector_key": "id=btnUploadExcel",
+        "text": "📤 رفع وتحليل",
         "href": "",
         "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnCancelExcel",
-        "selector_key": "id=btnCancelExcel",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "risk": "safe",
+        "priority_score": 68.0,
         "needs_hover": false
       },
       {
         "route": "/index.php",
-        "selector": "button.note-cancel-btn",
-        "selector_key": "text=إلغاء",
-        "text": "إلغاء",
+        "selector": "button.chip",
+        "selector_key": "text=الشركة التعاونية للتأمين\n90%",
+        "text": "الشركة التعاونية للتأمين\n90%",
         "href": "",
         "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "risk": "safe",
+        "priority_score": 68.0,
         "needs_hover": false
       },
       {
         "route": "/index.php",
-        "selector": "#manualTestBatchId",
-        "selector_key": "id=manualTestBatchId",
-        "text": "معرف الدفعة (اختياري - للحذف الجماعي)",
+        "selector": "button.chip",
+        "selector_key": "text=الشركة التعاونية للتأمين\n       ",
+        "text": "الشركة التعاونية للتأمين\n                        90%",
+        "href": "",
+        "tag": "button",
+        "risk": "safe",
+        "priority_score": 68.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "a[href=\"./views/statistics.php\"]",
+        "selector_key": "href=statistics.php",
+        "text": "📊 إحصائيات",
+        "href": "./views/statistics.php",
+        "tag": "a",
+        "risk": "safe",
+        "priority_score": 63.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#manualExpiry",
+        "selector_key": "id=manualExpiry",
+        "text": "",
         "href": "",
         "tag": "input",
-        "risk": "danger",
-        "priority_score": 86.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/index.php",
-        "selector": "#btnCancelPaste",
-        "selector_key": "id=btnCancelPaste",
-        "text": "إلغاء",
-        "href": "",
-        "tag": "button",
-        "risk": "danger",
-        "priority_score": 86.0,
+        "risk": "safe",
+        "priority_score": 60.0,
         "needs_hover": false
       },
       {
         "route": "/",
-        "selector": "button.note-save-btn",
-        "selector_key": "text=حفظ",
-        "text": "حفظ",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnSaveManualEntry",
-        "selector_key": "id=btnSaveManualEntry",
-        "text": "✓ حفظ وإضافة",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#btnProcessPaste",
-        "selector_key": "id=btnProcessPaste",
-        "text": "✨ تحليل وإضافة",
-        "href": "",
-        "tag": "button",
-        "risk": "write",
-        "priority_score": 84.0,
-        "needs_hover": false
-      },
-      {
-        "route": "/",
-        "selector": "#excelTestNote",
-        "selector_key": "id=excelTestNote",
-        "text": "مثل: اختبار استيراد Excel",
+        "selector": "#manualIssue",
+        "selector_key": "id=manualIssue",
+        "text": "",
         "href": "",
         "tag": "input",
-        "risk": "write",
-        "priority_score": 84.0,
+        "risk": "safe",
+        "priority_score": 60.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#noteTextarea",
+        "selector_key": "id=noteTextarea",
+        "text": "أضف ملاحظة...",
+        "href": "",
+        "tag": "textarea",
+        "risk": "safe",
+        "priority_score": 58.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#manualType",
+        "selector_key": "id=manualType",
+        "text": "اختر النوع\n                        نهائي (FINAL)\n                        دفعة مقدمة (ADVANCED)",
+        "href": "",
+        "tag": "select",
+        "risk": "safe",
+        "priority_score": 58.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#manualComment",
+        "selector_key": "id=manualComment",
+        "text": "ملاحظات إضافية...",
+        "href": "",
+        "tag": "textarea",
+        "risk": "safe",
+        "priority_score": 58.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#manualTestNote",
+        "selector_key": "id=manualTestNote",
+        "text": "ملاحظة عن هذه البيانات التجريبية (اختياري)",
+        "href": "",
+        "tag": "textarea",
+        "risk": "safe",
+        "priority_score": 58.0,
+        "needs_hover": false
+      },
+      {
+        "route": "/",
+        "selector": "#smartPasteInput",
+        "selector_key": "id=smartPasteInput",
+        "text": "مثال: يرجى إصدار ضمان بنكي بمبلغ 50,000 ريال لصالح شركة المراعي...",
+        "href": "",
+        "tag": "textarea",
+        "risk": "safe",
+        "priority_score": 58.0,
         "needs_hover": false
       }
     ]
@@ -1184,7 +1357,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 82
+          "gap_runs": 86
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1199,9 +1372,9 @@
             "route_events": [
               "api_call",
               "autonomy_goal_result",
+              "export_download_bypass",
               "network_fail",
-              "route_check_api",
-              "route_check_skipped"
+              "route_check_api"
             ],
             "missing_events": [
               "export_suppliers"
@@ -1233,7 +1406,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 82
+          "gap_runs": 86
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1280,7 +1453,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 80
+          "gap_runs": 81
         }
       ],
       "details": [
@@ -1334,7 +1507,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 82
+          "gap_runs": 86
         },
         {
           "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1349,9 +1522,9 @@
             "route_events": [
               "api_call",
               "autonomy_goal_result",
+              "export_download_bypass",
               "network_fail",
-              "route_check_api",
-              "route_check_skipped"
+              "route_check_api"
             ],
             "missing_events": [
               "export_suppliers"
@@ -1383,7 +1556,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 82
+          "gap_runs": 86
         },
         {
           "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1425,7 +1598,7 @@
           "sequence_inferred": true,
           "sequence_session": "run_1770486170_12912|goal_flow_gap",
           "sequence_covered_gap": true,
-          "gap_runs": 80
+          "gap_runs": 83
         },
         {
           "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1472,7 +1645,7 @@
           "sequence_inferred": true,
           "sequence_session": "",
           "sequence_covered_gap": true,
-          "gap_runs": 80
+          "gap_runs": 81
         },
         {
           "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1514,14 +1687,14 @@
           "sequence_inferred": true,
           "sequence_session": "run_1770487186_9028|goal_purpose_focus",
           "sequence_covered_gap": true,
-          "gap_runs": 79
+          "gap_runs": 80
         }
       ],
-      "events_total": 36954,
-      "gap_runs": 403,
-      "gap_changed": 80,
-      "gap_last_ts": 1770799905.6226323,
-      "semantic_change_count": 636,
+      "events_total": 72638,
+      "gap_runs": 416,
+      "gap_changed": 84,
+      "gap_last_ts": 1770831678.6208465,
+      "semantic_change_count": 1452,
       "schema_errors": [],
       "invalid_flows": 0,
       "reliable": true,
@@ -1578,7 +1751,7 @@
         "sequence_inferred": true,
         "sequence_session": "",
         "sequence_covered_gap": true,
-        "gap_runs": 82
+        "gap_runs": 86
       },
       {
         "flow": "Flow: تصدير الموردين (export_suppliers)",
@@ -1593,9 +1766,9 @@
           "route_events": [
             "api_call",
             "autonomy_goal_result",
+            "export_download_bypass",
             "network_fail",
-            "route_check_api",
-            "route_check_skipped"
+            "route_check_api"
           ],
           "missing_events": [
             "export_suppliers"
@@ -1627,7 +1800,7 @@
         "sequence_inferred": true,
         "sequence_session": "",
         "sequence_covered_gap": true,
-        "gap_runs": 82
+        "gap_runs": 86
       },
       {
         "flow": "Flow: تمديد ضمان (extend_guarantee)",
@@ -1669,7 +1842,7 @@
         "sequence_inferred": true,
         "sequence_session": "run_1770486170_12912|goal_flow_gap",
         "sequence_covered_gap": true,
-        "gap_runs": 80
+        "gap_runs": 83
       },
       {
         "flow": "Flow: استيراد الموردين (import_suppliers)",
@@ -1716,7 +1889,7 @@
         "sequence_inferred": true,
         "sequence_session": "",
         "sequence_covered_gap": true,
-        "gap_runs": 80
+        "gap_runs": 81
       },
       {
         "flow": "Flow: إفراج / تحرير ضمان (release_guarantee)",
@@ -1758,10 +1931,56 @@
         "sequence_inferred": true,
         "sequence_session": "run_1770487186_9028|goal_purpose_focus",
         "sequence_covered_gap": true,
-        "gap_runs": 79
+        "gap_runs": 80
       }
     ],
-    "gaps": [],
+    "gaps": [
+      {
+        "flow": "Flow: إنشاء ضمان (create_guarantee)",
+        "status": "partial",
+        "endpoints": [
+          "/api/create-guarantee.php",
+          "/supplier_id",
+          "/422",
+          "/422.",
+          "/currency"
+        ],
+        "step_routes": [
+          "/api/create-guarantee.php"
+        ],
+        "step_events": [],
+        "priority_score": 110.0
+      },
+      {
+        "flow": "Flow: تصدير الموردين (export_suppliers)",
+        "status": "partial",
+        "endpoints": [
+          "/api/export_suppliers.php",
+          "/streaming",
+          "/XLSX",
+          "/indexing"
+        ],
+        "step_routes": [
+          "/api/export_suppliers.php"
+        ],
+        "step_events": [],
+        "priority_score": 90.0
+      },
+      {
+        "flow": "Flow: استيراد الموردين (import_suppliers)",
+        "status": "partial",
+        "endpoints": [
+          "/api/import_suppliers.php",
+          "/XLSX",
+          "/Phone/Tax"
+        ],
+        "step_routes": [
+          "/api/import_suppliers.php"
+        ],
+        "step_events": [],
+        "priority_score": 80.0
+      }
+    ],
     "prioritized_gaps": [
       {
         "flow": "Flow: إنشاء ضمان (create_guarantee)",
@@ -1810,13 +2029,6 @@
       }
     ]
   },
-  "generated_scenarios": [
-    "gap_route_agentfrontend_partials_permissions_php.yaml",
-    "gap_route_agentfrontend_partials_permission_queue_php.yaml",
-    "gap_route_agentfrontend_partials_plan_library_php.yaml",
-    "gap_route_agentfrontend_partials_prod_operations_php.yaml",
-    "gap_route_agentfrontend_partials_proposals_simple_php.yaml"
-  ],
   "existing_generated_scenarios": [
     "gap_flow_flow_create_guarantee_.yaml",
     "gap_flow_flow_export_suppliers_.yaml",

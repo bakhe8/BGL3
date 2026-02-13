@@ -1,0 +1,11 @@
+name: gap_route_agentfrontend_partials_vector_db_status_php
+kind: ui
+generated: true
+meta:
+  origin: coverage_gap
+  route: /agentfrontend/partials/vector_db_status.php
+steps:
+- action: goto
+  url: /agentfrontend/partials/vector_db_status.php
+- action: wait
+  ms: 400

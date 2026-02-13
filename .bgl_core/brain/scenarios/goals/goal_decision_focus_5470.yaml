@@ -1,0 +1,37 @@
+name: goal_decision_focus
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  optional: true
+- action: type
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  text: The system has detected significant changes in the UI, which indicates that
+    the architecture may need to be improved or new rules added to handle these changes
+    effectively.
+  optional: true
+- action: press
+  selector: input[type='search'], input[name*='search'], input[placeholder*='بحث'],
+    input[placeholder*='search']
+  key: Enter
+  optional: true
+- action: wait
+  ms: 800
+- action: scroll
+  dy: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: batch
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

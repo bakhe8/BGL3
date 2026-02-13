@@ -11,7 +11,10 @@
     "intelephense.diagnostics.undefinedClassConstants": true,
     "intelephense.diagnostics.undefinedFunctions": true,
     "files.associations": {
-        "*.php": "php"
+        "*.php": "php",
+        ".bgl_core/brain/scenarios/generated/*.yaml": "plaintext",
+        "**/.bgl_core/brain/scenarios/generated/*.yaml": "plaintext",
+        ".bgl_core/brain/scenarios/generated/gap_route_agentfrontend_partials_agent_autonomy_state_php.yaml": "plaintext"
     },
     "files.exclude": {
         "**/.git": true,
@@ -20,5 +23,12 @@
     "search.exclude": {
         "**/vendor": true,
         "**/node_modules": true
-    }
+    },
+    "yaml.schemas": {
+        "https://raw.githubusercontent.com/crowdsecurity/crowdsec-yaml-schemas/main/scenario_schema.yaml": [],
+        "./.bgl_core/brain/scenarios/scenario_schema.json": [
+            ".bgl_core/brain/scenarios/**/*.yaml"
+        ]
+    },
+    "yaml.schemaStore.enable": false
 }

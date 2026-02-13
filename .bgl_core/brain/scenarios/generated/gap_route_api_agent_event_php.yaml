@@ -1,0 +1,11 @@
+name: gap_route_api_agent_event_php
+kind: api
+generated: true
+meta:
+  origin: coverage_gap
+  route: /api/agent-event.php
+  route_type: direct
+steps:
+- action: request
+  url: /api/agent-event.php
+  method: GET

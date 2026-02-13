@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_1850",
+  "description": "Fix path for confirm-modal.php in write_engine",
+  "created_at": 1770698147,
+  "metadata": {
+    "proposal_id": 1850,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770955450.9395835
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "partials/confirm-modal.php",
+      "mode": "overwrite",
+      "content": "// Your updated content here",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "// Your updated content here"
+      }
+    }
+  ]
+}

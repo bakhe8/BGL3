@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "id": "patch_plan_1744",
+  "description": "Patch Plan for AUDIT RISK: Retention uses age-based decay even when time-based pruning is disabled.",
+  "created_at": 1680326400,
+  "metadata": {
+    "proposal_id": 1744,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770912861.8642254
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/runtime_safety.yml",
+      "mode": null,
+      "content": "age_based_decay_enabled: false\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "content": "age_based_decay_enabled: false\n"
+      }
+    }
+  ]
+}

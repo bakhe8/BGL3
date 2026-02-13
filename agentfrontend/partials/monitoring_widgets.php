@@ -5,12 +5,39 @@
  * Provides real-time charts and alerts for operational monitoring
  */
 
-// Get current operational stats from StatsService
-$statsService = new App\Services\StatsService();
-$operationalStats = $statsService->getDashboardMetrics();
+// Ensure core autoload for App\ classes when this partial is accessed directly.
+require_once __DIR__ . '/../../app/Support/autoload.php';
 
-// Get active alerts from Alert system
-$activeAlerts = App\Support\Alert::getActiveAlerts();
+// Get current operational stats from StatsService (guarded for missing classes)
+$operationalStats = [
+    'import_success_rate' => 0,
+    'api_error_rate' => 0,
+    'contract_latency_ms' => 0,
+    'active_guarantees' => 0,
+    'expired_guarantees' => 0,
+    'pending_guarantees' => 0,
+];
+
+if (class_exists('App\\Services\\StatsService')) {
+    $statsService = new App\Services\StatsService();
+    $metrics = $statsService->getDashboardMetrics();
+    if (is_array($metrics)) {
+        $operationalStats = array_merge($operationalStats, $metrics);
+    }
+} else {
+    error_log('monitoring_widgets: App\\Services\\StatsService not found');
+}
+
+// Get active alerts from Alert system (guarded)
+$activeAlerts = [];
+if (class_exists('App\\Support\\Alert')) {
+    $alerts = App\Support\Alert::getActiveAlerts();
+    if (is_array($alerts)) {
+        $activeAlerts = $alerts;
+    }
+} else {
+    error_log('monitoring_widgets: App\\Support\\Alert not found');
+}
 ?>
 
 <div class="monitoring-section">

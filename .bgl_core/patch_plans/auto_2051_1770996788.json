@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "patch_plan_2051",
+  "description": "Stabilize scenario goals/flow_gap_6273.yaml",
+  "created_at": 1694784000,
+  "metadata": {
+    "proposal_id": 2051,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770996788.7784448
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/goals/goal_flow_gap_6273.yaml",
+      "mode": "overwrite",
+      "content": "version: 1\nname: goal_flow_gap_6273\nsteps:\n- action: wait_for_event\nevent_name: event_1\n- action: execute_playbook\nplaybook_name: playbook_1",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "overwrite",
+        "content": "version: 1\nname: goal_flow_gap_6273\nsteps:\n- action: wait_for_event\nevent_name: event_1\n- action: execute_playbook\nplaybook_name: playbook_1"
+      }
+    }
+  ]
+}

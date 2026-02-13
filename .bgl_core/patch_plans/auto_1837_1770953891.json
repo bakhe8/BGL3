@@ -1,0 +1,28 @@
+{
+  "version": 2,
+  "id": "fix_write_engine_path",
+  "description": "Fix write engine path issue for views/batch-detail.php",
+  "created_at": 1694832000,
+  "metadata": {
+    "generated_by": "llm",
+    "source": "proposal",
+    "proposal_id": 1837,
+    "generated_at": 1770953891.7341673
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": "views/batch-detail.php",
+      "mode": "prepend",
+      "content": "// This file is part of the BGL project.\n// For more information, visit https://bgl.example.com\n\n",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "prepend",
+        "content": "// This file is part of the BGL project.\n// For more information, visit https://bgl.example.com\n\n"
+      }
+    }
+  ]
+}

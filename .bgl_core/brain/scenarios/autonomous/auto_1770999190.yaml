@@ -1,0 +1,39 @@
+name: autonomous_1770999190
+kind: ui
+steps:
+- action: goto
+  url: http://localhost:8000/
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: click
+  selector: '#btnCancelPaste'
+  optional: true
+- action: click
+  selector: '#manualGuarantee'
+  optional: true
+- action: scroll
+  dy: 400
+- action: click
+  selector: '#bgl-confirm-no'
+- action: upload
+  selector: '#hiddenFileInput'
+  files:
+  - 19-10-2025.xlsx
+  danger: true
+- action: click
+  selector: '#pasteTestBatchId'
+- action: wait
+  ms: 600
+- action: click
+  selector: input[name="search"]
+  optional: true
+- action: type
+  selector: input[name="search"]
+  text: guarantee
+  optional: true
+  auto_submit: true
+- action: press
+  selector: input[name="search"]
+  key: Enter
+  optional: true

@@ -1,6 +1,6 @@
 {
   "meta": {
-    "started_at": 1770800748.2990813,
+    "started_at": 1770999521.2430806,
     "root": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3",
     "db_path": "C:\\Users\\Bakheet\\Documents\\Projects\\BGL3\\.bgl_core\\brain\\knowledge.db",
     "ok": true
@@ -2514,11 +2514,13 @@
           "__new__",
           "_auto_context_digest",
           "_auto_generate_patch_plans",
+          "_auto_ingest_audit_proposals",
           "_auto_patch_error_experiences",
           "_auto_propose_coverage_gaps",
           "_auto_propose_ui_action_gaps",
           "_auto_run_checks",
           "_execution_stats",
+          "_load_auto_gate_policy",
           "_summarize_code_intent_signals",
           "_summarize_code_temporal_signals",
           "_sync_playbooks_from_proposals",
@@ -2631,6 +2633,7 @@
     },
     ".bgl_core\\brain\\apply_proposal.py": {
       "functions": [
+        "_apply_plan_with_patcher",
         "_auto_run_scenarios_after_apply",
         "_candidate_plan_from_payload",
         "_cfg_flag",
@@ -2649,6 +2652,7 @@
         "_log_learning_event",
         "_parse_status",
         "_patch_risk_summary",
+        "_plan_uses_patcher",
         "_post_apply_evaluate",
         "_read_json",
         "_resolve_plan_from_proposal",
@@ -2659,7 +2663,11 @@
         "_write_eval_artifact",
         "main"
       ],
-      "classes": {},
+      "classes": {
+        "_PatcherResult": [
+          "__init__"
+        ]
+      },
       "imports": [
         "agent_verify",
         "argparse",
@@ -2674,6 +2682,7 @@
         "json",
         "os",
         "patch_plan",
+        "patcher",
         "pathlib",
         "plan_generator",
         "run_lock",
@@ -2702,6 +2711,29 @@
         "shutil",
         "sys",
         "yaml"
+      ]
+    },
+    ".bgl_core\\brain\\audit_to_proposals.py": {
+      "functions": [
+        "_ensure_table",
+        "_extract_section_items",
+        "_insert_proposal",
+        "_load_from_json",
+        "_load_from_markdown",
+        "_load_items",
+        "_slugify",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "argparse",
+        "json",
+        "os",
+        "pathlib",
+        "re",
+        "sqlite3",
+        "time",
+        "typing"
       ]
     },
     ".bgl_core\\brain\\authority.py": {
@@ -2781,6 +2813,25 @@
         "os",
         "pathlib",
         "re",
+        "typing"
+      ]
+    },
+    ".bgl_core\\brain\\auto_apply_pending_plans.py": {
+      "functions": [
+        "_pending_proposals",
+        "_read_json",
+        "main"
+      ],
+      "classes": {},
+      "imports": [
+        "config_loader",
+        "json",
+        "os",
+        "pathlib",
+        "sqlite3",
+        "subprocess",
+        "sys",
+        "time",
         "typing"
       ]
     },
@@ -2888,6 +2939,7 @@
           "_cleanup_idle_pages",
           "_ensure_browser",
           "_install_filechooser_guard",
+          "_install_print_guard",
           "close",
           "get_page",
           "new_page",
@@ -3164,6 +3216,7 @@
         "summarize_log_highlights",
         "summarize_outcomes",
         "summarize_prod_ops",
+        "summarize_retention_events",
         "summarize_route_scan_meta",
         "summarize_runtime_contracts",
         "upsert_experiences"
@@ -3324,12 +3377,14 @@
     },
     ".bgl_core\\brain\\encoding_utils.py": {
       "functions": [
+        "_atomic_write_text",
         "read_text_utf8",
         "write_text_utf8"
       ],
       "classes": {},
       "imports": [
         "__future__",
+        "os",
         "pathlib"
       ]
     },
@@ -3526,6 +3581,7 @@
           "_load_api_contract",
           "_load_context_digest_state",
           "_load_recent_experiences",
+          "_load_retention_state",
           "_load_route_stats",
           "_log_runtime_event",
           "_maybe_record_policy_candidate",
@@ -3540,6 +3596,8 @@
           "_record_expected_failure_trace",
           "_render_example",
           "_request_permission",
+          "_retention_auto_review",
+          "_retention_indicator_metrics",
           "_runtime_profile_summary",
           "_scan_api_route",
           "_sequence_matches",
@@ -3567,6 +3625,7 @@
         "db_utils",
         "decision_db",
         "decision_engine",
+        "failure_classifier",
         "fault_locator",
         "fingerprint",
         "generate_openapi",
@@ -3894,10 +3953,35 @@
         "typing"
       ]
     },
+    ".bgl_core\\brain\\maintenance_cleanup.py": {
+      "functions": [
+        "_as_bool",
+        "_as_int",
+        "_collect_pycache_candidates",
+        "_collect_sqlite_temp_candidates",
+        "_within",
+        "run_cleanup"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "pathlib",
+        "time",
+        "typing"
+      ]
+    },
     ".bgl_core\\brain\\master_verify.py": {
       "functions": [
+        "_acquire_lock_with_timeout",
         "_append_stage_history",
         "_apply_profile_env",
+        "_approvals_disabled",
+        "_atomic_write_json",
+        "_atomic_write_text",
+        "_auto_review",
+        "_build_stub_report",
+        "_cfg_bool",
         "_classify_delta",
         "_collect_timeout_ledger",
         "_compare_reports",
@@ -3909,24 +3993,35 @@
         "_compute_stage_durations",
         "_count_fallback_events",
         "_current_fingerprint_payload",
+        "_exit_report_fallback",
         "_extract_metrics",
+        "_extract_ui_action_coverage",
         "_heartbeat_status",
+        "_is_valid_ui_action_coverage",
         "_last_input_age_sec",
         "_load_baseline_report",
+        "_load_last_valid_ui_action_coverage",
+        "_load_retention_state",
         "_load_scenario_selection",
         "_log_runtime_event",
         "_mark_aborted_if_stale",
+        "_mark_report_written",
         "_read_json",
         "_read_lock_status",
+        "_retention_auto_review",
+        "_retention_indicator_metrics",
+        "_run_post_finalize",
         "_run_with_timeout",
         "_sanitize_baseline_report",
         "_select_profile",
         "_start_lock_heartbeat",
         "_update_status_stage",
         "_user_recent_activity",
+        "_write_cached_report",
         "_write_json",
         "_write_status",
         "log_activity",
+        "log_run_audit",
         "master_assurance_diagnostic"
       ],
       "classes": {
@@ -3942,25 +4037,32 @@
         "contract_tests",
         "ctypes",
         "fingerprint",
+        "gc",
         "generate_openapi",
         "generate_playbooks",
         "json",
+        "maintenance_cleanup",
         "os",
         "pathlib",
         "priority_loop",
         "report_builder",
+        "retention_engine",
         "run_ledger",
         "run_lock",
         "scenario_deps",
         "schema_check",
+        "self_strategy_engine",
+        "socket",
         "sqlite3",
         "subprocess",
         "sys",
         "threading",
         "time",
         "traceback",
+        "typing",
         "urllib.request",
-        "utils"
+        "utils",
+        "warnings"
       ]
     },
     ".bgl_core\\brain\\memory.py": {
@@ -4178,8 +4280,13 @@
           "_refresh_autoload",
           "_run_action",
           "_update_references",
+          "add_import",
           "add_method",
-          "rename_class"
+          "insert_event",
+          "rename_class",
+          "rename_reference",
+          "replace_block",
+          "toggle_flag"
         ]
       },
       "imports": [
@@ -4366,6 +4473,61 @@
         "pathlib",
         "time",
         "typing"
+      ]
+    },
+    ".bgl_core\\brain\\retention_engine.py": {
+      "functions": [
+        "_apply_merge",
+        "_apply_rewrite",
+        "_archive_item",
+        "_backup_file",
+        "_collect_backups",
+        "_collect_insights",
+        "_collect_logs",
+        "_collect_merge_groups",
+        "_collect_patch_plans",
+        "_collect_playbooks",
+        "_collect_rewrite_candidates",
+        "_collect_scenarios",
+        "_collect_snapshots",
+        "_collect_step_stats",
+        "_compute_decay_factor",
+        "_extract_routes_from_steps",
+        "_fingerprint_generic",
+        "_fingerprint_scenario",
+        "_hash_text",
+        "_last_used_ts",
+        "_load_report_signals",
+        "_log_retention_highlight",
+        "_log_runtime_event",
+        "_read_decision_links",
+        "_read_runtime_fallback_stats",
+        "_read_runtime_stats",
+        "_route_key",
+        "_safe_json",
+        "_safe_yaml",
+        "_should_skip_path",
+        "_step_fingerprint",
+        "_summarize_text_file",
+        "_utility_score",
+        "_write_json",
+        "_write_yaml",
+        "run_retention"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "hashlib",
+        "json",
+        "math",
+        "os",
+        "pathlib",
+        "run_lock",
+        "shutil",
+        "sqlite3",
+        "time",
+        "typing",
+        "yaml"
       ]
     },
     ".bgl_core\\brain\\route_indexer.py": {
@@ -4560,6 +4722,7 @@
         "_auto_reindex_routes",
         "_autonomous_enabled",
         "_autonomous_plan_hash",
+        "_blocked_click_reason",
         "_build_reveal_selectors",
         "_build_search_terms",
         "_build_selector_candidates",
@@ -4576,6 +4739,7 @@
         "_derive_outcomes_from_learning",
         "_derive_outcomes_from_runtime",
         "_dom_state_hash",
+        "_download_route_patterns",
         "_ensure_autonomy_goals_table",
         "_ensure_exploration_novelty_table",
         "_ensure_exploration_table",
@@ -4602,6 +4766,7 @@
         "_inject_priority_goto",
         "_is_api_scenario",
         "_is_api_url",
+        "_is_export_download_url",
         "_is_external_url",
         "_is_recent_autonomous_plan",
         "_is_safe_novel_href",
@@ -4621,6 +4786,7 @@
         "_maybe_store_action_snapshot",
         "_maybe_store_semantic_snapshot",
         "_normalize_route_path",
+        "_normalize_step_url",
         "_novelty_score",
         "_pick_goal_strategy",
         "_pop_context",
@@ -4656,6 +4822,7 @@
         "_routes_table_count",
         "_run_goal_scenario_impl",
         "_run_scenario_impl",
+        "_safe_api_get",
         "_sanitize_steps",
         "_score_outcomes",
         "_seed_goals_from_outcome_scores",
@@ -4746,6 +4913,7 @@
         "_collect_global_stats",
         "_collect_runtime_stats",
         "_extract_meta",
+        "_load_retention_blocks",
         "_load_state",
         "_normalize_scenario_key",
         "_read_json",
@@ -4763,6 +4931,7 @@
         "config_loader",
         "dataclasses",
         "json",
+        "math",
         "os",
         "pathlib",
         "sqlite3",
@@ -4816,6 +4985,27 @@
         "pathlib",
         "time",
         "typing"
+      ]
+    },
+    ".bgl_core\\brain\\self_strategy_engine.py": {
+      "functions": [
+        "_derive_auto_gate_policy",
+        "_derive_failure_typing",
+        "_derive_scenario_scores",
+        "_safe_json",
+        "_write_json",
+        "main",
+        "run_self_strategy"
+      ],
+      "classes": {},
+      "imports": [
+        "__future__",
+        "json",
+        "os",
+        "pathlib",
+        "time",
+        "typing",
+        "yaml"
       ]
     },
     ".bgl_core\\brain\\test_gate.py": {
@@ -5814,7 +6004,7 @@
     }
   },
   "risk_summary": {
-    "high": 158,
+    "high": 163,
     "medium": 172,
     "low": 62
   }

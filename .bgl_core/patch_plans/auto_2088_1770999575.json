@@ -1,0 +1,28 @@
+{
+  "version": 1,
+  "id": "patch_plan_2088",
+  "description": "Patch Plan for Proposal ID 2088 - Improving Automation from Experience: button[aria-expanded]:has-text(\"bgl\")",
+  "created_at": 1697539200,
+  "metadata": {
+    "proposal_id": 2088,
+    "generated_by": "llm",
+    "source": "proposal",
+    "generated_at": 1770999575.6442146
+  },
+  "operations": [
+    {
+      "op": "modify",
+      "path": ".bgl_core/brain/scenarios/button_aria_expanded_bgl.yaml",
+      "mode": "append",
+      "content": "\n- event: button[aria-expanded]:has-text(\"bgl\")\n  action: stabilize\n  impact: medium",
+      "match": null,
+      "regex": false,
+      "count": null,
+      "to": null,
+      "meta": {
+        "mode": "append",
+        "content": "\n- event: button[aria-expanded]:has-text(\"bgl\")\n  action: stabilize\n  impact: medium"
+      }
+    }
+  ]
+}
